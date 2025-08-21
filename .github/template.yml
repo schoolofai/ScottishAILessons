@@ -1,0 +1,24 @@
+name: Claude Code Command Template
+description: A structured workflow template for product development using Claude Code AI assistant. Go from idea to implementation through PRDs, task lists, and test-driven development.
+
+labels:
+  - claude-code
+  - workflow-template
+  - tdd
+  - product-development
+  - ai-assisted-development
+
+files:
+  - .claude/
+  - .github/
+  - docs/
+  - tasks/
+
+topics:
+  - development-workflow
+  - product-requirements
+  - test-driven-development
+  - claude-ai
+  - project-template
+  - software-engineering
+  - agile-development

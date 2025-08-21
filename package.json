@@ -1,0 +1,48 @@
+{
+  "name": "claude-code-command-template",
+  "version": "1.0.0",
+  "description": "A structured workflow template for product development using Claude Code AI assistant",
+  "main": "index.js",
+  "scripts": {
+    "validate": "node scripts/validate-template.js",
+    "lint:docs": "markdownlint docs/**/*.md README.md CONTRIBUTING.md",
+    "lint:commands": "node scripts/validate-commands.js",
+    "test:workflow": "node scripts/test-workflow.js",
+    "setup": "node scripts/setup-template.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/claude-code-command-template.git"
+  },
+  "keywords": [
+    "claude-code",
+    "workflow-template",
+    "tdd",
+    "product-development",
+    "ai-assisted-development",
+    "project-template"
+  ],
+  "author": "Claude Code Community",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-username/claude-code-command-template/issues"
+  },
+  "homepage": "https://github.com/your-username/claude-code-command-template#readme",
+  "devDependencies": {
+    "markdownlint-cli2": "^0.12.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    ".claude/",
+    ".github/",
+    "docs/",
+    "tasks/",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md"
+  ]
+}

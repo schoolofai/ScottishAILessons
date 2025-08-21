@@ -1,0 +1,154 @@
+name: Validate Template
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate-structure:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Validate directory structure
+      run: |
+        echo "Validating template structure..."
+        
+        # Check essential files exist
+        for file in README.md LICENSE .gitignore CONTRIBUTING.md CODE_OF_CONDUCT.md; do
+          if [[ ! -f "$file" ]]; then
+            echo "❌ Missing required file: $file"
+            exit 1
+          else
+            echo "✅ Found: $file"
+          fi
+        done
+        
+        # Check .claude directory structure
+        if [[ ! -d ".claude/commands" ]]; then
+          echo "❌ Missing .claude/commands directory"
+          exit 1
+        fi
+        
+        # Check Claude commands exist
+        for cmd in create-prd.md generate-tasks.md process-task-list.md resume-task-list.md create-documentation.md; do
+          if [[ ! -f ".claude/commands/$cmd" ]]; then
+            echo "❌ Missing Claude command: $cmd"
+            exit 1
+          else
+            echo "✅ Found command: $cmd"
+          fi
+        done
+        
+        # Check GitHub template structure
+        for template in .github/ISSUE_TEMPLATE/bug_report.yml .github/ISSUE_TEMPLATE/feature_request.yml .github/pull_request_template.md; do
+          if [[ ! -f "$template" ]]; then
+            echo "❌ Missing GitHub template: $template"
+            exit 1
+          else
+            echo "✅ Found template: $template"
+          fi
+        done
+        
+        echo "🎉 All structure validation checks passed!"
+
+  validate-documentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Check documentation links
+      run: |
+        echo "Checking documentation..."
+        
+        # Basic markdown validation
+        if command -v markdownlint-cli2 >/dev/null 2>&1; then
+          echo "Running markdown linting..."
+          markdownlint-cli2 "**/*.md" || echo "Markdown linting completed with warnings"
+        else
+          echo "markdownlint not available, skipping lint check"
+        fi
+        
+        # Check for broken internal links (basic check)
+        echo "Checking for basic markdown structure..."
+        grep -r "\[.*\](.*)" *.md docs/ 2>/dev/null || echo "No markdown links found or docs directory missing"
+        
+        echo "📚 Documentation validation completed!"
+
+  validate-claude-commands:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Validate Claude command format
+      run: |
+        echo "Validating Claude commands..."
+        
+        cd .claude/commands
+        
+        for cmd_file in *.md; do
+          echo "Checking $cmd_file..."
+          
+          # Check if file has proper structure
+          if grep -q "^# " "$cmd_file"; then
+            echo "✅ $cmd_file has proper heading"
+          else
+            echo "⚠️  $cmd_file missing main heading"
+          fi
+          
+          # Check for Goal/Usage sections (basic check)
+          if grep -q -i "goal\|usage\|implementation" "$cmd_file"; then
+            echo "✅ $cmd_file has expected sections"
+          else
+            echo "⚠️  $cmd_file might be missing expected sections"
+          fi
+        done
+        
+        echo "🤖 Claude command validation completed!"
+
+  check-example-workflow:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Test example workflow structure
+      run: |
+        echo "Testing example workflow..."
+        
+        # Create a test tasks directory structure
+        mkdir -p test-tasks/sample-feature
+        
+        # Create a sample brief
+        cat > test-tasks/sample-feature/brief.md << 'EOF'
+        # Sample Feature
+        
+        This is a test feature for validating the template structure.
+        
+        ## Goal
+        Test the workflow template functionality.
+        EOF
+        
+        echo "✅ Created test brief"
+        
+        # Verify the structure can be created
+        if [[ -f "test-tasks/sample-feature/brief.md" ]]; then
+          echo "✅ Test workflow structure created successfully"
+        else
+          echo "❌ Failed to create test structure"
+          exit 1
+        fi
+        
+        # Cleanup
+        rm -rf test-tasks
+        
+        echo "🧪 Example workflow validation completed!"

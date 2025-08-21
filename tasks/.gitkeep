@@ -1,0 +1,34 @@
+# Tasks Directory
+
+This directory contains feature development workspaces. Each feature gets its own subdirectory with:
+
+- High-level brief (e.g., `feature-brief.md`)
+- Product Requirements Document (e.g., `prd-feature-name.md`)
+- Task list (e.g., `tasks-prd-feature-name.md`)
+- Implementation files
+- Generated documentation
+
+## Example Structure
+
+```
+tasks/
+├── user-authentication/
+│   ├── auth-brief.md
+│   ├── prd-user-auth.md
+│   ├── tasks-prd-user-auth.md
+│   └── README.md
+└── api-integration/
+    ├── integration-brief.md
+    ├── prd-api-integration.md
+    ├── tasks-prd-api-integration.md
+    └── README.md
+```
+
+## Getting Started
+
+1. Create a new directory for your feature: `mkdir tasks/my-feature`
+2. Write a high-level brief: `touch tasks/my-feature/brief.md`
+3. Use Claude Code commands to generate PRD and tasks
+4. Start implementation following the TDD workflow
+
+For detailed instructions, see the [workflow guide](../docs/workflow-guide.md).

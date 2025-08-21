@@ -1,0 +1,85 @@
+name: PRD Creation Request
+description: Request help creating a PRD for your feature
+title: "[PRD Request]: "
+labels: ["prd", "help-wanted"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Need help creating a Product Requirements Document? We can guide you through the process!
+
+  - type: input
+    id: feature_name
+    attributes:
+      label: Feature Name
+      description: What's the name of your feature?
+      placeholder: e.g., User Authentication System
+    validations:
+      required: true
+
+  - type: textarea
+    id: brief_description
+    attributes:
+      label: Brief Description
+      description: High-level description of what you want to build
+      placeholder: |
+        A few sentences describing your feature idea. For example:
+        "I want to add a user authentication system that allows users to register, login, and manage their profiles securely."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: project_type
+    attributes:
+      label: Project Type
+      description: What type of project is this for?
+      options:
+        - Web application (React/Vue/Angular)
+        - Mobile app (React Native/Flutter)
+        - Backend API (Node.js/Python/Go)
+        - Desktop application
+        - CLI tool
+        - Other (specify in additional context)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: help_needed
+    attributes:
+      label: What help do you need?
+      description: Select all that apply
+      options:
+        - label: Help writing the initial brief
+        - label: Guidance on PRD structure
+        - label: Technical requirements clarification
+        - label: Task breakdown assistance
+        - label: Implementation guidance
+
+  - type: textarea
+    id: target_users
+    attributes:
+      label: Target Users
+      description: Who will use this feature?
+      placeholder: e.g., End users, administrators, developers
+
+  - type: textarea
+    id: main_goals
+    attributes:
+      label: Main Goals
+      description: What are you trying to achieve?
+      placeholder: |
+        List the key objectives, for example:
+        - Secure user authentication
+        - Easy user registration process
+        - Profile management capabilities
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: |
+        - Existing codebase details
+        - Constraints or requirements
+        - Timeline considerations
+        - Technology preferences
