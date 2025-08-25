@@ -1,9 +1,14 @@
-# LangGraph Chat Application with Assistant-UI Frontend
+# LangGraph Chat Applications - Official + Self-Hosted
 
 [![CI](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml)
 [![Integration Tests](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml)
 
-A full-stack chat application template combining [LangGraph](https://github.com/langchain-ai/langgraph) Python backend with [Assistant-UI](https://www.assistant-ui.com/) React frontend. This template provides a complete foundation for building AI-powered conversational applications with streaming support, thread management, and visual debugging capabilities.
+This repository provides **two complete LangGraph implementations** for building AI-powered conversational applications:
+
+1. **Official LangGraph** - Managed cloud service with LangGraph Studio
+2. **Aegra** - Self-hosted alternative with PostgreSQL persistence
+
+Both systems feature streaming support, thread management, and modern React frontends powered by [Assistant-UI](https://www.assistant-ui.com/).
 
 <div align="center">
   <img src="./static/studio_ui.png" alt="Graph view in LangGraph studio UI" width="75%" />
@@ -14,29 +19,22 @@ A full-stack chat application template combining [LangGraph](https://github.com/
 ### Prerequisites
 - **Python 3.11+** installed
 - **Node.js 18+** and npm installed
+- **Docker** for Aegra's PostgreSQL database
 - **Git** for version control
 - A code editor (VS Code recommended)
 
-### Option 1: One-Command Startup (Easiest) 🎯
+### 🎯 Choose Your Implementation
 
-We provide startup scripts that handle everything automatically:
-
-#### macOS/Linux:
+#### Option 1: Official LangGraph
 ```bash
 cd langgraph-agent
 ./start.sh
 ```
 
-#### Windows:
-```batch
-cd langgraph-agent
-start.bat
-```
-
-#### Cross-platform (Python):
+#### Option 2: Aegra (Self-hosted)  
 ```bash
-cd langgraph-agent
-python start.py
+cd aegra-agent
+./start-aegra.sh
 ```
 
 These scripts will:
@@ -86,10 +84,18 @@ cd assistant-ui-frontend
 npm run dev
 ```
 
-Your application is now running:
+### 🌐 URLs & Ports
+
+#### Official LangGraph:
 - 🎯 **Frontend**: http://localhost:3000
 - 🔧 **Backend API**: http://localhost:2024
 - 📊 **LangGraph Studio**: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024
+
+#### Aegra (Self-hosted):
+- 🎯 **Frontend**: http://localhost:3001
+- 🔧 **Backend API**: http://localhost:8000
+- 📖 **API Docs**: http://localhost:8000/docs
+- 🗄️ **PostgreSQL**: localhost:5432
 
 ### Option 2: Create From Scratch
 
@@ -234,44 +240,69 @@ npm run dev
 - **[OpenAI Integration](https://python.langchain.com/docs/integrations/platforms/openai/)** - Use OpenAI models
 - **[Anthropic Integration](https://python.langchain.com/docs/integrations/platforms/anthropic/)** - Use Claude models
 
+### Aegra (Self-hosted)
+
+- **[Aegra GitHub](https://github.com/ibbybuilds/aegra)** - Self-hosted LangGraph alternative
+- **[Agent Protocol](https://www.agentprotocol.ai/)** - Standard for agent communication
+- **[Docker Documentation](https://docs.docker.com/)** - Container deployment guide
+- **[PostgreSQL Docs](https://www.postgresql.org/docs/)** - Database configuration
+
+## 📊 Implementation Comparison
+
+| Feature | Official LangGraph | Aegra (Self-hosted) |
+|---------|-------------------|-------------------|
+| **Deployment** | Managed cloud service | Self-hosted Docker |
+| **Database** | Managed | PostgreSQL (you control) |
+| **Cost** | Pay-per-use | Infrastructure only |
+| **Data Control** | Vendor-managed | Full ownership |
+| **Debugging** | LangGraph Studio | API docs + logs |
+| **Authentication** | Built-in | Configurable (noop/custom) |
+| **Scaling** | Automatic | Manual |
+| **Setup Time** | ~2 minutes | ~5 minutes |
+| **Customization** | Limited | Full control |
+| **Vendor Lock-in** | Yes | No |
+
 ## 🛠️ Project Structure
 
 ```
-langgraph-agent/
-├── src/
-│   └── agent/
-│       ├── __init__.py
-│       └── graph.py              # Main graph logic (customize here)
-├── assistant-ui-frontend/        # Next.js frontend application
-│   ├── app/
-│   │   ├── page.tsx             # Main chat interface
-│   │   └── layout.tsx           # App layout
-│   ├── components/
-│   │   ├── MyAssistant.tsx     # Main assistant component
-│   │   └── assistant-ui/       # UI components
-│   ├── lib/
-│   │   └── chatApi.ts          # LangGraph API client
-│   ├── .env.local              # Frontend environment variables
-│   └── package.json
-├── tests/                       # Backend tests
-├── start.sh                    # macOS/Linux startup script
-├── start.bat                   # Windows startup script
-├── start.py                    # Cross-platform Python startup script
-├── .env                        # Backend environment variables
-├── langgraph.json              # LangGraph configuration
-├── pyproject.toml              # Python project configuration
-└── README.md                   # This file
+ScottishAILessons/
+├── langgraph-agent/                    # Official LangGraph
+│   ├── src/agent/graph.py             # Graph logic
+│   ├── assistant-ui-frontend/         # Frontend (port 3000)
+│   ├── start.sh                       # Startup script
+│   └── .env                           # Environment config
+├── aegra-agent/                        # Self-hosted Aegra (Git Submodule)
+│   ├── graphs/chat_agent.py          # Chat agent implementation
+│   ├── start-aegra.sh                # Aegra startup script
+│   ├── docker-compose.yml            # PostgreSQL config
+│   └── .env                           # Environment config
+├── assistant-ui-frontend-aegra/       # Aegra frontend (port 3001)
+│   ├── .env.local                     # Aegra backend config
+│   └── package.json                   # Port 3001 config
+└── README.md                          # This file
 ```
 
 ## 🎯 Key Features
 
+### Both Implementations
 - **🔄 Real-time Streaming**: Messages stream from backend to frontend
 - **💬 Thread Management**: Conversation history and context preservation
-- **🎨 Modern UI**: Clean, responsive chat interface
-- **🔍 Visual Debugging**: LangGraph Studio integration for graph visualization
+- **🎨 Modern UI**: Clean, responsive chat interface powered by Assistant-UI
 - **🚀 Hot Reload**: Both frontend and backend support hot reloading
 - **📊 State Management**: Robust state handling with LangGraph
 - **🔌 Extensible**: Easy to add LLM providers and custom logic
+
+### Official LangGraph Exclusive
+- **🔍 Visual Debugging**: LangGraph Studio integration for graph visualization
+- **☁️ Cloud Managed**: No infrastructure management required
+- **📈 Auto-scaling**: Handles traffic spikes automatically
+
+### Aegra Exclusive
+- **🏠 Self-hosted**: Full control over your infrastructure
+- **🗄️ PostgreSQL**: Persistent storage with full database control
+- **🔓 Zero Vendor Lock-in**: Open source with Apache 2.0 license
+- **🛡️ Data Sovereignty**: Your data never leaves your infrastructure
+- **💰 Cost Control**: Pay only for your infrastructure costs
 
 ## 💡 Customization Guide
 
@@ -415,4 +446,82 @@ This project is licensed under the MIT License.
 
 ---
 
-**Need help?** Check the [LangGraph Discord](https://discord.gg/langchain) or [Assistant-UI GitHub](https://github.com/Yonom/assistant-ui)
+## 🤔 Which Implementation Should You Choose?
+
+### Choose **Official LangGraph** if you:
+- ✅ Want the fastest setup (2 minutes)
+- ✅ Prefer managed services
+- ✅ Need LangGraph Studio for visual debugging
+- ✅ Don't want to manage infrastructure
+- ✅ Are prototyping or doing small projects
+
+### Choose **Aegra** if you:
+- ✅ Need full control over your data
+- ✅ Want to avoid vendor lock-in
+- ✅ Have specific compliance requirements
+- ✅ Want to minimize long-term costs
+- ✅ Need custom authentication/authorization
+- ✅ Want to run on-premises
+
+### Run **Both** if you:
+- ✅ Want to compare implementations
+- ✅ Are evaluating which approach to use
+- ✅ Want to learn different deployment strategies
+- ✅ Need a migration path between systems
+
+## 🎯 Quick Commands Summary
+
+```bash
+# Official LangGraph only
+cd langgraph-agent && ./start.sh
+
+# Aegra (self-hosted) only
+cd aegra-agent && ./start-aegra.sh
+```
+
+## 🔗 Git Submodule Management
+
+The `aegra-agent/` directory is managed as a Git submodule using our fork at `https://github.com/schoolofai/aegra.git`. This allows us to:
+
+- Keep sync with upstream Aegra development
+- Version control our customizations
+- Maintain clean separation between upstream and local changes
+
+### Submodule Commands
+
+```bash
+# Clone repository with submodules
+git clone --recurse-submodules https://github.com/schoolofai/ScottishAILessons.git
+
+# Initialize submodules (if already cloned)
+git submodule update --init --recursive
+
+# Update submodule to latest from fork
+git submodule update --remote aegra-agent
+
+# Work on Aegra customizations
+cd aegra-agent
+# Make changes, commit, and push to fork
+git add . && git commit -m "Custom changes" && git push
+
+# Update main repo to reference new submodule commit
+cd ..
+git add aegra-agent && git commit -m "Update Aegra submodule"
+```
+
+### Syncing with Upstream
+
+To sync your fork with the original Aegra repository:
+
+```bash
+cd aegra-agent
+git remote add upstream https://github.com/ibbybuilds/aegra.git
+git fetch upstream
+git checkout main
+git merge upstream/main
+git push origin main
+```
+
+---
+
+**Need help?** Check the [LangGraph Discord](https://discord.gg/langchain), [Assistant-UI GitHub](https://github.com/Yonom/assistant-ui), or [Aegra Repository](https://github.com/ibbybuilds/aegra)
