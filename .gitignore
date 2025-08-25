@@ -51,6 +51,9 @@ Thumbs.db
 # Logs
 logs
 *.log
+aegra-backend.log
+aegra-frontend.log
+aegra-frontend-install.log
 
 # Temporary files
 tmp/

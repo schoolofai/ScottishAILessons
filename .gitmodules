@@ -1,0 +1,3 @@
+[submodule "aegra-agent"]
+	path = aegra-agent
+	url = https://github.com/schoolofai/aegra.git
