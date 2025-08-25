@@ -3,9 +3,7 @@
 Handles chat messages and provides responses.
 """
 
-from __future__ import annotations
-
-from typing import TypedDict
+from typing import TypedDict, List
 try:
     from typing import Annotated
 except ImportError:
@@ -15,6 +13,9 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 
+# Define the type annotation with explicit imports to avoid forward reference issues
+MessageList = Annotated[List[BaseMessage], add_messages]
+
 
 class State(TypedDict):
     """State for the chat agent.
@@ -22,7 +23,7 @@ class State(TypedDict):
     Messages are handled with the add_messages reducer which 
     manages message history and updates.
     """
-    messages: Annotated[list[BaseMessage], add_messages]
+    messages: MessageList
 
 
 async def chat_node(state: State) -> dict:
