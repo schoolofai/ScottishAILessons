@@ -262,6 +262,59 @@ npm run dev
 | **Customization** | Limited | Full control |
 | **Vendor Lock-in** | Yes | No |
 
+## 🔄 Event Protocol Differences
+
+Understanding the key architectural differences between Official LangGraph and Aegra is crucial for developers, especially when integrating with frontends or building custom agents.
+
+### Backend Event Protocols
+
+**Official LangGraph Platform**:
+- `event: values` → Accepts complete messages with `"type": "ai"`
+- Used for final state snapshots and non-streaming responses  
+- Automatically detects response type and chooses appropriate event
+- Smart event selection based on message completion
+
+**Aegra (Self-hosted)**:
+- `event: messages` → Expects streaming-compatible messages with `"type": "AIMessageChunk"`
+- Optimized for streaming responses (even single chunks)
+- Consistent streaming-first approach
+- Uniform event handling regardless of message size
+
+### Frontend Compatibility
+
+Both systems use **identical frontend code** (`@langchain/langgraph-sdk`), but the SDK handles different event types differently:
+
+```typescript
+// Simplified SDK behavior
+if (event === "values") {
+    // Handles complete messages: {"type": "ai", ...}
+    processCompleteMessage(data.messages);
+} else if (event === "messages") {
+    // Handles streaming chunks: {"type": "AIMessageChunk", ...}  
+    processStreamingChunk(data);
+}
+```
+
+### Developer Implications
+
+**When building agents for Aegra**:
+- Ensure your agent returns `AIMessageChunk` for frontend compatibility
+- Use streaming-compatible message formats even for single responses
+- Leverage Aegra's consistent streaming architecture
+- Convert `AIMessage` → `AIMessageChunk` in wrapper functions if needed
+
+**When building agents for Official LangGraph**:
+- Can return either `AIMessage` or `AIMessageChunk` 
+- Platform automatically handles event type selection
+- Streaming and non-streaming responses both supported natively
+
+**When migrating between systems**:
+- Official LangGraph → Aegra: Convert message types in agent wrappers
+- Aegra → Official LangGraph: No changes needed (backward compatible)
+- Shared agents: Use wrapper functions to handle format differences
+
+This architectural difference allows Aegra to maintain predictable streaming behavior while Official LangGraph provides more flexible response handling. Both approaches are valid and serve different deployment needs.
+
 ## 🛠️ Project Structure
 
 ```
