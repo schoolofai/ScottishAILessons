@@ -118,16 +118,10 @@ if [ ! -d "node_modules" ]; then
     echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 fi
 
-# Check if .env.local exists
-if [ ! -f ".env.local" ]; then
-    echo -e "${YELLOW}Creating .env.local for frontend...${NC}"
-    cat > .env.local << EOF
-# Frontend environment variables
-NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
-NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=agent
-EOF
-    echo -e "${GREEN}✅ Frontend configuration created${NC}"
-fi
+# Configure frontend environment for LangGraph
+echo -e "${YELLOW}Configuring frontend environment for LangGraph...${NC}"
+cp .env.local.langgraph .env.local
+echo -e "${GREEN}✅ LangGraph frontend configuration applied${NC}"
 
 # Start frontend server
 echo -e "${GREEN}🚀 Starting Assistant-UI frontend...${NC}"
