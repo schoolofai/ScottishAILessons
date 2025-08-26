@@ -2,9 +2,13 @@
 
 This module creates an Aegra-compatible agent using the shared chat logic,
 with the test scaffolding that Aegra requires for proper initialization.
+Includes AIMessage → AIMessageChunk conversion for frontend compatibility.
 """
 
+from typing import TypedDict, List
+from langchain_core.messages import BaseMessage
 from langgraph.graph import StateGraph, END
+from langchain_core.runnables import RunnableConfig
 
 # Handle both relative and absolute imports
 try:
@@ -19,10 +23,35 @@ except ImportError:
     from shared_chat_logic import ChatState, chat_node
 
 
+async def aegra_chat_node(state: ChatState, config: RunnableConfig | None = None) -> ChatState:
+    """Aegra chat node that converts AIMessage to AIMessageChunk for frontend compatibility."""
+    # Use shared chat_node
+    result = await chat_node(state)
+    
+    # Convert AIMessage to AIMessageChunk for Aegra streaming compatibility
+    messages = result.get("messages", [])
+    if messages and len(messages) > 0:
+        from langchain_core.messages import AIMessageChunk
+        last_msg = messages[-1]
+        
+        # Check if the last message is an AI message that needs conversion
+        if hasattr(last_msg, 'type') and last_msg.type == 'ai':
+            # Create an AIMessageChunk with proper format
+            chunk = AIMessageChunk(
+                content=last_msg.content,
+                # Add run-- prefix to match expected format
+                id=f"run--{last_msg.id}" if hasattr(last_msg, 'id') and last_msg.id else f"run--{id(last_msg)}"
+            )
+            # Return messages with the converted chunk
+            return {"messages": messages[:-1] + [chunk]}
+    
+    return result
+
+
 def create_chat_graph():
     """Create the chat graph with Aegra-compatible structure."""
     workflow = StateGraph(ChatState)
-    workflow.add_node("chat", chat_node)
+    workflow.add_node("chat", aegra_chat_node)  # Use wrapper instead of raw chat_node
     workflow.set_entry_point("chat")
     workflow.add_edge("chat", END)
     return workflow.compile()
