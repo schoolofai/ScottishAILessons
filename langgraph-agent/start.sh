@@ -110,11 +110,11 @@ done
 
 # Check if frontend dependencies are installed
 echo -e "${GREEN}⚛️  Setting up frontend...${NC}"
-cd assistant-ui-frontend
+cd ../assistant-ui-frontend
 
 if [ ! -d "node_modules" ]; then
     echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-    npm install --legacy-peer-deps &> ../frontend-install.log
+    npm install --legacy-peer-deps &> ../langgraph-agent/frontend-install.log
     echo -e "${GREEN}✅ Frontend dependencies installed${NC}"
 fi
 
@@ -125,8 +125,8 @@ echo -e "${GREEN}✅ LangGraph frontend configuration applied${NC}"
 
 # Start frontend server
 echo -e "${GREEN}🚀 Starting Assistant-UI frontend...${NC}"
-touch ../frontend.log  # Create log file if it doesn't exist
-npm run dev &> ../frontend.log &
+touch ../langgraph-agent/frontend.log  # Create log file if it doesn't exist
+npm run dev &> ../langgraph-agent/frontend.log &
 FRONTEND_PID=$!
 
 # Wait for frontend to be ready
