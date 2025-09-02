@@ -6,7 +6,20 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:smoke": "playwright test tests/smoke-tests.spec.ts",
+    "test:auth": "playwright test tests/auth-flows.spec.ts",
+    "test:security": "playwright test tests/security.spec.ts",
+    "test:ui": "playwright test tests/landing.spec.ts",
+    "test:e2e": "playwright test tests/e2e-real-auth.spec.ts",
+    "test:e2e:headed": "playwright test tests/e2e-real-auth.spec.ts --headed",
+    "test:report": "playwright show-report",
+    "test:install": "playwright install",
+    "test:parallel": "playwright test --workers=4",
+    "test:serial": "playwright test --workers=1"
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.3.10",
@@ -18,9 +31,12 @@
     "@radix-ui/react-slot": "^1.2.0",
     "@radix-ui/react-tooltip": "^1.2.0",
     "ai": "^4.3.5",
+    "appwrite": "^19.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cookie": "^1.0.2",
     "framer-motion": "^12.23.9",
+    "js-cookie": "^3.0.5",
     "lucide-react": "^0.487.0",
     "next": "15.3.0",
     "react": "^19.0.0",
@@ -31,13 +47,17 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.48.0",
     "@tailwindcss/postcss": "^4",
+    "@types/cookie": "^0.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.3.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "uuid": "^11.1.0"
   }
 }

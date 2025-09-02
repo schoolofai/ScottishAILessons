@@ -29,7 +29,9 @@
   },
   "homepage": "https://github.com/your-username/claude-code-command-template#readme",
   "devDependencies": {
-    "markdownlint-cli2": "^0.12.1"
+    "@types/uuid": "^10.0.0",
+    "markdownlint-cli2": "^0.12.1",
+    "uuid": "^11.1.0"
   },
   "engines": {
     "node": ">=18.0.0"
