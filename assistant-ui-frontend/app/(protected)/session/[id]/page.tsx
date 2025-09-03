@@ -1,5 +1,5 @@
 import { Header } from "@/components/ui/header";
-import { LessonRunner } from "@/components/lesson/LessonRunner";
+import { SessionChatAssistant } from "@/components/SessionChatAssistant";
 
 interface SessionPageProps {
   params: Promise<{
@@ -14,7 +14,7 @@ export default async function SessionPage({ params }: SessionPageProps) {
     <div className="h-dvh flex flex-col">
       <Header />
       <main className="flex-1 overflow-hidden">
-        <LessonRunner sessionId={id} />
+        <SessionChatAssistant sessionId={id} />
       </main>
     </div>
   );

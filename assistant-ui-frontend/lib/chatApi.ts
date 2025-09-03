@@ -3,6 +3,7 @@ import {
   LangChainMessage,
   LangGraphCommand,
 } from "@assistant-ui/react-langgraph";
+import { SessionContext } from "@/components/MyAssistant";
 
 const createClient = () => {
   const apiUrl =
@@ -29,17 +30,24 @@ export const sendMessage = async (params: {
   threadId: string;
   messages?: LangChainMessage[];
   command?: LangGraphCommand | undefined;
+  sessionContext?: SessionContext;
 }) => {
   const client = createClient();
+  
+  // Prepare input with session context if provided
+  const input: any = {};
+  if (params.messages?.length) {
+    input.messages = params.messages;
+  }
+  if (params.sessionContext) {
+    input.session_context = params.sessionContext;
+  }
+  
   return client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
-      input: params.messages?.length
-        ? {
-            messages: params.messages,
-          }
-        : null,
+      input: Object.keys(input).length > 0 ? input : null,
       command: params.command,
       streamMode: ["messages", "updates"],
     }

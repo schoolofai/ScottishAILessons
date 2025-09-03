@@ -7,8 +7,27 @@ import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 
-export function MyAssistant() {
-  const threadIdRef = useRef<string | undefined>(undefined);
+export interface SessionContext {
+  session_id: string;
+  student_id: string;
+  lesson_snapshot: any;
+  current_card_index: number;
+  current_card: any;
+}
+
+export interface MyAssistantProps {
+  sessionId?: string;
+  threadId?: string;
+  sessionContext?: SessionContext;
+}
+
+export function MyAssistant({ 
+  sessionId, 
+  threadId: initialThreadId, 
+  sessionContext 
+}: MyAssistantProps = {}) {
+  const threadIdRef = useRef<string | undefined>(initialThreadId);
+  
   const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (messages, { command }) => {
@@ -21,6 +40,7 @@ export function MyAssistant() {
         threadId,
         messages,
         command,
+        sessionContext, // Pass session context to chat API
       });
     },
     onSwitchToNewThread: async () => {

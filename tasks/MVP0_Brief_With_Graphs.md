@@ -18,13 +18,15 @@ At **National 3**, SQA emphasises simple fractions/percentages (e.g., ½, ¼, 1/
 ## Solution Overview
 Deliver a minimal, end-to-end product slice:
 
-- **Frontend (Next.js)**: assistant-style lesson UI using a **Lesson Card** flow + chat (LangGraph adaptor).
+- **Frontend (Next.js)**: **Chat interface** where LangGraph agent delivers lessons conversationally (no custom card UI).
 - **Auth**: ✅ Email/Password + Google + SMTP recovery (already working).
 - **Persistence (Appwrite)**: students, courses, enrollments, lesson_templates, sessions (with **lessonSnapshot**), evidence (attempts), mastery.
-- **LLM Graph (LangGraph)**: 4 nodes (**Design → Deliver → Mark → Progress**). **Deliver** contains a sub-loop that adapts with hints/scaffolds until correct, pause, or attempt-limit.
-- **Seed**: a published **Nat 3** lesson aligned to **H225 73 Numeracy** (simple conversions, rounding to 2 d.p.) and **HV7Y 73 Manage Money & Data** (best-deal decision).
+- **LLM Graph (LangGraph)**: 4 nodes (**Design → Deliver → Mark → Progress**). Agent presents lesson cards as **chat messages** with CFU prompts.
+- **Seed**: Pre-seeded **Nat 3** lesson available on dashboard, opens as chat session aligned to **H225 73 Numeracy** and **HV7Y 73 Manage Money & Data**.
 
-**Outcome:** A learner can complete a 10–15 min micro-lesson, receive feedback, and see mastery updated—then resume later.
+**User Flow:** Dashboard → "Continue Learning" or start new lesson → **Chat interface** where agent guides through lesson cards conversationally.
+
+**Outcome:** A learner completes a 10–15 min micro-lesson through **chat conversation**, with progress saved and resumable via threadId.
 
 ---
 
@@ -47,34 +49,80 @@ Deliver a minimal, end-to-end product slice:
 
 ## Technical Architecture
 
+### Frontend-Driven Integration Pattern
+**Core Principle:** Frontend orchestrates both persistence (Appwrite) and AI processing (LangGraph) without direct connection between the two services.
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│    Frontend     │────▶│    Appwrite     │  (Single source of truth)
+│  (LessonRunner) │◀────│   (Sessions,    │  • All persistent data
+│                 │     │    Evidence,    │  • Session → threadId mapping
+│                 │     │    ThreadIDs)   │  • Progress tracking
+│                 │     └─────────────────┘
+│                 │     
+│                 │     ┌─────────────────┐
+│                 │────▶│   LangGraph     │  (AI processing only)
+│                 │◀────│   (Teaching     │  • Receives context from frontend
+└─────────────────┘     │    Logic)       │  • Returns intelligent responses
+                        └─────────────────┘  • No persistence responsibility
+```
+
 ### System Components
 ```
 apps/web (Next.js)
 ├─ app/(routes)/dashboard            # SSR dashboard (requires auth cookie)
-├─ app/(routes)/session/[id]         # Lesson runner (SSR+CSR)
+├─ app/(routes)/session/[id]         # Chat interface for lessons (SSR+CSR)
 ├─ app/api/chat/route.ts             # SSE proxy to LangGraph
-├─ components/assistant-ui           # Chat & lesson controls (calm UI)
-├─ components/lesson-card            # Explainer + CFU + feedback
+├─ components/assistant-ui           # Chat interface (lesson delivery + general chat)
 ├─ lib/appwrite.ts                   # Admin, session clients
 └─ lib/db.ts                         # CRUD for Appwrite collections
 
 Appwrite (managed)
 ├─ Auth ✅                            # Email/Password, Google, SMTP recovery
 └─ Databases                         # students, courses, enrollments, lesson_templates,
-                                     # sessions, evidence, mastery
+                                     # sessions (+ threadId), evidence, mastery
 
 LangGraph (managed)
 └─ Graph                             # Design → Delivery(sub-graph) → Mark → Progress (+checkpointing)
+                                     # Receives session_context from frontend
+                                     # Returns AI responses without persistence
 ```
 
-### Data Flow (happy path)
+### Data Flow (Chat-Driven Lesson Delivery)
 ```
-User (authed) → Dashboard → Start “Nat 3 Money Conversions” session
-1) Ensure student + course + enrollment exist
-2) Create session with lessonSnapshot (from lesson_template)
-3) Stream LangGraph (SSE) for lesson orchestration
-4) Deliver CFU → Mark deterministically → Persist evidence → Update mastery
-5) Session close → Progress summary on dashboard
+User (authed) → Dashboard → "Continue Learning" or start "Nat 3 Money Conversions"
+1) Frontend: Load session + threadId → Open chat interface at /session/[id]
+2) Chat Interface: Connect to LangGraph thread → Agent greets and starts lesson
+3) Agent: "Let's start with equivalences. Write 0.2 as a fraction in simplest form."
+4) User: Types response → LangGraph processes → Agent provides feedback
+5) Agent: Continues through lesson cards conversationally → Updates progress in Appwrite
+6) Session complete: Agent summarizes → Returns to dashboard with updated mastery
+```
+
+### Chat-Driven Lesson Flow
+```
+Dashboard Action                    Appwrite Storage              Chat Interface
+───────────────                     ─────────────────             ─────────────
+"Start Lesson"                 →    Create Session Record    →    Open Chat at /session/[id]
+                                    {                             Connect to threadId
+                                      sessionId: "sess_123",      
+                                      threadId: "thread_abc",     Agent: "Hi! Ready to work on
+                                      lessonSnapshot: {...},             fractions and money?"
+                                      currentCardIndex: 0         
+                                    }                             
+
+"Continue Learning"            →    Load Existing Session    →    Resume Chat Thread
+                                    {                             Load conversation history
+                                      sessionId: "sess_456",      
+                                      threadId: "thread_xyz",     Agent: "Let's continue where 
+                                      currentCardIndex: 2              we left off..."
+                                    }
+
+User types in chat            →    Agent processes via         →    Real-time conversation
+                                   LangGraph thread                 "1/5"
+                                   Records evidence                 
+                                   Updates progress                 Agent: "Excellent! Now let's
+                                                                           try a money problem..."
 ```
 
 ---
@@ -104,15 +152,20 @@ interface LessonCard {
 // Runtime
 interface Session {
   $id:string; studentId:string; courseId:string; lessonTemplateId?:string;
+  threadId:string;                                   // ← NEW: Links to LangGraph thread
+  currentCardIndex:number;                           // ← NEW: Progress tracking
   startedAt:string; endedAt?:string; stage:"design"|"deliver"|"mark"|"progress"|"done";
   lessonSnapshot:{ title:string; outcomeRefs:LessonTemplate["outcomeRefs"]; cards:LessonCard[]; templateVersion?:number };
-  graphRunId?:string; schema_version:1;
+  schema_version:1;
 }
 interface Evidence {
   $id:string; sessionId:string; itemId:string; response:string;
   correct:boolean; score:number; outcomeScores:Record<string,number>;
   attemptIndex:number; strategy:"baseline"|"hint"|"scaffold"|"regenerate";
-  misconceptionTag?:string; submittedAt:string; feedback?:string; schema_version:1;
+  feedback?:string;                                  // ← AI-generated feedback
+  attempts:number;                                   // ← Attempt tracking
+  aiProcessed:boolean;                               // ← NEW: Processed by LangGraph
+  misconceptionTag?:string; submittedAt:string; schema_version:1;
 }
 interface Mastery { $id:string; studentId:string; courseId:string; outcomeId:string; ema:number; updatedAt:string; schema_version:1; }
 ```
@@ -189,6 +242,55 @@ entry  -------> |  generate_variant  |
 
 ---
 
+## Chat Interface Integration
+
+### Dashboard → Chat Session Flow
+1. **Dashboard loads available lessons** → Pre-seeded "Nat 3 Money Conversions" appears
+2. **User clicks lesson** → Creates session with threadId → Redirects to `/session/[id]`
+3. **Chat interface loads** → Connects to LangGraph thread → Agent begins conversation
+4. **"Continue Learning" shows existing sessions** → Loads threadId to resume conversation
+
+### Chat Component Responsibilities
+```typescript
+// /session/[id] page loads chat with session context
+const ChatSession = ({ sessionId }: { sessionId: string }) => {
+  // Load session from Appwrite to get threadId
+  const session = await getSession(sessionId);
+  
+  // Connect chat to LangGraph thread
+  return (
+    <AssistantUI 
+      threadId={session.threadId}
+      sessionContext={{
+        sessionId: session.$id,
+        lessonSnapshot: session.lessonSnapshot,
+        currentCardIndex: session.currentCardIndex
+      }}
+    />
+  );
+};
+```
+
+### Conversational Lesson Flow
+```
+Agent: "Hi! Ready to learn about fractions and money? Let's start with equivalences."
+Agent: "Write 0.2 as a fraction in simplest form."
+User: "1/5"
+Agent: "Perfect! 0.2 = 1/5. Now let's try money problems..."
+Agent: "If something costs £18 and has 10% off, what's the sale price?"
+User: "£16.20" 
+Agent: "Excellent! You rounded to 2 decimal places correctly..."
+```
+
+### Benefits of Chat-Driven Lessons
+- ✅ **Natural Conversation**: Lessons feel like tutoring, not forms to fill
+- ✅ **Adaptive Feedback**: Agent can provide hints and encouragement contextually
+- ✅ **Progressive Disclosure**: Information revealed conversationally as needed
+- ✅ **Resumable**: Chat history maintains lesson context across sessions
+- ✅ **Unified Interface**: Same chat UI for lessons and general questions
+
+---
+
 ## Onboarding & Seeding (first login)
 1) Ensure **Student** doc for Appwrite user.
 2) Ensure **Course** (**C844 73**) exists (Nat 3 AoM).
@@ -202,16 +304,19 @@ entry  -------> |  generate_variant  |
 
 **Phase 1 — Spine**
 - Collections/indexes/ACL in Appwrite
-- Seed **Course** + **LessonTemplate**
-- Pages: `/dashboard`, `/session/[id]`, `/api/chat` (SSE)
-- Graph: **Design → Delivery(sub) → Mark → Progress**
+- Seed **Course** + **LessonTemplate** (pre-populated on dashboard)
+- Pages: `/dashboard` (shows available/continuing lessons), `/session/[id]` (chat interface)
+- **Chat Interface**: Connect AssistantUI to LangGraph threads with session context
+- Graph: **Design → Delivery(sub) → Mark → Progress** (delivers lesson cards conversationally)
 
 **Phase 2 — Minimal Pedagogy**
-- 3 cards (equivalences; 10% off; best-deal) + deterministic marking
-- Store **Evidence** per attempt; simple **EMA** update per outcome
+- Agent presents 3 cards conversationally: equivalences; 10% off; best-deal
+- **Chat-driven CFU**: Agent prompts, user responds, agent provides feedback
+- Store **Evidence** per chat interaction; simple **EMA** update per outcome
 
 **Phase 3 — UX polish**
-- Quiet mode; large-text toggle; error toasts; resume flows on dashboard
+- **Chat enhancements**: Quiet mode; large-text toggle; typing indicators
+- **Dashboard polish**: Clear "Continue Learning" vs new lessons; progress indicators
 
 ---
 
