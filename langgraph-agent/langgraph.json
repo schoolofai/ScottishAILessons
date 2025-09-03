@@ -1,8 +1,15 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "../agents/langgraph_agent.py:graph"
+    "agent": "./src/agent/graph.py:graph"
   },
   "env": ".env",
-  "image_distro": "wolfi"
+  "image_distro": "wolfi",
+  "platform": {
+    "enabled": true,
+    "checkpointer": "postgres",
+    "storage": {
+      "type": "postgres"
+    }
+  }
 }

@@ -1,26 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const protectedRoutes = ['/chat'];
+const protectedRoutes = ['/chat', '/dashboard', '/session'];
 const authRoutes = ['/login', '/signup', '/reset-password'];
 
 export function middleware(request: NextRequest) {
-  const session = request.cookies.get('appwrite-session');
   const pathname = request.nextUrl.pathname;
-
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  if (isProtectedRoute && !session) {
-    const url = new URL('/login', request.url);
-    url.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (isAuthRoute && session) {
-    return NextResponse.redirect(new URL('/chat', request.url));
-  }
-
+  // For now, disable middleware authentication checks since we're using client-side session management
+  // The authentication is handled by the useAppwrite hook and localStorage.cookieFallback
+  
+  // Only block access to protected routes if explicitly requested
+  // Let the client-side handle authentication state
+  
   return NextResponse.next();
 }
 

@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/appwrite';
 
 export function useLogout() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { logout: authLogout } = useAuth();
 
   const logout = async () => {
     if (isLoading) return;
@@ -13,26 +15,15 @@ export function useLogout() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        // Clear any client-side state if needed
-        // Redirect to login page
-        router.push('/login');
-      } else {
-        console.error('Logout failed');
-        // Still redirect on failure to ensure user is logged out
-        router.push('/login');
-      }
+      // Use the new AuthDriver via useAuth hook
+      await authLogout();
+      
+      // Redirect to homepage after successful logout
+      router.push('/');
     } catch (error) {
       console.error('Logout error:', error);
       // Still redirect on error to ensure user is logged out
-      router.push('/login');
+      router.push('/');
     } finally {
       setIsLoading(false);
     }

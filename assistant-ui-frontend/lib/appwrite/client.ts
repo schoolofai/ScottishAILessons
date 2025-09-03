@@ -32,13 +32,14 @@ export const createAdminClient = () => {
   };
 };
 
-export const createSessionClient = (sessionId?: string) => {
+export const createSessionClient = (sessionSecret?: string) => {
   const client = new Client()
     .setEndpoint(appwriteConfig.endpoint)
     .setProject(appwriteConfig.projectId);
   
-  if (sessionId) {
-    client.setSession(sessionId);
+  if (sessionSecret) {
+    // Use the session secret for authentication
+    client.setSession(sessionSecret);
   }
 
   return {

@@ -216,3 +216,5 @@ ScottishAILessons/
 - Run `uv run pytest` in aegra-agent for Aegra tests
 - No linting/type checking configured - focus on functional testing
 - Both systems support hot-reload during development
+- for mvp the test user login details are email - test@scottishailessons.com , password = red12345
+- always use playwright mcp tool to mannually test after every code change

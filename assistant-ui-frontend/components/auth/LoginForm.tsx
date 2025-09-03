@@ -32,10 +32,74 @@ export function LoginForm() {
     setLoading(true);
 
     try {
+      // Create client-side session first to get session secret
+      const { Client, Account } = await import('appwrite');
+      
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      
+      const account = new Account(client);
+      
+      // First, try to delete any existing session
+      try {
+        await account.deleteSession('current');
+        console.log('Deleted existing session');
+      } catch (e) {
+        console.log('No existing session to delete or failed to delete');
+      }
+      
+      // Create session client-side 
+      const session = await account.createEmailPasswordSession(email, password);
+      
+      console.log('Client-side session created:', {
+        sessionId: session.$id,
+        userId: session.userId,
+        hasSecret: !!session.secret,
+        secretLength: session.secret?.length,
+        fullSession: session
+      });
+
+      // For debugging, check all possible localStorage keys
+      const allLocalStorageKeys = Object.keys(localStorage);
+      console.log('All localStorage keys:', allLocalStorageKeys);
+      
+      // Try to get session from various localStorage locations
+      const possibleKeys = [
+        `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`,
+        `appwrite_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`,
+        'appwrite_session'
+      ];
+      
+      let localStorageSession = null;
+      for (const key of possibleKeys) {
+        const value = localStorage.getItem(key);
+        if (value) {
+          console.log(`Found session in localStorage under key: ${key}`, value.substring(0, 50) + '...');
+          localStorageSession = value;
+          break;
+        }
+      }
+
+      // Use the session secret, localStorage session, or fall back to session ID
+      let sessionToken = session.secret || localStorageSession || session.$id;
+      
+      console.log('Using session token:', {
+        hasSecret: !!session.secret,
+        hasLocalStorage: !!localStorageSession,
+        usingSessionId: !session.secret && !localStorageSession,
+        tokenLength: sessionToken?.length
+      });
+      
+      if (!sessionToken) {
+        throw new Error('Session creation failed - no session token available');
+      }
+
+      // Send session token to server to store in httpOnly cookie
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ sessionSecret: sessionToken }),
       });
 
       const data = await response.json();
@@ -44,7 +108,7 @@ export function LoginForm() {
         throw new Error(data.error || 'Login failed');
       }
 
-      router.push('/chat');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

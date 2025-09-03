@@ -1,6 +1,9 @@
 import { cookies } from 'next/headers';
 import { createAdminClient, createSessionClient, appwriteConfig } from './client';
 
+// Re-export from client
+export { createAdminClient, createSessionClient, appwriteConfig } from './client';
+
 export const SESSION_COOKIE_NAME = 'appwrite-session';
 
 export async function getSessionFromCookie() {
@@ -9,15 +12,17 @@ export async function getSessionFromCookie() {
   return sessionCookie?.value;
 }
 
-export async function createSessionCookie(secret: string) {
+export async function createSessionCookie(sessionId: string) {
+  console.log('createSessionCookie called with sessionId:', { hasSessionId: !!sessionId, sessionIdLength: sessionId?.length });
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, secret, {
+  cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
     maxAge: 60 * 60 * 24 * 30, // 30 days
     path: '/',
   });
+  console.log('Cookie set successfully with sessionId:', sessionId);
 }
 
 export async function deleteSessionCookie() {
