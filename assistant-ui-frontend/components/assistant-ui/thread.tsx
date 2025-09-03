@@ -39,7 +39,7 @@ export const Thread: FC = () => {
       }}
     >
       {/* aui-thread-viewport */}
-      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 flex-col gap-6 overflow-y-scroll">
+      <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 min-h-0 flex-col gap-6 overflow-y-auto px-[var(--thread-padding-x)] py-4">
         <ThreadWelcome />
 
         <ThreadPrimitive.Messages
@@ -52,11 +52,13 @@ export const Thread: FC = () => {
 
         <ThreadPrimitive.If empty={false}>
           {/* aui-thread-viewport-spacer */}
-          <motion.div className="min-h-6 min-w-6 shrink-0" />
+          <div className="min-h-8 shrink-0" />
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <Composer />
+      <div className="shrink-0 bg-background border-t border-gray-200 pb-12">
+        <Composer />
+      </div>
     </ThreadPrimitive.Root>
   );
 };
@@ -80,32 +82,29 @@ const ThreadWelcome: FC = () => {
   return (
     <ThreadPrimitive.Empty>
       {/* aui-thread-welcome-root */}
-      <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col px-[var(--thread-padding-x)]">
-        {/* aui-thread-welcome-center */}
-        <div className="flex w-full flex-grow flex-col items-center justify-center">
-          {/* aui-thread-welcome-message */}
-          <div className="flex size-full flex-col justify-center px-8 md:mt-20">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.5 }}
-              // aui-thread-welcome-message-motion-1
-              className="text-2xl font-semibold"
-            >
-              Hello there!
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ delay: 0.6 }}
-              // aui-thread-welcome-message-motion-2
-              className="text-muted-foreground/65 text-2xl"
-            >
-              How can I help you today?
-            </motion.div>
-          </div>
+      <div className="flex w-full flex-grow flex-col items-center justify-center min-h-[50vh]">
+        {/* aui-thread-welcome-message */}
+        <div className="flex flex-col justify-center text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ delay: 0.5 }}
+            // aui-thread-welcome-message-motion-1
+            className="text-2xl font-semibold"
+          >
+            Hello there!
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ delay: 0.6 }}
+            // aui-thread-welcome-message-motion-2
+            className="text-muted-foreground/65 text-2xl"
+          >
+            How can I help you today?
+          </motion.div>
         </div>
       </div>
     </ThreadPrimitive.Empty>
@@ -174,13 +173,11 @@ const ThreadWelcomeSuggestions: FC = () => {
 const Composer: FC = () => {
   return (
     // aui-composer-wrapper
-    <div className="bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] pb-4 md:pb-6">
+    <div className="bg-background relative mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)] py-4">
       <ThreadScrollToBottom />
-      <ThreadPrimitive.Empty>
-        <ThreadWelcomeSuggestions />
-      </ThreadPrimitive.Empty>
+      {/* Removed ThreadWelcomeSuggestions to save space */}
       {/* aui-composer-root */}
-      <ComposerPrimitive.Root className="focus-within::ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">
+      <ComposerPrimitive.Root className="focus-within:ring-offset-2 relative flex w-full flex-col rounded-2xl focus-within:ring-2 focus-within:ring-black dark:focus-within:ring-white">
         {/* aui-composer-input */}
         <ComposerPrimitive.Input
           placeholder="Send a message..."
@@ -264,7 +261,7 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root asChild>
       <motion.div
         // aui-assistant-message-root
-        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] px-[var(--thread-padding-x)] py-4"
+        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
@@ -328,7 +325,7 @@ const UserMessage: FC = () => {
     <MessagePrimitive.Root asChild>
       <motion.div
         // aui-user-message-root
-        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 px-[var(--thread-padding-x)] py-4 [&:where(>*)]:col-start-2"
+        className="mx-auto grid w-full max-w-[var(--thread-max-width)] auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-1 py-4 [&:where(>*)]:col-start-2"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="user"
@@ -367,9 +364,9 @@ const UserActionBar: FC = () => {
 const EditComposer: FC = () => {
   return (
     // aui-edit-composer-wrapper
-    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 px-[var(--thread-padding-x)]">
+    <div className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4">
       {/* aui-edit-composer-root */}
-      <ComposerPrimitive.Root className="bg-muted ml-auto flex w-full max-w-7/8 flex-col rounded-xl">
+      <ComposerPrimitive.Root className="bg-muted ml-auto flex w-full max-w-[87.5%] flex-col rounded-xl">
         {/* aui-edit-composer-input */}
         <ComposerPrimitive.Input
           className="text-foreground flex min-h-[60px] w-full resize-none bg-transparent p-4 outline-none"

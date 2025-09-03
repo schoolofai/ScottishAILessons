@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MyAssistant, SessionContext } from "./MyAssistant";
 import { useAppwrite, SessionDriver } from "@/lib/appwrite";
+import { SessionHeader } from "./SessionHeader";
 
 interface SessionChatAssistantProps {
   sessionId: string;
@@ -35,7 +36,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           student_id: session.studentId,
           lesson_snapshot: parsedSnapshot,
           current_card_index: progress.currentCard,
-          current_card: currentCard
+          current_card: currentCard,
+          stage: session.stage || 'design' // Include stage information
         };
 
         setSessionContext(context);
@@ -69,12 +71,15 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   }
 
   return (
-    <div className="h-full" data-testid="chat-interface">
-      <MyAssistant
-        sessionId={sessionId}
-        threadId={threadId}
-        sessionContext={sessionContext!}
-      />
+    <div className="flex flex-col h-screen">
+      <SessionHeader sessionContext={sessionContext} />
+      <div className="flex-1 min-h-0" data-testid="chat-interface">
+        <MyAssistant
+          sessionId={sessionId}
+          threadId={threadId}
+          sessionContext={sessionContext!}
+        />
+      </div>
     </div>
   );
 }

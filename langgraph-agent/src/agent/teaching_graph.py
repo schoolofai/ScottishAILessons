@@ -50,40 +50,56 @@ class TeachingState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
 
 
-async def design_node(state: TeachingState) -> Dict:
+def design_node(state: TeachingState) -> Dict:
     """Design node: Prepare the next card for delivery."""
+    from .llm_teacher import LLMTeacher
+    
+    teacher = LLMTeacher()
     lesson_snapshot = state["lesson_snapshot"]
     current_index = state.get("current_card_index", 0)
     cards = lesson_snapshot.get("cards", [])
     
     if current_index >= len(cards):
         # No more cards, lesson complete
+        try:
+            completion_message = teacher.complete_lesson_sync(
+                lesson_snapshot, 
+                {
+                    "cards_completed": len(state.get("cards_completed", [])),
+                    "total_cards": len(cards)
+                }
+            )
+        except Exception as e:
+            completion_message = "🎉 Lesson complete! Great job working through all the problems!"
         return {
             "stage": "done",
             "should_exit": True,
-            "messages": [AIMessage(content="🎉 Lesson complete! Great job!")]
+            "messages": [AIMessage(content=completion_message)]
         }
     
     current_card = cards[current_index]
     
-    # Prepare card for delivery
-    message = f"""
-**{current_card['title']}**
-
-{current_card['explainer']}
-"""
-    
-    if current_card.get('example'):
-        message += "\n\n**Example:**\n"
-        for ex in current_card['example']:
-            message += f"- {ex}\n"
-    
-    message += f"\n\n**Question:**\n{current_card['cfu']['stem']}"
-    
-    if current_card['cfu']['type'] == 'mcq' and current_card['cfu'].get('options'):
-        message += "\n\n**Options:**\n"
-        for i, option in enumerate(current_card['cfu']['options']):
-            message += f"{i+1}. {option}\n"
+    # Generate conversational card presentation
+    if current_index == 0:
+        # First card - include lesson greeting  
+        try:
+            greeting = teacher.greet_student_sync(lesson_snapshot)
+            card_content = teacher.present_card_sync(current_card)
+            message = f"{greeting}\n\n{card_content}"
+        except Exception as e:
+            # Fallback if LLM fails
+            greeting = f"Hi there! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
+            card_content = f"**{current_card.get('title', 'Practice')}**\n\n{current_card.get('explainer', '')}\n\n**Your turn:** {current_card['cfu']['stem']}"
+            message = f"{greeting}\n\n{card_content}"
+    else:
+        # Subsequent cards
+        try:
+            card_content = teacher.present_card_sync(current_card)
+            message = card_content
+        except Exception as e:
+            # Fallback if LLM fails
+            card_content = f"**{current_card.get('title', 'Practice')}**\n\n{current_card.get('explainer', '')}\n\n**Your turn:** {current_card['cfu']['stem']}"
+            message = card_content
     
     return {
         "current_card": current_card,
@@ -94,7 +110,7 @@ async def design_node(state: TeachingState) -> Dict:
     }
 
 
-async def deliver_node(state: TeachingState) -> Dict:
+def deliver_node(state: TeachingState) -> Dict:
     """Delivery node: Wait for and process student response."""
     # In production, this would integrate with the UI
     # For now, we'll return a state indicating we're waiting for input
@@ -103,8 +119,11 @@ async def deliver_node(state: TeachingState) -> Dict:
     }
 
 
-async def mark_node(state: TeachingState) -> Dict:
+def mark_node(state: TeachingState) -> Dict:
     """Mark node: Evaluate student response and provide feedback."""
+    from .llm_teacher import LLMTeacher
+    
+    teacher = LLMTeacher()
     current_card = state["current_card"]
     student_response = state.get("student_response", "")
     attempts = state.get("attempts", 0) + 1
@@ -114,7 +133,6 @@ async def mark_node(state: TeachingState) -> Dict:
     
     cfu = current_card["cfu"]
     is_correct = False
-    feedback = ""
     
     # Deterministic marking based on type
     if cfu["type"] == "numeric":
@@ -143,19 +161,12 @@ async def mark_node(state: TeachingState) -> Dict:
             tolerance = cfu.get("tolerance", 0)
             is_correct = abs(num_response - expected) <= tolerance
             
-            if is_correct:
-                feedback = "✓ Correct! Well done."
-            else:
-                if attempts == 1:
-                    feedback = "Not quite. Remember to check your calculation. Try again."
-                elif attempts == 2:
-                    feedback = f"Hint: The answer should be close to {expected}. Give it another try."
-                else:
-                    feedback = f"The correct answer is {expected}. Let's move on to the next question."
-                    is_correct = True  # Force progress after 3 attempts
+            # Force progress after 3 attempts
+            if attempts >= 3 and not is_correct:
+                is_correct = True
                     
         except (ValueError, ZeroDivisionError):
-            feedback = "Please enter a valid number."
+            pass  # is_correct remains False
             
     elif cfu["type"] == "mcq":
         options = cfu.get("options", [])
@@ -174,17 +185,30 @@ async def mark_node(state: TeachingState) -> Dict:
             except ValueError:
                 pass
         
+        # Force progress after 3 attempts
+        if attempts >= 3 and not is_correct:
+            is_correct = True
+    
+    # Generate intelligent feedback using LLM
+    try:
+        feedback = teacher.evaluate_response_sync(
+            student_response=student_response,
+            expected_answer=cfu.get("expected"),
+            card_context=current_card,
+            attempt_number=attempts,
+            is_correct=is_correct
+        )
+    except Exception as e:
+        # Fallback feedback
         if is_correct:
-            feedback = "✓ Correct! Excellent choice."
+            feedback = "✓ Correct! Well done."
         else:
             if attempts == 1:
-                feedback = "That's not correct. Think about the unit price."
+                feedback = "Not quite. Give it another try!"
             elif attempts == 2:
-                feedback = "Hint: Calculate the price per 100g for each option."
+                feedback = f"Hint: The answer should be close to {cfu.get('expected')}. Try again."
             else:
-                correct_option = options[answer_index] if answer_index < len(options) else "unknown"
-                feedback = f"The correct answer is: {correct_option}. Let's continue."
-                is_correct = True  # Force progress after 3 attempts
+                feedback = f"The correct answer is {cfu.get('expected')}. Let's move on."
     
     # Record evidence
     evidence_entry = {
@@ -192,7 +216,8 @@ async def mark_node(state: TeachingState) -> Dict:
         "item_id": cfu["id"],
         "response": student_response,
         "correct": is_correct,
-        "attempts": attempts
+        "attempts": attempts,
+        "feedback": feedback  # Store LLM-generated feedback
     }
     
     evidence = state.get("evidence", [])
@@ -211,9 +236,14 @@ async def mark_node(state: TeachingState) -> Dict:
     }
 
 
-async def progress_node(state: TeachingState) -> Dict:
+def progress_node(state: TeachingState) -> Dict:
     """Progress node: Update mastery and move to next card."""
+    from .llm_teacher import LLMTeacher
+    
+    teacher = LLMTeacher()
     current_card_index = state.get("current_card_index", 0)
+    lesson_snapshot = state["lesson_snapshot"]
+    cards = lesson_snapshot.get("cards", [])
     cards_completed = state.get("cards_completed", [])
     current_card = state.get("current_card")
     
@@ -221,7 +251,6 @@ async def progress_node(state: TeachingState) -> Dict:
         cards_completed.append(current_card["id"])
     
     # Update mastery (simplified EMA calculation)
-    lesson_snapshot = state["lesson_snapshot"]
     outcome_refs = lesson_snapshot.get("outcomeRefs", [])
     mastery_updates = state.get("mastery_updates", [])
     
@@ -242,6 +271,25 @@ async def progress_node(state: TeachingState) -> Dict:
     
     # Move to next card
     next_card_index = current_card_index + 1
+    next_card = cards[next_card_index] if next_card_index < len(cards) else None
+    
+    # Generate transition message
+    try:
+        transition_message = teacher.transition_to_next_sync(
+            completed_card=current_card,
+            next_card=next_card,
+            progress_context={
+                "cards_completed": len(cards_completed),
+                "total_cards": len(cards),
+                "current_performance": state.get("is_correct", False)
+            }
+        )
+    except Exception as e:
+        # Fallback transition
+        if next_card:
+            transition_message = f"Great work! Now let's move on to {next_card.get('title', 'the next topic')}."
+        else:
+            transition_message = "🎉 Lesson complete! Great job working through all the problems!"
     
     return {
         "current_card_index": next_card_index,
@@ -250,7 +298,8 @@ async def progress_node(state: TeachingState) -> Dict:
         "stage": "design",
         "student_response": None,
         "is_correct": None,
-        "feedback": None
+        "feedback": None,
+        "messages": [AIMessage(content=transition_message)]
     }
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 
@@ -13,6 +13,7 @@ export interface SessionContext {
   lesson_snapshot: any;
   current_card_index: number;
   current_card: any;
+  stage?: string;
 }
 
 export interface MyAssistantProps {
@@ -27,6 +28,7 @@ export function MyAssistant({
   sessionContext 
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
+  const [hasAutoStarted, setHasAutoStarted] = useState(false);
   
   const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
@@ -53,6 +55,24 @@ export function MyAssistant({
       return { messages: state.values.messages };
     },
   });
+
+  // Auto-start lesson for new teaching sessions
+  useEffect(() => {
+    if (sessionContext && !hasAutoStarted && !initialThreadId) {
+      // This is a new teaching session - auto-start the lesson
+      setHasAutoStarted(true);
+      
+      // Delay to ensure runtime is ready
+      setTimeout(() => {
+        if (runtime.addMessage) {
+          runtime.addMessage({
+            role: "user",
+            content: "start lesson" // This will trigger the teaching graph
+          });
+        }
+      }, 500);
+    }
+  }, [sessionContext, hasAutoStarted, initialThreadId, runtime]);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

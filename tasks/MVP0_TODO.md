@@ -584,3 +584,517 @@ This misalignment represents a fundamental architectural deviation from the MVP0
 - ✅ **Driver Architecture**: Maintained clean business logic separation
 
 **Status: PHASE 8 COMPLETE** - The fundamental architectural misalignment has been resolved. The system now implements the chat-driven lesson architecture as specified in the MVP0 brief.
+
+---
+
+## Phase 9: LLM Teaching Agent Implementation
+
+### 9.1 LLM Teacher Module Creation
+
+#### 9.1.1 Create Core LLM Teacher Module
+- [ ] **Create `/langgraph-agent/src/agent/llm_teacher.py`**:
+  ```python
+  """LLM-powered conversational teaching agent for Scottish AI Lessons."""
+  
+  from langchain_openai import ChatOpenAI
+  from langchain_core.prompts import ChatPromptTemplate
+  from langchain_core.messages import HumanMessage, AIMessage
+  import os
+  from typing import Dict, Any, Optional, List
+  
+  class LLMTeacher:
+      """Conversational AI teacher for lesson delivery."""
+      
+      def __init__(self):
+          self.llm = ChatOpenAI(
+              model="gpt-4o-mini",
+              temperature=0.7,
+              openai_api_key=os.getenv("OPENAI_API_KEY")
+          )
+  ```
+
+#### 9.1.2 Teaching Prompt Templates
+- [ ] **Create greeting and lesson introduction prompts**:
+  ```python
+  LESSON_GREETING_PROMPT = ChatPromptTemplate.from_messages([
+      ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+      You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+      Be warm, supportive, and use everyday contexts. Keep it conversational and engaging.
+      Student name: {student_name}"""),
+      ("human", "Start the lesson")
+  ])
+  
+  async def greet_student(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
+      """Generate welcoming lesson introduction."""
+      response = await self.llm.ainvoke(
+          LESSON_GREETING_PROMPT.format_messages(
+              lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+              outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+              student_name=student_name
+          )
+      )
+      return response.content
+  ```
+
+- [ ] **Create card presentation prompts**:
+  ```python
+  CARD_PRESENTATION_PROMPT = ChatPromptTemplate.from_messages([
+      ("system", """Present this math concept conversationally to a National 3 student.
+      Context: {card_context}
+      Explainer: {explainer}
+      Examples: {examples}
+      
+      Make it feel like friendly tutoring. Use real-world contexts (shopping, money, etc).
+      End with the question naturally in the conversation."""),
+      ("human", "Present this card: {card_title}")
+  ])
+  
+  async def present_card(self, card: Dict[str, Any]) -> str:
+      """Present lesson card conversationally."""
+      examples = "\n".join(card.get("example", []))
+      response = await self.llm.ainvoke(
+          CARD_PRESENTATION_PROMPT.format_messages(
+              card_context=card.get("title", ""),
+              explainer=card.get("explainer", ""),
+              examples=examples,
+              card_title=card.get("title", "")
+          )
+      )
+      return f"{response.content}\n\n**Your turn:** {card['cfu']['stem']}"
+  ```
+
+#### 9.1.3 Response Evaluation and Feedback
+- [ ] **Create intelligent feedback generation**:
+  ```python
+  FEEDBACK_PROMPT = ChatPromptTemplate.from_messages([
+      ("system", """You're evaluating a National 3 math student's response.
+      Question: {question}
+      Expected Answer: {expected}
+      Student Answer: {student_response}
+      Attempt Number: {attempt}
+      Is Correct: {is_correct}
+      
+      Provide encouraging, specific feedback. If incorrect, give a helpful hint for attempt 2,
+      more guidance for attempt 3. Always be positive and constructive."""),
+      ("human", "Give feedback on this response")
+  ])
+  
+  async def evaluate_response(
+      self, 
+      student_response: str,
+      expected_answer: Any,
+      card_context: Dict,
+      attempt_number: int,
+      is_correct: bool
+  ) -> str:
+      """Generate contextual feedback for student response."""
+      response = await self.llm.ainvoke(
+          FEEDBACK_PROMPT.format_messages(
+              question=card_context["cfu"]["stem"],
+              expected=str(expected_answer),
+              student_response=student_response,
+              attempt=attempt_number,
+              is_correct=is_correct
+          )
+      )
+      return response.content
+  ```
+
+#### 9.1.4 Transition and Progress Management
+- [ ] **Create lesson flow management**:
+  ```python
+  TRANSITION_PROMPT = ChatPromptTemplate.from_messages([
+      ("system", """You're transitioning between lesson concepts for a National 3 student.
+      Just completed: {completed_card}
+      Next up: {next_card}
+      Student progress: {progress_context}
+      
+      Create a smooth, encouraging transition that connects the concepts."""),
+      ("human", "Transition to the next topic")
+  ])
+  
+  async def transition_to_next(
+      self, 
+      completed_card: Dict, 
+      next_card: Optional[Dict],
+      progress_context: Dict
+  ) -> str:
+      """Generate transition between lesson cards."""
+      if not next_card:
+          return await self.complete_lesson(completed_card, progress_context)
+          
+      response = await self.llm.ainvoke(
+          TRANSITION_PROMPT.format_messages(
+              completed_card=completed_card.get("title", "previous topic"),
+              next_card=next_card.get("title", "next topic"),
+              progress_context=str(progress_context)
+          )
+      )
+      return response.content
+  ```
+
+### 9.2 Teaching Graph Integration
+
+#### 9.2.1 Add Dependency to Project
+- [ ] **Update `/langgraph-agent/pyproject.toml`**:
+  ```toml
+  dependencies = [
+      "langgraph>=0.2.6",
+      "python-dotenv>=1.0.1",
+      "langchain-openai>=0.2.0",  # Add this line
+  ]
+  ```
+
+#### 9.2.2 Update Design Node
+- [ ] **Modify `design_node()` in `/langgraph-agent/src/agent/teaching_graph.py`**:
+  ```python
+  from .llm_teacher import LLMTeacher
+  
+  async def design_node(state: TeachingState) -> Dict:
+      """Design node: Prepare the next card for delivery."""
+      teacher = LLMTeacher()
+      
+      lesson_snapshot = state["lesson_snapshot"]
+      current_index = state.get("current_card_index", 0)
+      cards = lesson_snapshot.get("cards", [])
+      
+      if current_index >= len(cards):
+          completion_message = await teacher.complete_lesson(
+              lesson_snapshot, 
+              state.get("cards_completed", [])
+          )
+          return {
+              "stage": "done",
+              "should_exit": True,
+              "messages": [AIMessage(content=completion_message)]
+          }
+      
+      current_card = cards[current_index]
+      
+      # Generate conversational card presentation
+      if current_index == 0:
+          # First card - include lesson greeting
+          greeting = await teacher.greet_student(lesson_snapshot)
+          card_content = await teacher.present_card(current_card)
+          message = f"{greeting}\n\n{card_content}"
+      else:
+          # Subsequent cards
+          card_content = await teacher.present_card(current_card)
+          message = card_content
+      
+      return {
+          "current_card": current_card,
+          "stage": "deliver",
+          "attempts": 0,
+          "hint_level": 0,
+          "messages": [AIMessage(content=message)]
+      }
+  ```
+
+#### 9.2.3 Update Mark Node
+- [ ] **Enhance marking with LLM feedback in `mark_node()`**:
+  ```python
+  async def mark_node(state: TeachingState) -> Dict:
+      """Mark node: Evaluate student response and provide feedback."""
+      teacher = LLMTeacher()
+      
+      current_card = state["current_card"]
+      student_response = state.get("student_response", "")
+      attempts = state.get("attempts", 0) + 1
+      
+      if not current_card or not student_response:
+          return {"stage": "deliver"}
+      
+      # Deterministic marking logic (unchanged)
+      cfu = current_card["cfu"]
+      is_correct = False
+      
+      # ... existing marking logic ...
+      
+      # Generate intelligent feedback using LLM
+      feedback = await teacher.evaluate_response(
+          student_response=student_response,
+          expected_answer=cfu.get("expected"),
+          card_context=current_card,
+          attempt_number=attempts,
+          is_correct=is_correct
+      )
+      
+      # Record evidence (unchanged)
+      evidence_entry = {
+          "timestamp": datetime.now().isoformat(),
+          "item_id": cfu["id"],
+          "response": student_response,
+          "correct": is_correct,
+          "attempts": attempts,
+          "feedback": feedback  # Store LLM-generated feedback
+      }
+      
+      evidence = state.get("evidence", [])
+      evidence.append(evidence_entry)
+      
+      next_stage = "progress" if is_correct else "deliver"
+      
+      return {
+          "is_correct": is_correct,
+          "feedback": feedback,
+          "attempts": attempts,
+          "evidence": evidence,
+          "stage": next_stage,
+          "messages": [AIMessage(content=feedback)]
+      }
+  ```
+
+#### 9.2.4 Update Progress Node
+- [ ] **Add conversational transitions in `progress_node()`**:
+  ```python
+  async def progress_node(state: TeachingState) -> Dict:
+      """Progress node: Update mastery and move to next card."""
+      teacher = LLMTeacher()
+      
+      current_card_index = state.get("current_card_index", 0)
+      lesson_snapshot = state["lesson_snapshot"]
+      cards = lesson_snapshot.get("cards", [])
+      current_card = state.get("current_card")
+      
+      # ... existing mastery update logic ...
+      
+      # Move to next card
+      next_card_index = current_card_index + 1
+      next_card = cards[next_card_index] if next_card_index < len(cards) else None
+      
+      # Generate transition message
+      transition_message = await teacher.transition_to_next(
+          completed_card=current_card,
+          next_card=next_card,
+          progress_context={
+              "cards_completed": len(cards_completed),
+              "total_cards": len(cards),
+              "current_performance": state.get("is_correct", False)
+          }
+      )
+      
+      return {
+          "current_card_index": next_card_index,
+          "cards_completed": cards_completed,
+          "mastery_updates": mastery_updates,
+          "stage": "design",
+          "student_response": None,
+          "is_correct": None,
+          "feedback": None,
+          "messages": [AIMessage(content=transition_message)]
+      }
+  ```
+
+### 9.3 Frontend Context Integration
+
+#### 9.3.1 Create Contextual Session Header
+- [ ] **Create `/assistant-ui-frontend/components/SessionHeader.tsx`**:
+  ```typescript
+  "use client";
+  
+  import { ArrowLeft } from 'lucide-react';
+  import Link from 'next/link';
+  import { SessionContext } from '@/lib/appwrite/types';
+  
+  interface SessionHeaderProps {
+    sessionContext?: SessionContext;
+  }
+  
+  export function SessionHeader({ sessionContext }: SessionHeaderProps) {
+    if (!sessionContext) {
+      return (
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+          <h1 className="text-xl font-semibold text-gray-900">Assistant</h1>
+        </header>
+      );
+    }
+  
+    const { lesson_snapshot, current_card_index } = sessionContext;
+    const totalCards = lesson_snapshot?.cards?.length || 0;
+    
+    return (
+      <header className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center space-x-3">
+          <Link 
+            href="/dashboard" 
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 mr-1" />
+            Dashboard
+          </Link>
+          
+          <div className="text-gray-400">→</div>
+          
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <span>National 3</span>
+              <span>•</span>
+              <span>Applications of Mathematics</span>
+              <span>•</span>
+              <span className="font-medium text-gray-900">
+                {lesson_snapshot?.title || 'Lesson'}
+              </span>
+            </div>
+            
+            <div className="text-xs text-gray-500 mt-1">
+              Card {current_card_index + 1} of {totalCards}
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+  ```
+
+#### 9.3.2 Update Session Chat Component
+- [ ] **Update `/assistant-ui-frontend/components/SessionChatAssistant.tsx`** to use SessionHeader:
+  ```typescript
+  import { SessionHeader } from './SessionHeader';
+  
+  // Inside component JSX:
+  return (
+    <div className="flex flex-col h-screen">
+      <SessionHeader sessionContext={context} />
+      <div className="flex-1">
+        <MyAssistant
+          sessionId={sessionId}
+          threadId={session.threadId}
+          sessionContext={context}
+        />
+      </div>
+    </div>
+  );
+  ```
+
+#### 9.3.3 Evidence Recording Integration
+- [ ] **Update chat API to handle evidence recording**:
+  ```typescript
+  // In /lib/chatApi.ts - modify sendMessage function
+  export async function sendMessage(params: SendMessageParams) {
+    // ... existing code ...
+    
+    // After receiving response from LangGraph
+    if (params.sessionContext && response.evidence) {
+      // Record evidence to Appwrite via frontend
+      const evidenceDriver = createDriver(EvidenceDriver);
+      await evidenceDriver.recordEvidence({
+        sessionId: params.sessionContext.session_id,
+        itemId: response.evidence.item_id,
+        response: params.message,
+        correct: response.evidence.correct,
+        score: response.evidence.score,
+        attemptIndex: response.evidence.attempts,
+        strategy: 'baseline',
+        feedback: response.evidence.feedback,
+        attempts: response.evidence.attempts,
+        aiProcessed: true,
+        submittedAt: new Date().toISOString(),
+        schema_version: 1
+      });
+      
+      // Update session progress
+      const sessionDriver = createDriver(SessionDriver);
+      await sessionDriver.updateProgress(
+        params.sessionContext.session_id,
+        response.session_updates || {}
+      );
+    }
+    
+    return response;
+  }
+  ```
+
+### 9.4 Testing and Validation
+
+#### 9.4.1 Manual Testing Plan
+- [ ] **Test LLM Integration**:
+  ```bash
+  # Start services
+  cd langgraph-agent && langgraph dev  # Port 2024
+  cd assistant-ui-frontend && npm run dev  # Port 3000
+  ```
+
+- [ ] **Test Conversational Flow**:
+  1. Login with test user (test@scottishailessons.com)
+  2. Navigate to dashboard
+  3. Start "Nat 3 Money Conversions" lesson
+  4. Verify chat interface loads with contextual header
+  5. Check agent greeting: "Hi! Ready to learn about fractions and money?"
+  6. Test first interaction: "Write 0.2 as a fraction in simplest form"
+  7. Submit "1/5" and verify intelligent feedback
+  8. Complete lesson progression through all 3 cards
+  9. Verify evidence recorded to Appwrite database
+
+#### 9.4.2 Error Handling Tests  
+- [ ] **Test OpenAI API Connection**:
+  - Invalid API key handling
+  - Rate limit responses
+  - Network connectivity issues
+  
+- [ ] **Test LLM Response Parsing**:
+  - Malformed responses from OpenAI
+  - Timeout handling
+  - Fallback to deterministic responses
+
+#### 9.4.3 Performance Testing
+- [ ] **Monitor Response Times**:
+  - LLM response generation speed
+  - Chat message delivery latency
+  - Database evidence recording performance
+
+### 9.5 Success Criteria
+
+#### 9.5.1 Functional Requirements
+- [ ] ✅ **Conversational Lesson Delivery**: Agent presents cards as natural conversation
+- [ ] ✅ **Intelligent Feedback**: Context-aware responses using LLM
+- [ ] ✅ **Contextual Header**: Breadcrumb navigation with course/level/lesson info
+- [ ] ✅ **Evidence Recording**: Chat interactions properly saved to Appwrite
+- [ ] ✅ **Progress Tracking**: Session advancement through conversational milestones
+- [ ] ✅ **Deterministic Marking**: Accurate scoring combined with LLM feedback
+
+#### 9.5.2 User Experience Requirements
+- [ ] ✅ **Natural Flow**: Conversation feels like one-on-one tutoring
+- [ ] ✅ **Encouraging Feedback**: Supportive, constructive responses to all answers
+- [ ] ✅ **Smooth Transitions**: Logical flow between lesson concepts
+- [ ] ✅ **Resume Capability**: Conversations continue naturally after breaks
+
+#### 9.5.3 Technical Requirements
+- [ ] ✅ **API Integration**: OpenAI API properly configured and working
+- [ ] ✅ **Error Handling**: Graceful fallbacks for LLM failures
+- [ ] ✅ **State Management**: Session context properly maintained
+- [ ] ✅ **Data Persistence**: Evidence and progress properly recorded
+
+### 9.6 Implementation Timeline
+
+#### Week 1: LLM Teacher Module (Days 1-3)
+- Day 1: Create llm_teacher.py with core functionality
+- Day 2: Implement all prompt templates and methods
+- Day 3: Unit testing and prompt refinement
+
+#### Week 2: Teaching Graph Integration (Days 4-6) 
+- Day 4: Update design_node with LLM integration
+- Day 5: Enhance mark_node with intelligent feedback
+- Day 6: Add conversational transitions to progress_node
+
+#### Week 3: Frontend Integration (Days 7-9)
+- Day 7: Create SessionHeader and update components
+- Day 8: Integrate evidence recording and session management
+- Day 9: End-to-end testing and bug fixes
+
+#### Week 4: Testing & Polish (Days 10-12)
+- Day 10: Comprehensive manual testing
+- Day 11: Performance optimization and error handling
+- Day 12: User experience refinement and final validation
+
+### 9.7 Risk Mitigation
+
+- [ ] **OpenAI API Costs**: Monitor usage and implement rate limiting
+- [ ] **Response Quality**: Test prompt engineering with real student responses
+- [ ] **Fallback Strategy**: Maintain deterministic responses as backup
+- [ ] **Performance**: Cache common responses and optimize prompt efficiency
+- [ ] **Error Handling**: Comprehensive testing of failure scenarios
+
+---
+
+**Status: PHASE 9 PLANNED** - Ready to implement conversational AI teaching agent with LLM integration.

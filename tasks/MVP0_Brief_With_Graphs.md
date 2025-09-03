@@ -354,6 +354,77 @@ POST /api/chat (SSE)
 
 ---
 
+## Design Notes
+
+### LLM Teacher Integration Architecture
+**Role of llm_teacher.py:**
+The `llm_teacher.py` module serves as the **conversational layer** that transforms the existing teaching graph from template-based responses into intelligent, contextual AI tutoring:
+
+```
+Current teaching_graph.py nodes:
+├── design_node() → hardcoded "Let's start with equivalences..."
+├── mark_node() → hardcoded "✓ Correct! Well done."
+└── progress_node() → hardcoded "Moving to next card..."
+
+Enhanced with llm_teacher.py:
+├── design_node() → llm_teacher.present_card() → "Hi Sarah! Ready to explore fractions in everyday money situations? Let's start with a fun equivalence challenge..."
+├── mark_node() → llm_teacher.evaluate_response() → "Excellent thinking! 0.2 = 1/5 is exactly right. You've got the concept of converting decimals to simplified fractions. Now let's see how this applies to money calculations..."
+└── progress_node() → llm_teacher.transition_to_next() → "Perfect! You've mastered equivalences. Next, we'll tackle something practical - calculating discounts when shopping..."
+```
+
+**Integration Points:**
+1. **ChatOpenAI Client**: Initialized with `OPENAI_API_KEY` from `.env.local`
+2. **Teaching Prompts**: Structured prompts for each teaching stage:
+   - Greeting & lesson introduction
+   - Card presentation with context
+   - Response evaluation with feedback
+   - Transition between cards
+3. **Smart Marking**: Combines LLM contextual understanding with deterministic scoring rules
+4. **Conversational Flow**: Makes lessons feel like one-on-one tutoring rather than quiz forms
+
+**Implementation Pattern:**
+```python
+# Before (teaching_graph.py)
+return {"messages": [AIMessage(content="✓ Correct! Well done.")]}
+
+# After (with llm_teacher.py)
+from .llm_teacher import LLMTeacher
+teacher = LLMTeacher()
+feedback = await teacher.evaluate_response(
+    student_response=student_response,
+    expected_answer=cfu["expected"],
+    card_context=current_card,
+    attempt_number=attempts
+)
+return {"messages": [AIMessage(content=feedback)]}
+```
+
+### Frontend-Driven Architecture Decision
+**Core Principle:** Frontend orchestrates both persistence (Appwrite) and AI processing (LangGraph) without direct connection between services.
+
+**Rationale:**
+- **Single Source of Truth**: Appwrite holds all persistent data
+- **Context Control**: Frontend constructs session context and passes to LangGraph
+- **Evidence Recording**: Frontend receives LangGraph responses and persists evidence
+- **Session Management**: Frontend maps sessionId → threadId for conversation continuity
+- **State Synchronization**: Frontend ensures consistency between chat state and database state
+
+### Chat-Driven Lesson Architecture Decision
+**Implementation:** Single chat interface for both general questions and structured lesson delivery.
+
+**Benefits:**
+- **Natural Conversation**: Lessons feel like tutoring, not forms
+- **Adaptive Feedback**: Agent provides contextual hints and encouragement  
+- **Progressive Disclosure**: Information revealed conversationally as needed
+- **Resumable**: Chat history maintains lesson context across sessions
+- **Unified Interface**: Same UI for lessons and general support
+
+**Technical Implementation:**
+- `/chat` → General assistant without session context
+- `/session/[id]` → Same chat UI with lesson session context
+- MyAssistant component accepts optional sessionContext for lesson mode
+- LangGraph receives session context and delivers cards conversationally
+
 ## Open Questions
 - Do we show a **simple data-handling** card in MVP0 or v0.1? (bar chart read)
 - EMA weighting defaults (e.g., 0.6 recent / 0.4 prior) acceptable?
