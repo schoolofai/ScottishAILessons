@@ -1,45 +1,54 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useRef } from "react";
-import { useLangGraphSend } from "@assistant-ui/react-langgraph";
-import { useThread } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+import { useThreadRuntime, useThread } from "@assistant-ui/react";
 import { SessionContext } from "./MyAssistant";
 
 interface AutoStartTriggerProps {
   sessionContext?: SessionContext;
-  threadId?: string;
+  existingThreadId?: string;
 }
 
 // Global coordination for auto-start across component instances
 const globalAutoStartState = new Map<string, boolean>();
 
-export function AutoStartTrigger({ sessionContext, threadId }: AutoStartTriggerProps) {
+export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStartTriggerProps) {
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
-  const send = useLangGraphSend();
+  const threadRuntime = useThreadRuntime();
   const thread = useThread();
 
   useEffect(() => {
-    // Wait for all dependencies including threadId to be available
-    if (!sessionContext || !send || !threadId) {
+    // Wait for all dependencies to be available
+    if (!sessionContext || !threadRuntime || !thread) {
       console.log('AutoStartTrigger - Waiting for dependencies:', {
         hasSessionContext: !!sessionContext,
-        hasSend: !!send,
-        hasThread: !!thread,
-        hasThreadId: !!threadId
+        hasThreadRuntime: !!threadRuntime,
+        hasThread: !!thread
       });
       return;
     }
 
     const sessionKey = sessionContext.session_id;
-    const hasExistingMessages = thread?.messages && thread.messages.length > 0;
+    const hasExistingMessages = thread.messages && thread.messages.length > 0;
+    const isResumingExistingThread = !!existingThreadId;
     
     console.log('AutoStartTrigger - Checking auto-start conditions:', {
       sessionId: sessionKey,
       hasAutoStarted,
-      threadId: threadId,
-      messageCount: thread?.messages?.length || 0,
-      globalStarted: globalAutoStartState.get(sessionKey)
+      threadId: thread.threadId,
+      messageCount: thread.messages?.length || 0,
+      globalStarted: globalAutoStartState.get(sessionKey),
+      existingThreadId,
+      isResumingExistingThread
     });
+
+    // If we're resuming an existing thread, skip auto-start completely
+    if (isResumingExistingThread) {
+      console.log('AutoStartTrigger - Resuming existing thread, skipping auto-start');
+      setHasAutoStarted(true);
+      globalAutoStartState.set(sessionKey, true);
+      return;
+    }
 
     // If thread already has messages, skip auto-start
     if (hasExistingMessages) {
@@ -58,26 +67,20 @@ export function AutoStartTrigger({ sessionContext, threadId }: AutoStartTriggerP
 
     // First component instance for this session - initiate auto-start
     console.log('AutoStartTrigger - Initiating auto-start for session:', sessionContext);
-    console.log('AutoStartTrigger - Using thread:', threadId);
+    console.log('AutoStartTrigger - Using thread:', thread.threadId);
     globalAutoStartState.set(sessionKey, true);
     setHasAutoStarted(true);
     
     // Small delay to ensure thread is fully initialized
     setTimeout(() => {
       // Send empty message to trigger the teaching graph
-      send([{
-        type: "human",
-        content: "" // Empty message just to trigger the graph
-      }], {}).then(() => {
-        console.log('AutoStartTrigger - Auto-start message sent successfully to thread:', threadId);
-      }).catch(err => {
-        console.error('AutoStartTrigger - Auto-start failed:', err);
-        // Reset global state so user can manually start
-        globalAutoStartState.delete(sessionKey);
-        setHasAutoStarted(false);
+      threadRuntime.append({
+        role: "user",
+        content: [{ type: "text", text: "" }] // Empty message just to trigger the graph
       });
+      console.log('AutoStartTrigger - Auto-start message sent successfully to thread:', thread.threadId);
     }, 100);
-  }, [sessionContext, hasAutoStarted, send, threadId, thread?.messages?.length]);
+  }, [sessionContext, hasAutoStarted, threadRuntime, thread, thread?.messages?.length]);
 
   // This component doesn't render anything - it's just for side effects
   return null;

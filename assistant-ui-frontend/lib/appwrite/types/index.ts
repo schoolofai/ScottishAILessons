@@ -77,6 +77,8 @@ export interface Session {
   endedAt?: string;
   stage: string;
   lessonSnapshot: string; // JSON string
+  threadId?: string; // LangGraph thread ID for conversation continuity
+  lastMessageAt?: string; // Timestamp of last chat interaction
 }
 
 export interface Evidence {

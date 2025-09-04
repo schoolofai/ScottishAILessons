@@ -48,6 +48,17 @@ export const sendMessage = async (params: {
   
   console.log('chatApi.sendMessage - Final input:', input);
   
+  // Update session last message timestamp if we have session context
+  if (params.sessionContext?.session_id) {
+    try {
+      // Note: This would ideally be done on the server side or after successful message send
+      // For now, we'll update optimistically
+      updateSessionLastMessage(params.sessionContext.session_id);
+    } catch (error) {
+      console.warn('chatApi.sendMessage - Failed to update session timestamp:', error);
+    }
+  }
+  
   return client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
@@ -57,4 +68,23 @@ export const sendMessage = async (params: {
       streamMode: ["messages", "updates"],
     }
   );
+};
+
+// Helper function to update session last message timestamp
+const updateSessionLastMessage = async (sessionId: string) => {
+  try {
+    // This is a client-side update - in a real app you might want to do this server-side
+    const response = await fetch('/api/sessions/update-message-time', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId })
+    });
+    
+    if (!response.ok) {
+      console.warn('Failed to update session message timestamp on server');
+    }
+  } catch (error) {
+    // For now, we'll just log the error since this is an enhancement
+    console.warn('Could not update session timestamp via API:', error);
+  }
 };

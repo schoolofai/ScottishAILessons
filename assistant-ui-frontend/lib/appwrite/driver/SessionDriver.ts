@@ -117,4 +117,49 @@ export class SessionDriver extends BaseDriver {
       throw this.handleError(error, 'get session summary');
     }
   }
+
+  /**
+   * Update session with thread ID for conversation continuity
+   */
+  async updateSessionThreadId(sessionId: string, threadId: string) {
+    try {
+      await this.update('sessions', sessionId, {
+        threadId,
+        lastMessageAt: new Date().toISOString()
+      });
+      console.log(`SessionDriver - Updated session ${sessionId} with thread ID: ${threadId}`);
+    } catch (error) {
+      throw this.handleError(error, 'update session thread ID');
+    }
+  }
+
+  /**
+   * Update last message timestamp for session
+   */
+  async updateLastMessageTime(sessionId: string) {
+    try {
+      await this.update('sessions', sessionId, {
+        lastMessageAt: new Date().toISOString()
+      });
+    } catch (error) {
+      throw this.handleError(error, 'update last message time');
+    }
+  }
+
+  /**
+   * Get session with thread information
+   */
+  async getSessionWithThread(sessionId: string) {
+    try {
+      const session = await this.get<Session>('sessions', sessionId);
+      return {
+        session,
+        threadId: session.threadId || undefined,
+        hasExistingConversation: !!session.threadId,
+        lastMessageAt: session.lastMessageAt || undefined
+      };
+    } catch (error) {
+      throw this.handleError(error, 'get session with thread');
+    }
+  }
 }
