@@ -23,9 +23,33 @@ class State(TypedDict):
     mode: str  # "chat" or "teaching"
 
 
+async def entry_node(state: State) -> dict:
+    """Entry point that processes input and sets up initial state.
+    
+    This node receives the initial input from the client which may contain
+    session_context for lesson sessions. It ensures the state is properly
+    initialized before routing.
+    """
+    # The session_context should already be in state from the input
+    # Just ensure we have it properly set
+    session_context = state.get("session_context")
+    
+    # Determine mode based on session context
+    if session_context and session_context.get("session_id"):
+        mode = "teaching"
+    else:
+        mode = "chat"
+    
+    return {
+        "session_context": session_context,
+        "mode": mode
+    }
+
+
 async def router_node(state: State) -> dict:
     """Route to appropriate handler based on context."""
-    # Check if this is a lesson session
+    # Mode should already be set by entry_node
+    # This is now redundant but kept for compatibility
     session_context = state.get("session_context")
     if session_context and session_context.get("session_id"):
         return {"mode": "teaching"}
@@ -166,6 +190,7 @@ except ImportError:
 
 # Build the main graph
 main_graph = StateGraph(State)
+main_graph.add_node("entry", entry_node)
 main_graph.add_node("router", router_node)
 main_graph.add_node("chat", chat_node)
 
@@ -173,7 +198,8 @@ main_graph.add_node("chat", chat_node)
 main_graph.add_node("teaching", teaching_subgraph_wrapper)
 
 # Add edges
-main_graph.add_edge("__start__", "router")
+main_graph.add_edge("__start__", "entry")
+main_graph.add_edge("entry", "router")
 main_graph.add_conditional_edges(
     "router",
     route_by_mode,

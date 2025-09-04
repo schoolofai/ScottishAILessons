@@ -111,12 +111,17 @@ def design_node(state: TeachingState) -> Dict:
 
 
 def deliver_node(state: TeachingState) -> Dict:
-    """Delivery node: Wait for and process student response."""
-    # In production, this would integrate with the UI
-    # For now, we'll return a state indicating we're waiting for input
-    return {
-        "stage": "mark"
-    }
+    """Delivery node: Check if we have student response to process."""
+    # If we have a student response, proceed to marking
+    # If not, stay in deliver mode (waiting for student input)
+    student_response = state.get("student_response")
+    
+    if student_response and student_response.strip():
+        return {"stage": "mark"}
+    else:
+        # No response yet, stay in deliver mode and wait
+        # Return empty update to maintain state
+        return {}
 
 
 def mark_node(state: TeachingState) -> Dict:
@@ -232,6 +237,7 @@ def mark_node(state: TeachingState) -> Dict:
         "attempts": attempts,
         "evidence": evidence,
         "stage": next_stage,
+        "student_response": None,  # Clear student response after processing
         "messages": [AIMessage(content=feedback)]
     }
 
@@ -340,8 +346,23 @@ teaching_graph.add_conditional_edges(
     }
 )
 
-# From deliver: always go to mark (student response received)
-teaching_graph.add_edge("deliver", "mark")
+# From deliver: go to mark only if we have a response, otherwise end (wait for input)
+def should_continue_from_deliver(state: TeachingState) -> str:
+    """Check if we should proceed to marking or wait for input."""
+    student_response = state.get("student_response")
+    if student_response and student_response.strip():
+        return "mark"
+    else:
+        return END  # Wait for student input
+
+teaching_graph.add_conditional_edges(
+    "deliver",
+    should_continue_from_deliver,
+    {
+        "mark": "mark",
+        END: END
+    }
+)
 
 # From mark: go to progress if correct, back to deliver if incorrect
 teaching_graph.add_conditional_edges(

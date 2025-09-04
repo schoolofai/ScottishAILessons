@@ -40,6 +40,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           stage: session.stage || 'design' // Include stage information
         };
 
+        console.log('SessionChatAssistant - Loading context:', context);
         setSessionContext(context);
       } catch (err) {
         console.error("Failed to load session context:", err);

@@ -34,6 +34,8 @@ export const sendMessage = async (params: {
 }) => {
   const client = createClient();
   
+  console.log('chatApi.sendMessage - Params:', params);
+  
   // Prepare input with session context if provided
   const input: any = {};
   if (params.messages?.length) {
@@ -41,7 +43,10 @@ export const sendMessage = async (params: {
   }
   if (params.sessionContext) {
     input.session_context = params.sessionContext;
+    console.log('chatApi.sendMessage - Including session_context in input:', input.session_context);
   }
+  
+  console.log('chatApi.sendMessage - Final input:', input);
   
   return client.runs.stream(
     params.threadId,
