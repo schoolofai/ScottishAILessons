@@ -7,31 +7,43 @@ import { SessionContext } from "./MyAssistant";
 
 interface AutoStartTriggerProps {
   sessionContext?: SessionContext;
-  initialThreadId?: string;
-  threadReady?: boolean; // New prop to indicate when thread is ready
+  threadId?: string;
 }
 
 // Global coordination for auto-start across component instances
 const globalAutoStartState = new Map<string, boolean>();
 
-export function AutoStartTrigger({ sessionContext, initialThreadId, threadReady }: AutoStartTriggerProps) {
+export function AutoStartTrigger({ sessionContext, threadId }: AutoStartTriggerProps) {
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const send = useLangGraphSend();
   const thread = useThread();
 
   useEffect(() => {
-    if (!sessionContext || initialThreadId || !send || !thread || !threadReady) {
+    // Wait for all dependencies including threadId to be available
+    if (!sessionContext || !send || !threadId) {
+      console.log('AutoStartTrigger - Waiting for dependencies:', {
+        hasSessionContext: !!sessionContext,
+        hasSend: !!send,
+        hasThread: !!thread,
+        hasThreadId: !!threadId
+      });
       return;
     }
 
     const sessionKey = sessionContext.session_id;
     const hasExistingMessages = thread?.messages && thread.messages.length > 0;
     
-    console.log('AutoStartTrigger - sessionContext:', !!sessionContext, 'hasAutoStarted:', hasAutoStarted, 'initialThreadId:', initialThreadId, 'send available:', !!send, 'thread available:', !!thread, 'threadReady:', threadReady, 'thread messages:', thread?.messages?.length || 0, 'global started for session:', globalAutoStartState.get(sessionKey));
+    console.log('AutoStartTrigger - Checking auto-start conditions:', {
+      sessionId: sessionKey,
+      hasAutoStarted,
+      threadId: threadId,
+      messageCount: thread?.messages?.length || 0,
+      globalStarted: globalAutoStartState.get(sessionKey)
+    });
 
     // If thread already has messages, skip auto-start
     if (hasExistingMessages) {
-      console.log('Thread already has messages, skipping auto-start');
+      console.log('AutoStartTrigger - Thread already has messages, skipping auto-start');
       setHasAutoStarted(true);
       globalAutoStartState.set(sessionKey, true);
       return;
@@ -39,30 +51,33 @@ export function AutoStartTrigger({ sessionContext, initialThreadId, threadReady 
 
     // Check if auto-start already initiated for this session
     if (globalAutoStartState.get(sessionKey)) {
-      console.log('Auto-start already initiated for this session, skipping');
+      console.log('AutoStartTrigger - Auto-start already initiated for this session, skipping');
       setHasAutoStarted(true);
       return;
     }
 
     // First component instance for this session - initiate auto-start
-    console.log('Auto-starting lesson with session context:', sessionContext);
+    console.log('AutoStartTrigger - Initiating auto-start for session:', sessionContext);
+    console.log('AutoStartTrigger - Using thread:', threadId);
     globalAutoStartState.set(sessionKey, true);
     setHasAutoStarted(true);
     
-    // Thread is confirmed ready, send message immediately
-    console.log('Sending auto-start message using useLangGraphSend');
-    
-    // Send empty message to trigger the teaching graph
-    send([{
-      type: "human",
-      content: "" // Empty message just to trigger the graph
-    }], {}).catch(err => {
-      console.error('Auto-start failed:', err);
-      // Reset global state so user can manually start
-      globalAutoStartState.delete(sessionKey);
-      setHasAutoStarted(false);
-    });
-  }, [sessionContext, hasAutoStarted, initialThreadId, send, thread, threadReady]);
+    // Small delay to ensure thread is fully initialized
+    setTimeout(() => {
+      // Send empty message to trigger the teaching graph
+      send([{
+        type: "human",
+        content: "" // Empty message just to trigger the graph
+      }], {}).then(() => {
+        console.log('AutoStartTrigger - Auto-start message sent successfully to thread:', threadId);
+      }).catch(err => {
+        console.error('AutoStartTrigger - Auto-start failed:', err);
+        // Reset global state so user can manually start
+        globalAutoStartState.delete(sessionKey);
+        setHasAutoStarted(false);
+      });
+    }, 100);
+  }, [sessionContext, hasAutoStarted, send, threadId, thread?.messages?.length]);
 
   // This component doesn't render anything - it's just for side effects
   return null;

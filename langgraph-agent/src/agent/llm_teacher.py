@@ -69,6 +69,27 @@ Student performance: {progress_summary}
 Provide an encouraging summary and congratulate the student on their progress."""),
             ("human", "Complete the lesson")
         ])
+        
+        self.greeting_with_first_card_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+
+Create a cohesive greeting that:
+1. Welcomes the student warmly
+2. Introduces the lesson topic naturally
+3. Seamlessly transitions into presenting the first card
+4. Incorporates the card's explainer and examples if provided
+5. Ends with the card's question
+
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Examples: {card_examples}
+- Question: {card_question}
+
+Make it feel like one natural conversation flow, not separate sections."""),
+            ("human", "Start the lesson with the first card")
+        ])
 
     async def greet_student(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
         """Generate welcoming lesson introduction."""
@@ -292,3 +313,27 @@ Provide an encouraging summary and congratulate the student on their progress.""
         except Exception as e:
             # Fallback completion
             return "🎉 Lesson complete! Great job working through all the problems!"
+
+    def greet_with_first_card_sync(self, lesson_snapshot: Dict, first_card: Dict[str, Any]) -> str:
+        """Generate cohesive greeting with first card (sync version)."""
+        try:
+            examples = "\n".join(first_card.get("example", []))
+            response = self.llm.invoke(
+                self.greeting_with_first_card_prompt.format_messages(
+                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    card_title=first_card.get("title", ""),
+                    card_explainer=first_card.get("explainer", ""),
+                    card_examples=examples,
+                    card_question=first_card.get("cfu", {}).get("stem", "")
+                )
+            )
+            return response.content
+        except Exception as e:
+            # Fallback greeting with first card
+            greeting = f"Hi there! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
+            card_content = f"**{first_card.get('title', 'Practice')}**\n\n{first_card.get('explainer', '')}"
+            if first_card.get("example"):
+                card_content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in first_card["example"])
+            card_content += f"\n\n**Your turn:** {first_card['cfu']['stem']}"
+            return f"{greeting}\n\n{card_content}"

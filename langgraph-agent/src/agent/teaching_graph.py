@@ -59,8 +59,11 @@ def design_node(state: TeachingState) -> Dict:
     current_index = state.get("current_card_index", 0)
     cards = lesson_snapshot.get("cards", [])
     
+    print(f"[DEBUG] design_node - current_index: {current_index}, total_cards: {len(cards)}")
+    
     if current_index >= len(cards):
         # No more cards, lesson complete
+        print(f"[DEBUG] Lesson complete - no more cards")
         try:
             completion_message = teacher.complete_lesson_sync(
                 lesson_snapshot, 
@@ -70,6 +73,7 @@ def design_node(state: TeachingState) -> Dict:
                 }
             )
         except Exception as e:
+            print(f"[DEBUG] Error in completion message: {e}")
             completion_message = "🎉 Lesson complete! Great job working through all the problems!"
         return {
             "stage": "done",
@@ -78,28 +82,35 @@ def design_node(state: TeachingState) -> Dict:
         }
     
     current_card = cards[current_index]
+    print(f"[DEBUG] Presenting card {current_index}: {current_card.get('id', 'unknown')}")
     
     # Generate conversational card presentation
     if current_index == 0:
-        # First card - include lesson greeting  
+        # First card ONLY - use greeting that incorporates the first card naturally
+        print(f"[DEBUG] Using greeting for first card")
         try:
-            greeting = teacher.greet_student_sync(lesson_snapshot)
-            card_content = teacher.present_card_sync(current_card)
-            message = f"{greeting}\n\n{card_content}"
+            message = teacher.greet_with_first_card_sync(lesson_snapshot, current_card)
+            print(f"[DEBUG] Successfully generated greeting with first card")
         except Exception as e:
-            # Fallback if LLM fails
+            print(f"[DEBUG] Error in greeting generation, using fallback: {e}")
+            # Fallback if LLM fails - simple greeting + card
             greeting = f"Hi there! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
             card_content = f"**{current_card.get('title', 'Practice')}**\n\n{current_card.get('explainer', '')}\n\n**Your turn:** {current_card['cfu']['stem']}"
             message = f"{greeting}\n\n{card_content}"
     else:
-        # Subsequent cards
-        try:
-            card_content = teacher.present_card_sync(current_card)
-            message = card_content
-        except Exception as e:
-            # Fallback if LLM fails
-            card_content = f"**{current_card.get('title', 'Practice')}**\n\n{current_card.get('explainer', '')}\n\n**Your turn:** {current_card['cfu']['stem']}"
-            message = card_content
+        # Subsequent cards (index 1, 2, etc.) - use simple, clean presentation WITHOUT greeting
+        print(f"[DEBUG] Using simple card presentation for card {current_index}")
+        title = current_card.get('title', 'Practice')
+        explainer = current_card.get('explainer', '')
+        examples = current_card.get('example', [])
+        question = current_card.get('cfu', {}).get('stem', 'What do you think?')
+        
+        content = f"**{title}**\n\n{explainer}"
+        if examples:
+            content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in examples)
+        content += f"\n\n**Your turn:** {question}"
+        message = content
+        print(f"[DEBUG] Generated simple card content for {title}")
     
     return {
         "current_card": current_card,

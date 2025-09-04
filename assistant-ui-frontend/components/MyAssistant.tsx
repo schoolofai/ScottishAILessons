@@ -32,46 +32,73 @@ export function MyAssistant({
   sessionContext 
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
-  const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const [runtimeThreadId, setRuntimeThreadId] = useState<string | undefined>(initialThreadId);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
   
   console.log('MyAssistant - Received props:', { sessionId, threadId: initialThreadId, sessionContext });
+  console.log('MyAssistant - Current thread state:', { 
+    threadIdRef: threadIdRef.current, 
+    runtimeThreadId,
+    sessionId: sessionContext?.session_id 
+  });
   
   // Create thread immediately for teaching sessions if we don't have one
   useEffect(() => {
-    if (sessionContext && !threadIdRef.current) {
+    if (sessionContext && !threadIdRef.current && !isCreatingThread) {
       const cacheKey = sessionContext.session_id;
       
       // Check if we already have a thread for this session
       if (threadCache.has(cacheKey)) {
         const cachedThreadId = threadCache.get(cacheKey)!;
-        console.log('Using cached thread for teaching session:', cachedThreadId);
+        console.log('MyAssistant - Using cached thread for teaching session:', cachedThreadId);
         threadIdRef.current = cachedThreadId;
         setRuntimeThreadId(cachedThreadId);
+        console.log('MyAssistant - Thread IDs synchronized with cache:', { 
+          threadIdRef: threadIdRef.current, 
+          runtimeThreadId: cachedThreadId 
+        });
         return;
       }
       
-      console.log('Creating thread for teaching session');
+      console.log('MyAssistant - Creating new thread for teaching session');
+      setIsCreatingThread(true);
       createThread().then(({ thread_id }) => {
-        console.log('Created thread for teaching session:', thread_id);
+        console.log('MyAssistant - Created thread for teaching session:', thread_id);
         // Cache the thread ID for this session
         threadCache.set(cacheKey, thread_id);
         threadIdRef.current = thread_id;
         setRuntimeThreadId(thread_id);
+        setIsCreatingThread(false);
+        console.log('MyAssistant - Thread IDs synchronized with new thread:', { 
+          threadIdRef: threadIdRef.current, 
+          runtimeThreadId: thread_id,
+          cached: threadCache.get(cacheKey)
+        });
       }).catch(err => {
-        console.error('Failed to create thread for teaching session:', err);
+        console.error('MyAssistant - Failed to create thread for teaching session:', err);
+        setIsCreatingThread(false);
       });
     }
-  }, [sessionContext]);
+  }, [sessionContext, isCreatingThread]);
   
   const runtime = useLangGraphRuntime({
     threadId: runtimeThreadId,
     stream: async (messages, { command }) => {
       const threadId = threadIdRef.current || runtimeThreadId;
+      console.log('MyAssistant.runtime.stream - Thread ID resolution:', {
+        threadIdRef: threadIdRef.current,
+        runtimeThreadId,
+        selectedThreadId: threadId,
+        messagesLength: messages?.length || 0,
+        hasCommand: !!command
+      });
+      
       if (!threadId) {
-        console.error('No thread ID available for sending message');
+        console.error('MyAssistant.runtime.stream - No thread ID available for sending message');
         throw new Error('No thread ID available');
       }
+      
+      console.log('MyAssistant.runtime.stream - Calling sendMessage with threadId:', threadId);
       return sendMessage({
         threadId,
         messages,
@@ -80,14 +107,31 @@ export function MyAssistant({
       });
     },
     onSwitchToNewThread: async () => {
+      console.log('MyAssistant.onSwitchToNewThread - Creating new thread');
       const { thread_id } = await createThread();
+      console.log('MyAssistant.onSwitchToNewThread - Created thread:', thread_id);
+      
+      // Update all references immediately
       threadIdRef.current = thread_id;
       setRuntimeThreadId(thread_id);
+      
+      // Update cache if we have session context
+      if (sessionContext) {
+        threadCache.set(sessionContext.session_id, thread_id);
+        console.log('MyAssistant.onSwitchToNewThread - Updated thread cache for session:', sessionContext.session_id);
+      }
+      
+      return { threadId: thread_id };
     },
     onSwitchToThread: async (threadId) => {
+      console.log('MyAssistant.onSwitchToThread - Switching to thread:', threadId);
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
       setRuntimeThreadId(threadId);
+      console.log('MyAssistant.onSwitchToThread - Thread switch complete:', {
+        newThreadId: threadId,
+        messagesCount: state.values.messages?.length || 0
+      });
       return { messages: state.values.messages };
     },
   });
@@ -97,9 +141,8 @@ export function MyAssistant({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <AutoStartTrigger 
-        sessionContext={sessionContext} 
-        initialThreadId={initialThreadId}
-        threadReady={!!runtimeThreadId}
+        sessionContext={sessionContext}
+        threadId={runtimeThreadId}
       />
       <Thread />
     </AssistantRuntimeProvider>
