@@ -5,80 +5,75 @@ Implements the Design -> Delivery -> Mark -> Progress teaching loop.
 
 from __future__ import annotations
 
-from typing import Annotated, TypedDict, Optional, List, Dict, Any, Literal
+from typing import Dict
 from datetime import datetime
 import json
 import uuid
 
 from langchain_core.messages import AIMessage, HumanMessage, BaseMessage
 from langgraph.graph import StateGraph, END
-from langgraph.graph.message import add_messages
+
+try:
+    from .shared_state import UnifiedState
+except ImportError:
+    from agent.shared_state import UnifiedState
 
 
-class TeachingState(TypedDict):
-    """State for the teaching loop graph."""
-    # Session context
-    session_id: str
-    student_id: str
-    course_id: str
-    lesson_template_id: str
-    
-    # Lesson data
-    lesson_snapshot: Dict[str, Any]
-    current_card_index: int
-    cards_completed: List[str]
-    
-    # Current interaction
-    current_card: Optional[Dict[str, Any]]
-    student_response: Optional[str]
-    is_correct: Optional[bool]
-    feedback: Optional[str]
-    hint_level: int
-    attempts: int
-    
-    # Evidence tracking
-    evidence: List[Dict[str, Any]]
-    
-    # Mastery tracking  
-    mastery_updates: List[Dict[str, Any]]
-    
-    # Control flow
-    stage: Literal["design", "deliver", "mark", "progress", "done"]
-    should_exit: bool
-    
-    # Messages for chat interface
-    messages: Annotated[list[BaseMessage], add_messages]
-
-
-def design_node(state: TeachingState) -> Dict:
-    """Design node: Prepare the next card for delivery."""
+def design_node(state: UnifiedState) -> Dict:
+    """Design node: Router + Designer - Prepare cards OR route to appropriate stage."""
     from .llm_teacher import LLMTeacher
+    
+    # Get current state
+    stage = state.get("stage", "design")
+    student_response = state.get("student_response")
+    
+    # ROUTING LOGIC - If already in deliver stage with a response, skip design
+    if stage == "deliver" and student_response:
+        print(f"[DEBUG] design_node - ROUTING: stage=deliver with response, passing through")
+        # We're resuming with an answer - don't regenerate the card message
+        # Just pass through maintaining the current state
+        return {
+            "stage": "deliver",  # Maintain deliver stage
+            "student_response": student_response,  # Keep the response
+            # Don't add messages - avoid duplicate
+        }
+    
+    # ROUTING LOGIC - If already in deliver stage without response (waiting state)
+    if stage == "deliver" and not student_response:
+        print(f"[DEBUG] design_node - ROUTING: stage=deliver without response, maintaining state")
+        # Already delivered, waiting for response
+        return {
+            "stage": "deliver"
+            # No new messages
+        }
+    
+    # DESIGN LOGIC - Only execute if stage is "design" or we need a new card
+    # This is where we actually design and present new content
+    print(f"[DEBUG] design_node - DESIGNING: stage={stage}, preparing content")
     
     teacher = LLMTeacher()
     lesson_snapshot = state["lesson_snapshot"]
+    
+    # Initialize progression fields if not present (first time or missing from checkpointed state)
     current_index = state.get("current_card_index", 0)
+    cards_completed = state.get("cards_completed", [])
+    
     cards = lesson_snapshot.get("cards", [])
     
     print(f"[DEBUG] design_node - current_index: {current_index}, total_cards: {len(cards)}")
     
     if current_index >= len(cards):
         # No more cards, lesson complete
-        print(f"[DEBUG] Lesson complete - no more cards")
-        try:
-            completion_message = teacher.complete_lesson_sync(
-                lesson_snapshot, 
-                {
-                    "cards_completed": len(state.get("cards_completed", [])),
-                    "total_cards": len(cards)
-                }
-            )
-        except Exception as e:
-            print(f"[DEBUG] Error in completion message: {e}")
-            completion_message = "🎉 Lesson complete! Great job working through all the problems!"
+        # Progress node already generated completion message, so just end
+        print(f"[DEBUG] Lesson complete - no more cards, ending without duplicate message")
         return {
+            "current_card_index": current_index,
+            "cards_completed": cards_completed,
             "stage": "done",
             "should_exit": True,
-            "messages": [AIMessage(content=completion_message)]
+            "evidence": state.get("evidence", []),
+            "mastery_updates": state.get("mastery_updates", []),
+            # No messages - avoid duplicate completion message
         }
     
     current_card = cards[current_index]
@@ -114,14 +109,19 @@ def design_node(state: TeachingState) -> Dict:
     
     return {
         "current_card": current_card,
+        "current_card_index": current_index,
+        "cards_completed": cards_completed,
         "stage": "deliver",
         "attempts": 0,
         "hint_level": 0,
+        "evidence": state.get("evidence", []),
+        "mastery_updates": state.get("mastery_updates", []),
+        "should_exit": False,
         "messages": [AIMessage(content=message)]
     }
 
 
-def deliver_node(state: TeachingState) -> Dict:
+def deliver_node(state: UnifiedState) -> Dict:
     """Delivery node: Check if we have student response to process."""
     # If we have a student response, proceed to marking
     # If not, stay in deliver mode (waiting for student input)
@@ -135,7 +135,7 @@ def deliver_node(state: TeachingState) -> Dict:
         return {}
 
 
-def mark_node(state: TeachingState) -> Dict:
+def mark_node(state: UnifiedState) -> Dict:
     """Mark node: Evaluate student response and provide feedback."""
     from .llm_teacher import LLMTeacher
     
@@ -205,7 +205,7 @@ def mark_node(state: TeachingState) -> Dict:
         if attempts >= 3 and not is_correct:
             is_correct = True
     
-    # Generate intelligent feedback using LLM
+    # Generate intelligent feedback using LLM, but respect deterministic marking
     try:
         feedback = teacher.evaluate_response_sync(
             student_response=student_response,
@@ -214,6 +214,19 @@ def mark_node(state: TeachingState) -> Dict:
             attempt_number=attempts,
             is_correct=is_correct
         )
+        
+        # Override LLM feedback if deterministic marking disagrees
+        # This prevents cases where LLM incorrectly assesses a correct MCQ answer
+        if is_correct and ("not the correct" in feedback.lower() or "however" in feedback.lower() or "incorrect" in feedback.lower()):
+            feedback = "✓ Excellent! You correctly identified the better deal. Well done!"
+        elif not is_correct and ("correct" in feedback.lower() and "great" in feedback.lower()):
+            if attempts == 1:
+                feedback = "Not quite right. Try again!"
+            elif attempts == 2:
+                feedback = f"Hint: Look carefully at the options. Try again."
+            else:
+                feedback = f"The correct answer is option {cfu.get('answerIndex', 0) + 1}. Let's move on."
+                
     except Exception as e:
         # Fallback feedback
         if is_correct:
@@ -253,7 +266,7 @@ def mark_node(state: TeachingState) -> Dict:
     }
 
 
-def progress_node(state: TeachingState) -> Dict:
+def progress_node(state: UnifiedState) -> Dict:
     """Progress node: Update mastery and move to next card."""
     from .llm_teacher import LLMTeacher
     
@@ -320,14 +333,14 @@ def progress_node(state: TeachingState) -> Dict:
     }
 
 
-def should_continue_from_design(state: TeachingState) -> str:
+def should_continue_from_design(state: UnifiedState) -> str:
     """Determine next step after design node."""
     if state.get("should_exit", False) or state.get("stage") == "done":
         return END
     return state.get("stage", "deliver")
 
 
-def should_continue_from_mark(state: TeachingState) -> str:
+def should_continue_from_mark(state: UnifiedState) -> str:
     """Determine next step after marking."""
     if state.get("is_correct", False):
         return "progress"
@@ -336,7 +349,7 @@ def should_continue_from_mark(state: TeachingState) -> str:
 
 
 # Build the teaching graph
-teaching_graph = StateGraph(TeachingState)
+teaching_graph = StateGraph(UnifiedState)
 
 # Add nodes
 teaching_graph.add_node("design", design_node)
@@ -358,7 +371,7 @@ teaching_graph.add_conditional_edges(
 )
 
 # From deliver: go to mark only if we have a response, otherwise end (wait for input)
-def should_continue_from_deliver(state: TeachingState) -> str:
+def should_continue_from_deliver(state: UnifiedState) -> str:
     """Check if we should proceed to marking or wait for input."""
     student_response = state.get("student_response")
     if student_response and student_response.strip():
