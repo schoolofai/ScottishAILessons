@@ -7,14 +7,12 @@ import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AutoStartTrigger } from "./AutoStartTrigger";
+import { LessonSnapshot } from "@/lib/appwrite/types";
 
 export interface SessionContext {
   session_id: string;
   student_id: string;
-  lesson_snapshot: any;
-  current_card_index: number;
-  current_card: any;
-  stage?: string;
+  lesson_snapshot: LessonSnapshot;
 }
 
 export interface MyAssistantProps {
@@ -67,8 +65,6 @@ export function MyAssistant({
       if (onThreadCreated) {
         onThreadCreated(thread_id);
       }
-      
-      return { threadId: thread_id };
     },
     onSwitchToThread: async (threadId) => {
       console.log('MyAssistant - onSwitchToThread called with threadId:', threadId);

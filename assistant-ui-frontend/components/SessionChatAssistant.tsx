@@ -11,7 +11,7 @@ interface SessionChatAssistantProps {
 }
 
 export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssistantProps) {
-  const [sessionContext, setSessionContext] = useState<SessionContext | null>(null);
+  const [sessionContext, setSessionContext] = useState<SessionContext | undefined>(undefined);
   const [existingThreadId, setExistingThreadId] = useState<string | undefined>(threadId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           throw new Error("Session not found");
         }
 
-        const { session, parsedSnapshot, progress } = sessionStateData;
+        const { session, parsedSnapshot } = sessionStateData;
 
         // Use existing thread ID from session if available
         if (sessionWithThread.threadId) {
@@ -38,16 +38,10 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           setExistingThreadId(sessionWithThread.threadId);
         }
 
-        // Get current card based on progress
-        const currentCard = parsedSnapshot.cards?.[progress.currentCard] || null;
-
         const context: SessionContext = {
           session_id: session.$id,
           student_id: session.studentId,
           lesson_snapshot: parsedSnapshot,
-          current_card_index: progress.currentCard,
-          current_card: currentCard,
-          stage: session.stage || 'design' // Include stage information
         };
 
         console.log('SessionChatAssistant - Loading context:', context);
@@ -105,7 +99,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         <MyAssistant
           sessionId={sessionId}
           threadId={existingThreadId}
-          sessionContext={sessionContext!}
+          sessionContext={sessionContext}
           onThreadCreated={handleThreadCreated}
         />
       </div>

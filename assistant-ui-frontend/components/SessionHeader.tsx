@@ -2,7 +2,7 @@
 
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { SessionContext } from '@/lib/appwrite/types';
+import { SessionContext } from './MyAssistant';
 
 interface SessionHeaderProps {
   sessionContext?: SessionContext;
@@ -17,11 +17,7 @@ export function SessionHeader({ sessionContext }: SessionHeaderProps) {
     );
   }
 
-  const { lesson_snapshot, current_card_index, stage } = sessionContext;
-  const totalCards = lesson_snapshot?.cards?.length || 0;
-  
-  // Only show card progress if lesson has actually started (not in initial design stage)
-  const showCardProgress = stage && stage !== 'design' && current_card_index !== undefined;
+  const { lesson_snapshot } = sessionContext;
   
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3">
@@ -47,11 +43,6 @@ export function SessionHeader({ sessionContext }: SessionHeaderProps) {
             </span>
           </div>
           
-          {showCardProgress && (
-            <div className="text-xs text-gray-500 mt-1">
-              Card {current_card_index + 1} of {totalCards}
-            </div>
-          )}
         </div>
       </div>
     </header>
