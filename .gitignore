@@ -107,4 +107,5 @@ tasks/*/build/
 
 # Documentation builds
 docs/_build/
-docs/.doctrees/
+docs/.dooctrees/
+.playwright-mcp/
