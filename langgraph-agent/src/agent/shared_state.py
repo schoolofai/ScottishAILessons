@@ -39,6 +39,7 @@ class UnifiedState(TypedDict, total=False):
     feedback: Optional[str]
     hint_level: int
     attempts: int
+    max_attempts: int  # Configurable maximum attempts before force progression
     evidence: List[Dict[str, Any]]
     mastery_updates: List[Dict[str, Any]]
     stage: Literal["design", "deliver", "mark", "progress", "done"]

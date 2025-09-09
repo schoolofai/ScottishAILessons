@@ -6,8 +6,19 @@ from langchain_core.messages import HumanMessage, AIMessage
 import os
 import logging
 from typing import Dict, Any, Optional, List
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+
+class EvaluationResponse(BaseModel):
+    """Structured response for LLM-based evaluation."""
+    is_correct: bool = Field(description="Whether the student response is correct")
+    confidence: float = Field(description="Confidence in the evaluation (0.0-1.0)", ge=0.0, le=1.0)
+    feedback: str = Field(description="Contextual feedback for the student")
+    reasoning: str = Field(description="Internal reasoning for the evaluation decision")
+    should_progress: bool = Field(description="Whether to move forward regardless of correctness")
+    partial_credit: Optional[float] = Field(default=None, description="Partial credit score (0.0-1.0)", ge=0.0, le=1.0)
 
 
 class LLMTeacher:
@@ -52,6 +63,31 @@ Is Correct: {is_correct}
 Provide encouraging, specific feedback. If incorrect, give a helpful hint for attempt 2,
 more guidance for attempt 3. Always be positive and constructive."""),
             ("human", "Give feedback on this response")
+        ])
+        
+        self.structured_evaluation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are evaluating a National 3 math student's response with structured output.
+
+Context:
+- Question Type: {question_type}
+- Question: {question}
+- Expected Answer: {expected}
+- Student Response: {student_response}
+- Current Attempt: {attempt_number}
+- Maximum Attempts: {max_attempts}
+- Card Context: {card_context}
+
+Evaluation Guidelines:
+1. For numeric questions: Accept reasonable approximations, alternative formats (fractions, decimals), and contextual answers
+2. For MCQ questions: Match student response to option text or number, be flexible with formatting
+3. For open-ended: Look for conceptual understanding and key ideas
+4. Consider partial credit for partially correct responses
+5. After max attempts, should_progress should be True regardless of correctness
+6. Provide encouraging, specific feedback with hints for incorrect responses
+7. Be positive and constructive in all feedback
+
+Return your evaluation as structured output."""),
+            ("human", "Evaluate this student response")
         ])
         
         self.transition_prompt = ChatPromptTemplate.from_messages([
@@ -693,5 +729,59 @@ Make it feel like friendly tutoring with a clearly structured question."""),
             )
             raise RuntimeError(
                 f"Failed to present MCQ lesson card: {str(e)}"
+            ) from e
+
+    def evaluate_response_with_structured_output(
+        self,
+        student_response: str,
+        expected_answer: Any,
+        card_context: Dict,
+        attempt_number: int,
+        max_attempts: int = 3
+    ) -> EvaluationResponse:
+        """Generate structured evaluation with LLM reasoning (sync version)."""
+        try:
+            # Set up structured output with the Pydantic model
+            structured_llm = self.llm.with_structured_output(EvaluationResponse)
+            
+            # Extract question details
+            cfu = card_context.get("cfu", {})
+            question_type = cfu.get("type", "unknown")
+            question_text = cfu.get("stem", "") or cfu.get("question", "")
+            
+            # Format card context for the prompt
+            context_summary = f"Title: {card_context.get('title', 'Unknown')}"
+            if card_context.get("explainer"):
+                context_summary += f", Explainer: {card_context['explainer'][:100]}..."
+            
+            print(f"[DEBUG] About to invoke structured LLM with tags")
+            response = structured_llm.invoke(
+                self.structured_evaluation_prompt.format_messages(
+                    question_type=question_type,
+                    question=question_text,
+                    expected=str(expected_answer),
+                    student_response=student_response,
+                    attempt_number=attempt_number,
+                    max_attempts=max_attempts,
+                    card_context=context_summary
+                ),
+                config={"tags": ["json"], "run_name": "structured_evaluation"}
+            )
+            print(f"[DEBUG] Structured LLM response received, type: {type(response)}")
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in evaluate_response_with_structured_output: {e}",
+                extra={
+                    "student_response": student_response,
+                    "expected_answer": expected_answer,
+                    "attempt_number": attempt_number,
+                    "max_attempts": max_attempts,
+                    "question_type": card_context.get("cfu", {}).get("type", "unknown"),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate structured evaluation: {str(e)}"
             ) from e
 

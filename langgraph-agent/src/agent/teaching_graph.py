@@ -112,6 +112,7 @@ def design_node(state: UnifiedState) -> Dict:
         "stage": "deliver",
         "attempts": 0,
         "hint_level": 0,
+        "max_attempts": state.get("max_attempts", 3),  # Default to 3, configurable per lesson
         "evidence": state.get("evidence", []),
         "mastery_updates": state.get("mastery_updates", []),
         "should_exit": False,
@@ -134,109 +135,53 @@ def deliver_node(state: UnifiedState) -> Dict:
 
 
 def mark_node(state: UnifiedState) -> Dict:
-    """Mark node: Evaluate student response and provide feedback."""
+    """Mark node: Evaluate student response and provide feedback using LLM with structured output."""
     from .llm_teacher import LLMTeacher
     
     teacher = LLMTeacher()
     current_card = state["current_card"]
     student_response = state.get("student_response", "")
     attempts = state.get("attempts", 0) + 1
+    max_attempts = state.get("max_attempts", 3)
     
     if not current_card or not student_response:
         return {"stage": "deliver"}
     
     cfu = current_card["cfu"]
-    is_correct = False
     
-    # Deterministic marking based on type
-    if cfu["type"] == "numeric":
-        try:
-            # Clean and parse response
-            clean_response = student_response.replace("£", "").replace(",", "").strip()
-            
-            # Handle fraction responses
-            if "/" in clean_response:
-                parts = clean_response.split("/")
-                if len(parts) == 2:
-                    num_response = float(parts[0]) / float(parts[1])
-                else:
-                    num_response = float(clean_response)
-            else:
-                num_response = float(clean_response)
-            
-            expected = cfu.get("expected")
-            if isinstance(expected, str):
-                if "/" in expected:
-                    parts = expected.split("/")
-                    expected = float(parts[0]) / float(parts[1])
-                else:
-                    expected = float(expected)
-            
-            tolerance = cfu.get("tolerance", 0)
-            is_correct = abs(num_response - expected) <= tolerance
-            
-            # Force progress after 3 attempts
-            if attempts >= 3 and not is_correct:
-                is_correct = True
-                    
-        except (ValueError, ZeroDivisionError):
-            pass  # is_correct remains False
-            
-    elif cfu["type"] == "mcq":
-        options = cfu.get("options", [])
-        answer_index = cfu.get("answerIndex", -1)
-        
-        # Check if response matches an option
-        if student_response in options:
-            selected_index = options.index(student_response)
-            is_correct = selected_index == answer_index
-        else:
-            # Try to parse as option number
-            try:
-                selected_index = int(student_response) - 1
-                if 0 <= selected_index < len(options):
-                    is_correct = selected_index == answer_index
-            except ValueError:
-                pass
-        
-        # Force progress after 3 attempts
-        if attempts >= 3 and not is_correct:
-            is_correct = True
-    
-    # Generate intelligent feedback using LLM, but respect deterministic marking
-    feedback_obj = teacher.evaluate_response_sync_full(
+    # Use structured LLM evaluation instead of deterministic logic
+    evaluation = teacher.evaluate_response_with_structured_output(
         student_response=student_response,
         expected_answer=cfu.get("expected"),
         card_context=current_card,
         attempt_number=attempts,
-        is_correct=is_correct
+        max_attempts=max_attempts
     )
-    feedback = feedback_obj.content  # For existing logic
     
-    # Override LLM feedback if deterministic marking disagrees
-    # This prevents cases where LLM incorrectly assesses a correct MCQ answer
-    if is_correct and ("not the correct" in feedback.lower() or "however" in feedback.lower() or "incorrect" in feedback.lower()):
-        feedback = "✓ Excellent! You correctly identified the better deal. Well done!"
-    elif not is_correct and ("correct" in feedback.lower() and "great" in feedback.lower()):
-        if attempts == 1:
-            feedback = "Not quite right. Try again!"
-        elif attempts == 2:
-            feedback = f"Hint: Look carefully at the options. Try again."
-        else:
-            feedback = f"The correct answer is option {cfu.get('answerIndex', 0) + 1}. Let's move on."
+    # Extract evaluation results
+    is_correct = evaluation.is_correct or evaluation.should_progress
+    feedback = evaluation.feedback
     
-    # Record evidence
+    # Record evidence with structured evaluation details
     evidence_entry = {
         "timestamp": datetime.now().isoformat(),
         "item_id": cfu["id"],
         "response": student_response,
-        "correct": is_correct,
+        "correct": evaluation.is_correct,  # Original LLM decision
+        "should_progress": evaluation.should_progress,
+        "confidence": evaluation.confidence,
+        "partial_credit": evaluation.partial_credit,
+        "reasoning": evaluation.reasoning,
         "attempts": attempts,
-        "feedback": feedback  # Store LLM-generated feedback
+        "feedback": feedback
     }
     
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
+    
+    # Create feedback message for the frontend
+    from langchain_core.messages import AIMessage
+    feedback_message = AIMessage(content=feedback)
     
     # Determine next stage
     next_stage = "progress" if is_correct else "deliver"
@@ -248,7 +193,7 @@ def mark_node(state: UnifiedState) -> Dict:
         "evidence": evidence,
         "stage": next_stage,
         "student_response": None,  # Clear student response after processing
-        "messages": [feedback_obj]
+        "messages": [feedback_message]
     }
 
 

@@ -59,7 +59,7 @@ export const sendMessage = async (params: {
     }
   }
   
-  return client.runs.stream(
+  const rawStream = client.runs.stream(
     params.threadId,
     process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
     {
@@ -69,6 +69,44 @@ export const sendMessage = async (params: {
       streamSubgraphs: true ,
     }
   );
+
+  // Filter out structured JSON output from display while keeping regular content
+  async function* filtered() {
+    // Track runIds that are marked with "json" tag for filtering
+    const jsonRunIds = new Set<string>();
+    
+    for await (const event of rawStream as any) {
+      let shouldFilter = false;
+      
+      // 1. Detect metadata events with json tag and track runIds
+      if (event.event === "messages/metadata" && event.data) {
+        for (const [runId, runData] of Object.entries(event.data)) {
+          const metadata = (runData as any)?.metadata;
+          if (metadata?.tags?.includes("json")) {
+            jsonRunIds.add(runId);
+            // Don't filter metadata events - they don't appear in UI
+          }
+        }
+      }
+      
+      // 2. Filter partial message events by runId
+      if (event.event === "messages/partial" && event.data && Array.isArray(event.data)) {
+        const message = event.data[0];
+        const messageRunId = message?.id;
+        
+        if (messageRunId && jsonRunIds.has(messageRunId)) {
+          shouldFilter = true;
+        }
+      }
+
+      // Skip filtered events, pass through everything else
+      if (!shouldFilter) {
+        yield event;
+      }
+    }
+  }
+
+  return filtered();
 };
 
 // Helper function to update session last message timestamp

@@ -164,6 +164,48 @@ Both systems use the same frontend SDK (`@langchain/langgraph-sdk`) but handle e
 #### Subgraph Streaming Configuration
 **IMPORTANT**: The frontend must set `streamSubgraphs: true` in the client configuration to receive messages from subgraphs. This was discovered as a critical requirement for proper message streaming from the teaching subgraph. Without this setting, subgraph messages won't reach the frontend.
 
+#### Structured Output Filtering with LangGraph Streaming
+**CRITICAL GOTCHA**: When using `with_structured_output()` in LangGraph nodes, the JSON output streams to the frontend alongside regular content, creating duplicate/confusing UI messages.
+
+**Problem**: LangGraph sends structured output as two separate streams:
+1. `messages/metadata` event with `tags: ["json"]` and a specific `runId`
+2. `messages/partial` events with the same `runId` containing JSON chunks token-by-token
+3. Regular conversational content comes as separate `messages/partial` events with different `runId`s
+
+**Solution**: Implement runId-based filtering in frontend streaming (see `assistant-ui-frontend/lib/chatApi.ts`):
+
+```typescript
+// Track runIds marked with "json" tag
+const jsonRunIds = new Set<string>();
+
+// 1. Detect metadata events and track JSON runIds
+if (event.event === "messages/metadata" && event.data) {
+  for (const [runId, runData] of Object.entries(event.data)) {
+    if (runData.metadata?.tags?.includes("json")) {
+      jsonRunIds.add(runId);
+    }
+  }
+}
+
+// 2. Filter partial events by runId
+if (event.event === "messages/partial" && event.data?.[0]?.id) {
+  if (jsonRunIds.has(event.data[0].id)) {
+    continue; // Skip JSON chunks
+  }
+}
+```
+
+**Backend Setup**: Tag structured LLM calls with JSON:
+```python
+structured_llm = self.llm.with_structured_output(ResponseModel)
+response = structured_llm.invoke(
+    messages,
+    config={"tags": ["json"], "run_name": "structured_evaluation"}
+)
+```
+
+This approach is **generic** and works with any structured output schema, avoiding hardcoded content filtering.
+
 #### Authentication Systems
 - Official LangGraph: Built-in authentication
 - Aegra: Configurable (`AUTH_TYPE=noop` or `AUTH_TYPE=custom`)
