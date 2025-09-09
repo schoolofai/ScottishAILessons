@@ -36,6 +36,7 @@ class UnifiedState(TypedDict, total=False):
     cards_completed: List[str]
     current_card: Optional[Dict[str, Any]]
     is_correct: Optional[bool]
+    should_progress: Optional[bool]  # Deterministic progression decision
     feedback: Optional[str]
     hint_level: int
     attempts: int

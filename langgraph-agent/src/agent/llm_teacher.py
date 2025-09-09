@@ -82,9 +82,12 @@ Evaluation Guidelines:
 2. For MCQ questions: Match student response to option text or number, be flexible with formatting
 3. For open-ended: Look for conceptual understanding and key ideas
 4. Consider partial credit for partially correct responses
-5. After max attempts, should_progress should be True regardless of correctness
-6. Provide encouraging, specific feedback with hints for incorrect responses
-7. Be positive and constructive in all feedback
+5. CRITICAL: In feedback, DO NOT reveal the correct answer - only provide hints and guidance
+6. For incorrect responses: Give conceptual hints, point to the method/process, encourage retry
+7. Example good feedback: "Think about what 0.2 means - how many tenths? Can you simplify that fraction?"
+8. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
+9. Be encouraging and guide learning without giving away the solution
+10. The correct answer will be revealed separately if needed after max attempts
 
 Return your evaluation as structured output."""),
             ("human", "Evaluate this student response")
@@ -108,6 +111,25 @@ Student performance: {progress_summary}
 
 Provide an encouraging summary and congratulate the student on their progress."""),
             ("human", "Complete the lesson")
+        ])
+        
+        self.correct_answer_explanation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You're explaining the correct answer to a National 3 student who has struggled with a question.
+
+Card Context: {card_context}
+Question: {question}
+Expected Answer: {expected_answer}
+Student Attempts: {student_attempts}
+
+The student has tried their best but hasn't got the correct answer. Now provide a clear, encouraging explanation that:
+1. Shows the correct answer
+2. Explains the step-by-step method to solve it
+3. Helps them understand where they went wrong
+4. Uses encouraging language - they tried hard!
+5. Connects to the real-world context if applicable
+
+Be supportive and educational - this is a learning moment, not a failure."""),
+            ("human", "Explain the correct answer")
         ])
         
         self.greeting_with_first_card_prompt = ChatPromptTemplate.from_messages([
@@ -783,5 +805,34 @@ Make it feel like friendly tutoring with a clearly structured question."""),
             )
             raise RuntimeError(
                 f"Failed to generate structured evaluation: {str(e)}"
+            ) from e
+    
+    def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str]):
+        """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object."""
+        try:
+            cfu = current_card.get("cfu", {})
+            card_context = f"Title: {current_card.get('title', '')}, Explainer: {current_card.get('explainer', '')[:100]}..."
+            
+            response = self.llm.invoke(
+                self.correct_answer_explanation_prompt.format_messages(
+                    card_context=card_context,
+                    question=cfu.get("stem", ""),
+                    expected_answer=str(cfu.get("expected", "")),
+                    student_attempts=", ".join(student_attempts) if student_attempts else "No attempts recorded"
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in explain_correct_answer_sync_full: {e}",
+                extra={
+                    "card_title": current_card.get("title", "unknown"),
+                    "question_type": current_card.get("cfu", {}).get("type", "unknown"),
+                    "num_attempts": len(student_attempts) if student_attempts else 0,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate correct answer explanation: {str(e)}"
             ) from e
 

@@ -158,9 +158,12 @@ def mark_node(state: UnifiedState) -> Dict:
         max_attempts=max_attempts
     )
     
-    # Extract evaluation results
-    is_correct = evaluation.is_correct or evaluation.should_progress
+    # Extract evaluation results - keep correctness separate from progression
+    is_correct = evaluation.is_correct
     feedback = evaluation.feedback
+    
+    # Deterministic progression logic (no LLM decision)
+    should_progress = is_correct or (attempts >= max_attempts)
     
     # Record evidence with structured evaluation details
     evidence_entry = {
@@ -168,32 +171,46 @@ def mark_node(state: UnifiedState) -> Dict:
         "item_id": cfu["id"],
         "response": student_response,
         "correct": evaluation.is_correct,  # Original LLM decision
-        "should_progress": evaluation.should_progress,
+        "should_progress": should_progress,  # Code-based decision
         "confidence": evaluation.confidence,
         "partial_credit": evaluation.partial_credit,
         "reasoning": evaluation.reasoning,
         "attempts": attempts,
-        "feedback": feedback
+        "feedback": feedback,
+        "max_attempts_reached": attempts >= max_attempts
     }
     
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
     
-    # Create feedback message for the frontend
-    from langchain_core.messages import AIMessage
-    feedback_message = AIMessage(content=feedback)
+    # If max attempts reached without success, provide correct answer explanation
+    messages = []
+    if attempts >= max_attempts and not is_correct:
+        # Get previous attempts from evidence for context
+        previous_attempts = [entry["response"] for entry in evidence if entry["item_id"] == cfu["id"]]
+        
+        explanation_message = teacher.explain_correct_answer_sync_full(
+            current_card=current_card,
+            student_attempts=previous_attempts
+        )
+        messages = [AIMessage(content=feedback), explanation_message]
+    else:
+        # Regular feedback only
+        feedback_message = AIMessage(content=feedback)
+        messages = [feedback_message]
     
-    # Determine next stage
-    next_stage = "progress" if is_correct else "deliver"
+    # Determine next stage based on deterministic progression
+    next_stage = "progress" if should_progress else "deliver"
     
     return {
         "is_correct": is_correct,
+        "should_progress": should_progress,
         "feedback": feedback,
         "attempts": attempts,
         "evidence": evidence,
         "stage": next_stage,
         "student_response": None,  # Clear student response after processing
-        "messages": [feedback_message]
+        "messages": messages
     }
 
 
@@ -266,7 +283,7 @@ def should_continue_from_design(state: UnifiedState) -> str:
 
 def should_continue_from_mark(state: UnifiedState) -> str:
     """Determine next step after marking."""
-    if state.get("is_correct", False):
+    if state.get("should_progress", False):
         return "progress"
     else:
         return "deliver"
