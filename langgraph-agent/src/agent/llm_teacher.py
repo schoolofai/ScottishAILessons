@@ -4,7 +4,10 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
 import os
+import logging
 from typing import Dict, Any, Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 class LLMTeacher:
@@ -31,9 +34,10 @@ Student name: {student_name}"""),
 Context: {card_context}
 Explainer: {explainer}
 Examples: {examples}
+Question: {question}
 
 Make it feel like friendly tutoring. Use real-world contexts (shopping, money, etc).
-End with the question naturally in the conversation."""),
+End with the question naturally in the conversation. Make sure to include the question for the student to answer."""),
             ("human", "Present this card: {card_title}")
         ])
         
@@ -90,6 +94,60 @@ Card Details:
 Make it feel like one natural conversation flow, not separate sections."""),
             ("human", "Start the lesson with the first card")
         ])
+        
+        self.greeting_with_first_mcq_card_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+
+Create a cohesive greeting that:
+1. Welcomes the student warmly
+2. Introduces the lesson topic naturally
+3. Seamlessly transitions into presenting the first card
+4. Incorporates the card's explainer and examples if provided
+5. Ends with a properly formatted multiple choice question
+
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Examples: {card_examples}
+- Question: {mcq_question}
+- Options: {mcq_options}
+
+Format the multiple choice question as:
+**Question**: {mcq_question}
+
+1. [First option]
+2. [Second option]
+3. [Third option]
+etc.
+
+Please respond with the number of your choice (1, 2, 3, etc.).
+
+Make it feel like one natural conversation flow with a clear, structured question at the end."""),
+            ("human", "Start the lesson with the first MCQ card")
+        ])
+        
+        self.mcq_card_presentation_prompt = ChatPromptTemplate.from_messages([
+            ("system", """Present this multiple choice question conversationally to a National 3 student.
+Context: {card_context}
+Explainer: {explainer}
+Examples: {examples}
+Question: {mcq_question}
+Options: {mcq_options}
+
+Create a smooth transition and explanation, then format the question as:
+**Question**: {mcq_question}
+
+1. [First option]
+2. [Second option]
+3. [Third option]
+etc.
+
+Please respond with the number of your choice (1, 2, 3, etc.).
+
+Make it feel like friendly tutoring with a clearly structured question."""),
+            ("human", "Present this MCQ card: {card_title}")
+        ])
 
     async def greet_student(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
         """Generate welcoming lesson introduction."""
@@ -103,34 +161,45 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback greeting
-            return f"Hi {student_name}! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
+            logger.error(
+                f"LLM call failed in greet_student: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "student_name": student_name,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson greeting: {str(e)}"
+            ) from e
 
     async def present_card(self, card: Dict[str, Any]) -> str:
         """Present lesson card conversationally."""
         try:
             examples = "\n".join(card.get("example", []))
+            question = card.get("cfu", {}).get("stem", "What do you think?")
             response = await self.llm.ainvoke(
                 self.card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
                     explainer=card.get("explainer", ""),
                     examples=examples,
+                    question=question,
                     card_title=card.get("title", "")
                 )
             )
-            return f"{response.content}\n\n**Your turn:** {card['cfu']['stem']}"
+            return response.content
         except Exception as e:
-            # Fallback presentation
-            title = card.get("title", "Let's practice")
-            explainer = card.get("explainer", "")
-            examples = card.get("example", [])
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            
-            content = f"**{title}**\n\n{explainer}"
-            if examples:
-                content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in examples)
-            content += f"\n\n**Your turn:** {question}"
-            return content
+            logger.error(
+                f"LLM call failed in present_card: {e}",
+                extra={
+                    "card_title": card.get("title", "unknown"),
+                    "has_content": bool(card),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to present lesson card: {str(e)}"
+            ) from e
 
     async def evaluate_response(
         self, 
@@ -153,16 +222,19 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback feedback
-            if is_correct:
-                return "✓ Correct! Well done."
-            else:
-                if attempt_number == 1:
-                    return "Not quite. Give it another try!"
-                elif attempt_number == 2:
-                    return f"Hint: The answer should be close to {expected_answer}. Try again."
-                else:
-                    return f"The correct answer is {expected_answer}. Let's move on."
+            logger.error(
+                f"LLM call failed in evaluate_response: {e}",
+                extra={
+                    "student_response": student_response,
+                    "expected_answer": expected_answer,
+                    "attempt_number": attempt_number,
+                    "is_correct": is_correct,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate feedback: {str(e)}"
+            ) from e
 
     async def transition_to_next(
         self, 
@@ -184,8 +256,17 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback transition
-            return f"Great work! Now let's move on to {next_card.get('title', 'the next topic')}."
+            logger.error(
+                f"LLM call failed in transition_to_next: {e}",
+                extra={
+                    "completed_card_title": completed_card.get("title", "unknown"),
+                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate transition: {str(e)}"
+            ) from e
 
     async def complete_lesson(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
         """Generate lesson completion message."""
@@ -199,8 +280,17 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback completion
-            return "🎉 Lesson complete! Great job working through all the problems!"
+            logger.error(
+                f"LLM call failed in complete_lesson: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "cards_completed": progress_context.get("cards_completed", 0),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson completion message: {str(e)}"
+            ) from e
     
     # Synchronous versions for LangGraph compatibility
     def greet_student_sync(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
@@ -215,34 +305,45 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback greeting
-            return f"Hi {student_name}! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
+            logger.error(
+                f"LLM call failed in greet_student_sync: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "student_name": student_name,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson greeting: {str(e)}"
+            ) from e
 
     def present_card_sync(self, card: Dict[str, Any]) -> str:
         """Present lesson card conversationally (sync version)."""
         try:
             examples = "\n".join(card.get("example", []))
+            question = card.get("cfu", {}).get("stem", "What do you think?")
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
                     explainer=card.get("explainer", ""),
                     examples=examples,
+                    question=question,
                     card_title=card.get("title", "")
                 )
             )
-            return f"{response.content}\n\n**Your turn:** {card['cfu']['stem']}"
+            return response.content
         except Exception as e:
-            # Fallback presentation
-            title = card.get("title", "Let's practice")
-            explainer = card.get("explainer", "")
-            examples = card.get("example", [])
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            
-            content = f"**{title}**\n\n{explainer}"
-            if examples:
-                content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in examples)
-            content += f"\n\n**Your turn:** {question}"
-            return content
+            logger.error(
+                f"LLM call failed in present_card_sync: {e}",
+                extra={
+                    "card_title": card.get("title", "unknown"),
+                    "has_content": bool(card),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to present lesson card: {str(e)}"
+            ) from e
 
     def evaluate_response_sync(
         self, 
@@ -252,7 +353,7 @@ Make it feel like one natural conversation flow, not separate sections."""),
         attempt_number: int,
         is_correct: bool
     ) -> str:
-        """Generate contextual feedback for student response (sync version)."""
+        """Generate contextual feedback for student response (sync version) - returns content only."""
         try:
             response = self.llm.invoke(
                 self.feedback_prompt.format_messages(
@@ -265,16 +366,54 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback feedback
-            if is_correct:
-                return "✓ Correct! Well done."
-            else:
-                if attempt_number == 1:
-                    return "Not quite. Give it another try!"
-                elif attempt_number == 2:
-                    return f"Hint: The answer should be close to {expected_answer}. Try again."
-                else:
-                    return f"The correct answer is {expected_answer}. Let's move on."
+            logger.error(
+                f"LLM call failed in evaluate_response_sync: {e}",
+                extra={
+                    "student_response": student_response,
+                    "expected_answer": expected_answer,
+                    "attempt_number": attempt_number,
+                    "is_correct": is_correct,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate feedback: {str(e)}"
+            ) from e
+
+    def evaluate_response_sync_full(
+        self, 
+        student_response: str,
+        expected_answer: Any,
+        card_context: Dict,
+        attempt_number: int,
+        is_correct: bool
+    ):
+        """Generate contextual feedback for student response (sync version) - returns full response object."""
+        try:
+            response = self.llm.invoke(
+                self.feedback_prompt.format_messages(
+                    question=card_context["cfu"]["stem"],
+                    expected=str(expected_answer),
+                    student_response=student_response,
+                    attempt=attempt_number,
+                    is_correct=is_correct
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in evaluate_response_sync_full: {e}",
+                extra={
+                    "student_response": student_response,
+                    "expected_answer": expected_answer,
+                    "attempt_number": attempt_number,
+                    "is_correct": is_correct,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate feedback for student response: {str(e)}"
+            ) from e
 
     def transition_to_next_sync(
         self, 
@@ -282,7 +421,7 @@ Make it feel like one natural conversation flow, not separate sections."""),
         next_card: Optional[Dict],
         progress_context: Dict
     ) -> str:
-        """Generate transition between lesson cards (sync version)."""
+        """Generate transition between lesson cards (sync version) - returns content only."""
         if not next_card:
             return self.complete_lesson_sync(completed_card, progress_context)
             
@@ -296,11 +435,52 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback transition
-            return f"Great work! Now let's move on to {next_card.get('title', 'the next topic')}."
+            logger.error(
+                f"LLM call failed in transition_to_next_sync: {e}",
+                extra={
+                    "completed_card_title": completed_card.get("title", "unknown"),
+                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate transition: {str(e)}"
+            ) from e
+
+    def transition_to_next_sync_full(
+        self, 
+        completed_card: Dict, 
+        next_card: Optional[Dict],
+        progress_context: Dict
+    ):
+        """Generate transition between lesson cards (sync version) - returns full response object."""
+        if not next_card:
+            return self.complete_lesson_sync_full(completed_card, progress_context)
+            
+        try:
+            response = self.llm.invoke(
+                self.transition_prompt.format_messages(
+                    completed_card=completed_card.get("title", "previous topic"),
+                    next_card=next_card.get("title", "next topic"),
+                    progress_context=str(progress_context)
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in transition_to_next_sync_full: {e}",
+                extra={
+                    "completed_card_title": completed_card.get("title", "unknown"),
+                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate transition between lesson cards: {str(e)}"
+            ) from e
 
     def complete_lesson_sync(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
-        """Generate lesson completion message (sync version)."""
+        """Generate lesson completion message (sync version) - returns content only."""
         try:
             response = self.llm.invoke(
                 self.completion_prompt.format_messages(
@@ -311,11 +491,74 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback completion
-            return "🎉 Lesson complete! Great job working through all the problems!"
+            logger.error(
+                f"LLM call failed in complete_lesson_sync: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "cards_completed": progress_context.get("cards_completed", 0),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson completion message: {str(e)}"
+            ) from e
+
+    def complete_lesson_sync_full(self, lesson_snapshot: Dict, progress_context: Dict):
+        """Generate lesson completion message (sync version) - returns full response object."""
+        try:
+            response = self.llm.invoke(
+                self.completion_prompt.format_messages(
+                    lesson_title=lesson_snapshot.get("title", "the lesson"),
+                    completed_cards=progress_context.get("cards_completed", 0),
+                    progress_summary=str(progress_context)
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in complete_lesson_sync_full: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "cards_completed": progress_context.get("cards_completed", 0),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson completion message: {str(e)}"
+            ) from e
+
+    def present_card_sync_full(self, card: Dict[str, Any]):
+        """Present lesson card conversationally (sync version) - returns full response object."""
+        try:
+            examples = "\n".join(card.get("example", []))
+            question = card.get("cfu", {}).get("stem", "What do you think?")
+            response = self.llm.invoke(
+                self.card_presentation_prompt.format_messages(
+                    card_context=card.get("title", ""),
+                    explainer=card.get("explainer", ""),
+                    examples=examples,
+                    question=question,
+                    card_title=card.get("title", "")
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in present_card_sync_full: {e}",
+                extra={
+                    "card_title": card.get("title", "unknown"),
+                    "has_explainer": bool(card.get("explainer")),
+                    "has_examples": bool(card.get("example")),
+                    "has_question": bool(card.get("cfu", {}).get("stem")),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to present lesson card: {str(e)}"
+            ) from e
 
     def greet_with_first_card_sync(self, lesson_snapshot: Dict, first_card: Dict[str, Any]) -> str:
-        """Generate cohesive greeting with first card (sync version)."""
+        """Generate cohesive greeting with first card (sync version) - returns content only."""
         try:
             examples = "\n".join(first_card.get("example", []))
             response = self.llm.invoke(
@@ -330,10 +573,125 @@ Make it feel like one natural conversation flow, not separate sections."""),
             )
             return response.content
         except Exception as e:
-            # Fallback greeting with first card
-            greeting = f"Hi there! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
-            card_content = f"**{first_card.get('title', 'Practice')}**\n\n{first_card.get('explainer', '')}"
-            if first_card.get("example"):
-                card_content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in first_card["example"])
-            card_content += f"\n\n**Your turn:** {first_card['cfu']['stem']}"
-            return f"{greeting}\n\n{card_content}"
+            logger.error(
+                f"LLM call failed in greet_with_first_card_sync: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "card_title": first_card.get("title", "unknown"),
+                    "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate greeting with first lesson card: {str(e)}"
+            ) from e
+
+    def greet_with_first_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any]):
+        """Generate cohesive greeting with first card (sync version) - returns full response object."""
+        try:
+            examples = "\n".join(first_card.get("example", []))
+            response = self.llm.invoke(
+                self.greeting_with_first_card_prompt.format_messages(
+                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    card_title=first_card.get("title", ""),
+                    card_explainer=first_card.get("explainer", ""),
+                    card_examples=examples,
+                    card_question=first_card.get("cfu", {}).get("stem", "")
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in greet_with_first_card_sync_full: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "card_title": first_card.get("title", "unknown"),
+                    "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate greeting with first lesson card: {str(e)}"
+            ) from e
+    def _format_mcq_options(self, options: List[str]) -> str:
+        """Helper to format MCQ options consistently as numbered list."""
+        formatted_options = []
+        for i, option in enumerate(options, 1):
+            formatted_options.append(f"{i}. {option}")
+        return "\n".join(formatted_options)
+
+    def greet_with_first_mcq_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any]):
+        """Generate cohesive greeting with first MCQ card (sync version) - returns full response object."""
+        try:
+            cfu = first_card.get("cfu", {})
+            options = cfu.get("options", [])
+            question = cfu.get("stem", "") or cfu.get("question", "")
+            
+            examples = "\n".join(first_card.get("example", []))
+            formatted_options = self._format_mcq_options(options)
+            
+            response = self.llm.invoke(
+                self.greeting_with_first_mcq_card_prompt.format_messages(
+                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    card_title=first_card.get("title", ""),
+                    card_explainer=first_card.get("explainer", ""),
+                    card_examples=examples,
+                    mcq_question=question,
+                    mcq_options=formatted_options
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in greet_with_first_mcq_card_sync_full: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "card_title": first_card.get("title", "unknown"),
+                    "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
+                    "cfu_type": first_card.get("cfu", {}).get("type", "unknown"),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate MCQ greeting with first lesson card: {str(e)}"
+            ) from e
+
+    def present_mcq_card_sync_full(self, card: Dict[str, Any]):
+        """Present MCQ card with structured format (sync version) - returns full response object."""
+        try:
+            cfu = card.get("cfu", {})
+            options = cfu.get("options", [])
+            question = cfu.get("stem", "") or cfu.get("question", "")
+            
+            examples = "\n".join(card.get("example", []))
+            formatted_options = self._format_mcq_options(options)
+            
+            response = self.llm.invoke(
+                self.mcq_card_presentation_prompt.format_messages(
+                    card_context=card.get("title", ""),
+                    explainer=card.get("explainer", ""),
+                    examples=examples,
+                    mcq_question=question,
+                    mcq_options=formatted_options,
+                    card_title=card.get("title", "")
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in present_mcq_card_sync_full: {e}",
+                extra={
+                    "card_title": card.get("title", "unknown"),
+                    "has_explainer": bool(card.get("explainer")),
+                    "has_examples": bool(card.get("example")),
+                    "cfu_type": card.get("cfu", {}).get("type", "unknown"),
+                    "num_options": len(card.get("cfu", {}).get("options", [])),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to present MCQ lesson card: {str(e)}"
+            ) from e
+

@@ -79,31 +79,33 @@ def design_node(state: UnifiedState) -> Dict:
     current_card = cards[current_index]
     print(f"[DEBUG] Presenting card {current_index}: {current_card.get('id', 'unknown')}")
     
-    # Generate conversational card presentation with CFU-type awareness
-    cfu = current_card.get("cfu", {})
-    cfu_type = cfu.get("type", "")
-    print(f"[DEBUG] Card CFU type: {cfu_type}")
-    
+    # Generate conversational card presentation
     if current_index == 0:
-        # First card ONLY - check if MCQ and use appropriate greeting method
-        if cfu_type == "mcq":
-            print(f"[DEBUG] Using MCQ greeting for first card")
-            message_obj = teacher.greet_with_first_mcq_card_sync_full(lesson_snapshot, current_card)
-            print(f"[DEBUG] Successfully generated MCQ greeting with first card")
-        else:
-            print(f"[DEBUG] Using standard greeting for first card")
-            message_obj = teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card)
-            print(f"[DEBUG] Successfully generated standard greeting with first card")
+        # First card ONLY - use greeting that incorporates the first card naturally
+        print(f"[DEBUG] Using greeting for first card")
+        try:
+            message = teacher.greet_with_first_card_sync(lesson_snapshot, current_card)
+            print(f"[DEBUG] Successfully generated greeting with first card")
+        except Exception as e:
+            print(f"[DEBUG] Error in greeting generation, using fallback: {e}")
+            # Fallback if LLM fails - simple greeting + card
+            greeting = f"Hi there! Ready to learn about {lesson_snapshot.get('title', 'math')}? Let's get started!"
+            card_content = f"**{current_card.get('title', 'Practice')}**\n\n{current_card.get('explainer', '')}\n\n**Your turn:** {current_card['cfu']['stem']}"
+            message = f"{greeting}\n\n{card_content}"
     else:
-        # Subsequent cards (index 1, 2, etc.) - check if MCQ and use appropriate method
-        if cfu_type == "mcq":
-            print(f"[DEBUG] Using MCQ presentation for card {current_index}")
-            message_obj = teacher.present_mcq_card_sync_full(current_card)
-            print(f"[DEBUG] Successfully generated MCQ content for {current_card.get('title', 'unknown')}")
-        else:
-            print(f"[DEBUG] Using standard LLM card presentation for card {current_index}")
-            message_obj = teacher.present_card_sync_full(current_card)
-            print(f"[DEBUG] Successfully generated standard LLM card content for {current_card.get('title', 'unknown')}")
+        # Subsequent cards (index 1, 2, etc.) - use simple, clean presentation WITHOUT greeting
+        print(f"[DEBUG] Using simple card presentation for card {current_index}")
+        title = current_card.get('title', 'Practice')
+        explainer = current_card.get('explainer', '')
+        examples = current_card.get('example', [])
+        question = current_card.get('cfu', {}).get('stem', 'What do you think?')
+        
+        content = f"**{title}**\n\n{explainer}"
+        if examples:
+            content += "\n\n**Examples:**\n" + "\n".join(f"- {ex}" for ex in examples)
+        content += f"\n\n**Your turn:** {question}"
+        message = content
+        print(f"[DEBUG] Generated simple card content for {title}")
     
     return {
         "current_card": current_card,
@@ -115,7 +117,7 @@ def design_node(state: UnifiedState) -> Dict:
         "evidence": state.get("evidence", []),
         "mastery_updates": state.get("mastery_updates", []),
         "should_exit": False,
-        "messages": [message_obj]
+        "messages": [AIMessage(content=message)]
     }
 
 
@@ -204,26 +206,38 @@ def mark_node(state: UnifiedState) -> Dict:
             is_correct = True
     
     # Generate intelligent feedback using LLM, but respect deterministic marking
-    feedback_obj = teacher.evaluate_response_sync_full(
-        student_response=student_response,
-        expected_answer=cfu.get("expected"),
-        card_context=current_card,
-        attempt_number=attempts,
-        is_correct=is_correct
-    )
-    feedback = feedback_obj.content  # For existing logic
-    
-    # Override LLM feedback if deterministic marking disagrees
-    # This prevents cases where LLM incorrectly assesses a correct MCQ answer
-    if is_correct and ("not the correct" in feedback.lower() or "however" in feedback.lower() or "incorrect" in feedback.lower()):
-        feedback = "✓ Excellent! You correctly identified the better deal. Well done!"
-    elif not is_correct and ("correct" in feedback.lower() and "great" in feedback.lower()):
-        if attempts == 1:
-            feedback = "Not quite right. Try again!"
-        elif attempts == 2:
-            feedback = f"Hint: Look carefully at the options. Try again."
+    try:
+        feedback = teacher.evaluate_response_sync(
+            student_response=student_response,
+            expected_answer=cfu.get("expected"),
+            card_context=current_card,
+            attempt_number=attempts,
+            is_correct=is_correct
+        )
+        
+        # Override LLM feedback if deterministic marking disagrees
+        # This prevents cases where LLM incorrectly assesses a correct MCQ answer
+        if is_correct and ("not the correct" in feedback.lower() or "however" in feedback.lower() or "incorrect" in feedback.lower()):
+            feedback = "✓ Excellent! You correctly identified the better deal. Well done!"
+        elif not is_correct and ("correct" in feedback.lower() and "great" in feedback.lower()):
+            if attempts == 1:
+                feedback = "Not quite right. Try again!"
+            elif attempts == 2:
+                feedback = f"Hint: Look carefully at the options. Try again."
+            else:
+                feedback = f"The correct answer is option {cfu.get('answerIndex', 0) + 1}. Let's move on."
+                
+    except Exception as e:
+        # Fallback feedback
+        if is_correct:
+            feedback = "✓ Correct! Well done."
         else:
-            feedback = f"The correct answer is option {cfu.get('answerIndex', 0) + 1}. Let's move on."
+            if attempts == 1:
+                feedback = "Not quite. Give it another try!"
+            elif attempts == 2:
+                feedback = f"Hint: The answer should be close to {cfu.get('expected')}. Try again."
+            else:
+                feedback = f"The correct answer is {cfu.get('expected')}. Let's move on."
     
     # Record evidence
     evidence_entry = {
@@ -248,7 +262,7 @@ def mark_node(state: UnifiedState) -> Dict:
         "evidence": evidence,
         "stage": next_stage,
         "student_response": None,  # Clear student response after processing
-        "messages": [feedback_obj]
+        "messages": [AIMessage(content=feedback)]
     }
 
 
@@ -290,15 +304,22 @@ def progress_node(state: UnifiedState) -> Dict:
     next_card = cards[next_card_index] if next_card_index < len(cards) else None
     
     # Generate transition message
-    transition_obj = teacher.transition_to_next_sync_full(
-        completed_card=current_card,
-        next_card=next_card,
-        progress_context={
-            "cards_completed": len(cards_completed),
-            "total_cards": len(cards),
-            "current_performance": state.get("is_correct", False)
-        }
-    )
+    try:
+        transition_message = teacher.transition_to_next_sync(
+            completed_card=current_card,
+            next_card=next_card,
+            progress_context={
+                "cards_completed": len(cards_completed),
+                "total_cards": len(cards),
+                "current_performance": state.get("is_correct", False)
+            }
+        )
+    except Exception as e:
+        # Fallback transition
+        if next_card:
+            transition_message = f"Great work! Now let's move on to {next_card.get('title', 'the next topic')}."
+        else:
+            transition_message = "🎉 Lesson complete! Great job working through all the problems!"
     
     return {
         "current_card_index": next_card_index,
@@ -308,7 +329,7 @@ def progress_node(state: UnifiedState) -> Dict:
         "student_response": None,
         "is_correct": None,
         "feedback": None,
-        "messages": [transition_obj]
+        "messages": [AIMessage(content=transition_message)]
     }
 
 

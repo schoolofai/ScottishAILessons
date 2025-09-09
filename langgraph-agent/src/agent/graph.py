@@ -121,6 +121,7 @@ main_graph.add_node("router", router_node)
 main_graph.add_node("chat", chat_node)
 
 # Add teaching subgraph directly (shared state schema enables direct integration)
+# Note: With streamSubgraphs enabled, messages from subgraph nodes are streamed directly
 main_graph.add_node("teaching", teaching_subgraph)
 
 # Add edges

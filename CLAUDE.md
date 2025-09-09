@@ -161,6 +161,9 @@ Both systems use the same frontend SDK (`@langchain/langgraph-sdk`) but handle e
 - Official: Smart event selection based on message type
 - Aegra: Consistent streaming-first approach with AIMessageChunk
 
+#### Subgraph Streaming Configuration
+**IMPORTANT**: The frontend must set `streamSubgraphs: true` in the client configuration to receive messages from subgraphs. This was discovered as a critical requirement for proper message streaming from the teaching subgraph. Without this setting, subgraph messages won't reach the frontend.
+
 #### Authentication Systems
 - Official LangGraph: Built-in authentication
 - Aegra: Configurable (`AUTH_TYPE=noop` or `AUTH_TYPE=custom`)
