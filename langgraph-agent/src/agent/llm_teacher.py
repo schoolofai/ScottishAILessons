@@ -2,7 +2,6 @@
 
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, AIMessage
 import os
 import logging
 from typing import Dict, Any, Optional, List
@@ -48,7 +47,13 @@ Examples: {examples}
 Question: {question}
 
 Make it feel like friendly tutoring. Use real-world contexts (shopping, money, etc).
-End with the question naturally in the conversation. Make sure to include the question for the student to answer."""),
+End with the question naturally in the conversation. Make sure to include the question for the student to answer.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Present this card: {card_title}")
         ])
         
@@ -79,7 +84,11 @@ Context:
 
 Evaluation Guidelines:
 1. For numeric questions: Accept reasonable approximations, alternative formats (fractions, decimals), and contextual answers
-2. For MCQ questions: Match student response to option text or number, be flexible with formatting
+2. For MCQ questions: 
+   - If expected answer is a dict with MCQ info, compare student response to correct_human_index (1-indexed)
+   - Student may respond with numbers (1, 2, 3) or option text
+   - Be flexible: "2" should match correct_human_index 2
+   - Example: if correct_human_index is 2 and student responds "2", mark as correct
 3. For open-ended: Look for conceptual understanding and key ideas
 4. Consider partial credit for partially correct responses
 5. CRITICAL: In feedback, DO NOT reveal the correct answer - only provide hints and guidance
@@ -88,6 +97,12 @@ Evaluation Guidelines:
 8. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
 9. Be encouraging and guide learning without giving away the solution
 10. The correct answer will be revealed separately if needed after max attempts
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions in feedback, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters.
 
 Return your evaluation as structured output."""),
             ("human", "Evaluate this student response")
@@ -128,8 +143,48 @@ The student has tried their best but hasn't got the correct answer. Now provide 
 4. Uses encouraging language - they tried hard!
 5. Connects to the real-world context if applicable
 
-Be supportive and educational - this is a learning moment, not a failure."""),
+Be supportive and educational - this is a learning moment, not a failure.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Explain the correct answer")
+        ])
+        
+        self.lesson_summary_prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are analyzing a completed Scottish National 3 math lesson to provide comprehensive feedback and guidance.
+
+Lesson Details:
+- Title: {lesson_title}
+- Outcome References: {outcome_refs}
+- Total Cards: {total_cards}
+- Cards Completed: {cards_completed}
+
+Performance Analysis:
+{performance_analysis}
+
+Evidence Summary:
+{evidence_summary}
+
+Your task is to:
+1. Congratulate the student on completing the lesson
+2. Analyze their overall performance and learning patterns
+3. Highlight their strengths and areas they mastered well
+4. Identify areas that may need more practice
+5. Provide specific, actionable recommendations
+6. Decide whether they should retry this lesson or are ready to progress
+7. End with encouraging next steps
+
+Be supportive, specific, and educational. Focus on growth and learning rather than just correctness.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+            ("human", "Analyze this completed lesson and provide comprehensive feedback")
         ])
         
         self.greeting_with_first_card_prompt = ChatPromptTemplate.from_messages([
@@ -149,7 +204,13 @@ Card Details:
 - Examples: {card_examples}
 - Question: {card_question}
 
-Make it feel like one natural conversation flow, not separate sections."""),
+Make it feel like one natural conversation flow, not separate sections.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Start the lesson with the first card")
         ])
         
@@ -181,7 +242,13 @@ etc.
 
 Please respond with the number of your choice (1, 2, 3, etc.).
 
-Make it feel like one natural conversation flow with a clear, structured question at the end."""),
+Make it feel like one natural conversation flow with a clear, structured question at the end.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Start the lesson with the first MCQ card")
         ])
         
@@ -203,7 +270,13 @@ etc.
 
 Please respond with the number of your choice (1, 2, 3, etc.).
 
-Make it feel like friendly tutoring with a clearly structured question."""),
+Make it feel like friendly tutoring with a clearly structured question.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Present this MCQ card: {card_title}")
         ])
 
@@ -835,4 +908,107 @@ Make it feel like friendly tutoring with a clearly structured question."""),
             raise RuntimeError(
                 f"Failed to generate correct answer explanation: {str(e)}"
             ) from e
+
+    def summarize_completed_lesson_sync_full(self, lesson_snapshot: Dict, evidence: List[Dict], performance_analysis: Dict):
+        """Generate comprehensive lesson summary with LLM analysis (sync version) - returns full response object."""
+        try:
+            # Format lesson details
+            lesson_title = lesson_snapshot.get("title", "Math Lesson")
+            outcome_refs = ", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])])
+            cards = lesson_snapshot.get("cards", [])
+            total_cards = len(cards)
+            cards_completed = len([card for card in cards])
+            
+            # Format performance analysis
+            performance_text = self._format_performance_analysis(performance_analysis)
+            
+            # Format evidence summary
+            evidence_text = self._format_evidence_summary(evidence)
+            
+            response = self.llm.invoke(
+                self.lesson_summary_prompt.format_messages(
+                    lesson_title=lesson_title,
+                    outcome_refs=outcome_refs,
+                    total_cards=total_cards,
+                    cards_completed=cards_completed,
+                    performance_analysis=performance_text,
+                    evidence_summary=evidence_text
+                )
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"LLM call failed in summarize_completed_lesson_sync_full: {e}",
+                extra={
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
+                    "total_cards": len(lesson_snapshot.get("cards", [])),
+                    "evidence_entries": len(evidence),
+                    "error_type": type(e).__name__
+                }
+            )
+            raise RuntimeError(
+                f"Failed to generate lesson summary: {str(e)}"
+            ) from e
+
+    def _format_performance_analysis(self, analysis: Dict) -> str:
+        """Helper to format performance analysis for LLM prompt."""
+        lines = []
+        
+        if "overall_accuracy" in analysis:
+            lines.append(f"Overall Accuracy: {analysis['overall_accuracy']:.1%}")
+        
+        if "first_attempt_success" in analysis:
+            lines.append(f"First Attempt Success Rate: {analysis['first_attempt_success']:.1%}")
+        
+        if "average_attempts" in analysis:
+            lines.append(f"Average Attempts per Question: {analysis['average_attempts']:.1f}")
+        
+        if "strong_areas" in analysis and analysis["strong_areas"]:
+            lines.append(f"Areas of Strength: {', '.join(analysis['strong_areas'])}")
+        
+        if "challenge_areas" in analysis and analysis["challenge_areas"]:
+            lines.append(f"Areas for Improvement: {', '.join(analysis['challenge_areas'])}")
+        
+        if "retry_recommended" in analysis:
+            recommendation = "Yes" if analysis["retry_recommended"] else "No"
+            lines.append(f"Retry Recommended: {recommendation}")
+        
+        return "\n".join(lines) if lines else "No performance data available."
+
+    def _format_evidence_summary(self, evidence: List[Dict]) -> str:
+        """Helper to format evidence entries for LLM prompt."""
+        if not evidence:
+            return "No evidence recorded."
+        
+        lines = []
+        correct_count = sum(1 for entry in evidence if entry.get("correct", False))
+        total_count = len(evidence)
+        
+        lines.append(f"Total Questions: {total_count}")
+        lines.append(f"Correct Answers: {correct_count}")
+        lines.append(f"Accuracy: {correct_count/total_count:.1%}")
+        
+        # Group by attempts
+        attempts_summary = {}
+        for entry in evidence:
+            attempts = entry.get("attempts", 1)
+            if attempts not in attempts_summary:
+                attempts_summary[attempts] = {"correct": 0, "total": 0}
+            attempts_summary[attempts]["total"] += 1
+            if entry.get("correct", False):
+                attempts_summary[attempts]["correct"] += 1
+        
+        lines.append("\nBreakdown by attempts:")
+        for attempts in sorted(attempts_summary.keys()):
+            data = attempts_summary[attempts]
+            lines.append(f"  {attempts} attempt(s): {data['correct']}/{data['total']} correct")
+        
+        # Show recent performance pattern
+        if len(evidence) > 1:
+            recent_evidence = evidence[-min(5, len(evidence)):]
+            recent_pattern = [entry.get("correct", False) for entry in recent_evidence]
+            pattern_text = ", ".join("✓" if correct else "✗" for correct in recent_pattern)
+            lines.append(f"\nRecent Performance Pattern: {pattern_text}")
+        
+        return "\n".join(lines)
 

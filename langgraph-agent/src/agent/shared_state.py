@@ -45,3 +45,8 @@ class UnifiedState(TypedDict, total=False):
     mastery_updates: List[Dict[str, Any]]
     stage: Literal["design", "deliver", "mark", "progress", "done"]
     should_exit: bool
+    
+    # Enhanced lesson completion fields
+    lesson_summary: Optional[BaseMessage]  # LLM-generated comprehensive summary
+    performance_analysis: Optional[Dict[str, Any]]  # Detailed performance metrics
+    retry_recommended: Optional[bool]  # Whether student should retry the lesson

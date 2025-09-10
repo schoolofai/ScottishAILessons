@@ -8,24 +8,30 @@ import {
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import { useContentPartText } from "@assistant-ui/react";
 import remarkGfm from "remark-gfm";
-import { FC, memo, useState } from "react";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import React, { FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
+  const { text } = useContentPartText();
+  
   return (
     <MarkdownTextPrimitive
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex]}
       className="aui-md"
       components={defaultComponents}
     />
   );
 };
 
-export const MarkdownText = memo(MarkdownTextImpl);
+export const MarkdownText = MarkdownTextImpl;
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();

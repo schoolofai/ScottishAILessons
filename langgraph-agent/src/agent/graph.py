@@ -82,7 +82,23 @@ async def chat_node(state: UnifiedState) -> dict:
         user_input = last_message.content if hasattr(last_message, 'content') else str(last_message)
         
         # Simple response logic - replace with LLM integration
-        if "hello" in user_input.lower() or "hi" in user_input.lower():
+        if "latex" in user_input.lower() or "test" in user_input.lower():
+            response = r"""Testing LaTeX rendering with different formats:
+
+1. Standard inline math: $\frac{2}{10} = \frac{1}{5}$
+
+2. Standard display math: $$\frac{2}{10} = \frac{1}{5} = 0.2$$
+
+3. Parentheses format: ( \frac{2}{10} ) should become a fraction
+
+4. Bracket format: [ \frac{2}{10} = 0.2 ]
+
+5. Double backslash format: \\( \\frac{2}{10} \\)
+
+6. Mixed expressions: The fraction $\frac{1}{4}$ equals 0.25 or 25%.
+
+Let me know if you can see these as proper mathematical notation!"""
+        elif "hello" in user_input.lower() or "hi" in user_input.lower():
             response = "Hello! I'm your Scottish AI Lessons assistant. How can I help you today?"
         elif "how are you" in user_input.lower():
             response = "I'm functioning well, thank you for asking! What can I assist you with?"
