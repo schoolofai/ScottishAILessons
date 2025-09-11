@@ -20,31 +20,15 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
   useEffect(() => {
     // Wait for all dependencies to be available
     if (!sessionContext || !threadRuntime || !thread) {
-      console.log('AutoStartTrigger - Waiting for dependencies:', {
-        hasSessionContext: !!sessionContext,
-        hasThreadRuntime: !!threadRuntime,
-        hasThread: !!thread
-      });
       return;
     }
 
     const sessionKey = sessionContext.session_id;
     const hasExistingMessages = thread.messages && thread.messages.length > 0;
     const isResumingExistingThread = !!existingThreadId;
-    
-    console.log('AutoStartTrigger - Checking auto-start conditions:', {
-      sessionId: sessionKey,
-      hasAutoStarted,
-      threadId: thread.threadId,
-      messageCount: thread.messages?.length || 0,
-      globalStarted: globalAutoStartState.get(sessionKey),
-      existingThreadId,
-      isResumingExistingThread
-    });
 
     // If we're resuming an existing thread, skip auto-start completely
     if (isResumingExistingThread) {
-      console.log('AutoStartTrigger - Resuming existing thread, skipping auto-start');
       setHasAutoStarted(true);
       globalAutoStartState.set(sessionKey, true);
       return;
@@ -52,7 +36,6 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
 
     // If thread already has messages, skip auto-start
     if (hasExistingMessages) {
-      console.log('AutoStartTrigger - Thread already has messages, skipping auto-start');
       setHasAutoStarted(true);
       globalAutoStartState.set(sessionKey, true);
       return;
@@ -60,14 +43,11 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
 
     // Check if auto-start already initiated for this session
     if (globalAutoStartState.get(sessionKey)) {
-      console.log('AutoStartTrigger - Auto-start already initiated for this session, skipping');
       setHasAutoStarted(true);
       return;
     }
 
     // First component instance for this session - initiate auto-start
-    console.log('AutoStartTrigger - Initiating auto-start for session:', sessionContext);
-    console.log('AutoStartTrigger - Using thread:', thread.threadId);
     globalAutoStartState.set(sessionKey, true);
     setHasAutoStarted(true);
     
@@ -78,7 +58,6 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
         role: "user",
         content: [{ type: "text", text: "" }] // Empty message just to trigger the graph
       });
-      console.log('AutoStartTrigger - Auto-start message sent successfully to thread:', thread.threadId);
     }, 100);
   }, [sessionContext, hasAutoStarted, threadRuntime, thread, thread?.messages?.length]);
 

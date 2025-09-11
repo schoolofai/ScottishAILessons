@@ -9,6 +9,12 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { AutoStartTrigger } from "./AutoStartTrigger";
 import { LessonSnapshot } from "@/lib/appwrite/types";
 
+// Import interrupt-enabled Tool UI components
+import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
+import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
+import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
+import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
+
 export interface SessionContext {
   session_id: string;
   student_id: string;
@@ -30,8 +36,6 @@ export function MyAssistant({
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
   
-  console.log('MyAssistant - Received props:', { sessionId, threadId: initialThreadId, sessionContext });
-  
   const runtime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (messages, { command }) => {
@@ -47,7 +51,6 @@ export function MyAssistant({
       }
       const threadId = threadIdRef.current;
       
-      console.log('MyAssistant - Streaming to thread:', threadId, 'with', messages?.length || 0, 'messages');
       
       return sendMessage({
         threadId,
@@ -59,7 +62,6 @@ export function MyAssistant({
     onSwitchToNewThread: async () => {
       const { thread_id } = await createThread();
       threadIdRef.current = thread_id;
-      console.log('MyAssistant - Created new thread:', thread_id);
       
       // Notify parent component about thread creation for persistence
       if (onThreadCreated) {
@@ -67,13 +69,21 @@ export function MyAssistant({
       }
     },
     onSwitchToThread: async (threadId) => {
-      console.log('MyAssistant - onSwitchToThread called with threadId:', threadId);
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
-      console.log('MyAssistant - Switched to thread:', threadId, 'with', state.values.messages?.length || 0, 'messages');
+      
+      // 🚨 INTERRUPT DEBUG: Log interrupt data clearly
+      const interrupts = state.tasks?.[0]?.interrupts;
+      console.log('🚨 INTERRUPT DEBUG - onSwitchToThread:', {
+        threadId,
+        hasInterrupts: !!interrupts,
+        interruptCount: interrupts ? interrupts.length : 0,
+        interruptData: interrupts
+      });
+      
       return { 
         messages: state.values.messages,
-        interrupts: state.tasks?.[0]?.interrupts
+        interrupts: interrupts
       };
     },
   });
@@ -81,10 +91,8 @@ export function MyAssistant({
   // Manually load thread state if we're initializing with an existing thread
   useEffect(() => {
     if (initialThreadId && threadIdRef.current === initialThreadId) {
-      console.log('MyAssistant - Loading existing thread state for:', initialThreadId);
       getThreadState(initialThreadId)
         .then(state => {
-          console.log('MyAssistant - Loaded thread state with', state.values.messages?.length || 0, 'messages');
           // Use runtime's switchToThread to properly load the messages
           runtime.switchToThread(initialThreadId);
         })
@@ -101,6 +109,12 @@ export function MyAssistant({
         existingThreadId={initialThreadId}
       />
       <Thread />
+      
+      {/* Interrupt-enabled Tool UI components for interactive lesson cards */}
+      <LessonCardPresentationTool />
+      <FeedbackPresentationTool />
+      <ProgressAcknowledgmentTool />
+      <LessonSummaryPresentationTool />
     </AssistantRuntimeProvider>
   );
 }

@@ -29,18 +29,18 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
     """
     session_context = state.get("session_context")
     
-    # Initialize interrupt-related fields
+    # Initialize interrupt-related fields - NO FALLBACK
     interrupt_init = {
         "interrupt_count": state.get("interrupt_count", 0),
         "interrupt_history": state.get("interrupt_history", []),
-        "interrupt_errors": state.get("interrupt_errors", []),
-        "fallback_to_messages": state.get("fallback_to_messages", False),
         "card_presentation_complete": False,
         "tool_response_received": False,
         "cards_presented_via_ui": state.get("cards_presented_via_ui", []),
         "feedback_interactions_count": state.get("feedback_interactions_count", 0),
         "can_resume_from_interrupt": True
     }
+    
+    print(f"🚨 INTERRUPT DEBUG - entry_node_interrupt initialized with session_context: {bool(session_context)}")
     
     # Determine mode based on session context
     if session_context and session_context.get("session_id"):
@@ -148,11 +148,11 @@ def route_by_mode_interrupt(state: InterruptUnifiedState) -> str:
     return "teaching" if mode == "teaching" else "chat"
 
 
-# Import the compiled interrupt-enabled teaching graph
+# Import the compiled tool call + interrupt teaching graph
 try:
-    from .teacher_graph_interrupt import compiled_teaching_graph_interrupt as teaching_subgraph_interrupt
+    from .teacher_graph_toolcall_interrupt import compiled_teaching_graph_toolcall as teaching_subgraph_interrupt
 except ImportError:
-    from agent.teacher_graph_interrupt import compiled_teaching_graph_interrupt as teaching_subgraph_interrupt
+    from agent.teacher_graph_toolcall_interrupt import compiled_teaching_graph_toolcall as teaching_subgraph_interrupt
 
 
 # Build the interrupt-enabled main graph

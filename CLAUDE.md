@@ -146,6 +146,7 @@ This repository provides two complete LangGraph implementations:
 - **Message Types**: Accepts both `AIMessage` and `AIMessageChunk`
 - **State Management**: Built-in with LangGraph's StateGraph
 - **Graph Definition**: Direct in `src/agent/graph.py`
+- **Checkpointing**: Handled implicitly by LangGraph CLI in dev mode (stored in `.langraph_api` directory) - NO manual SqliteSaver setup needed
 
 #### Aegra
 - **Event Protocol**: Uses `event: messages` for streaming chunks
@@ -205,6 +206,44 @@ response = structured_llm.invoke(
 ```
 
 This approach is **generic** and works with any structured output schema, avoiding hardcoded content filtering.
+
+#### AIMessage ID Duplication and Custom Tool Calls
+
+**CRITICAL DISCOVERY**: When an LLM response is received, it already has a unique ID. Wrapping it in a new AIMessage creates a NEW unique ID, causing duplicate messages in the frontend.
+
+**Problem**: 
+```python
+# DON'T DO THIS - causes duplication
+message_obj = llm.invoke(...)  # Has ID: abc123
+ai_message = AIMessage(content=message_obj.content, ...)  # NEW ID: xyz789
+# Frontend sees both messages!
+```
+
+**Solution**:
+```python
+# Option 1: Use original message directly
+return {"messages": [message_obj]}
+
+# Option 2: Return both for different purposes
+tool_message = AIMessage(content="", tool_calls=[...])  # Empty content
+return {"messages": [message_obj, tool_message]}  # Content + tool trigger
+```
+
+**Custom Tool Calls for Assistant UI**:
+You can create custom tool calls without LLM by wrapping in AIMessage:
+```python
+# Generate tool calls programmatically for Assistant UI components
+tool_message = AIMessage(
+    content="",  # Empty to avoid duplication
+    tool_calls=[ToolCall(
+        id="custom_id",
+        name="ui_component_name",
+        args={...}
+    )]
+)
+```
+
+This enables triggering Assistant UI's generative UI features even when the tool call isn't from a real LLM.
 
 #### Authentication Systems
 - Official LangGraph: Built-in authentication

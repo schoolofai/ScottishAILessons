@@ -23,7 +23,9 @@ export const getThreadState = async (
   threadId: string
 ): Promise<ThreadState<{ messages: LangChainMessage[] }>> => {
   const client = createClient();
-  return client.threads.getState(threadId);
+  const state = await client.threads.getState(threadId);
+  
+  return state;
 };
 
 export const sendMessage = async (params: {
@@ -34,8 +36,6 @@ export const sendMessage = async (params: {
 }) => {
   const client = createClient();
   
-  console.log('chatApi.sendMessage - Params:', params);
-  
   // Prepare input with session context if provided
   const input: any = {};
   if (params.messages?.length) {
@@ -43,10 +43,7 @@ export const sendMessage = async (params: {
   }
   if (params.sessionContext) {
     input.session_context = params.sessionContext;
-    console.log('chatApi.sendMessage - Including session_context in input:', input.session_context);
   }
-  
-  console.log('chatApi.sendMessage - Final input:', input);
   
   // Update session last message timestamp if we have session context
   if (params.sessionContext?.session_id) {
@@ -65,7 +62,7 @@ export const sendMessage = async (params: {
     {
       input: Object.keys(input).length > 0 ? input : null,
       command: params.command,
-      streamMode: "messages",
+      streamMode: ["messages", "updates"],
       streamSubgraphs: true ,
     }
   );

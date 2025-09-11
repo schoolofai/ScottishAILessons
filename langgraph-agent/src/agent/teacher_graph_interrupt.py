@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from typing import Dict
 from datetime import datetime
-import json
 import uuid
 
 from langchain_core.messages import AIMessage
@@ -240,89 +239,72 @@ def design_node_interrupt(state: InterruptUnifiedState) -> Dict:
         teacher, state["lesson_snapshot"], current_card, current_index, cfu_type
     )
     
-    # Use tool call for card presentation if supported
-    if should_use_interrupts(state):
-        try:
-            lesson_context = {
-                "lesson_title": state["lesson_snapshot"].get("title", "Scottish AI Lesson"),
-                "student_name": state.get("student_id", "Student"),
-                "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
-            }
-            
-            # Create Tool UI component via tool call message
-            cfu_type = current_card.get("cfu", {}).get("type", "text")
-            tool_call_message = AIMessage(
-                content="",
-                additional_kwargs={
-                    "tool_calls": [{
-                        "id": str(uuid.uuid4()),
-                        "type": "function",
-                        "function": {
-                            "name": "lesson_card_presentation",
-                            "arguments": json.dumps({
-                                "card_content": message_obj.content,
-                                "card_data": current_card,
-                                "card_index": current_index,
-                                "total_cards": len(state["lesson_snapshot"].get("cards", [])),
-                                "cfu_type": cfu_type,
-                                "lesson_context": lesson_context,
-                                "interaction_id": str(uuid.uuid4()),
-                                "timestamp": datetime.now().isoformat()
-                            })
-                        }
-                    }]
-                }
-            )
-            
-            # Return the tool call message for Tool UI rendering
-            return {
-                "current_card": current_card,
-                "current_card_index": current_index,
-                "cards_completed": state.get("cards_completed", []),
-                "stage": "deliver",
-                "attempts": 0,
-                "hint_level": 0,
-                "max_attempts": state.get("max_attempts", 3),
-                "evidence": state.get("evidence", []),
-                "mastery_updates": state.get("mastery_updates", []),
-                "should_exit": False,
-                "pending_card_interaction": None,
-                "card_presentation_complete": True,
-                "interrupt_history": state.get("interrupt_history", []),
-                "cards_presented_via_ui": state.get("cards_presented_via_ui", []) + [current_card.get("id")],
-                "messages": [tool_call_message]
-            }
-        except Exception as e:
-            # Fallback to regular message flow
-            return {
-                "current_card": current_card,
-                "current_card_index": current_index,
-                "cards_completed": state.get("cards_completed", []),
-                "stage": "deliver",
-                "attempts": 0,
-                "hint_level": 0,
-                "max_attempts": state.get("max_attempts", 3),
-                "evidence": state.get("evidence", []),
-                "mastery_updates": state.get("mastery_updates", []),
-                "should_exit": False,
-                "interrupt_errors": state.get("interrupt_errors", []) + [str(e)],
-                "fallback_to_messages": True,
-                "messages": [message_obj]
-            }
-    else:
-        # Regular message-based card delivery
+    # 🚨 INTERRUPT DEBUG: Check if interrupts should be used
+    should_interrupt = should_use_interrupts(state)
+    print(f"🚨 INTERRUPT DEBUG - should_use_interrupts(): {should_interrupt}")
+    print(f"🚨 INTERRUPT DEBUG - fallback_to_messages: {state.get('fallback_to_messages', False)}")
+    print(f"🚨 INTERRUPT DEBUG - interrupt_errors count: {len(state.get('interrupt_errors', []))}")
+    
+    lesson_context = {
+        "lesson_title": state["lesson_snapshot"].get("title", "Scottish AI Lesson"),
+        "student_name": state.get("student_id", "Student"),
+        "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
+    }
+    
+    interrupt_payload = {
+        "tool": "lesson_card_presentation",
+        "args": {
+            "card_content": message_obj.content,
+            "card_data": current_card,
+            "card_index": current_index,
+            "total_cards": len(state["lesson_snapshot"].get("cards", [])),
+            "cfu_type": cfu_type,
+            "lesson_context": lesson_context,
+            "interaction_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat()
+        }
+    }
+    
+    print(f"🚨 INTERRUPT DEBUG - About to call interrupt() with payload:")
+    print(f"🚨 INTERRUPT DEBUG - Tool: {interrupt_payload['tool']}")
+    print(f"🚨 INTERRUPT DEBUG - Card Index: {interrupt_payload['args']['card_index']}")
+    print(f"🚨 INTERRUPT DEBUG - Card ID: {interrupt_payload['args']['card_data']['id']}")
+    print(f"🚨 INTERRUPT DEBUG - Full payload: {interrupt_payload}")
+    
+    # Use real LangGraph interrupt - NO FALLBACK, FAIL FAST
+    from langgraph.types import interrupt
+    
+    print(f"🚨 INTERRUPT DEBUG - Calling interrupt() now...")
+    card_response = interrupt(interrupt_payload)
+    print(f"🚨 INTERRUPT DEBUG - interrupt() returned: {card_response}")
+    
+    # Process interrupt response (like simplified version)
+    print(f"🚨 INTERRUPT DEBUG - Processing response action: {card_response.get('action')}")
+    if card_response.get("action") == "submit_answer":
         return {
+            "student_response": card_response.get("student_response"),
             "current_card": current_card,
             "current_card_index": current_index,
-            "cards_completed": state.get("cards_completed", []),
-            "stage": "deliver",
-            "attempts": 0,
-            "hint_level": 0,
-            "max_attempts": state.get("max_attempts", 3),
-            "evidence": state.get("evidence", []),
-            "mastery_updates": state.get("mastery_updates", []),
-            "should_exit": False,
-            "messages": [message_obj]
+            "stage": "mark",
+            "attempts": state.get("attempts", 0) + 1,
+            "max_attempts": state.get("max_attempts", 3)
+        }
+    elif card_response.get("action") == "skip_card":
+        return {
+            "stage": "progress",
+            "should_progress": True,
+            "current_card": current_card,
+            "current_card_index": current_index
+        }
+    else:
+        # Default: continue to mark stage
+        return {
+            "student_response": card_response.get("student_response", ""),
+            "current_card": current_card,
+            "current_card_index": current_index,
+            "stage": "mark",
+            "attempts": state.get("attempts", 0) + 1,
+            "max_attempts": state.get("max_attempts", 3)
         }
 
 
@@ -443,34 +425,45 @@ def mark_node_interrupt(state: InterruptUnifiedState) -> Dict:
     # Determine if explanation should be shown
     show_explanation = attempts >= max_attempts and not evaluation.is_correct
     
-    # Use interrupt for feedback presentation if supported
+    # Use real interrupt for feedback presentation if supported
     if should_use_interrupts(state):
         try:
-            feedback_response = create_feedback_interrupt(
-                evaluation=evaluation,
-                attempts=attempts,
-                max_attempts=max_attempts,
-                current_card=current_card,
-                show_explanation=show_explanation
-            )
+            from langgraph.types import interrupt
             
-            # Process feedback interaction
-            feedback_updates = process_feedback_interaction_response(feedback_response, evaluation, state)
+            feedback_response = interrupt({
+                "tool": "feedback_presentation",
+                "args": {
+                    "is_correct": evaluation.is_correct,
+                    "feedback": evaluation.feedback,
+                    "confidence": evaluation.confidence,
+                    "attempts": attempts,
+                    "max_attempts": max_attempts,
+                    "show_explanation": show_explanation,
+                    "card_context": {
+                        "card_id": current_card.get("id"),
+                        "question": cfu.get("question", "")
+                    }
+                }
+            })
             
-            # Update interrupt history
-            interrupt_history = update_interrupt_history(
-                state, "feedback",
-                {"attempts": attempts, "is_correct": evaluation.is_correct},
-                feedback_response
-            )
-            
-            return {
-                "evidence": evidence,
-                "student_response": None,  # Clear student response after processing
-                "interrupt_history": interrupt_history,
-                **feedback_updates,
-                "messages": [] if not feedback_response.get("fallback_to_messages") else [AIMessage(content=evaluation.feedback)]
-            }
+            if should_progress:
+                return {
+                    "stage": "progress",
+                    "is_correct": evaluation.is_correct,
+                    "should_progress": True,
+                    "evidence": evidence,
+                    "student_response": None,  # Clear for next card
+                    "attempts": 0  # Reset for next card
+                }
+            else:
+                return {
+                    "stage": "design",  # Try again
+                    "is_correct": evaluation.is_correct,
+                    "should_progress": False,
+                    "evidence": evidence,
+                    "student_response": None,  # Clear response
+                    "attempts": attempts  # Keep attempt count
+                }
         except Exception as e:
             # Fallback to regular message flow
             next_stage = "progress" if should_progress else "deliver"

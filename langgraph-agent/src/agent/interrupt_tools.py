@@ -311,27 +311,21 @@ def process_feedback_interaction_response(
 
 
 def should_use_interrupts(state: InterruptUnifiedState) -> bool:
-    """Determine if interrupts should be used or fall back to messages.
+    """Determine if interrupts should be used - ALWAYS TRUE, FAIL FAST.
     
     Args:
         state: Current state
         
     Returns:
-        True if interrupts should be used, False for message fallback
+        Always True - no fallback, interrupts must work or fail
     """
-    # Check for explicit fallback flag
-    if state.get("fallback_to_messages", False):
-        return False
+    print(f"🚨 INTERRUPT DEBUG - should_use_interrupts() called")
+    print(f"🚨 INTERRUPT DEBUG - fallback_to_messages: {state.get('fallback_to_messages', 'NOT_SET')}")
+    print(f"🚨 INTERRUPT DEBUG - interrupt_errors: {state.get('interrupt_errors', [])}")
+    print(f"🚨 INTERRUPT DEBUG - session_context disable_interrupts: {state.get('session_context', {}).get('disable_interrupts', 'NOT_SET')}")
+    print(f"🚨 INTERRUPT DEBUG - Forcing interrupts to be used - NO FALLBACK")
     
-    # Check error count threshold
-    if len(state.get("interrupt_errors", [])) >= 3:
-        return False
-    
-    # Check if session context supports interrupts
-    session_context = state.get("session_context", {})
-    if session_context.get("disable_interrupts", False):
-        return False
-    
+    # ALWAYS return True - no fallback mechanism
     return True
 
 

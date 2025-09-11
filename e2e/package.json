@@ -1,0 +1,28 @@
+{
+  "name": "scottish-ai-lessons-e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for Scottish AI Lessons platform using Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "install-browsers": "playwright install",
+    "test:auth": "playwright test auth.spec.ts",
+    "test:happy-path": "playwright test lesson-happy-path.spec.ts",
+    "test:error-handling": "playwright test lesson-error-handling.spec.ts", 
+    "test:post-completion": "playwright test lesson-post-completion.spec.ts"
+  },
+  "keywords": ["e2e", "playwright", "ai", "education", "testing"],
+  "author": "Scottish AI Lessons",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
