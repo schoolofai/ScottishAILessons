@@ -2,6 +2,10 @@
 
 import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { 
+  useLangGraphInterruptState,
+  useLangGraphSendCommand 
+} from "@assistant-ui/react-langgraph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -45,13 +49,23 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
   unknown
 >({
   toolName: "lesson_card_presentation",
-  render: function LessonCardPresentationUI({ args, addResult, status }) {
-    const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;
+  render: function LessonCardPresentationUI({ args }) {
+    // Get interrupt state and sendCommand hook
+    const interrupt = useLangGraphInterruptState();
+    const sendCommand = useLangGraphSendCommand();
+    
+    // Component state - must be before early return to avoid hook order issues
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
+    
+    // CHECK: Only render if there's an interrupt
+    if (!interrupt) return null;
+    
+    // DATA: Get from tool call args (NOT from interrupt.value)
+    const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;
 
-    const isLoading = status.type === "executing";
+    // Calculate progress
     const progress = ((card_index + 1) / total_cards) * 100;
 
     const handleSubmitAnswer = () => {
@@ -62,39 +76,43 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
       const finalAnswer = cfu_type === "mcq" ? selectedMCQOption : studentAnswer;
       
-      console.log('🚨 TOOL UI DEBUG - Submitting answer via addResult:', {
+      console.log('🚨 TOOL UI DEBUG - Submitting answer via sendCommand:', {
         action: "submit_answer",
         student_response: finalAnswer,
         card_id: card_data.id
       });
-      // send a tools message back to the graph to continue the lesson
 
-      addResult({
-        action: "submit_answer",
-        student_response: finalAnswer,
-        interaction_type: "answer_submission",
-        card_id: card_data.id,
-        interaction_id: args.interaction_id,
-        timestamp: new Date().toISOString()
+      // Send command with resume value as JSON string
+      sendCommand({
+        resume: JSON.stringify({
+          action: "submit_answer",
+          student_response: finalAnswer,
+          interaction_type: "answer_submission",
+          card_id: card_data.id,
+          interaction_id: args.interaction_id,
+          timestamp: new Date().toISOString()
+        })
       });
     };
 
     const handleSkipCard = () => {
       if (confirm("Are you sure you want to skip this card? This will mark it as incomplete.")) {
-        addResult({
-          action: "skip_card",
-          interaction_type: "card_skip",
-          card_id: card_data.id,
-          reason: "Student chose to skip",
-          interaction_id: args.interaction_id,
-          timestamp: new Date().toISOString()
+        sendCommand({
+          resume: JSON.stringify({
+            action: "skip_card",
+            interaction_type: "card_skip",
+            card_id: card_data.id,
+            reason: "Student chose to skip",
+            interaction_id: args.interaction_id,
+            timestamp: new Date().toISOString()
+          })
         });
       }
     };
 
     const handleRequestHint = () => {
       setShowHint(true);
-      // Could also trigger a hint interrupt here if needed
+      // Could trigger hint command if needed
     };
 
     return (
@@ -161,7 +179,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                       <RadioGroupItem 
                         value={option} 
                         id={`option-${index}`}
-                        disabled={isLoading}
                       />
                       <Label 
                         htmlFor={`option-${index}`} 
@@ -185,7 +202,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   onChange={(e) => setStudentAnswer(e.target.value)}
                   placeholder="Type your answer here..."
                   className="text-base"
-                  disabled={isLoading}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
@@ -212,7 +228,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             <Button
               variant="outline"
               onClick={handleSkipCard}
-              disabled={isLoading}
               className="flex-1"
             >
               Skip Card
@@ -222,7 +237,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               <Button
                 variant="secondary"
                 onClick={handleRequestHint}
-                disabled={isLoading}
               >
                 Show Hint
               </Button>
@@ -230,10 +244,10 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             
             <Button
               onClick={handleSubmitAnswer}
-              disabled={isLoading || (!studentAnswer.trim() && !selectedMCQOption)}
+              disabled={!studentAnswer.trim() && !selectedMCQOption}
               className="flex-1"
             >
-              {isLoading ? "Submitting..." : "Submit Answer"}
+              Submit Answer
             </Button>
           </div>
         </CardContent>

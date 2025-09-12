@@ -58,35 +58,6 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
             return teacher.present_card_sync_full(current_card)
 
 
-def _check_for_tool_messages(state: InterruptUnifiedState) -> tuple[bool, str]:
-    """Check if we received a ToolMessage response from the frontend."""
-    messages = state.get("messages", [])
-    current_card_idx = state.get('current_card_index', 0)
-    expected_tool_call_id = f"lesson_card_{current_card_idx}"
-    
-    # Debug all tool messages
-    print(f"🔍 TOOL_CHECK: Looking for tool_call_id='{expected_tool_call_id}' for card {current_card_idx}")
-    
-    for message in reversed(messages):  # Check recent messages first
-        if hasattr(message, 'type') and message.type == "tool":
-            actual_id = getattr(message, 'tool_call_id', 'NO_ID')
-            print(f"🔍 TOOL_CHECK: Found tool message with id='{actual_id}', content preview: {str(message.content)[:30]}...")
-            
-            if message.tool_call_id == expected_tool_call_id:
-                print(f"🔍 TOOL_CHECK: MATCH! Processing tool message for card {current_card_idx}")
-                # Found our ToolMessage response
-                try:
-                    import json
-                    response_data = json.loads(message.content)
-                    return True, response_data.get("student_response", "")
-                except (json.JSONDecodeError, AttributeError):
-                    # Fallback: treat content as direct response
-                    return True, str(message.content)
-            else:
-                print(f"🔍 TOOL_CHECK: SKIP - tool_call_id mismatch (expected: {expected_tool_call_id}, got: {actual_id})")
-    
-    print(f"🔍 TOOL_CHECK: No matching tool message found for card {current_card_idx}")
-    return False, ""
 
 
 def design_node(state: InterruptUnifiedState) -> Dict:
@@ -96,26 +67,16 @@ def design_node(state: InterruptUnifiedState) -> Dict:
     # Entry logging with FULL STATE DEBUG
     current_idx = state.get("current_card_index", 0)
     stage = state.get("stage", "unknown")
+    
     print(f"🔍 NODE_ENTRY: design_node | card_idx: {current_idx} | stage: {stage}")
     
-    # DEBUG: Log complete state to understand what's persisted
-    print(f"🔍 STATE_DEBUG in design_node:")
-    print(f"  - current_card_index: {state.get('current_card_index', 'NOT SET')}")
-    print(f"  - cards_completed: {state.get('cards_completed', [])}")
-    print(f"  - attempts: {state.get('attempts', 0)}")
-    print(f"  - pending_tool_call_id: {state.get('pending_tool_call_id', 'NOT SET')}")
-    print(f"  - message count: {len(state.get('messages', []))}")
-    print(f"  - has session_context: {bool(state.get('session_context'))}")
-    
-    # Check if we received a ToolMessage response
-    has_response, student_response = _check_for_tool_messages(state)
-    if has_response:
-        print(f"🚨 TOOL DEBUG - Found ToolMessage with response: {student_response[:50]}...")
-        # Get current card info to pass to mark_node
+    # Check if we have a student_response in state (from get_answer_node)
+    student_response = state.get("student_response")
+    if student_response:
+        print(f"🚨 DESIGN DEBUG - Found student_response in state: {student_response[:50]}...")
         current_card, current_index, cfu_type = _get_current_card_info(state)
         print(f"🔍 NODE_EXIT: design_node | decision: has_response | next_stage: mark")
         return {
-            "student_response": student_response,
             "current_card": current_card,
             "current_card_index": current_index,
             "stage": "mark"
@@ -166,7 +127,7 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         tool_calls=[tool_call]
     )
     
-    print(f"🚨 TOOL DEBUG - Created AIMessage with tool call:")
+    print(f"🚨 TOOL DEBUG - Created AIMessage with tool call for UI rendering")
     print(f"🚨 TOOL DEBUG - Tool call ID: {tool_call_id}")
     print(f"🚨 TOOL DEBUG - Tool name: {tool_call['name'] if isinstance(tool_call, dict) else tool_call.name}")
     print(f"🚨 TOOL DEBUG - Card index: {current_index}")
@@ -178,49 +139,127 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         "current_card": current_card,
         "current_card_index": current_index,
         "stage": "get_answer",  # Route to get_answer_node
-        "pending_tool_call_id": tool_call_id
+        "pending_tool_call_id": tool_call_id,
+        "student_response": None  # Clear any previous response
     }
 
 
 def get_answer_node(state: InterruptUnifiedState) -> Dict:
-    """Get answer node - interrupts and waits for ToolMessage response."""
+    """Get answer node - interrupts with empty payload and processes sendCommand response."""
     current_idx = state.get("current_card_index", 0)
     print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx}")
     
-    # DEBUG: Log state on entry (especially after resume)
-    print(f"🔍 STATE_DEBUG in get_answer_node (RESUME CHECK):")
+    # DEBUG: Log state on entry
+    print(f"🔍 STATE_DEBUG in get_answer_node:")
     print(f"  - current_card_index: {state.get('current_card_index', 'NOT SET')}")
     print(f"  - pending_tool_call_id: {state.get('pending_tool_call_id', 'NOT SET')}")
     print(f"  - message count: {len(state.get('messages', []))}")
     
-    # CHECK IF WE ALREADY HAVE A RESPONSE (prevents re-interrupt on resume)
-    has_response, student_response = _check_for_tool_messages(state)
-    if has_response:
-        print(f"🔍 NODE_EXIT: get_answer_node | found_response: True | routing back to design")
-        # Response already exists, don't interrupt again
-        # Let the graph continue to design_node which will handle it
-        return {}  # Empty update, edge will take us back to design
+    print(f"🚨 INTERRUPT DEBUG - About to interrupt with empty payload, waiting for sendCommand response")
     
-    # No response yet, so interrupt
-    print(f"🚨 INTERRUPT DEBUG - No response found, interrupting")
-    print(f"🚨 INTERRUPT DEBUG - Pending tool call ID: {state.get('pending_tool_call_id')}")
+    # Interrupt with EMPTY payload - frontend already has data from tool call
+    response = interrupt({})
     
-    # Create interrupt to pause execution
-    interrupt_data = {
-        "waiting_for": "tool_response",
-        "tool_call_id": state.get("pending_tool_call_id"),
-        "card_index": current_idx,
-        "timestamp": datetime.now().isoformat()
+    # THIS CODE EXECUTES AFTER RESUME with response from sendCommand
+    # COMPREHENSIVE DEBUG LOGGING
+    print(f"🚨 INTERRUPT DEBUG - Raw response received: {response}")
+    print(f"🚨 INTERRUPT DEBUG - Response type: {type(response)}")
+    print(f"🚨 INTERRUPT DEBUG - Response repr: {repr(response)}")
+    
+    # Initialize payload and action
+    payload = None
+    action = None
+    
+    # Check if it's a string and what kind
+    if isinstance(response, str):
+        print(f"🚨 INTERRUPT DEBUG - Response is STRING")
+        print(f"🚨 INTERRUPT DEBUG - String length: {len(response)}")
+        print(f"🚨 INTERRUPT DEBUG - First 100 chars: {response[:100]}")
+        
+        # Try to parse as JSON
+        import json
+        try:
+            payload = json.loads(response)
+            print(f"🚨 INTERRUPT DEBUG - Successfully parsed JSON string")
+            print(f"🚨 INTERRUPT DEBUG - Parsed payload type: {type(payload)}")
+            print(f"🚨 INTERRUPT DEBUG - Parsed payload: {payload}")
+            
+            # Extract action from parsed payload
+            action = payload.get("action") if isinstance(payload, dict) else None
+            
+        except json.JSONDecodeError as e:
+            print(f"🚨 INTERRUPT DEBUG - JSON parse failed: {e}")
+            payload = {"value": response}
+            action = None
+            
+    elif isinstance(response, dict):
+        print(f"🚨 INTERRUPT DEBUG - Response is DICT")
+        print(f"🚨 INTERRUPT DEBUG - Dict keys: {response.keys()}")
+        print(f"🚨 INTERRUPT DEBUG - Dict content: {response}")
+        
+        # Check for resume wrapper
+        if "resume" in response:
+            print(f"🚨 INTERRUPT DEBUG - Has 'resume' key")
+            resume_value = response["resume"]
+            # Parse JSON string if resume value is a string
+            if isinstance(resume_value, str):
+                import json
+                try:
+                    payload = json.loads(resume_value)
+                    print(f"🚨 INTERRUPT DEBUG - Parsed JSON from resume string: {payload}")
+                except json.JSONDecodeError:
+                    # If not JSON, treat as simple string value
+                    payload = {"value": resume_value}
+                    print(f"🚨 INTERRUPT DEBUG - Simple string resume value: {resume_value}")
+            else:
+                payload = resume_value
+                print(f"🚨 INTERRUPT DEBUG - Direct object resume value: {payload}")
+        else:
+            print(f"🚨 INTERRUPT DEBUG - No 'resume' key, using direct")
+            payload = response
+            print(f"🚨 INTERRUPT DEBUG - Using direct response (no resume wrapper): {payload}")
+        
+        action = payload.get("action") if isinstance(payload, dict) else None
+    else:
+        print(f"🚨 INTERRUPT DEBUG - Response is NEITHER string nor dict!")
+        print(f"🚨 INTERRUPT DEBUG - Actual type: {type(response).__name__}")
+        payload = {}
+        action = None
+    
+    # Log extracted action
+    print(f"🚨 INTERRUPT DEBUG - Final action extracted: {action}")
+    
+    if action == "submit_answer":
+        student_response = payload.get("student_response", "") if payload else ""
+        print(f"🚨 INTERRUPT DEBUG - Processing submit_answer with response: {student_response[:50] if student_response else 'EMPTY'}...")
+        
+        # Update state with the response
+        print(f"🔍 NODE_EXIT: get_answer_node | action: submit_answer | next_stage: mark")
+        return {
+            "student_response": student_response,
+            "stage": "mark",  # Route directly to mark
+            "interrupt_response": payload  # Store payload for debugging
+        }
+    
+    elif action == "skip_card":
+        print(f"🚨 INTERRUPT DEBUG - Processing skip_card action")
+        print(f"🔍 NODE_EXIT: get_answer_node | action: skip_card | next_stage: progress")
+        return {
+            "stage": "progress",
+            "should_progress": True,
+            "skip_reason": payload.get("reason", "Student chose to skip") if payload else "Student chose to skip",
+            "interrupt_response": payload
+        }
+    
+    # Fallback if response format unexpected
+    print(f"🚨 INTERRUPT DEBUG - Unexpected response format or no action, returning to design")
+    print(f"🚨 INTERRUPT DEBUG - Full response was: {response}")
+    print(f"🚨 INTERRUPT DEBUG - Parsed payload was: {payload}")
+    print(f"🔍 NODE_EXIT: get_answer_node | action: fallback | next_stage: design")
+    return {
+        "stage": "design",
+        "interrupt_error": f"Unexpected response: {response}"
     }
-    
-    print(f"🚨 INTERRUPT DEBUG - About to interrupt with data: {interrupt_data}")
-    
-    # Interrupt execution - this pauses the graph
-    interrupt(interrupt_data)
-    
-    # This code will NOT execute because interrupt() stops execution
-    print("🚨 ERROR - This line should NEVER be reached after interrupt()")
-    return {"error": "Code after interrupt() should not execute"}
 
 
 def mark_node(state: InterruptUnifiedState) -> Dict:
@@ -352,6 +391,9 @@ def should_continue_from_mark(state: InterruptUnifiedState) -> str:
     return next_node
 
 
+# Named lambda for better LangSmith trace readability
+get_answer_router = lambda state: state.get("stage", "design")
+
 # Build the tool call + interrupt teaching graph
 teaching_graph_toolcall = StateGraph(InterruptUnifiedState)
 
@@ -375,8 +417,16 @@ teaching_graph_toolcall.add_conditional_edges(
     }
 )
 
-# From get_answer: unconditional edge back to design (after user responds)
-teaching_graph_toolcall.add_edge("get_answer", "design")
+# From get_answer: conditional edges based on stage set by interrupt response
+teaching_graph_toolcall.add_conditional_edges(
+    "get_answer",
+    get_answer_router,  # Named lambda for better traces
+    {
+        "mark": "mark",      # When submit_answer received
+        "progress": "progress",  # When skip_card received  
+        "design": "design"   # Fallback/error case
+    }
+)
 
 # From mark: go to progress if correct, back to design if incorrect
 teaching_graph_toolcall.add_conditional_edges(
