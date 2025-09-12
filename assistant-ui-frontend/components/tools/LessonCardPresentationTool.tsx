@@ -67,6 +67,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         student_response: finalAnswer,
         card_id: card_data.id
       });
+      // send a tools message back to the graph to continue the lesson
 
       addResult({
         action: "submit_answer",

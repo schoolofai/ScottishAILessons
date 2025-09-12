@@ -15,7 +15,7 @@ from datetime import datetime
 import uuid
 
 from langchain_core.messages import AIMessage, ToolCall
-from langgraph.graph import StateGraph, END
+from langgraph.graph import StateGraph, START , END
 from langgraph.types import interrupt
 
 try:
@@ -362,7 +362,7 @@ teaching_graph_toolcall.add_node("mark", mark_node)
 teaching_graph_toolcall.add_node("progress", progress_node)
 
 # Add edges
-teaching_graph_toolcall.add_edge("__start__", "design")
+teaching_graph_toolcall.add_edge(START, "design")
 
 # From design: either go to get_answer or end if done
 teaching_graph_toolcall.add_conditional_edges(
