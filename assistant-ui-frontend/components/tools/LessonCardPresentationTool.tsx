@@ -60,7 +60,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [showHint, setShowHint] = useState(false);
     
     // CHECK: Only render if there's an interrupt
-    if (!interrupt) return null;
+    // if (!interrupt) return null;
     
     // DATA: Get from tool call args (NOT from interrupt.value)
     const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;

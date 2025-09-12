@@ -245,6 +245,27 @@ tool_message = AIMessage(
 
 This enables triggering Assistant UI's generative UI features even when the tool call isn't from a real LLM.
 
+#### LangGraph Interrupt-Based Human-in-the-Loop Patterns
+
+**📖 REFERENCE**: For detailed interrupt flow documentation, debugging, and implementation patterns, see: `/docs/interrupt-flow-documentation.md`
+
+**Key Interrupt Patterns**:
+- **Tool Calls for Data**: Use tool calls to transport lesson data to frontend UI components
+- **Interrupts for Flow Control**: Use `interrupt({})` with empty payloads to pause execution and wait for user input
+- **Resume Wrapper**: Always wrap `sendCommand` payloads in `resume: JSON.stringify({...})`
+- **Hook Order**: React hooks (`useLangGraphInterruptState`, `useLangGraphSendCommand`) must be called before any conditional returns
+- **Interrupt Check**: UI components should only render when `interrupt` is not null
+
+**Critical Implementation Files**:
+- Frontend: `assistant-ui-frontend/components/tools/LessonCardPresentationTool.tsx`
+- Backend: `langgraph-agent/src/agent/teacher_graph_toolcall_interrupt.py`
+
+**Common Debugging Scenarios**:
+- Empty UI components → Check interrupt state and hook order
+- Routing loops → Verify stage transitions and conditional edge logic  
+- Missing data → Ensure data comes from tool call args, not interrupt payloads
+- JSON parsing errors → Confirm resume wrapper pattern with proper JSON stringification
+
 #### Authentication Systems
 - Official LangGraph: Built-in authentication
 - Aegra: Configurable (`AUTH_TYPE=noop` or `AUTH_TYPE=custom`)
