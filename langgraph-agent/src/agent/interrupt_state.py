@@ -25,6 +25,7 @@ class InterruptUnifiedState(UnifiedState, total=False):
     # Interrupt management fields
     pending_card_interaction: Optional[Dict[str, Any]]  # Data for current interrupt
     user_interaction_response: Optional[Dict[str, Any]]  # Response from Tool UI
+    interrupt_response: Optional[Dict[str, Any]]  # Response from get_answer interrupt
     card_presentation_complete: bool  # Whether current card has been presented
     
     # Enhanced interaction tracking

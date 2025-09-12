@@ -61,7 +61,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
 
 
 def design_node(state: InterruptUnifiedState) -> Dict:
-    """Design node - creates tool calls for lesson card presentation."""
+    """Design node - handles all routing decisions and creates tool calls for lesson card presentation."""
     from .llm_teacher import LLMTeacher
     
     # Entry logging with FULL STATE DEBUG
@@ -70,8 +70,53 @@ def design_node(state: InterruptUnifiedState) -> Dict:
     
     print(f"🔍 NODE_ENTRY: design_node | card_idx: {current_idx} | stage: {stage}")
     
-    # Check if we have a student_response in state (from get_answer_node)
+    # CRITICAL DEBUG: Log all state keys and values to understand what's available
+    print(f"🚨 DESIGN DEBUG - State keys available: {list(state.keys())}")
+    print(f"🚨 DESIGN DEBUG - interrupt_response: {state.get('interrupt_response')}")
+    print(f"🚨 DESIGN DEBUG - student_response: {state.get('student_response')}")
+    print(f"🚨 DESIGN DEBUG - current stage: {state.get('stage')}")
+    
+    # NEW: Check for interrupt response first (from get_answer_node)
+    interrupt_response = state.get("interrupt_response")
+    print(f"🚨 DESIGN DEBUG - Found interrupt_response: {interrupt_response}")
+    print(f"🚨 DESIGN DEBUG - interrupt_response type: {type(interrupt_response)}")
+    
+    if interrupt_response:
+        action = interrupt_response.get("action") if isinstance(interrupt_response, dict) else None
+        print(f"🚨 DESIGN DEBUG - Processing interrupt response with action: {action}")
+        
+        if action == "submit_answer":
+            student_response = interrupt_response.get("student_response", "")
+            print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            current_card, current_index, cfu_type = _get_current_card_info(state)
+            print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
+            
+            return_dict = {
+                "student_response": student_response,
+                "current_card": current_card,
+                "current_card_index": current_index,
+                "stage": "mark",
+                "interrupt_response": None  # Clear after processing
+            }
+            print(f"🚨 DESIGN DEBUG - Returning dict with stage: {return_dict.get('stage')}")
+            return return_dict
+        elif action == "skip_card":
+            print(f"🚨 DESIGN DEBUG - Skip card action")
+            print(f"🔍 NODE_EXIT: design_node | decision: skip_card | next_stage: progress")
+            return {
+                "stage": "progress",
+                "should_progress": True,
+                "skip_reason": interrupt_response.get("reason", "Student chose to skip"),
+                "interrupt_response": None  # Clear after processing
+            }
+        else:
+            print(f"🚨 DESIGN DEBUG - Unknown action in interrupt response: {action}")
+    else:
+        print(f"🚨 DESIGN DEBUG - No interrupt_response found, checking other conditions")
+    
+    # EXISTING: Check if we have a student_response in state (backward compatibility)
     student_response = state.get("student_response")
+    print(f"🚨 DESIGN DEBUG - Checking student_response: {student_response}")
     if student_response:
         print(f"🚨 DESIGN DEBUG - Found student_response in state: {student_response[:50]}...")
         current_card, current_index, cfu_type = _get_current_card_info(state)
@@ -91,6 +136,7 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         }
     
     # Generate card content and create tool call
+    print(f"🚨 DESIGN DEBUG - Falling through to create new tool call - no interrupt_response or student_response found")
     teacher = LLMTeacher()
     current_card, current_index, cfu_type = _get_current_card_info(state)
     
@@ -145,15 +191,9 @@ def design_node(state: InterruptUnifiedState) -> Dict:
 
 
 def get_answer_node(state: InterruptUnifiedState) -> Dict:
-    """Get answer node - interrupts with empty payload and processes sendCommand response."""
+    """Get answer node - captures interrupt response and returns to design."""
     current_idx = state.get("current_card_index", 0)
     print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx}")
-    
-    # DEBUG: Log state on entry
-    print(f"🔍 STATE_DEBUG in get_answer_node:")
-    print(f"  - current_card_index: {state.get('current_card_index', 'NOT SET')}")
-    print(f"  - pending_tool_call_id: {state.get('pending_tool_call_id', 'NOT SET')}")
-    print(f"  - message count: {len(state.get('messages', []))}")
     
     print(f"🚨 INTERRUPT DEBUG - About to interrupt with empty payload, waiting for sendCommand response")
     
@@ -161,104 +201,45 @@ def get_answer_node(state: InterruptUnifiedState) -> Dict:
     response = interrupt({})
     
     # THIS CODE EXECUTES AFTER RESUME with response from sendCommand
-    # COMPREHENSIVE DEBUG LOGGING
     print(f"🚨 INTERRUPT DEBUG - Raw response received: {response}")
     print(f"🚨 INTERRUPT DEBUG - Response type: {type(response)}")
-    print(f"🚨 INTERRUPT DEBUG - Response repr: {repr(response)}")
     
-    # Initialize payload and action
+    # Parse response robustly (keep existing parsing logic)
     payload = None
-    action = None
-    
-    # Check if it's a string and what kind
     if isinstance(response, str):
-        print(f"🚨 INTERRUPT DEBUG - Response is STRING")
-        print(f"🚨 INTERRUPT DEBUG - String length: {len(response)}")
-        print(f"🚨 INTERRUPT DEBUG - First 100 chars: {response[:100]}")
-        
-        # Try to parse as JSON
+        print(f"🚨 INTERRUPT DEBUG - Response is STRING, parsing JSON")
         import json
         try:
             payload = json.loads(response)
-            print(f"🚨 INTERRUPT DEBUG - Successfully parsed JSON string")
-            print(f"🚨 INTERRUPT DEBUG - Parsed payload type: {type(payload)}")
-            print(f"🚨 INTERRUPT DEBUG - Parsed payload: {payload}")
-            
-            # Extract action from parsed payload
-            action = payload.get("action") if isinstance(payload, dict) else None
-            
+            print(f"🚨 INTERRUPT DEBUG - Successfully parsed JSON: {payload}")
         except json.JSONDecodeError as e:
             print(f"🚨 INTERRUPT DEBUG - JSON parse failed: {e}")
             payload = {"value": response}
-            action = None
             
     elif isinstance(response, dict):
-        print(f"🚨 INTERRUPT DEBUG - Response is DICT")
-        print(f"🚨 INTERRUPT DEBUG - Dict keys: {response.keys()}")
-        print(f"🚨 INTERRUPT DEBUG - Dict content: {response}")
-        
-        # Check for resume wrapper
+        print(f"🚨 INTERRUPT DEBUG - Response is DICT: {response}")
+        # Handle resume wrapper if present
         if "resume" in response:
-            print(f"🚨 INTERRUPT DEBUG - Has 'resume' key")
             resume_value = response["resume"]
-            # Parse JSON string if resume value is a string
             if isinstance(resume_value, str):
                 import json
                 try:
                     payload = json.loads(resume_value)
-                    print(f"🚨 INTERRUPT DEBUG - Parsed JSON from resume string: {payload}")
                 except json.JSONDecodeError:
-                    # If not JSON, treat as simple string value
                     payload = {"value": resume_value}
-                    print(f"🚨 INTERRUPT DEBUG - Simple string resume value: {resume_value}")
             else:
                 payload = resume_value
-                print(f"🚨 INTERRUPT DEBUG - Direct object resume value: {payload}")
         else:
-            print(f"🚨 INTERRUPT DEBUG - No 'resume' key, using direct")
             payload = response
-            print(f"🚨 INTERRUPT DEBUG - Using direct response (no resume wrapper): {payload}")
-        
-        action = payload.get("action") if isinstance(payload, dict) else None
     else:
-        print(f"🚨 INTERRUPT DEBUG - Response is NEITHER string nor dict!")
-        print(f"🚨 INTERRUPT DEBUG - Actual type: {type(response).__name__}")
-        payload = {}
-        action = None
+        print(f"🚨 INTERRUPT DEBUG - Unexpected response type: {type(response)}")
+        payload = {"value": str(response)}
     
-    # Log extracted action
-    print(f"🚨 INTERRUPT DEBUG - Final action extracted: {action}")
-    
-    if action == "submit_answer":
-        student_response = payload.get("student_response", "") if payload else ""
-        print(f"🚨 INTERRUPT DEBUG - Processing submit_answer with response: {student_response[:50] if student_response else 'EMPTY'}...")
-        
-        # Update state with the response
-        print(f"🔍 NODE_EXIT: get_answer_node | action: submit_answer | next_stage: mark")
-        return {
-            "student_response": student_response,
-            "stage": "mark",  # Route directly to mark
-            "interrupt_response": payload  # Store payload for debugging
-        }
-    
-    elif action == "skip_card":
-        print(f"🚨 INTERRUPT DEBUG - Processing skip_card action")
-        print(f"🔍 NODE_EXIT: get_answer_node | action: skip_card | next_stage: progress")
-        return {
-            "stage": "progress",
-            "should_progress": True,
-            "skip_reason": payload.get("reason", "Student chose to skip") if payload else "Student chose to skip",
-            "interrupt_response": payload
-        }
-    
-    # Fallback if response format unexpected
-    print(f"🚨 INTERRUPT DEBUG - Unexpected response format or no action, returning to design")
-    print(f"🚨 INTERRUPT DEBUG - Full response was: {response}")
-    print(f"🚨 INTERRUPT DEBUG - Parsed payload was: {payload}")
-    print(f"🔍 NODE_EXIT: get_answer_node | action: fallback | next_stage: design")
+    # Simply store the interrupt response and return to design
+    print(f"🔍 NODE_EXIT: get_answer_node | returning to design with payload")
     return {
-        "stage": "design",
-        "interrupt_error": f"Unexpected response: {response}"
+        "interrupt_response": payload,
+        "stage": "design"  # Always go back to design
     }
 
 
@@ -309,7 +290,12 @@ def mark_node(state: InterruptUnifiedState) -> Dict:
     
     print(f"🚨 MARK DEBUG - Evaluation result: correct={evaluation.is_correct}, should_progress={should_progress}")
     
-    next_stage = "progress" if should_progress else "design"
+    # NEW ROUTING: incorrect answers go to retry, not design
+    if should_progress:
+        next_stage = "progress"
+    else:
+        next_stage = "retry"  # Changed from "design"
+    
     print(f"🔍 NODE_EXIT: mark_node | correct: {evaluation.is_correct} | should_progress: {should_progress} | next_stage: {next_stage}")
     
     return {
@@ -321,6 +307,157 @@ def mark_node(state: InterruptUnifiedState) -> Dict:
         "stage": next_stage,
         "student_response": None,  # Clear response
         # Don't send feedback as message - it was already streamed by LLM
+    }
+
+
+def retry_node(state: InterruptUnifiedState) -> Dict:
+    """Retry node - shows feedback and creates tool call for retry attempt."""
+    current_idx = state.get("current_card_index", 0)
+    attempts = state.get("attempts", 1)
+    print(f"🔍 NODE_ENTRY: retry_node | card_idx: {current_idx} | attempt: {attempts}")
+    
+    # Check for interrupt response first (from get_answer_retry_node)
+    interrupt_response = state.get("interrupt_response")
+    print(f"🚨 RETRY DEBUG - interrupt_response: {interrupt_response}")
+    
+    if interrupt_response:
+        action = interrupt_response.get("action") if isinstance(interrupt_response, dict) else None
+        print(f"🚨 RETRY DEBUG - Processing interrupt response with action: {action}")
+        
+        if action == "submit_answer":
+            student_response = interrupt_response.get("student_response", "")
+            print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            current_card, current_index, cfu_type = _get_current_card_info(state)
+            print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")
+            
+            return_dict = {
+                "student_response": student_response,
+                "current_card": current_card,
+                "current_card_index": current_index,
+                "stage": "mark",
+                "interrupt_response": None  # Clear after processing
+            }
+            return return_dict
+        elif action == "skip_card":
+            print(f"🚨 RETRY DEBUG - Skip card action")
+            print(f"🔍 NODE_EXIT: retry_node | decision: skip_card | next_stage: progress")
+            return {
+                "stage": "progress",
+                "should_progress": True,
+                "skip_reason": interrupt_response.get("reason", "Student chose to skip"),
+                "interrupt_response": None  # Clear after processing
+            }
+        else:
+            print(f"🚨 RETRY DEBUG - Unknown action in interrupt response: {action}")
+    else:
+        print(f"🚨 RETRY DEBUG - No interrupt_response found, creating retry presentation")
+    
+    # Get retry context
+    feedback = state.get("feedback", "Please try again.")
+    current_card = state.get("current_card")
+    current_index = state.get("current_card_index", 0)
+    max_attempts = state.get("max_attempts", 3)
+    
+    if not current_card:
+        print("🚨 RETRY DEBUG - Missing current card, routing to design")
+        return {"stage": "design"}
+    
+    # Create feedback message
+    from langchain_core.messages import AIMessage
+    feedback_message = AIMessage(content=feedback)
+    
+    # Create tool call for retry using SAME tool as design_node
+    tool_call_id = f"retry_card_{current_index}_{attempts}"
+    lesson_context = {
+        "lesson_title": state["lesson_snapshot"].get("title", "Scottish AI Lesson"),
+        "student_name": state.get("student_id", "Student"),
+        "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
+    }
+    
+    tool_call = ToolCall(
+        id=tool_call_id,
+        name="lesson_card_presentation",  # SAME tool name as design_node
+        args={
+            "card_content": feedback,  # Pass feedback instead of greeting content
+            "card_data": current_card,
+            "card_index": current_index,
+            "total_cards": len(state["lesson_snapshot"].get("cards", [])),
+            "cfu_type": current_card.get("cfu", {}).get("type", ""),
+            "lesson_context": lesson_context,
+            "interaction_id": str(uuid.uuid4()),
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+    
+    # Create AIMessage with empty content and tool call for UI
+    tool_message = AIMessage(
+        content="",  # Empty to avoid duplication
+        tool_calls=[tool_call]
+    )
+    
+    print(f"🚨 RETRY DEBUG - Created lesson_card_presentation tool call for retry attempt {attempts}")
+    print(f"🚨 RETRY DEBUG - Tool call content: feedback instead of greeting")
+    print(f"🔍 NODE_EXIT: retry_node | decision: retry_presentation | next_stage: get_answer_retry")
+    
+    return {
+        "messages": [feedback_message, tool_message],
+        "stage": "get_answer_retry",
+        "pending_tool_call_id": tool_call_id,
+        "student_response": None  # Clear any previous response
+    }
+
+
+def get_answer_retry_node(state: InterruptUnifiedState) -> Dict:
+    """Get answer retry node - captures interrupt response for retry attempts and returns to retry."""
+    current_idx = state.get("current_card_index", 0)
+    attempts = state.get("attempts", 1)
+    print(f"🔍 NODE_ENTRY: get_answer_retry_node | card_idx: {current_idx} | attempt: {attempts}")
+    
+    print(f"🚨 INTERRUPT RETRY DEBUG - About to interrupt with empty payload, waiting for retry response")
+    
+    # Interrupt with EMPTY payload - frontend already has data from retry tool call
+    response = interrupt({})
+    
+    # THIS CODE EXECUTES AFTER RESUME with response from sendCommand
+    print(f"🚨 INTERRUPT RETRY DEBUG - Raw response received: {response}")
+    print(f"🚨 INTERRUPT RETRY DEBUG - Response type: {type(response)}")
+    
+    # Parse response robustly (same logic as get_answer_node)
+    payload = None
+    if isinstance(response, str):
+        print(f"🚨 INTERRUPT RETRY DEBUG - Response is STRING, parsing JSON")
+        import json
+        try:
+            payload = json.loads(response)
+            print(f"🚨 INTERRUPT RETRY DEBUG - Successfully parsed JSON: {payload}")
+        except json.JSONDecodeError as e:
+            print(f"🚨 INTERRUPT RETRY DEBUG - JSON parse failed: {e}")
+            payload = {"value": response}
+            
+    elif isinstance(response, dict):
+        print(f"🚨 INTERRUPT RETRY DEBUG - Response is DICT: {response}")
+        # Handle resume wrapper if present
+        if "resume" in response:
+            resume_value = response["resume"]
+            if isinstance(resume_value, str):
+                import json
+                try:
+                    payload = json.loads(resume_value)
+                except json.JSONDecodeError:
+                    payload = {"value": resume_value}
+            else:
+                payload = resume_value
+        else:
+            payload = response
+    else:
+        print(f"🚨 INTERRUPT RETRY DEBUG - Unexpected response type: {type(response)}")
+        payload = {"value": str(response)}
+    
+    # Simply store the interrupt response and return to retry
+    print(f"🔍 NODE_EXIT: get_answer_retry_node | returning to retry with payload")
+    return {
+        "interrupt_response": payload,
+        "stage": "retry"  # Always go back to retry
     }
 
 
@@ -386,13 +523,25 @@ def should_continue_from_design(state: InterruptUnifiedState) -> str:
 def should_continue_from_mark(state: InterruptUnifiedState) -> str:
     """Determine next step after marking."""
     should_progress = state.get("should_progress", False)
-    next_node = "progress" if should_progress else "design"
+    next_node = "progress" if should_progress else "retry"  # Changed from "design"
     print(f"🔍 ROUTING: should_continue_from_mark -> {next_node} | should_progress: {should_progress}")
     return next_node
 
 
-# Named lambda for better LangSmith trace readability
-get_answer_router = lambda state: state.get("stage", "design")
+def should_continue_from_retry(state: InterruptUnifiedState) -> str:
+    """Determine next step after retry node."""
+    should_exit = state.get("should_exit", False)
+    stage = state.get("stage", "get_answer_retry")
+    
+    if should_exit or stage == "done":
+        print(f"🔍 ROUTING: should_continue_from_retry -> END | should_exit: {should_exit} | stage: {stage}")
+        return END
+    
+    print(f"🔍 ROUTING: should_continue_from_retry -> {stage} | should_exit: {should_exit}")
+    return stage
+
+
+# Removed: get_answer_router lambda - get_answer now always returns to design
 
 # Build the tool call + interrupt teaching graph
 teaching_graph_toolcall = StateGraph(InterruptUnifiedState)
@@ -402,44 +551,55 @@ teaching_graph_toolcall.add_node("design", design_node)
 teaching_graph_toolcall.add_node("get_answer", get_answer_node)
 teaching_graph_toolcall.add_node("mark", mark_node)
 teaching_graph_toolcall.add_node("progress", progress_node)
+teaching_graph_toolcall.add_node("retry", retry_node)
+teaching_graph_toolcall.add_node("get_answer_retry", get_answer_retry_node)
 
 # Add edges
 teaching_graph_toolcall.add_edge(START, "design")
 
-# From design: either go to get_answer or end if done
+# From design: route based on stage (get_answer, mark, progress, or end)
 teaching_graph_toolcall.add_conditional_edges(
     "design",
     should_continue_from_design,
     {
         "get_answer": "get_answer",
-        "mark": "mark",  # Direct to mark if we have response
+        "mark": "mark",          # When student_response available
+        "progress": "progress",  # When skip_card action
         END: END
     }
 )
 
-# From get_answer: conditional edges based on stage set by interrupt response
-teaching_graph_toolcall.add_conditional_edges(
-    "get_answer",
-    get_answer_router,  # Named lambda for better traces
-    {
-        "mark": "mark",      # When submit_answer received
-        "progress": "progress",  # When skip_card received  
-        "design": "design"   # Fallback/error case
-    }
-)
+# From get_answer: always return to design (simplified flow)
+teaching_graph_toolcall.add_edge("get_answer", "design")
 
-# From mark: go to progress if correct, back to design if incorrect
+# From mark: go to progress if correct, to retry if incorrect
 teaching_graph_toolcall.add_conditional_edges(
     "mark",
     should_continue_from_mark,
     {
         "progress": "progress",
-        "design": "design"
+        "retry": "retry"  # Changed from "design"
     }
 )
 
 # From progress: always return to design for next card
 teaching_graph_toolcall.add_edge("progress", "design")
+
+# Add retry flow edges
+# From retry: route based on stage (get_answer_retry, mark, progress)
+teaching_graph_toolcall.add_conditional_edges(
+    "retry",
+    should_continue_from_retry,
+    {
+        "get_answer_retry": "get_answer_retry",
+        "mark": "mark",          # When student_response available
+        "progress": "progress",  # When skip_card action
+        END: END
+    }
+)
+
+# From get_answer_retry: always return to retry
+teaching_graph_toolcall.add_edge("get_answer_retry", "retry")
 
 # Compile the tool call + interrupt teaching graph
 compiled_teaching_graph_toolcall = teaching_graph_toolcall.compile(checkpointer=True)
