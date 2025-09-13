@@ -42,6 +42,11 @@ def _get_current_card_info(state: InterruptUnifiedState) -> tuple[dict, int, str
     return current_card, current_index, cfu_type
 
 
+def _get_previous_attempts(evidence: list, item_id: str) -> list[str]:
+    """Extract previous attempts for this item from evidence."""
+    return [entry["response"] for entry in evidence if entry["item_id"] == item_id]
+
+
 def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, current_index: int, cfu_type: str):
     """Generate appropriate message based on card position and type."""
     if current_index == 0:
@@ -287,21 +292,34 @@ def mark_node(state: InterruptUnifiedState) -> Dict:
     
     # Determine progression
     should_progress = evaluation.is_correct or (attempts >= max_attempts)
-    
+
     print(f"🚨 MARK DEBUG - Evaluation result: correct={evaluation.is_correct}, should_progress={should_progress}")
-    
+
+    # NEW: Generate explanation if max attempts reached and incorrect
+    explanation_message = None
+    if attempts >= max_attempts and not evaluation.is_correct:
+        print(f"🚨 MARK DEBUG - Max attempts reached with incorrect answer, generating explanation")
+        previous_attempts = _get_previous_attempts(evidence, cfu["id"])
+        explanation_obj = teacher.explain_correct_answer_sync_full(
+            current_card=current_card,
+            student_attempts=previous_attempts
+        )
+        explanation_message = explanation_obj.content if hasattr(explanation_obj, 'content') else str(explanation_obj)
+        print(f"🚨 MARK DEBUG - Generated explanation: {explanation_message[:100] if explanation_message else 'None'}...")
+
     # NEW ROUTING: incorrect answers go to retry, not design
     if should_progress:
         next_stage = "progress"
     else:
         next_stage = "retry"  # Changed from "design"
-    
+
     print(f"🔍 NODE_EXIT: mark_node | correct: {evaluation.is_correct} | should_progress: {should_progress} | next_stage: {next_stage}")
-    
+
     return {
         "is_correct": evaluation.is_correct,
         "should_progress": should_progress,
         "feedback": evaluation.feedback,
+        "explanation": explanation_message,  # NEW field
         "attempts": attempts,
         "evidence": evidence,
         "stage": next_stage,
@@ -354,17 +372,25 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
     
     # Get retry context
     feedback = state.get("feedback", "Please try again.")
+    explanation = state.get("explanation")  # NEW: Get explanation if exists
     current_card = state.get("current_card")
     current_index = state.get("current_card_index", 0)
     max_attempts = state.get("max_attempts", 3)
-    
+
     if not current_card:
         print("🚨 RETRY DEBUG - Missing current card, routing to design")
         return {"stage": "design"}
-    
-    # Create feedback message
+
+    # Create feedback message with explanation if available
     from langchain_core.messages import AIMessage
-    feedback_message = AIMessage(content=feedback)
+    if explanation:
+        # Combine feedback and explanation for comprehensive message
+        combined_feedback = f"{feedback}\n\n{explanation}"
+        feedback_message = AIMessage(content=combined_feedback)
+        print(f"🚨 RETRY DEBUG - Using combined feedback + explanation for max attempts case")
+    else:
+        feedback_message = AIMessage(content=feedback)
+        combined_feedback = feedback
     
     # Create tool call for retry using SAME tool as design_node
     tool_call_id = f"retry_card_{current_index}_{attempts}"
@@ -378,7 +404,7 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
         id=tool_call_id,
         name="lesson_card_presentation",  # SAME tool name as design_node
         args={
-            "card_content": feedback,  # Pass feedback instead of greeting content
+            "card_content": combined_feedback,  # Pass combined feedback + explanation content
             "card_data": current_card,
             "card_index": current_index,
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
@@ -396,14 +422,15 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
     )
     
     print(f"🚨 RETRY DEBUG - Created lesson_card_presentation tool call for retry attempt {attempts}")
-    print(f"🚨 RETRY DEBUG - Tool call content: feedback instead of greeting")
+    print(f"🚨 RETRY DEBUG - Tool call content: {'feedback + explanation' if explanation else 'feedback only'}")
     print(f"🔍 NODE_EXIT: retry_node | decision: retry_presentation | next_stage: get_answer_retry")
-    
+
     return {
         "messages": [feedback_message, tool_message],
         "stage": "get_answer_retry",
         "pending_tool_call_id": tool_call_id,
-        "student_response": None  # Clear any previous response
+        "student_response": None,  # Clear any previous response
+        "explanation": None  # Clear after using
     }
 
 

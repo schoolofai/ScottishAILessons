@@ -137,6 +137,7 @@ Expected Answer: {expected_answer}
 Student Attempts: {student_attempts}
 
 The student has tried their best but hasn't got the correct answer. Now provide a clear, encouraging explanation that:
+0. Always start with thanking for effort followed by phrase like "Let's look at the correct approach:"
 1. Shows the correct answer
 2. Explains the step-by-step method to solve it
 3. Helps them understand where they went wrong
