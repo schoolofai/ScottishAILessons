@@ -50,3 +50,9 @@ class UnifiedState(TypedDict, total=False):
     lesson_summary: Optional[BaseMessage]  # LLM-generated comprehensive summary
     performance_analysis: Optional[Dict[str, Any]]  # Detailed performance metrics
     retry_recommended: Optional[bool]  # Whether student should retry the lesson
+
+    # Course Manager fields
+    course_recommendation: Optional[Dict[str, Any]]  # Generated course recommendation
+    recommendation_summary: Optional[Dict[str, Any]]  # Recommendation analytics
+    validation_results: Optional[Dict[str, Any]]  # Validation results
+    error: Optional[str]  # Error message if processing failed

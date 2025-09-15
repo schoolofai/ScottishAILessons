@@ -89,6 +89,11 @@ export interface Evidence {
   itemId: string;
   response: string;
   correct: boolean;
+  attempts?: number;
+  confidence?: number;
+  reasoning?: string;
+  feedback?: string;
+  timestamp?: string;
 }
 
 export interface EvidenceData {
@@ -96,6 +101,11 @@ export interface EvidenceData {
   itemId: string;
   response: string;
   correct: boolean;
+  attempts?: number;
+  confidence?: number;
+  reasoning?: string;
+  feedback?: string;
+  timestamp?: string;
 }
 
 export interface Mastery {

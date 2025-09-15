@@ -185,59 +185,101 @@ interface Mastery { $id:string; studentId:string; courseId:string; outcomeId:str
 
 ## Graphs (ASCII visuals)
 
-### High-level graph (MVP0)
+### Main Graph (Interrupt-Enabled MVP)
 ```
-Entry
+START
   |
   v
-+---------+          +------------------+          +----------+
-| design  |  ----->  |  delivery_loop   |  ----->  | progress |
-+---------+          +------------------+          +----------+
-                                                        |
-                                                        v
-                                                      [END]
++--------+     +--------+     +---------+
+| entry  | --> | router | --> |  mode?  |
++--------+     +--------+     +---------+
+                                  |
+                     +------------+-----------+
+                     |                        |
+                     v                        v
+               +----------+            +----------------+
+               | chat     |            | teaching       |
+               +----------+            | (subgraph)     |
+                     |                 +----------------+
+                     v                        |
+                   [END]                      v
+                                            [END]
 ```
 
-### Delivery sub-graph (HITL: hints/scaffolds/variants until success or pause)
+### Teaching Subgraph (Tool Call + Interrupt Pattern)
 ```
-                +--------------------+
-entry  -------> |  generate_variant  |
-                +---------+----------+
-                          |
-                          v
-                +---------+----------+
-                |     present_ui     |  <-- HUMAN answers or pauses
-                +---------+----------+
-                          |
-                          v
-                +---------+----------+
-                |      evaluate      | (deterministic mark)
-                +----+----------+----+
-                     |          |
-                     |          |
-          correct -> |          | <- incorrect
-                     v          v
-                +----+----+  +--+----------------+
-                |  mark   |  |  hint_or_scaffold |
-                +----+----+  +--+----------------+
-                     \           /
-                      \         /
-                       v       v
-                    +-----------+        +-----------+
-                    | persist_try| ----> | updateEMA | (compute or preview)
-                    +-----------+        +-----------+
-                           \                   /
-                            \                 /
-                             v               v
-                               +-----------+
-                               |  decide   |
-                               +-----+-----+
-                                     |
-             +-----------------------+----------------------+
-             |                       |                      |
-             v                       v                      v
-       [EXIT_SUCCESS]            [EXIT_PAUSE]           loop to
-                                                        generate_variant
+START
+  |
+  v
++---------+
+| design  | <-----------+
++---------+             |
+     |                  |
+     | stage?           |
+     v                  |
++----+----+             |
+|get_answer|             |
+|mark     |             |
+|progress |             |
+|done     |             |
++----+----+             |
+     |                  |
+     +------------------+
+     |                  |
+     v                  |
++----------+            |
+|get_answer| -----------+
++----------+
+     |
+     v (interrupt)
+   [WAIT] --> user response --> resume to design
+
++------+    +----------+    +--------+
+| mark | -> |progress? | -> |progress|
++------+    +----------+    +--------+
+     |           |               |
+     v           v               v
++-------+     +-------+      back to
+| retry |     |   ^   |      design
++-------+     +-------+
+     |           |
+     v           |
++---------------+
+|get_answer_retry|
++---------------+
+     |
+     v (interrupt)
+   [WAIT] --> user response --> resume to retry
+
+Legend:
+- design: Routes based on state (lesson complete, has response, new card)
+- get_answer: Interrupts with empty payload, waits for Tool UI response
+- mark: Evaluates student response, determines correct/incorrect
+- retry: Shows feedback and re-presents card for incorrect responses
+- get_answer_retry: Interrupts for retry attempts
+- progress: Moves to next card, updates mastery scores
+```
+
+### Flow States and Routing
+```
+Design Node Routes To:
+├── get_answer (new card presentation)
+├── mark (student response available)
+├── progress (skip card action)
+└── END (lesson complete)
+
+Mark Node Routes To:
+├── progress (correct answer or max attempts)
+└── retry (incorrect answer, attempts remaining)
+
+Retry Node Routes To:
+├── get_answer_retry (feedback shown, retry presentation)
+├── mark (retry response available)
+├── progress (skip card action)
+└── END (should not happen)
+
+Progress Node Routes To:
+└── design (always - next card or completion check)
 ```
 
 ---

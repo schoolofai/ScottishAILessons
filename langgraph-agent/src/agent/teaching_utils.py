@@ -90,10 +90,17 @@ def _update_mastery_scores(lesson_snapshot: dict, state: dict, existing_updates:
     attempts = state.get("attempts", 1)
     score = _calculate_mastery_score(is_correct, attempts)
 
+    print(f"🚨 MASTERY DEBUG - Lesson snapshot keys: {list(lesson_snapshot.keys())}")
+    print(f"🚨 MASTERY DEBUG - Outcome refs found: {len(outcome_refs)} - {outcome_refs}")
+    print(f"🚨 MASTERY DEBUG - State: is_correct={is_correct}, attempts={attempts}, score={score}")
+    print(f"🚨 MASTERY DEBUG - Existing updates: {len(existing_updates)}")
+
     for outcome in outcome_refs:
         mastery_update = _create_mastery_update(outcome, score)
         mastery_updates.append(mastery_update)
+        print(f"🚨 MASTERY DEBUG - Created update: {mastery_update}")
 
+    print(f"🚨 MASTERY DEBUG - Total mastery updates: {len(mastery_updates)}")
     return mastery_updates
 
 

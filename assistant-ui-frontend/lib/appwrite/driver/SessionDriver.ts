@@ -162,4 +162,15 @@ export class SessionDriver extends BaseDriver {
       throw this.handleError(error, 'get session with thread');
     }
   }
+
+  /**
+   * Update session data
+   */
+  async updateSession(sessionId: string, data: Partial<Session>): Promise<Session> {
+    try {
+      return await this.update<Session>('sessions', sessionId, data);
+    } catch (error) {
+      throw this.handleError(error, 'update session');
+    }
+  }
 }

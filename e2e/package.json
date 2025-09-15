@@ -12,7 +12,8 @@
     "test:auth": "playwright test auth.spec.ts",
     "test:happy-path": "playwright test lesson-happy-path.spec.ts",
     "test:error-handling": "playwright test lesson-error-handling.spec.ts", 
-    "test:post-completion": "playwright test lesson-post-completion.spec.ts"
+    "test:post-completion": "playwright test lesson-post-completion.spec.ts",
+    "test:multi-course": "playwright test multi-course-dashboard.spec.ts"
   },
   "keywords": ["e2e", "playwright", "ai", "education", "testing"],
   "author": "Scottish AI Lessons",

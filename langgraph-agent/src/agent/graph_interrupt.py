@@ -43,7 +43,7 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
     print(f"🚨 INTERRUPT DEBUG - entry_node_interrupt initialized with session_context: {bool(session_context)}")
     
     # Determine mode based on session context
-    if session_context and session_context.get("session_id"):
+    if session_context and isinstance(session_context, dict) and session_context.get("session_id"):
         mode = "teaching"
         
         # Extract session context fields into individual state fields

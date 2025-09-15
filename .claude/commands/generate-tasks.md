@@ -17,12 +17,12 @@ To guide an AI assistant in creating a detailed, step-by-step task list in Markd
 3.  **Phase 1: Generate Parent Tasks:** Based on the PRD analysis, create the file and generate the main, high-level tasks required to implement the feature. Use your judgement on how many high-level tasks to use. It's likely to be about 5. Parent tasks should be testable and should leave the implementation is a working state. At the end of each test there should be passing tests. If the test does not have a test infrastructure then the first parent task should always be setting up test infrastructure based on technical stack. The testing stack shoud cover all types of testing -  e2e test (e.g. playwright), integration tests and unit tests.  Present these tasks to the user in the specified format (without sub-tasks yet). Inform the user: "I have generated the high-level tasks based on the PRD. Ready to generate the sub-tasks? Respond with 'Go' to proceed."
 4.  **Wait for Confirmation:** Pause and wait for the user to respond with "Go".
 5.  **Phase 2: Generate Sub-Tasks:** Once the user confirms, break down each parent task into smaller, actionable sub-tasks necessary to complete the parent task. The sub-tasks should be designed to follow Strict Test Driven Development - outside in TDD should be followed when appropriate.  Ensure sub-tasks logically follow from the parent task and cover the implementation details implied by the PRD. The final sub-task should always be run tests to ensure they are passing.
-For each subtask detail the following 
+For each subtask add a details section under the subtask entry. The details shoudl contain the following the following 
 a. what files will be created or updated 
 b. provide code or psuedo code for each of these files to guide the implementation phase.
 6.  **Identify Relevant Files:** Based on the tasks and PRD, identify potential files that will need to be created or modified. List these under the `Relevant Files` section, including corresponding test files if applicable.
-7.  **Compatible With Outside-in TDD or TDD** - when generating tasks and sub-task bear in mind that Outside-in TDD or TDD will be used to execute the tasks.
-8.  **Generate Final Output:** Combine the parent tasks, sub-tasks, relevant files, and notes into the final Markdown structure.
+7.  **Compatible With Outside-in TDD or TDD** - when generating tasks and sub-task bear in mind that Outside-in TDD or TDD will be used to execute the tasks. TDD follow RED-Green-Refactor - so substasks should follow this pattern. 
+8.  **Generate Final Output:** Combine the parent tasks, sub-tasks (with details), relevant files, and notes into the final Markdown structure.
 9.  **Save Task List:** Save the generated document in the tasks/@ARGUMENTS  directory with the filename `tasks-[prd-file-name].md`, where `[prd-file-name]` matches the base name of the input PRD file (e.g., if the input was `prd-user-profile-editing.md`, the output is `tasks-prd-user-profile-editing.md`).
 
 ## Output Format

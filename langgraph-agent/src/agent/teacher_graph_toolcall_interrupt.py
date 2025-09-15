@@ -157,6 +157,12 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         )
 
         # Create tool call for lesson completion UI
+        mastery_updates = state.get("mastery_updates", [])
+        print(f"🚨 COMPLETION DEBUG - Tool call data:")
+        print(f"🚨 COMPLETION DEBUG - Evidence entries: {len(evidence)}")
+        print(f"🚨 COMPLETION DEBUG - Mastery updates: {len(mastery_updates)}")
+        print(f"🚨 COMPLETION DEBUG - Session context: session_id={state.get('session_id')}, student_id={state.get('student_id')}, course_id={state.get('course_id')}")
+
         tool_call = ToolCall(
             id="lesson_completion",
             name="lesson_completion_summary",
@@ -164,11 +170,16 @@ def design_node(state: InterruptUnifiedState) -> Dict:
                 "summary": summary_message.content if hasattr(summary_message, 'content') else str(summary_message),
                 "performance_analysis": performance_analysis,
                 "evidence": evidence,
+                "mastery_updates": mastery_updates,  # Add mastery data from backend
                 "lesson_title": lesson_snapshot.get("title", "Lesson"),
                 "total_cards": len(lesson_snapshot.get("cards", [])),
                 "cards_completed": len(state.get("cards_completed", [])),
                 "retry_recommended": performance_analysis.get("retry_recommended", False),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                # Session context for frontend persistence
+                "session_id": state.get("session_id"),
+                "student_id": state.get("student_id"),
+                "course_id": state.get("course_id")
             }
         )
 

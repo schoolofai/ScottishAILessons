@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import { useRouter } from "next/navigation";
+import { useAppwrite, EvidenceDriver, SessionDriver, MasteryDriver } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,11 +45,20 @@ type LessonCompletionSummaryArgs = {
     reasoning: string;
     feedback: string;
   }>;
+  mastery_updates: Array<{
+    outcome_id: string;
+    score: number;
+    timestamp: string;
+  }>;
   lesson_title: string;
   total_cards: number;
   cards_completed: number;
   retry_recommended: boolean;
   timestamp: string;
+  // Session context for persistence
+  session_id: string;
+  student_id: string;
+  course_id: string;
 };
 
 export const LessonCompletionSummaryTool = makeAssistantToolUI<
@@ -59,34 +69,101 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
   render: function LessonCompletionSummaryUI({ args, callTool, status }) {
     const interrupt = useLangGraphInterruptState();
     const router = useRouter();
+    const { createDriver } = useAppwrite();
 
     const {
       summary,
       performance_analysis,
       evidence,
+      mastery_updates,
       lesson_title,
       total_cards,
-      retry_recommended
+      retry_recommended,
+      session_id,
+      student_id,
+      course_id
     } = args;
+
+    // Debug logging to check what data we're receiving
+    console.log('🔍 LessonCompletionSummaryTool received args:', {
+      evidence: evidence?.length || 0,
+      mastery_updates: mastery_updates?.length || 0,
+      session_id,
+      student_id,
+      course_id,
+      evidence_sample: evidence?.[0],
+      mastery_sample: mastery_updates?.[0]
+    });
 
     const [selectedTab, setSelectedTab] = useState("performance");
     const isLoading = status.type === "executing";
 
 
 
-    const handleComplete = () => {
-      // Only call tool if it's available (during interrupts)
-      if (typeof callTool === "function") {
-        callTool({
-          action: "complete",
-          interaction_type: "lesson_completion",
-          performance_satisfaction: "satisfied",
-          wants_retry: false,
-          timestamp: new Date().toISOString()
+    const handleComplete = async () => {
+      try {
+        const evidenceDriver = createDriver(EvidenceDriver);
+        const sessionDriver = createDriver(SessionDriver);
+        const masteryDriver = createDriver(MasteryDriver);
+
+        console.log('🚀 Starting lesson completion persistence...');
+        console.log(`Evidence records: ${evidence.length}, Mastery updates: ${mastery_updates.length}`);
+
+        // 1. Batch save all evidence to Appwrite for better performance
+        console.log('📝 Persisting evidence records...');
+        const evidenceData = evidence.map(entry => ({
+          sessionId: session_id,
+          itemId: entry.item_id,
+          response: entry.response,
+          correct: entry.correct,
+          attempts: entry.attempts,
+          confidence: entry.confidence,
+          reasoning: entry.reasoning,
+          feedback: entry.feedback,
+          timestamp: entry.timestamp
+        }));
+
+        if (evidenceData.length > 0) {
+          await evidenceDriver.batchRecordEvidence(evidenceData);
+          console.log(`✅ Persisted ${evidenceData.length} evidence records`);
+        }
+
+        // 2. Batch save mastery scores using MasteryDriver
+        console.log('🎯 Persisting mastery updates...');
+        if (mastery_updates.length > 0) {
+          await masteryDriver.batchUpdateMasteries(student_id, course_id, mastery_updates);
+          console.log(`✅ Persisted ${mastery_updates.length} mastery updates`);
+        }
+
+        // 3. Mark session as complete
+        console.log('📊 Updating session status...');
+        await sessionDriver.updateSession(session_id, {
+          endedAt: new Date().toISOString(),
+          stage: "done"
         });
+
+        console.log('✅ All lesson completion data persisted successfully');
+
+        // 4. Only call tool if it's available (during interrupts)
+        if (typeof callTool === "function") {
+          callTool({
+            action: "complete",
+            interaction_type: "lesson_completion",
+            performance_satisfaction: "satisfied",
+            wants_retry: false,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        // Navigate to dashboard after marking as complete
+        router.push("/dashboard");
+      } catch (error) {
+        console.error('❌ Failed to persist lesson completion data:', error);
+        // Still navigate but show error with more specific information
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        alert(`Warning: Failed to save lesson data (${errorMessage}). Your progress may not be saved. Please check your connection and try again.`);
+        router.push("/dashboard");
       }
-      // Navigate to dashboard after marking as complete
-      router.push("/dashboard");
     };
 
     const handleRetry = () => {

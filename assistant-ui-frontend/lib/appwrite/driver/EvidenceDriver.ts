@@ -220,4 +220,32 @@ export class EvidenceDriver extends BaseDriver {
       throw this.handleError(error, 'get recent evidence');
     }
   }
+
+  /**
+   * Batch record multiple evidence entries for better performance
+   */
+  async batchRecordEvidence(evidenceList: EvidenceData[]): Promise<Evidence[]> {
+    try {
+      const user = await this.getCurrentUser();
+      const permissions = this.createUserPermissions(user.$id);
+      const results: Evidence[] = [];
+
+      // Process in batches to avoid overwhelming the database
+      const batchSize = 10;
+      for (let i = 0; i < evidenceList.length; i += batchSize) {
+        const batch = evidenceList.slice(i, i + batchSize);
+
+        const batchPromises = batch.map(evidenceData =>
+          this.create<Evidence>('evidence', evidenceData, permissions)
+        );
+
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      }
+
+      return results;
+    } catch (error) {
+      throw this.handleError(error, 'batch record evidence');
+    }
+  }
 }

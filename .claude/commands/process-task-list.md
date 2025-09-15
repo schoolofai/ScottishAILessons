@@ -8,7 +8,7 @@ Guidelines for managing task lists in markdown files to track progress on comple
 - **Completion protocol:**  
   1. When you finish a **sub‑task** 
      a. immediately mark it as completed by changing `[ ]` to `[x]`.
-     b. for the completed subtask - summarise the changes made and show file and code snippets to clarify concepts.  
+     b. for the completed subtask - summarise the changes made and show file and code snippets to clarify concepts. **Put the summary right underneath the subtask within the Tasks Section**  
   2. If **all** subtasks underneath a parent task are now `[x]`, also mark the **parent task** as completed.
   3. If a task and **all** its subtasks are completed and the tests are not passing or there are any complicated issues bring human in the loop for feedback   
 
