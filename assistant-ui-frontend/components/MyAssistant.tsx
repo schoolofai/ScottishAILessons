@@ -8,12 +8,14 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AutoStartTrigger } from "./AutoStartTrigger";
 import { LessonSnapshot } from "@/lib/appwrite/types";
+import { SessionProvider } from "@/lib/SessionContext";
 
 // Import interrupt-enabled Tool UI components
 import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
 import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
 import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
+import { LessonCompletionSummaryTool } from "@/components/tools/LessonCompletionSummaryTool";
 
 export interface SessionContext {
   session_id: string;
@@ -102,19 +104,24 @@ export function MyAssistant({
     }
   }, [initialThreadId, runtime]);
 
+  const isSessionMode = !!sessionContext;
+
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <AutoStartTrigger 
-        sessionContext={sessionContext}
-        existingThreadId={initialThreadId}
-      />
-      <Thread />
-      
-      {/* Interrupt-enabled Tool UI components for interactive lesson cards */}
-      <LessonCardPresentationTool />
-      <FeedbackPresentationTool />
-      <ProgressAcknowledgmentTool />
-      <LessonSummaryPresentationTool />
-    </AssistantRuntimeProvider>
+    <SessionProvider isSessionMode={isSessionMode}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        <AutoStartTrigger
+          sessionContext={sessionContext}
+          existingThreadId={initialThreadId}
+        />
+        <Thread />
+
+        {/* Interrupt-enabled Tool UI components for interactive lesson cards */}
+        <LessonCardPresentationTool />
+        <FeedbackPresentationTool />
+        <ProgressAcknowledgmentTool />
+        <LessonSummaryPresentationTool />
+        <LessonCompletionSummaryTool />
+      </AssistantRuntimeProvider>
+    </SessionProvider>
   );
 }

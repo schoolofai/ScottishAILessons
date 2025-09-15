@@ -3,14 +3,15 @@
 import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  TrophyIcon, 
+import {
+  TrophyIcon,
   RefreshCwIcon,
   CheckCircleIcon,
   XCircleIcon,
@@ -23,8 +24,8 @@ import {
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 
-type LessonSummaryPresentationArgs = {
-  lesson_summary: string;
+type LessonCompletionSummaryArgs = {
+  summary: string;
   performance_analysis: {
     overall_accuracy: number;
     first_attempt_success: number;
@@ -43,73 +44,82 @@ type LessonSummaryPresentationArgs = {
     reasoning: string;
     feedback: string;
   }>;
+  lesson_title: string;
+  total_cards: number;
+  cards_completed: number;
   retry_recommended: boolean;
-  completion_stats: {
-    total_cards: number;
-    correct_answers: number;
-    average_attempts: number;
-  };
-  interaction_id: string;
   timestamp: string;
 };
 
-export const LessonSummaryPresentationTool = makeAssistantToolUI<
-  LessonSummaryPresentationArgs,
+export const LessonCompletionSummaryTool = makeAssistantToolUI<
+  LessonCompletionSummaryArgs,
   unknown
 >({
-  toolName: "lesson_summary_presentation",
-  render: function LessonSummaryPresentationUI({ args, callTool, status }) {
+  toolName: "lesson_completion_summary",
+  render: function LessonCompletionSummaryUI({ args, callTool, status }) {
     const interrupt = useLangGraphInterruptState();
+    const router = useRouter();
 
     const {
-      lesson_summary,
+      summary,
       performance_analysis,
       evidence,
-      retry_recommended,
-      completion_stats
+      lesson_title,
+      total_cards,
+      retry_recommended
     } = args;
 
-    const [selectedTab, setSelectedTab] = useState("summary");
+    const [selectedTab, setSelectedTab] = useState("performance");
     const isLoading = status.type === "executing";
 
 
-    if (!interrupt) return null;
 
     const handleComplete = () => {
-      callTool({
-        action: "complete",
-        interaction_type: "lesson_completion",
-        performance_satisfaction: "satisfied",
-        wants_retry: false,
-        interaction_id: args.interaction_id,
-        timestamp: new Date().toISOString()
-      });
+      // Only call tool if it's available (during interrupts)
+      if (typeof callTool === "function") {
+        callTool({
+          action: "complete",
+          interaction_type: "lesson_completion",
+          performance_satisfaction: "satisfied",
+          wants_retry: false,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Navigate to dashboard after marking as complete
+      router.push("/dashboard");
     };
 
     const handleRetry = () => {
       if (confirm("Are you sure you want to retry this lesson? Your current progress will be reset.")) {
-        callTool({
-          action: "retry_lesson",
-          interaction_type: "lesson_retry",
-          retry_reason: "student_choice",
-          interaction_id: args.interaction_id,
-          timestamp: new Date().toISOString()
-        });
+        // Only call tool if it's available (during interrupts)
+        if (typeof callTool === "function") {
+          callTool({
+            action: "retry_lesson",
+            interaction_type: "lesson_retry",
+            retry_reason: "student_choice",
+            timestamp: new Date().toISOString()
+          });
+        }
       }
     };
 
     const handleContinue = () => {
-      callTool({
-        action: "continue_learning",
-        interaction_type: "continue_to_next",
-        current_lesson_complete: true,
-        interaction_id: args.interaction_id,
-        timestamp: new Date().toISOString()
-      });
+      // Only call tool if it's available (during interrupts)
+      if (typeof callTool === "function") {
+        callTool({
+          action: "continue_learning",
+          interaction_type: "continue_to_next",
+          current_lesson_complete: true,
+          timestamp: new Date().toISOString()
+        });
+      }
+      // Navigate to dashboard after continuing learning
+      router.push("/dashboard");
     };
 
     const accuracyPercentage = Math.round(performance_analysis.overall_accuracy * 100);
     const firstAttemptPercentage = Math.round(performance_analysis.first_attempt_success * 100);
+    const correct_answers = evidence.filter(item => item.correct).length;
 
     const getPerformanceColor = (percentage: number) => {
       if (percentage >= 80) return "text-green-600";
@@ -129,12 +139,12 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-xl">
               <TrophyIcon className="w-6 h-6 text-yellow-500" />
-              Lesson Complete!
+              {lesson_title} - Complete!
             </CardTitle>
-            
+
             <div className="flex items-center gap-2">
               <Badge variant="outline">
-                {completion_stats.correct_answers}/{completion_stats.total_cards} Correct
+                {correct_answers}/{total_cards} Correct
               </Badge>
               {retry_recommended && (
                 <Badge variant="secondary" className="text-orange-600">
@@ -187,8 +197,8 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
                 {performance_analysis.average_attempts.toFixed(1)}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                {performance_analysis.average_attempts <= 1.5 ? "Excellent!" : 
-                 performance_analysis.average_attempts <= 2.5 ? "Good effort!" : 
+                {performance_analysis.average_attempts <= 1.5 ? "Excellent!" :
+                 performance_analysis.average_attempts <= 2.5 ? "Good effort!" :
                  "Room for improvement"}
               </div>
             </Card>
@@ -213,20 +223,11 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
 
           {/* Detailed tabs */}
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="performance">Performance</TabsTrigger>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="summary" className="space-y-4">
-              <div className="prose prose-sm max-w-none">
-                <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-                  <ReactMarkdown>{lesson_summary}</ReactMarkdown>
-                </div>
-              </div>
-            </TabsContent>
 
             <TabsContent value="performance" className="space-y-4">
               {/* Strong areas */}
@@ -327,13 +328,13 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
                   </h3>
                   <div className="text-sm space-y-2">
                     <p>
-                      <strong>Total Questions:</strong> {completion_stats.total_cards}
+                      <strong>Total Questions:</strong> {total_cards}
                     </p>
                     <p>
-                      <strong>Correct Answers:</strong> {completion_stats.correct_answers}
+                      <strong>Correct Answers:</strong> {correct_answers}
                     </p>
                     <p>
-                      <strong>Success Rate:</strong> {Math.round((completion_stats.correct_answers / completion_stats.total_cards) * 100)}%
+                      <strong>Success Rate:</strong> {Math.round((correct_answers / total_cards) * 100)}%
                     </p>
                     <p>
                       <strong>Learning Status:</strong>{" "}
@@ -360,7 +361,7 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
                 Retry Lesson
               </Button>
             )}
-            
+
             <Button
               variant="secondary"
               onClick={handleComplete}
@@ -369,7 +370,7 @@ export const LessonSummaryPresentationTool = makeAssistantToolUI<
             >
               Mark as Complete
             </Button>
-            
+
             <Button
               onClick={handleContinue}
               disabled={isLoading}

@@ -2,9 +2,9 @@
 
 import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { 
+import {
   useLangGraphInterruptState,
-  useLangGraphSendCommand 
+  useLangGraphSendCommand
 } from "@assistant-ui/react-langgraph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,14 +53,15 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     // Get interrupt state and sendCommand hook
     const interrupt = useLangGraphInterruptState();
     const sendCommand = useLangGraphSendCommand();
-    
+
     // Component state - must be before early return to avoid hook order issues
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
-    
+
+
     // CHECK: Only render if there's an interrupt
-    // if (!interrupt) return null;
+    if (!interrupt) return null;
     
     // DATA: Get from tool call args (NOT from interrupt.value)
     const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;
@@ -75,12 +76,13 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       }
 
       const finalAnswer = cfu_type === "mcq" ? selectedMCQOption : studentAnswer;
-      
+
       console.log('🚨 TOOL UI DEBUG - Submitting answer via sendCommand:', {
         action: "submit_answer",
         student_response: finalAnswer,
         card_id: card_data.id
       });
+
 
       // Send command with resume value as JSON string
       sendCommand({
@@ -97,6 +99,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
     const handleSkipCard = () => {
       if (confirm("Are you sure you want to skip this card? This will mark it as incomplete.")) {
+        // Clear the active tool UI state before sending command
+        setHasActiveToolUI(false);
+
         sendCommand({
           resume: JSON.stringify({
             action: "skip_card",

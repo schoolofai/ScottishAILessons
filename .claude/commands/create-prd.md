@@ -2,20 +2,20 @@
 
 ## Goal
 
-To guide an AI assistant in creating a detailed Product Requirements Document (PRD) in Markdown format, based on an initial user prompt. The PRD should be clear, actionable, and suitable for a junior developer to understand and implement the feature.
+To guide an AI assistant in creating a detailed Product Requirements Document (PRD) in Markdown format, based on an initial user high level breif. The breif will be provided in form of a file in root of the project with the name $ARGUMENTS . The PRD should be clear, actionable, and suitable for a junior developer to understand and implement the feature.
 
 ## Process
 
 1.**Receive Initial High Level Breif:** The user provides a brief description or request for a new feature or functionality from High Level Breif File : $ARGUMENTS
-2. copy the High Level brief file specified in $ARGUMENTS to the same directory as the prd.
-3.**Ask Clarifying Questions:** Before writing the PRD, the AI *must* ask clarifying questions to gather sufficient detail. The goal is to understand the "what" and "why" of the feature, not necessarily the "how" (which the developer will figure out).
-4.**Generate PRD:** Based on the initial prompt and the user's answers to the clarifying questions, generate a PRD using the structure outlined below.
-5.**Save PRD:** Create a sub-directory inside the directory `/tasks` ,name it based on the High level breif ,save the generated document as `prd-[feature-name].md` inside the subdirectory. final prd will be stored in `/task/[high level breif name]/prd-[feature-name].md`.
-
+2.**Ask Clarifying Questions:** Before writing the PRD, the AI *must* ask clarifying questions to gather sufficient detail. The goal is to understand the "what" and "why" of the feature, not necessarily the "how" (which the developer will figure out). The most important clarifying questions are to do with Agile Engineering practices and clean code and test driven development. 
+3.**Generate PRD:** Based on the initial prompt and the user's answers to the clarifying questions, generate a PRD using the structure outlined below.
+4.**Save PRD:** Create a sub-directory inside the directory `/tasks` ,name it based on the High level breif ,save the generated document as `prd-[feature-name].md` inside the subdirectory. final prd will be stored in `/task/[feature name]/prd-[feature-name].md`.
+5. Mover the High Level brief file specified in $ARGUMENTS to the same directory as the prd.
 ## Clarifying Questions (Examples)
 
 The AI should adapt its questions based on the prompt, but here are some common areas to explore:
-
+*  **Testing Strategy**: What is your testing strategy - TDD , Outside-in TDD?
+*  **Testing Stack**: Any prefered testing stack or should I use the most appropriate testing stack for the technology stack ?
 *   **Problem/Goal:** "What problem does this feature solve for the user?" or "What is the main goal we want to achieve with this feature?"
 *   **Target User:** "Who is the primary user of this feature?"
 *   **Core Functionality:** "Can you describe the key actions a user should be able to perform with this feature?"
@@ -46,7 +46,7 @@ Assume the primary reader of the PRD is a **junior developer**. Therefore, requi
 ## Output
 
 *   **Format:** Markdown (`.md`)
-*   **Location:** `/tasks/`
+*   **Location:** `/task/[feature name]/`
 *   **Filename:** `prd-[feature-name].md`
 
 ## Final instructions
@@ -54,3 +54,4 @@ Assume the primary reader of the PRD is a **junior developer**. Therefore, requi
 1. Do NOT start implementing the PRD
 2. Make sure to ask the user clarifying questions
 3. Take the user's answers to the clarifying questions and improve the PRD
+4. Read the brief again to remind yourself of the full context after improving the PRD

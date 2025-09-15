@@ -39,6 +39,9 @@ export function StudentDashboard() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isSessionsExpanded, setIsSessionsExpanded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const sessionsPerPage = 5;
 
   useEffect(() => {
     initializeStudent();
@@ -166,12 +169,16 @@ export function StudentDashboard() {
         console.log('Auto-enrollment completed');
       }
       
-      // Get student's sessions
+      // Get student's sessions with proper ordering and pagination
       console.log('Getting student sessions...');
       const sessionsResult = await databases.listDocuments(
         'default',
         'sessions',
-        [Query.equal('studentId', student.$id)]
+        [
+          Query.equal('studentId', student.$id),
+          Query.orderDesc('startedAt'),  // Most recent first
+          Query.limit(100)  // Load up to 100 most recent sessions
+        ]
       );
       console.log('Sessions result:', sessionsResult);
 
@@ -284,7 +291,24 @@ export function StudentDashboard() {
     );
   }
 
-  const incompleteSessions = sessions.filter(s => s.stage !== 'done');
+  // Sort sessions by most recent first (already ordered by Query.orderDesc in fetch)
+  const allSessionsForHistory = sessions;
+
+  // Calculate pagination for session history
+  const totalPages = Math.ceil(allSessionsForHistory.length / sessionsPerPage);
+  const startIndex = (currentPage - 1) * sessionsPerPage;
+  const paginatedSessions = allSessionsForHistory.slice(startIndex, startIndex + sessionsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const toggleSessionsExpanded = () => {
+    setIsSessionsExpanded(!isSessionsExpanded);
+    if (!isSessionsExpanded) {
+      setCurrentPage(1); // Reset to first page when opening
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-8">
@@ -297,33 +321,7 @@ export function StudentDashboard() {
         </p>
       </div>
 
-      {incompleteSessions.length > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-blue-900 mb-3">
-            Continue Learning
-          </h2>
-          <div className="space-y-3">
-            {incompleteSessions.map(session => {
-              const template = lessonTemplates.find(t => t.$id === session.lessonTemplateId);
-              return (
-                <div key={session.$id} className="bg-white rounded border p-4">
-                  <h3 className="font-medium">{template?.title || 'Lesson'}</h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Started {new Date(session.startedAt).toLocaleDateString()} • Stage: {session.stage}
-                  </p>
-                  <button
-                    onClick={() => router.push(`/session/${session.$id}`)}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Resume Lesson
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+      {/* Available Lessons Section - Now at the top */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Available Lessons
@@ -348,6 +346,120 @@ export function StudentDashboard() {
           ))}
         </div>
       </div>
+
+      {/* Previous Sessions Section */}
+      {allSessionsForHistory.length > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <button
+            onClick={toggleSessionsExpanded}
+            className="w-full p-6 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Previous Lessons
+              </h2>
+              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded-full">
+                {allSessionsForHistory.length}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <svg
+                className={`w-5 h-5 text-gray-500 transition-transform ${
+                  isSessionsExpanded ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+
+          {isSessionsExpanded && (
+            <div className="px-6 pb-6">
+              <div className="space-y-3 mb-4">
+                {paginatedSessions.map(session => {
+                  const template = lessonTemplates.find(t => t.$id === session.lessonTemplateId);
+                  const isCompleted = session.stage === 'done';
+
+                  return (
+                    <div key={session.$id} className="bg-gray-50 rounded border p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-medium flex items-center gap-2">
+                            {template?.title || 'Lesson'}
+                            {isCompleted && (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                                Completed
+                              </span>
+                            )}
+                          </h3>
+                          <p className="text-sm text-gray-600">
+                            Started {new Date(session.startedAt).toLocaleDateString()}
+                            {session.endedAt && ` • Completed ${new Date(session.endedAt).toLocaleDateString()}`}
+                            {!isCompleted && ` • Stage: ${session.stage}`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/session/${session.$id}`)}
+                          className={`px-4 py-2 rounded text-sm ${
+                            isCompleted
+                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {isCompleted ? 'Review' : 'Continue'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t pt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {startIndex + 1}-{Math.min(startIndex + sessionsPerPage, allSessionsForHistory.length)} of {allSessionsForHistory.length} lessons
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Previous
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-1 text-sm border rounded ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

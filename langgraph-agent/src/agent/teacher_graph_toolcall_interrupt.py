@@ -14,16 +14,32 @@ from typing import Dict, List
 from datetime import datetime
 import uuid
 
-from langchain_core.messages import AIMessage, ToolCall
+from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langgraph.graph import StateGraph, START , END
 from langgraph.types import interrupt
 
 try:
     from .interrupt_state import InterruptUnifiedState
     from .interrupt_tools import should_use_interrupts
+    from .teaching_utils import (
+        _analyze_lesson_performance,
+        _calculate_mastery_score,
+        _create_mastery_update,
+        _update_mastery_scores,
+        _get_previous_attempts,
+        _create_evidence_entry
+    )
 except ImportError:
     from agent.interrupt_state import InterruptUnifiedState
     from agent.interrupt_tools import should_use_interrupts
+    from agent.teaching_utils import (
+        _analyze_lesson_performance,
+        _calculate_mastery_score,
+        _create_mastery_update,
+        _update_mastery_scores,
+        _get_previous_attempts,
+        _create_evidence_entry
+    )
 
 
 def _is_lesson_complete(state: InterruptUnifiedState) -> bool:
@@ -42,9 +58,6 @@ def _get_current_card_info(state: InterruptUnifiedState) -> tuple[dict, int, str
     return current_card, current_index, cfu_type
 
 
-def _get_previous_attempts(evidence: list, item_id: str) -> list[str]:
-    """Extract previous attempts for this item from evidence."""
-    return [entry["response"] for entry in evidence if entry["item_id"] == item_id]
 
 
 def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, current_index: int, cfu_type: str):
@@ -93,10 +106,16 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
             print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
-            current_card, current_index, cfu_type = _get_current_card_info(state)
+            current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
-            
+
+            # Create HumanMessage with the submitted answer
+            answer_message = HumanMessage(
+                content=f"Your Answer: {student_response}"
+            )
+
             return_dict = {
+                "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
                 "current_card": current_card,
                 "current_card_index": current_index,
@@ -119,27 +138,77 @@ def design_node(state: InterruptUnifiedState) -> Dict:
     else:
         print(f"🚨 DESIGN DEBUG - No interrupt_response found, checking other conditions")
     
+    # Check lesson completion FIRST - before trying to access current card
+    if _is_lesson_complete(state):
+        print(f"🔍 NODE_EXIT: design_node | decision: lesson_complete | generating summary...")
+
+        teacher = LLMTeacher()
+        evidence = state.get("evidence", [])
+        lesson_snapshot = state["lesson_snapshot"]
+
+        # Analyze performance using imported helper
+        performance_analysis = _analyze_lesson_performance(evidence)
+
+        # Generate comprehensive summary with LLM
+        summary_message = teacher.summarize_completed_lesson_sync_full(
+            lesson_snapshot=lesson_snapshot,
+            evidence=evidence,
+            performance_analysis=performance_analysis
+        )
+
+        # Create tool call for lesson completion UI
+        tool_call = ToolCall(
+            id="lesson_completion",
+            name="lesson_completion_summary",
+            args={
+                "summary": summary_message.content if hasattr(summary_message, 'content') else str(summary_message),
+                "performance_analysis": performance_analysis,
+                "evidence": evidence,
+                "lesson_title": lesson_snapshot.get("title", "Lesson"),
+                "total_cards": len(lesson_snapshot.get("cards", [])),
+                "cards_completed": len(state.get("cards_completed", [])),
+                "retry_recommended": performance_analysis.get("retry_recommended", False),
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+
+        # Create AIMessage with tool call for UI
+        tool_message = AIMessage(
+            content="",
+            tool_calls=[tool_call]
+        )
+
+        print(f"🚨 COMPLETION DEBUG - Generated lesson completion summary with tool call")
+        print(f"🚨 COMPLETION DEBUG - Performance: accuracy={performance_analysis.get('overall_accuracy', 0):.2f}, retry_recommended={performance_analysis.get('retry_recommended', False)}")
+
+        return {
+            "messages": [summary_message, tool_message],
+            "stage": "done",
+            "should_exit": True,
+            "performance_analysis": performance_analysis,
+            "lesson_summary": summary_message
+        }
+
     # EXISTING: Check if we have a student_response in state (backward compatibility)
     student_response = state.get("student_response")
     print(f"🚨 DESIGN DEBUG - Checking student_response: {student_response}")
     if student_response:
         print(f"🚨 DESIGN DEBUG - Found student_response in state: {student_response[:50]}...")
-        current_card, current_index, cfu_type = _get_current_card_info(state)
+        current_card, current_index, _ = _get_current_card_info(state)
         print(f"🔍 NODE_EXIT: design_node | decision: has_response | next_stage: mark")
+
+        # Create HumanMessage with the submitted answer
+        answer_message = HumanMessage(
+            content=f"Your Answer: {student_response}"
+        )
+
         return {
+            "messages": [answer_message],  # Add HumanMessage to stack
             "current_card": current_card,
             "current_card_index": current_index,
             "stage": "mark"
         }
-    
-    # Check lesson completion
-    if _is_lesson_complete(state):
-        print(f"🔍 NODE_EXIT: design_node | decision: lesson_complete | next_stage: done")
-        return {
-            "stage": "done",
-            "should_exit": True
-        }
-    
+
     # Generate card content and create tool call
     print(f"🚨 DESIGN DEBUG - Falling through to create new tool call - no interrupt_response or student_response found")
     teacher = LLMTeacher()
@@ -161,7 +230,7 @@ def design_node(state: InterruptUnifiedState) -> Dict:
         id=tool_call_id,
         name="lesson_card_presentation",
         args={
-            "card_content": "Enter your answer below",
+            "card_content": current_card.get("cfu", {}).get("stem", "") or current_card.get("cfu", {}).get("question", ""),
             "card_data": current_card,
             "card_index": current_index,
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
@@ -278,20 +347,14 @@ def mark_node(state: InterruptUnifiedState) -> Dict:
         max_attempts=max_attempts
     )
     
-    # Record evidence
-    evidence_entry = {
-        "timestamp": datetime.now().isoformat(),
-        "item_id": cfu["id"],
-        "response": student_response,
-        "correct": evaluation.is_correct,
-        "confidence": evaluation.confidence,
-        "attempts": attempts
-    }
+    # Record evidence using shared utility
+    should_progress = evaluation.is_correct or (attempts >= max_attempts)
+    evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
     
-    # Determine progression
-    should_progress = evaluation.is_correct or (attempts >= max_attempts)
+    # Determine progression (already calculated in evidence entry)
+    should_progress = evidence_entry["should_progress"]
 
     print(f"🚨 MARK DEBUG - Evaluation result: correct={evaluation.is_correct}, should_progress={should_progress}")
 
@@ -345,10 +408,16 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
             print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
-            current_card, current_index, cfu_type = _get_current_card_info(state)
+            current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")
-            
+
+            # Create HumanMessage with the submitted answer
+            answer_message = HumanMessage(
+                content=f"Your Answer: {student_response}"
+            )
+
             return_dict = {
+                "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
                 "current_card": current_card,
                 "current_card_index": current_index,
@@ -375,7 +444,6 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
     explanation = state.get("explanation")  # NEW: Get explanation if exists
     current_card = state.get("current_card")
     current_index = state.get("current_card_index", 0)
-    max_attempts = state.get("max_attempts", 3)
 
     if not current_card:
         print("🚨 RETRY DEBUG - Missing current card, routing to design")
@@ -404,7 +472,7 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
         id=tool_call_id,
         name="lesson_card_presentation",  # SAME tool name as design_node
         args={
-            "card_content": combined_feedback,  # Pass combined feedback + explanation content
+            "card_content": current_card.get("cfu", {}).get("stem", "") or current_card.get("cfu", {}).get("question", ""),
             "card_data": current_card,
             "card_index": current_index,
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
@@ -500,7 +568,15 @@ def progress_node(state: InterruptUnifiedState) -> Dict:
     # Add current card to completed list
     if current_card:
         cards_completed.append(current_card["id"])
-    
+
+    # Update mastery scores using shared utility
+    lesson_snapshot = state["lesson_snapshot"]
+    mastery_updates = _update_mastery_scores(
+        lesson_snapshot,
+        state,
+        state.get("mastery_updates", [])
+    )
+
     # Move to next card
     next_card_index = current_card_index + 1
     
@@ -520,11 +596,13 @@ def progress_node(state: InterruptUnifiedState) -> Dict:
     )
     
     print(f"🚨 PROGRESS DEBUG - Moving from card {current_card_index} to {next_card_index}")
+    print(f"🚨 PROGRESS DEBUG - Mastery updates: {len(mastery_updates)} total")
     print(f"🔍 NODE_EXIT: progress_node | from_card: {current_card_index} | to_card: {next_card_index} | next_stage: design")
-    
+
     return {
         "current_card_index": next_card_index,
         "cards_completed": cards_completed,
+        "mastery_updates": mastery_updates,  # Add mastery tracking
         "stage": "design",  # Back to design for next card
         "student_response": None,
         "is_correct": None,

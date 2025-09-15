@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,8 @@ export const ProgressAcknowledgmentTool = makeAssistantToolUI<
 >({
   toolName: "progress_acknowledgment",
   render: function ProgressAcknowledgmentUI({ args, callTool, status }) {
+    const interrupt = useLangGraphInterruptState();
+
     const { transition_message, progress_stats, next_card_preview } = args;
     const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState(10);
     const [isAutoAdvancing, setIsAutoAdvancing] = useState(false);
@@ -44,6 +47,18 @@ export const ProgressAcknowledgmentTool = makeAssistantToolUI<
     const isLoading = status.type === "executing";
     const overallProgress = (progress_stats.cards_completed / progress_stats.total_cards) * 100;
     const accuracyPercentage = Math.round(progress_stats.accuracy * 100);
+
+    const handleContinue = useCallback(() => {
+      setIsAutoAdvancing(false);
+      callTool({
+        action: "continue",
+        interaction_type: "progress_acknowledgment",
+        acknowledged: true,
+        auto_advanced: autoAdvanceCountdown === 0,
+        interaction_id: args.interaction_id,
+        timestamp: new Date().toISOString()
+      });
+    }, [callTool, autoAdvanceCountdown, args.interaction_id]);
 
     // Auto-advance countdown
     useEffect(() => {
@@ -66,17 +81,8 @@ export const ProgressAcknowledgmentTool = makeAssistantToolUI<
       };
     }, [isAutoAdvancing, autoAdvanceCountdown, handleContinue]);
 
-    const handleContinue = useCallback(() => {
-      setIsAutoAdvancing(false);
-      callTool({
-        action: "continue",
-        interaction_type: "progress_acknowledgment",
-        acknowledged: true,
-        auto_advanced: autoAdvanceCountdown === 0,
-        interaction_id: args.interaction_id,
-        timestamp: new Date().toISOString()
-      });
-    }, [callTool, autoAdvanceCountdown, args.interaction_id]);
+
+    if (!interrupt) return null;
 
     const handlePause = () => {
       setIsAutoAdvancing(false);

@@ -27,8 +27,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
+import { useSessionContext } from "@/lib/SessionContext";
 
 export const Thread: FC = () => {
+  const { isSessionMode } = useSessionContext();
+
   return (
     <ThreadPrimitive.Root
       // aui-thread-root
@@ -56,12 +59,23 @@ export const Thread: FC = () => {
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      <div className="shrink-0 bg-background border-t border-gray-200 pb-12">
-        <Composer />
-      </div>
+      {!isSessionMode && (
+        <div className="shrink-0 bg-background border-t border-gray-200 pb-12">
+          <Composer />
+        </div>
+      )}
+
+      {isSessionMode && (
+        <div className="shrink-0 bg-background border-t border-gray-200 p-4">
+          <div className="text-center text-sm text-muted-foreground">
+            📚 Interact with the lesson cards above to continue your learning journey
+          </div>
+        </div>
+      )}
     </ThreadPrimitive.Root>
   );
 };
+
 
 const ThreadScrollToBottom: FC = () => {
   return (

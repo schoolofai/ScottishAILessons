@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +43,8 @@ export const FeedbackPresentationTool = makeAssistantToolUI<
 >({
   toolName: "feedback_presentation",
   render: function FeedbackPresentationUI({ args, callTool, status }) {
+    const interrupt = useLangGraphInterruptState();
+
     const {
       is_correct,
       feedback,
@@ -56,6 +59,8 @@ export const FeedbackPresentationTool = makeAssistantToolUI<
 
     const [showDetailedReasoning, setShowDetailedReasoning] = useState(false);
     const [requestingHint, setRequestingHint] = useState(false);
+
+    if (!interrupt) return null;
 
     const isLoading = status.type === "executing";
     const canTryAgain = attempts < max_attempts && !is_correct;
