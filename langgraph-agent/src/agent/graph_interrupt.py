@@ -8,6 +8,7 @@ Assistant-UI's generative interface system.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Dict, Any
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -18,17 +19,29 @@ try:
 except ImportError:
     from agent.interrupt_state import InterruptUnifiedState
 
+# Set up logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 
 async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
     """Entry point that processes input and sets up initial state with interrupt support.
-    
+
     This node receives the initial input from the client which may contain
     session_context for lesson sessions. It extracts session context fields
     into individual state fields for teaching subgraph consumption and initializes
     interrupt-related tracking.
     """
+    logger.info("=== ENTRY NODE INTERRUPT START ===")
+    logger.info(f"Entry node received state keys: {list(state.keys())}")
+
     session_context = state.get("session_context")
-    
+    logger.info(f"Session context: {session_context}")
+
+    # Check for explicit mode in session_context (Course Manager integration)
+    explicit_mode = session_context.get("mode") if session_context else None
+    logger.info(f"Explicit mode from session_context: {explicit_mode}")
+
     # Initialize interrupt-related fields - NO FALLBACK
     interrupt_init = {
         "interrupt_count": state.get("interrupt_count", 0),
@@ -39,18 +52,37 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
         "feedback_interactions_count": state.get("feedback_interactions_count", 0),
         "can_resume_from_interrupt": True
     }
-    
+
     print(f"🚨 INTERRUPT DEBUG - entry_node_interrupt initialized with session_context: {bool(session_context)}")
-    
+
     # Determine mode based on session context
-    if session_context and isinstance(session_context, dict) and session_context.get("session_id"):
+    if explicit_mode == "course_manager":
+        logger.info("🎯 COURSE MANAGER MODE DETECTED")
+        mode = "course_manager"
+
+        # Log course context details for debugging
+        course_info = session_context.get("course", {}) if session_context else {}
+        student_info = session_context.get("student", {}) if session_context else {}
+
+        logger.info(f"Course ID: {course_info.get('courseId', 'NOT_PROVIDED')}")
+        logger.info(f"Student ID: {student_info.get('$id', 'NOT_PROVIDED')}")
+        logger.info(f"Available context keys: {list(session_context.keys()) if session_context else []}")
+
+        return {
+            "session_context": session_context,
+            "mode": mode,
+            **interrupt_init
+        }
+
+    elif session_context and isinstance(session_context, dict) and session_context.get("session_id"):
+        logger.info("🎓 TEACHING MODE DETECTED (has session_id)")
         mode = "teaching"
-        
+
         # Extract session context fields into individual state fields
         lesson_snapshot = session_context.get("lesson_snapshot", {})
         if isinstance(lesson_snapshot, str):
             lesson_snapshot = json.loads(lesson_snapshot)
-        
+
         # Get the last message (student response) if available
         messages = state.get("messages", [])
         student_input = None
@@ -58,7 +90,10 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
             last_message = messages[-1]
             if isinstance(last_message, HumanMessage):
                 student_input = last_message.content if hasattr(last_message, 'content') else str(last_message)
-        
+
+        logger.info(f"Teaching session_id: {session_context.get('session_id', '')}")
+        logger.info(f"Teaching student_id: {session_context.get('student_id', '')}")
+
         return {
             "session_context": session_context,  # Keep for frontend compatibility
             "mode": mode,
@@ -70,6 +105,7 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
             **interrupt_init
         }
     else:
+        logger.info("💬 CHAT MODE DETECTED (default)")
         mode = "chat"
         return {
             "session_context": session_context,
@@ -80,20 +116,45 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
 
 async def router_node_interrupt(state: InterruptUnifiedState) -> dict:
     """Route to appropriate handler based on context with interrupt awareness."""
+    logger.info("=== ROUTER NODE INTERRUPT START ===")
+
+    current_mode = state.get("mode", "unknown")
+    logger.info(f"Current mode from state: {current_mode}")
+
+    session_context = state.get("session_context")
+
     # Check if we have pending interrupt responses to handle
     if state.get("user_interaction_response") and not state.get("tool_response_received", True):
+        logger.info("🔄 ROUTER: Processing pending interrupt response -> teaching")
         # Process pending interrupt response
         return {
             "mode": "teaching",
             "tool_response_received": True
         }
-    
-    # Mode should already be set by entry_node
-    # This is now redundant but kept for compatibility
-    session_context = state.get("session_context")
-    if session_context and session_context.get("session_id"):
+
+    # Mode should already be set by entry_node, but add fallback logic with logging
+    if current_mode == "course_manager":
+        logger.info("✅ ROUTER: Keeping course_manager mode")
+        return {"mode": "course_manager"}
+    elif current_mode == "teaching":
+        logger.info("✅ ROUTER: Keeping teaching mode")
         return {"mode": "teaching"}
-    return {"mode": "chat"}
+    elif current_mode == "chat":
+        logger.info("✅ ROUTER: Keeping chat mode")
+        return {"mode": "chat"}
+    else:
+        # Legacy fallback logic with extensive logging
+        logger.warning(f"⚠️ ROUTER: Unknown mode '{current_mode}', applying fallback logic")
+
+        if session_context and session_context.get("session_id"):
+            logger.info("🔄 ROUTER FALLBACK: Detected session_id -> teaching")
+            return {"mode": "teaching"}
+        elif session_context and session_context.get("mode") == "course_manager":
+            logger.info("🔄 ROUTER FALLBACK: Detected explicit course_manager mode")
+            return {"mode": "course_manager"}
+        else:
+            logger.info("🔄 ROUTER FALLBACK: Default to chat")
+            return {"mode": "chat"}
 
 
 async def chat_node_interrupt(state: InterruptUnifiedState) -> dict:
@@ -145,14 +206,29 @@ Let me know if you can see these as proper mathematical notation!"""
 def route_by_mode_interrupt(state: InterruptUnifiedState) -> str:
     """Route based on mode with interrupt considerations."""
     mode = state.get("mode", "chat")
-    return "teaching" if mode == "teaching" else "chat"
+    logger.info(f"=== ROUTE_BY_MODE_INTERRUPT FUNCTION ===")
+    logger.info(f"Routing mode: {mode}")
+
+    if mode == "teaching":
+        logger.info("🎓 ROUTING TO: teaching")
+        return "teaching"
+    elif mode == "course_manager":
+        logger.info("🎯 ROUTING TO: course_manager")
+        return "course_manager"
+    else:
+        logger.info("💬 ROUTING TO: chat (default)")
+        return "chat"
 
 
-# Import the compiled tool call + interrupt teaching graph
+# Import the compiled tool call + interrupt teaching graph and course manager subgraph
 try:
     from .teacher_graph_toolcall_interrupt import compiled_teaching_graph_toolcall as teaching_subgraph_interrupt
+    from .course_manager_graph import simple_course_manager_graph as course_manager_subgraph
 except ImportError:
     from agent.teacher_graph_toolcall_interrupt import compiled_teaching_graph_toolcall as teaching_subgraph_interrupt
+    from agent.course_manager_graph import simple_course_manager_graph as course_manager_subgraph
+
+logger.info("Successfully imported subgraphs: teaching_interrupt and course_manager")
 
 
 # Build the interrupt-enabled main graph
@@ -166,6 +242,11 @@ main_graph_interrupt.add_node("chat", chat_node_interrupt)
 # The interrupt system will handle UI presentations instead of streaming messages
 main_graph_interrupt.add_node("teaching", teaching_subgraph_interrupt)
 
+# Add course manager subgraph
+main_graph_interrupt.add_node("course_manager", course_manager_subgraph)
+
+logger.info("Added all nodes: entry, router, chat, teaching, course_manager")
+
 # Add edges
 main_graph_interrupt.add_edge("__start__", "entry")
 main_graph_interrupt.add_edge("entry", "router")
@@ -173,11 +254,17 @@ main_graph_interrupt.add_conditional_edges(
     "router",
     route_by_mode_interrupt,
     {
-        "chat": "chat", 
-        "teaching": "teaching"
+        "chat": "chat",
+        "teaching": "teaching",
+        "course_manager": "course_manager"
     }
 )
+
+logger.info("Added conditional routing: chat, teaching, course_manager")
 
 # Compile the interrupt-enabled main graph
 # Checkpointing is handled implicitly by LangGraph CLI in dev mode (stored in .langraph_api)
 graph_interrupt = main_graph_interrupt.compile()
+
+logger.info("🎉 Interrupt-enabled main graph compiled successfully with course_manager support!")
+logger.info("Available routes: chat, teaching, course_manager")

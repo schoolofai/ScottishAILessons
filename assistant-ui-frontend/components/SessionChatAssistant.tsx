@@ -25,17 +25,23 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         // Load session with thread information
         const sessionWithThread = await sessionDriver.getSessionWithThread(sessionId);
         const sessionStateData = await sessionDriver.getSessionState(sessionId);
-        
+
         if (!sessionStateData) {
           throw new Error("Session not found");
         }
 
         const { session, parsedSnapshot } = sessionStateData;
 
-        // Use existing thread ID from session if available
-        if (sessionWithThread.threadId) {
+        // Use threadId from session if available (priority: session.threadId > sessionWithThread.threadId)
+        // This supports thread continuity from EnhancedDashboard
+        if (session.threadId) {
+          console.log('SessionChatAssistant - Using threadId from session for continuity:', session.threadId);
+          setExistingThreadId(session.threadId);
+        } else if (sessionWithThread.threadId) {
           console.log('SessionChatAssistant - Found existing thread ID:', sessionWithThread.threadId);
           setExistingThreadId(sessionWithThread.threadId);
+        } else {
+          console.log('SessionChatAssistant - No existing thread ID found, new thread will be created');
         }
 
         const context: SessionContext = {

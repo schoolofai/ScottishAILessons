@@ -324,3 +324,4 @@ ScottishAILessons/
 - for mvp the test user login details are email - test@scottishailessons.com , password = red12345
 - always use playwright mcp tool to mannually test after every code change
 - can you rememeber to call @langgraph-agent/stop.sh that stops the front end and the back end and then use @langgraph-agent/start.sh so we dont get port aleady in use issue.
+- when application is not starting run @langgraph-agent/stop.sh and then @langgraph-agent/start.sh again - there is no need to check ports etc. just restart

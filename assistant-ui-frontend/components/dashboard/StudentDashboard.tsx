@@ -204,59 +204,16 @@ export function StudentDashboard() {
 
   const startLesson = async (lessonTemplateId: string) => {
     try {
-      // Use client-side session creation (same approach as dashboard)
-      const { Client, Account, Databases, ID } = await import('appwrite');
-      
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-      
-      // Get session from localStorage
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (cookieFallback) {
-        const cookieData = JSON.parse(cookieFallback);
-        const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-        const storedSession = cookieData[sessionKey];
-        if (storedSession) {
-          client.setSession(storedSession);
-        }
-      }
-      
-      const account = new Account(client);
-      const databases = new Databases(client);
-      const user = await account.get();
-      
-      // Get lesson template
-      const lessonTemplate = await databases.getDocument(
-        'default',
-        'lesson_templates',
-        lessonTemplateId
-      );
-      
-      // Create lesson snapshot
-      const lessonSnapshot = {
-        title: lessonTemplate.title,
-        outcomeRefs: JSON.parse(lessonTemplate.outcomeRefs),
-        cards: JSON.parse(lessonTemplate.cards),
-        templateVersion: lessonTemplate.version
-      };
-      
-      // Create session
-      const newSession = await databases.createDocument(
-        'default',
-        'sessions',
-        ID.unique(),
-        {
-          studentId: student.$id,
-          courseId: 'C844 73',
-          lessonTemplateId: lessonTemplateId,
-          startedAt: new Date().toISOString(),
-          stage: 'design',
-          lessonSnapshot: JSON.stringify(lessonSnapshot)
-        },
-        [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
-      );
-      
+      // Use the refactored session manager utility
+      const { createLessonSession } = await import('@/lib/sessions/session-manager');
+
+      const newSession = await createLessonSession({
+        lessonTemplateId,
+        studentId: student.$id,
+        courseId: 'C844 73'
+        // No threadId - will be created by MyAssistant when teaching starts
+      });
+
       console.log('Session created:', newSession);
       router.push(`/session/${newSession.$id}`);
     } catch (err) {

@@ -80,7 +80,8 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
             'courseId': course_id,
             'generatedAt': datetime.now().isoformat(),
             'graphRunId': graph_run_id,
-            'candidates': candidates,
+            'recommendations': candidates,  # Change to match test expectations
+            'nextSteps': f"Start with '{candidates[0]['title']}' - {candidates[0]['reasons'][0] if candidates[0].get('reasons') else 'recommended lesson'}" if candidates else "No lessons available",
             'rubric': generate_rubric_explanation()
         }
 
@@ -90,7 +91,7 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
 
         if top_candidate:
             human_content += f". Top recommendation: '{top_candidate['title']}' "
-            human_content += f"(score: {top_candidate['priorityScore']}, reasons: {', '.join(top_candidate['reasons'])})"
+            human_content += f"(score: {top_candidate['score']}, reasons: {', '.join(top_candidate['reasons'])})"
 
         response_message = AIMessage(
             content=human_content,

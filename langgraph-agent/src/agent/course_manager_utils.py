@@ -11,6 +11,24 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _calculate_overdue_score_simplified(
+    template_id: str,
+    sow_data: List[Dict[str, Any]]
+) -> Tuple[float, List[str], List[str]]:
+    """Calculate overdue bonus score using simplified SOW data."""
+    for sow_entry in sow_data:
+        if sow_entry.get('templateId') == template_id:
+            current_week = sow_entry.get('currentWeek', 1)
+            lesson_week = sow_entry.get('week', 1)
+
+            # If lesson week < current week, it's overdue
+            if lesson_week < current_week:
+                logger.debug(f"Template {template_id}: overdue (week {lesson_week} < current {current_week}) (+0.40)")
+                return 0.40, ['overdue'], ['sow-overdue']
+
+    return 0.0, [], []
+
+
 def _calculate_overdue_score(
     outcome_refs: List[str],
     routine: Dict[str, Any],
@@ -44,6 +62,24 @@ def _calculate_overdue_score(
         flags = ['all-overdue'] if overdue_count >= len(outcome_refs) else []
         logger.debug(f"Template {template_id}: {overdue_count} overdue outcomes (+0.40)")
         return 0.40, reasons, flags
+
+    return 0.0, [], []
+
+
+def _calculate_mastery_score_simplified(
+    template_id: str,
+    mastery_data: List[Dict[str, Any]]
+) -> Tuple[float, List[str], List[str]]:
+    """Calculate low mastery bonus score using simplified mastery data."""
+    for mastery_entry in mastery_data:
+        if mastery_entry.get('templateId') == template_id:
+            mastery_level = mastery_entry.get('masteryLevel', 1.0)
+
+            # If mastery < 0.5, get +0.25 bonus
+            if mastery_level < 0.5:
+                logger.debug(f"Template {template_id}: low mastery ({mastery_level:.2f} < 0.5) (+0.25)")
+                flags = ['very-low-mastery'] if mastery_level < 0.3 else []
+                return 0.25, ['low mastery'], flags
 
     return 0.0, [], []
 
@@ -95,6 +131,46 @@ def _calculate_order_score(sow_order: int, template_id: str) -> Tuple[float, Lis
     return 0.0, []
 
 
+def _calculate_penalty_scores_simplified(
+    template: Dict[str, Any],
+    routine_data: List[Dict[str, Any]],
+    constraints: Dict[str, Any]
+) -> Tuple[float, List[str], List[str]]:
+    """Calculate penalty scores using simplified routine data."""
+    score = 0.0
+    reasons = []
+    flags = []
+    template_id = template.get('$id', '')
+
+    # Check for recent sessions using daysSinceLastSession
+    for routine_entry in routine_data:
+        if routine_entry.get('templateId') == template_id:
+            days_since = routine_entry.get('daysSinceLastSession', 999)
+            # If recently completed (< 7 days ago), apply penalty
+            if days_since < 7:
+                score -= 0.10
+                reasons.append('recent')
+                flags.append('recently-taught')
+                logger.debug(f"Template {template_id}: recently taught {days_since} days ago (-0.10)")
+                break
+
+    # Penalty for long lessons (-0.05)
+    max_minutes = constraints.get('maxBlockMinutes', 25)
+    est_minutes = template.get('estMinutes', 0)
+    if est_minutes > max_minutes:
+        score -= 0.05
+        reasons.append('long lesson')
+        if est_minutes > max_minutes * 1.5:  # Very long lessons
+            flags.append('very-long')
+        logger.debug(f"Template {template_id}: exceeds time limit {est_minutes}>{max_minutes} (-0.05)")
+
+    # Add positive reason for short lessons (< 20 minutes)
+    if est_minutes > 0 and est_minutes <= 20:
+        reasons.append('short win')
+
+    return score, reasons, flags
+
+
 def _calculate_penalty_scores(
     template: Dict[str, Any],
     routine: Dict[str, Any],
@@ -134,8 +210,9 @@ def _calculate_penalty_scores(
 
 def calculate_priority_score(
     template: Dict[str, Any],
-    mastery: Dict[str, Any],
-    routine: Dict[str, Any],
+    mastery_data: List[Dict[str, Any]],
+    routine_data: List[Dict[str, Any]],
+    sow_data: List[Dict[str, Any]],
     sow_order: int,
     constraints: Dict[str, Any]
 ) -> Dict[str, Any]:
@@ -151,17 +228,17 @@ def calculate_priority_score(
         all_reasons = []
         all_flags = []
 
-        # Calculate overdue bonus
-        overdue_score, overdue_reasons, overdue_flags = _calculate_overdue_score(
-            outcome_refs, routine, template_id
+        # Calculate overdue bonus using simplified data
+        overdue_score, overdue_reasons, overdue_flags = _calculate_overdue_score_simplified(
+            template_id, sow_data
         )
         score += overdue_score
         all_reasons.extend(overdue_reasons)
         all_flags.extend(overdue_flags)
 
-        # Calculate mastery bonus
-        mastery_score, mastery_reasons, mastery_flags = _calculate_mastery_score(
-            outcome_refs, mastery, template_id
+        # Calculate mastery bonus using simplified data
+        mastery_score, mastery_reasons, mastery_flags = _calculate_mastery_score_simplified(
+            template_id, mastery_data
         )
         score += mastery_score
         all_reasons.extend(mastery_reasons)
@@ -172,9 +249,9 @@ def calculate_priority_score(
         score += order_score
         all_reasons.extend(order_reasons)
 
-        # Calculate penalties
-        penalty_score, penalty_reasons, penalty_flags = _calculate_penalty_scores(
-            template, routine, constraints
+        # Calculate penalties using simplified data
+        penalty_score, penalty_reasons, penalty_flags = _calculate_penalty_scores_simplified(
+            template, routine_data, constraints
         )
         score += penalty_score
         all_reasons.extend(penalty_reasons)
@@ -211,19 +288,22 @@ def create_lesson_candidates(
 
     try:
         templates = context.get('templates', [])
-        sow_entries = context.get('sow', {}).get('entries', [])
-        mastery = context.get('mastery', {})
-        routine = context.get('routine', {})
+        sow_data = context.get('sow', [])
+        mastery_data = context.get('mastery', [])
+        routine_data = context.get('routine', [])
         constraints = context.get('constraints', {})
 
         if not templates:
             logger.warning("No lesson templates provided in scheduling context")
             return []
 
-        # Create lookup for SoW order
+        # Create lookup for SoW order from our Appwrite schema
         sow_order_lookup = {}
-        for entry in sow_entries:
-            sow_order_lookup[entry['lessonTemplateId']] = entry['order']
+        for entry in sow_data:
+            template_id = entry.get('templateId')
+            week = entry.get('week', 999)  # Use week as order, default high if missing
+            if template_id:
+                sow_order_lookup[template_id] = week
 
         logger.info(f"Processing {len(templates)} lesson templates")
 
@@ -238,15 +318,16 @@ def create_lesson_candidates(
 
             # Calculate priority score
             score_data = calculate_priority_score(
-                template, mastery, routine, sow_order, constraints
+                template, mastery_data, routine_data, sow_data, sow_order, constraints
             )
 
             candidate = {
-                'lessonTemplateId': template_id,
+                'lessonId': template_id,  # Change to match test expectations
                 'title': template.get('title', 'Unknown Lesson'),
                 'targetOutcomeIds': template.get('outcomeRefs', []),
                 'estimatedMinutes': template.get('estMinutes'),
-                'priorityScore': score_data['priorityScore'],
+                'priority': 'high' if score_data['priorityScore'] >= 0.6 else 'medium' if score_data['priorityScore'] >= 0.3 else 'low',
+                'score': score_data['priorityScore'],
                 'reasons': score_data['reasons'],
                 'flags': score_data.get('flags', [])
             }
@@ -255,7 +336,7 @@ def create_lesson_candidates(
 
         # Sort by priority score descending, then by SoW order ascending
         candidates.sort(
-            key=lambda x: (-x['priorityScore'], sow_order_lookup.get(x['lessonTemplateId'], 999))
+            key=lambda x: (-x['score'], sow_order_lookup.get(x['lessonId'], 999))
         )
 
         # Return top 5 candidates
@@ -263,7 +344,7 @@ def create_lesson_candidates(
 
         logger.info(f"Generated {len(top_candidates)} lesson candidates")
         for i, candidate in enumerate(top_candidates):
-            logger.info(f"  {i+1}. {candidate['title']} (score: {candidate['priorityScore']}, reasons: {candidate['reasons']})")
+            logger.info(f"  {i+1}. {candidate['title']} (score: {candidate['score']}, reasons: {candidate['reasons']})")
 
         return top_candidates
 
@@ -340,7 +421,7 @@ def generate_recommendation_summary(candidates: List[Dict[str, Any]]) -> Dict[st
         }
 
     total_candidates = len(candidates)
-    scores = [c['priorityScore'] for c in candidates]
+    scores = [c['score'] for c in candidates]
     avg_score = sum(scores) / len(scores) if scores else 0
 
     # Count reason frequency

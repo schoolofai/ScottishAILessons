@@ -31,15 +31,16 @@ export class LangGraphService {
   async getCourseRecommendations(context: any): Promise<CourseRecommendation> {
     try {
       const headers = this.buildHeaders();
-      const requestBody = this.buildRequestBody(context);
+      const threadId = this.generateThreadId(context);
 
       console.log('Calling Course Manager Graph:', {
-        url: `${this.config.apiUrl}/invoke`,
+        threadId,
         courseId: context.course?.courseId,
-        studentId: context.student?.id
+        studentId: context.student?.$id
       });
 
-      const response = await this.makeRequest(requestBody, headers);
+      // Create or use existing thread and run the assistant
+      const response = await this.runAssistant(threadId, context, headers);
       const recommendation = this.extractRecommendation(response);
 
       return this.validateRecommendation(recommendation);
@@ -66,33 +67,54 @@ export class LangGraphService {
   }
 
   /**
-   * Builds the request body for LangGraph
+   * Generates a thread ID from context
    */
-  private buildRequestBody(context: any): object {
-    return {
+  private generateThreadId(context: any): string {
+    const studentId = context.student?.$id || 'unknown';
+    const courseId = context.course?.courseId || 'unknown';
+
+    // Create a valid thread ID (UUID format expected by LangGraph)
+    // Convert to a deterministic UUID-like format
+    const idString = `course-manager-${studentId}-${courseId}`;
+
+    // Replace invalid characters and ensure proper format
+    const cleanId = idString
+      .replace(/[^a-zA-Z0-9-]/g, '-')  // Replace invalid chars with hyphens
+      .replace(/-+/g, '-')             // Replace multiple hyphens with single
+      .replace(/^-|-$/g, '')           // Remove leading/trailing hyphens
+      .toLowerCase();
+
+    // For now, let's use the clean string - LangGraph might accept non-UUID thread IDs
+    return cleanId;
+  }
+
+  /**
+   * Runs the assistant using LangGraph threads API
+   */
+  private async runAssistant(
+    threadId: string,
+    context: any,
+    headers: Record<string, string>
+  ): Promise<any> {
+    // First, create or get the thread
+    const thread = await this.ensureThread(threadId, headers);
+
+    // Build the run request body
+    const runRequestBody = {
+      assistant_id: 'agent', // From langgraph.json
       input: {
         session_context: context,
         mode: 'course_manager'
       },
-      config: {
-        configurable: {
-          thread_id: `course-manager-${context.student?.id}-${context.course?.courseId}`
-        }
-      }
+      stream_mode: ['values'],
+      if_not_exists: 'create'
     };
-  }
 
-  /**
-   * Makes the HTTP request with timeout handling
-   */
-  private async makeRequest(
-    requestBody: object,
-    headers: Record<string, string>
-  ): Promise<any> {
-    const response = await fetch(`${this.config.apiUrl}/invoke`, {
+    // Make the run request
+    const response = await fetch(`${this.config.apiUrl}/threads/${threadId}/runs`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(runRequestBody),
       signal: AbortSignal.timeout(this.config.timeout)
     });
 
@@ -108,6 +130,46 @@ export class LangGraphService {
     }
 
     return await response.json();
+  }
+
+  /**
+   * Ensures thread exists, creates if needed
+   */
+  private async ensureThread(
+    threadId: string,
+    headers: Record<string, string>
+  ): Promise<any> {
+    // Try to get existing thread first
+    try {
+      const response = await fetch(`${this.config.apiUrl}/threads/${threadId}`, {
+        method: 'GET',
+        headers,
+        signal: AbortSignal.timeout(this.config.timeout)
+      });
+
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch (error) {
+      // Thread doesn't exist, will create below
+    }
+
+    // Create new thread
+    const createResponse = await fetch(`${this.config.apiUrl}/threads`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        id: threadId,
+        metadata: { source: 'course-manager' }
+      }),
+      signal: AbortSignal.timeout(this.config.timeout)
+    });
+
+    if (!createResponse.ok) {
+      throw new Error(`Failed to create thread: ${createResponse.status}`);
+    }
+
+    return await createResponse.json();
   }
 
   /**

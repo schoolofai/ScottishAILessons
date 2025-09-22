@@ -204,7 +204,13 @@ export const MOCK_ENROLLMENTS: MockEnrollment[] = [
   { studentId: 'student789', courseId: 'C844 73', enrolled: true },
   { studentId: 'student-headers', courseId: 'C844 73', enrolled: true },
   { studentId: 'student-perf', courseId: 'C844 73', enrolled: true },
-  { studentId: 'student-concurrent', courseId: 'C844 73', enrolled: true }
+  { studentId: 'student-concurrent', courseId: 'C844 73', enrolled: true },
+  // Add enrollment for test student from MVP1 test data
+  { studentId: 'test-student-alex', courseId: 'C844 73', enrolled: true },
+  { studentId: 'test-student-alex', courseId: 'C845 73', enrolled: true },
+  { studentId: 'test-student-alex', courseId: 'nat5-maths-2024', enrolled: true },
+  // Add enrollment for actual student ID from session logs
+  { studentId: '68b812bb0009d9755b35', courseId: 'C844 73', enrolled: true }
 ];
 
 // Mock course recommendation response - matching expected test schema

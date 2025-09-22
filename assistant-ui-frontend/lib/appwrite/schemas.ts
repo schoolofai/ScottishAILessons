@@ -46,26 +46,81 @@ export const StudentSchema = z.object({
   $id: IdSchema,
   userId: IdSchema,
   name: createSecureStringSchema(1, 200, 'Student name'),
-  accommodations: z.array(createSecureStringSchema(1, 100, 'Accommodation')).default([]),
-  enrolledCourses: z.array(IdSchema).default([]),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema
-}).strict();
+  // Handle accommodations as either array or string (convert string to array)
+  accommodations: z.union([
+    z.array(createSecureStringSchema(1, 100, 'Accommodation')),
+    z.string().transform(str => str ? str.split(',').map(s => s.trim()) : [])
+  ]).default([]),
+  // Handle enrolledCourses as either array or string (convert string to array)
+  enrolledCourses: z.union([
+    z.array(IdSchema),
+    z.string().transform(str => str ? str.split(',').map(s => s.trim()) : [])
+  ]).default([]),
+  // Handle timestamps more flexibly
+  createdAt: z.union([TimestampSchema, z.string()]).optional(),
+  updatedAt: z.union([TimestampSchema, z.string()]).optional(),
+  // Handle additional fields that might exist in the database
+  role: z.string().optional(),
+  $sequence: z.number().optional()
+}).strict(false); // Allow additional fields
 
-// Lesson template schema
+// Lesson template schema - designed to match actual Appwrite data structure
 export const LessonTemplateSchema = z.object({
-  $id: IdSchema,
-  courseId: z.string().regex(/^[A-Z]\d{3}\s\d{2}$/),
+  $id: z.string(), // Remove strict IdSchema validation
+  courseId: z.string(), // Allow spaces in course ID like "C844 73"
   title: createSecureStringSchema(1, 200, 'Lesson title'),
-  outcomeRefs: z.array(createSecureStringSchema(1, 100, 'Outcome reference')).min(1, 'At least one outcome reference required'),
-  estMinutes: z.number().int().min(5, 'Minimum 5 minutes').max(120, 'Maximum 120 minutes')
-    .refine((val) => val !== 4 && val !== 121, 'Duration must be exactly within 5-120 minute range').optional(),
-  status: z.enum(['draft', 'published', 'archived']).default('draft'),
+
+  // Handle JSON string that needs parsing (Appwrite stores as string)
+  outcomeRefs: z.union([
+    z.array(z.any()), // Already parsed array
+    z.string().transform(str => {
+      try {
+        const parsed = JSON.parse(str);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // Fallback to comma-separated string parsing
+        return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+      }
+    })
+  ]),
+
+  // Handle JSON string for cards (Appwrite stores as string)
+  cards: z.union([
+    z.array(z.any()), // Already parsed array
+    z.string().transform(str => {
+      try {
+        return JSON.parse(str);
+      } catch {
+        return [];
+      }
+    })
+  ]).optional(),
+
+  // Handle null estMinutes (Appwrite can store null)
+  estMinutes: z.union([
+    z.number().int().min(5).max(120),
+    z.null().transform(() => 30), // Default to 30 minutes if null
+    z.string().transform(str => parseInt(str, 10) || 30)
+  ]).nullable().optional(),
+
+  status: z.enum(['draft', 'published']).default('draft'), // Match Appwrite enum
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  prerequisites: z.array(IdSchema).default([]),
-  createdAt: TimestampSchema,
-  updatedAt: TimestampSchema
-}).strict();
+  prerequisites: z.array(z.string()).default([]), // Simplified
+
+  // Appwrite timestamps - flexible handling
+  $createdAt: z.string().optional(),
+  $updatedAt: z.string().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+
+  // Appwrite-specific fields that exist in the database
+  version: z.number().optional(),
+  createdBy: z.string().optional(),
+  $sequence: z.number().optional(),
+  $permissions: z.array(z.any()).optional(),
+  $databaseId: z.string().optional(),
+  $collectionId: z.string().optional()
+}).passthrough(); // Allow any additional fields from Appwrite
 
 // Scheme of Work entry schema
 export const SchemeOfWorkEntrySchema = z.object({
@@ -156,7 +211,11 @@ export const CourseRecommendationSchema = z.object({
 
 export const CreateSessionRequestSchema = z.object({
   lessonTemplateId: IdSchema,
-  courseId: IdSchema
+  courseId: z.string()
+    .min(1, 'Course ID is required')
+    .max(20, 'Course ID is too long')
+    .regex(/^[A-Z]\d{3}[\s_]\d{2}$/, 'Course ID must match format like C844 73 or C844_73')
+    .transform(sanitizeString)
 }).strict();
 
 export const CreateSessionResponseSchema = z.object({

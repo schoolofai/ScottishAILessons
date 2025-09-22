@@ -27,10 +27,26 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
     const hasExistingMessages = thread.messages && thread.messages.length > 0;
     const isResumingExistingThread = !!existingThreadId;
 
-    // If we're resuming an existing thread, skip auto-start completely
+    // If we're resuming an existing thread, check if we need to switch mode to teaching
     if (isResumingExistingThread) {
-      setHasAutoStarted(true);
+      // Check if auto-start already completed for this session
+      if (globalAutoStartState.get(sessionKey)) {
+        setHasAutoStarted(true);
+        return;
+      }
+
+      // For existing threads with session context, we need to send the mode-switching message
       globalAutoStartState.set(sessionKey, true);
+      setHasAutoStarted(true);
+
+      // Small delay to ensure thread is fully loaded
+      setTimeout(() => {
+        // Send empty message with session context to trigger mode switch to teaching
+        threadRuntime.append({
+          role: "user",
+          content: [{ type: "text", text: "" }] // Empty message to trigger teaching mode
+        });
+      }, 100);
       return;
     }
 

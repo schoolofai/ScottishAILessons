@@ -35,10 +35,23 @@ export class CourseService {
       // Get current user (catch invalid session errors)
       let user;
       try {
+        console.log('[CourseService Debug] Attempting to get current user...');
         user = await this.plannerService.getCurrentUser();
+        console.log('[CourseService Debug] Successfully got user:', {
+          hasUser: !!user,
+          userId: user?.$id || 'NO_USER_ID',
+          userName: user?.name || 'NO_NAME'
+        });
       } catch (error) {
+        console.log('[CourseService Debug] Error getting current user:', {
+          errorType: error.constructor.name,
+          errorMessage: error.message,
+          errorCode: error.code || 'NO_CODE'
+        });
+
         // Check for invalid session errors
         if (this.isAuthenticationError(error)) {
+          console.log('[CourseService Debug] Authentication error detected, returning 401');
           return {
             success: false,
             errorResponse: NextResponse.json(
@@ -50,6 +63,7 @@ export class CourseService {
             )
           };
         }
+        console.log('[CourseService Debug] Non-authentication error, re-throwing');
         throw error; // Re-throw other errors
       }
 

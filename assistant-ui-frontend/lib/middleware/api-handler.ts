@@ -32,7 +32,7 @@ export function createApiHandler<T = any>(
 ) {
   return async (
     request: NextRequest,
-    routeParams?: { params: Record<string, string> }
+    routeParams?: { params: Record<string, string> | Promise<Record<string, string>> }
   ): Promise<NextResponse> => {
     try {
       const {
@@ -41,8 +41,8 @@ export function createApiHandler<T = any>(
         paramValidators = {}
       } = options;
 
-      // Extract params
-      const params = routeParams?.params || {};
+      // Extract params - await if it's a Promise (Next.js App Router)
+      const params = routeParams?.params ? await routeParams.params : {};
 
       // Validate parameters first (if any validators provided)
       for (const [paramName, validator] of Object.entries(paramValidators)) {
@@ -60,7 +60,7 @@ export function createApiHandler<T = any>(
       // Handle authentication
       let authResult: AuthResult = { success: true };
       if (requireAuth) {
-        authResult = await authenticateRequest();
+        authResult = await authenticateRequest(request);
         if (!authResult.success) {
           return authResult.errorResponse!;
         }
