@@ -648,40 +648,283 @@ const ReasonBadge = ({ reason, size = 'default' }) => {
 
 ---
 
+## Database Implementation Details
+
+### Collection Schema Specifications
+
+#### Core Collection Structures
+All collections follow Appwrite's document structure with `$id` as the primary key. The following field-level specifications ensure consistent data handling:
+
+**ID Format Conventions:**
+- Students: `stu_{number}` (e.g., "stu_123")
+- Courses: `course_{courseCode}` (e.g., "course_c84473")
+- Templates: `lt_{level}_{subject}_{topic}_v{version}` (e.g., "lt_nat3_aom_best_deal_v1")
+- Sessions: `sess_{number}` (e.g., "sess_001")
+- Evidence: `ev_{number}` (e.g., "ev_001")
+- Mastery: `mas_{number}` (e.g., "mas_001")
+- Routine: `rt_{number}` (e.g., "rt_001")
+- Planner Threads: `pth_{number}` (e.g., "pth_001")
+
+#### Required Indexes
+- `enrollments`: (studentId, courseId) - unique compound index
+- `sow`: (studentId, courseId) - unique compound index
+- `sessions`: (studentId, courseId) - for filtering by student and course
+- `evidence`: (sessionId) - for session completion tracking
+- `mastery`: (studentId, courseId) - unique compound index
+- `routine`: (studentId, courseId) - unique compound index
+- `planner_threads`: (studentId, courseId) - unique compound index
+
+### Database Operation Patterns
+
+#### Fetch Recommendations Flow
+**Read Operations:**
+- `sow` collection: Get ordered lesson plan for (studentId, courseId)
+- `lesson_templates` collection: Filter by status="published" only
+- `routine` collection: Get spaced repetition due dates
+- `mastery` collection: Get current EMA scores by outcome
+- `planner_threads` collection: Get existing graphRunId for resume
+
+**Write Operations:**
+- `planner_threads` collection: Upsert graphRunId returned by Course Manager
+
+#### Start Lesson Flow
+**Read Operations:**
+- `lesson_templates` collection: Get chosen template by ID
+- Validate template still exists and status="published"
+
+**Write Operations:**
+- `sessions` collection: Create with frozen lessonSnapshot containing:
+  - Exact template content at time of session creation
+  - Template version for audit trail
+  - Cards array copied as-is from template
+  - OutcomeRefs preserved for progress tracking
+
+#### Finish Lesson Flow
+**Write Operations:**
+- `evidence` collection: Create attempt records with outcomeScores mapping
+- `mastery` collection: Update EMA values using evidence scores
+- `routine` collection: Update dueAtByOutcome and lastTaughtAt timestamps
+
+### Context Normalization Rules
+
+#### Template Filtering
+- Include only templates where `status === "published"`
+- Parse `outcomeRefs` from JSON string to array
+- Parse `cards` from JSON string to object array
+- Ensure `estMinutes` defaults to 20 if not specified
+
+#### Routine Processing
+- Convert all `dueAtByOutcome` timestamps to UTC ISO format
+- Calculate `isOverdue` = `dueAt <= now()` for badge display
+- Handle missing routine records gracefully (no previous sessions)
+
+#### Mastery Processing
+- Clamp all EMA values to range [0, 1]
+- For missing outcomes, use contextual defaults (do not seed fake data)
+- Calculate coverage percentage for tie-breaking in recommendations
+
+#### Data Validation
+- Validate all studentId references exist in auth system
+- Ensure courseId references valid published courses
+- Verify lessonTemplateId exists and is published before session creation
+- Check outcome references match template definitions
+
+### Caching Strategy
+
+#### Cache Configuration
+- **Duration**: 5-15 minutes per (studentId, courseId) pair
+- **Cache Key Structure**: Hash of:
+  - `sow.entries` array with order and templateId
+  - `templates.$id` + `version` for all published templates
+  - Top-level routine timestamps (`lastTaughtAt`, `updatedAt`)
+  - Mastery hash from `emaByOutcome` values
+
+#### Cache Invalidation Triggers
+- Lesson completion (evidence submission)
+- Mastery score updates
+- Template publication/unpublication
+- SoW modifications
+- Manual assessment entry
+
+#### Cache Implementation Notes
+- Use Redis or in-memory cache for development
+- Key format: `recommendations:{studentId}:{courseId}:{contextHash}`
+- Implement cache-aside pattern with TTL
+
+---
+
 ## Appendices
 
 ### A. Data Model Contracts
 
-#### SchedulingContextForCourse Interface
+#### Complete Appwrite Collection Interfaces
+
+**Core Collections (as stored in Appwrite)**
+
 ```typescript
-// Current Appwrite Collections (from codebase review)
+// Student profile (from Auth system)
+interface Student {
+  $id: string;                    // e.g., "stu_123"
+  displayName: string;            // e.g., "Amina"
+  accommodations?: string[];      // e.g., ["chunking", "extra_time"]
+  createdAt: string;             // ISO timestamp
+}
+
+// Course definitions (seeded)
 interface Course {
-  $id: string;
-  courseId: string;  // e.g., "C844 73"
-  subject: string;   // e.g., "Applications of Mathematics"
-  phase: string;
-  level: string;     // e.g., "Nat3"
+  $id: string;                   // e.g., "course_c84473"
+  subject: string;               // e.g., "Applications of Mathematics"
+  level: string;                 // e.g., "Nat3"
+  sqaCode: string;              // e.g., "C844 73"
 }
 
+// Student enrollment in courses
+interface Enrollment {
+  $id: string;                   // e.g., "enr_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  enrolledAt: string;            // ISO timestamp
+}
+
+// Scheme of Work (lesson plan per enrollment)
+interface SoW {
+  $id: string;                   // e.g., "sow_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  entries: Array<{
+    order: number;               // Sequence position (1, 2, 3...)
+    lessonTemplateId: string;    // Foreign key to LessonTemplate
+    plannedAt?: string;          // Optional ISO timestamp
+  }>;
+  createdAt: string;             // ISO timestamp
+}
+
+// Lesson template definitions (seeded content)
 interface LessonTemplate {
-  $id: string;
-  courseId: string;
-  title: string;
-  outcomeRefs: string;  // JSON string (not array!)
-  cards: string;        // JSON string (not object!)
-  version: number;
-  status: string;       // "published"
+  $id: string;                   // e.g., "lt_nat3_aom_best_deal_v1"
+  title: string;                 // e.g., "Best Deal: Unit Price & Simple Discounts"
+  outcomeRefs: string;           // JSON string: "[\"HV7Y73_O1.4\", \"H22573_O1.2\"]"
+  estMinutes?: number;           // e.g., 25 (defaults to 20)
+  version: number;               // Template version (1, 2, 3...)
+  status: string;                // "published" | "draft" | "archived"
+  cards: string;                 // JSON string: "[{\"id\":\"q1\",\"type\":\"short\",...}]"
 }
 
+// Course Manager checkpoint (new in MVP1)
+interface PlannerThread {
+  $id: string;                   // e.g., "pth_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  graphRunId: string;            // LangGraph thread identifier
+  updatedAt: string;             // ISO timestamp
+}
+
+// Teaching session instances
+interface Session {
+  $id: string;                   // e.g., "sess_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  lessonTemplateId: string;      // Foreign key to LessonTemplate
+  lessonSnapshot: {              // Frozen template content (parsed objects)
+    title: string;
+    outcomeRefs: string[];       // Parsed from template JSON string
+    cards: Array<{               // Parsed from template JSON string
+      id: string;
+      type: string;
+      cfu: any;
+    }>;
+    templateVersion: number;
+  };
+  startedAt: string;             // ISO timestamp
+  stage: string;                 // "design" | "deliver" | "mark" | "progress" | "complete"
+}
+
+// Learning evidence from completed lessons
+interface Evidence {
+  $id: string;                   // e.g., "ev_001"
+  sessionId: string;             // Foreign key to Session
+  itemId: string;                // Card ID within lesson
+  attemptIndex: number;          // Attempt number (0, 1, 2...)
+  response: string;              // Student's actual response
+  correct: boolean;              // Whether response was correct
+  score: number;                 // Score value (0-1)
+  outcomeScores: {               // Score per learning outcome
+    [outcomeId: string]: number; // e.g., "H22573_O1.2": 1
+  };
+  submittedAt: string;           // ISO timestamp
+  feedback?: string;             // Optional feedback message
+}
+
+// Mastery tracking (EMA per outcome)
+interface Mastery {
+  $id: string;                   // e.g., "mas_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  emaByOutcome: {                // Exponential Moving Average scores
+    [outcomeId: string]: number; // e.g., "H22573_O1.2": 0.72 (range 0-1)
+  };
+  updatedAt: string;             // ISO timestamp
+}
+
+// Spaced repetition scheduling
+interface Routine {
+  $id: string;                   // e.g., "rt_001"
+  studentId: string;             // Foreign key to Student
+  courseId: string;              // Foreign key to Course
+  lastTaughtAt?: string;         // ISO timestamp of last lesson
+  dueAtByOutcome: {              // When each outcome needs review
+    [outcomeId: string]: string; // e.g., "H22573_O1.2": "2025-09-06T00:00:00Z"
+  };
+  spacingPolicyVersion: number;  // Algorithm version for migrations
+  schema_version: number;        // Data structure version
+}
+```
+
+#### SchedulingContextForCourse Interface
+
+```typescript
+// Input contract for Course Manager (normalized data)
 interface SchedulingContextForCourse {
-  student: { id: string; displayName?: string; accommodations?: string[] };
-  course: { $id: string; courseId: string; subject: string; level: string }; // Match existing Course interface
-  sow: { entries: Array<{ order: number; lessonTemplateId: string; plannedAt?: string }> };
-  templates: Array<{ $id: string; title: string; outcomeRefs: string[]; estMinutes?: number; status: "published" }>; // Note: outcomeRefs parsed from JSON string
-  mastery?: { emaByOutcome: { [outcomeId: string]: number } };
-  routine?: { dueAtByOutcome: { [outcomeId: string]: string }; lastTaughtAt?: string; recentTemplateIds?: string[] };
-  constraints?: { maxBlockMinutes?: number; avoidRepeatWithinDays?: number; preferOverdue?: boolean; preferLowEMA?: boolean };
-  graphRunId?: string;
+  student: {
+    id: string;
+    displayName?: string;
+    accommodations?: string[]
+  };
+  course: {
+    $id: string;
+    courseId: string;
+    subject: string;
+    level: string
+  };
+  sow: {
+    entries: Array<{
+      order: number;
+      lessonTemplateId: string;
+      plannedAt?: string
+    }>
+  };
+  templates: Array<{
+    $id: string;
+    title: string;
+    outcomeRefs: string[];        // Parsed from JSON string
+    estMinutes?: number;
+    status: "published"
+  }>;
+  mastery?: {
+    emaByOutcome: { [outcomeId: string]: number }
+  };
+  routine?: {
+    dueAtByOutcome: { [outcomeId: string]: string };
+    lastTaughtAt?: string;
+    recentTemplateIds?: string[]
+  };
+  constraints?: {
+    maxBlockMinutes?: number;
+    avoidRepeatWithinDays?: number;
+    preferOverdue?: boolean;
+    preferLowEMA?: boolean
+  };
+  graphRunId?: string;           // For checkpoint resume
 }
 ```
 
@@ -728,12 +971,205 @@ interface LessonCandidate {
 5. **Malformed Context:** Return 500 with "Unable to prepare recommendation context"
 6. **Checkpoint Corruption:** Create new thread, log incident, continue without error
 
+### D. Appwrite Document Examples
+
+This section provides concrete examples of how data will be structured in Appwrite collections after MVP1 implementation. These examples are based on a student enrolled in **National 3 Applications of Mathematics**.
+
+> Note: IDs are illustrative. All timestamps are ISO (UTC). Only key fields shown.
+
+#### 1. students (from Auth profile; already present)
+
+```json
+{
+  "$id": "stu_123",
+  "displayName": "Amina",
+  "accommodations": ["chunking", "extra_time"],
+  "createdAt": "2025-09-01T08:00:00Z"
+}
+```
+
+#### 2. courses (seeded)
+
+```json
+{
+  "$id": "course_c84473",
+  "subject": "Applications of Mathematics",
+  "level": "Nat3",
+  "sqaCode": "C844 73"
+}
+```
+
+#### 3. enrollments (student ↔ course)
+
+```json
+{
+  "$id": "enr_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "enrolledAt": "2025-09-02T09:00:00Z"
+}
+```
+
+#### 4. sow (Scheme of Work for this enrollment)
+
+```json
+{
+  "$id": "sow_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "entries": [
+    { "order": 1, "lessonTemplateId": "lt_nat3_num_frac_dec_pct_v1" },
+    { "order": 2, "lessonTemplateId": "lt_nat3_aom_best_deal_v1" },
+    { "order": 3, "lessonTemplateId": "lt_nat3_ssm_perim_area_vol_v1" }
+  ],
+  "createdAt": "2025-09-02T09:05:00Z"
+}
+```
+
+#### 5. lesson_templates (published templates; seeded)
+
+**Template 1: Fractions/Decimals/Percents**
+```json
+{
+  "$id": "lt_nat3_num_frac_dec_pct_v1",
+  "title": "Fractions ↔ Decimals ↔ Percents (Money contexts)",
+  "outcomeRefs": "[\"H22573_O1.2\", \"H22573_O1.5\"]",
+  "estMinutes": 20,
+  "version": 1,
+  "status": "published",
+  "cards": "[{\"id\":\"q1\",\"type\":\"mcq\",\"cfu\":{\"type\":\"mcq\",\"options\":[\"10%\",\"12.5%\",\"20%\"],\"answerIndex\":1}}]"
+}
+```
+
+**Template 2: Best Deal**
+```json
+{
+  "$id": "lt_nat3_aom_best_deal_v1",
+  "title": "Best Deal: Unit Price & Simple Discounts",
+  "outcomeRefs": "[\"HV7Y73_O1.4\", \"H22573_O1.2\", \"H22573_O1.5\"]",
+  "estMinutes": 25,
+  "version": 1,
+  "status": "published",
+  "cards": "[{\"id\":\"q1\",\"type\":\"short\",\"cfu\":{\"type\":\"short\",\"expected\":\"2.80\"}}]"
+}
+```
+
+**Template 3: Perimeter/Area/Volume**
+```json
+{
+  "$id": "lt_nat3_ssm_perim_area_vol_v1",
+  "title": "Perimeter, Area & Volume (Rectangles & Cuboids)",
+  "outcomeRefs": "[\"H22573_O2.1\"]",
+  "estMinutes": 20,
+  "version": 1,
+  "status": "published",
+  "cards": "[{\"id\":\"q1\",\"type\":\"short\",\"cfu\":{\"type\":\"short\",\"expected\":\"24\"}}]"
+}
+```
+
+#### 6. planner_threads (new in MVP1: recommender checkpoint)
+
+```json
+{
+  "$id": "pth_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "graphRunId": "thread_cm_stu_123_course_c84473",
+  "updatedAt": "2025-09-03T09:10:00Z"
+}
+```
+
+#### 7. sessions (created when the student clicks Start)
+
+```json
+{
+  "$id": "sess_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "lessonTemplateId": "lt_nat3_aom_best_deal_v1",
+  "lessonSnapshot": {
+    "title": "Best Deal: Unit Price & Simple Discounts",
+    "outcomeRefs": ["HV7Y73_O1.4", "H22573_O1.2", "H22573_O1.5"],
+    "cards": [{"id": "q1", "type": "short", "cfu": {"type": "short", "expected": "2.80"}}],
+    "templateVersion": 1
+  },
+  "startedAt": "2025-09-03T09:12:00Z",
+  "stage": "design"
+}
+```
+
+#### 8. evidence (created at lesson END; one per attempt)
+
+```json
+{
+  "$id": "ev_001",
+  "sessionId": "sess_001",
+  "itemId": "q1",
+  "attemptIndex": 0,
+  "response": "2.80",
+  "correct": true,
+  "score": 1,
+  "outcomeScores": {
+    "HV7Y73_O1.4": 1,
+    "H22573_O1.2": 1,
+    "H22573_O1.5": 1
+  },
+  "submittedAt": "2025-09-03T09:16:00Z",
+  "feedback": "Great — £2.80 per kg is cheaper per 100 g."
+}
+```
+
+#### 9. mastery (EMA per outcome; updated at END)
+
+```json
+{
+  "$id": "mas_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "emaByOutcome": {
+    "HV7Y73_O1.4": 0.83,
+    "H22573_O1.2": 0.72,
+    "H22573_O1.5": 0.46
+  },
+  "updatedAt": "2025-09-03T09:16:10Z"
+}
+```
+
+#### 10. routine (scheduling cache with dueAtByOutcome)
+
+```json
+{
+  "$id": "rt_001",
+  "studentId": "stu_123",
+  "courseId": "course_c84473",
+  "lastTaughtAt": "2025-09-03T09:16:10Z",
+  "dueAtByOutcome": {
+    "H22573_O1.2": "2025-09-06T00:00:00Z",
+    "HV7Y73_O1.4": "2025-09-08T00:00:00Z",
+    "H22573_O1.5": "2025-09-04T00:00:00Z"
+  },
+  "spacingPolicyVersion": 1,
+  "schema_version": 1
+}
+```
+
+#### Important Notes
+
+1. **JSON String Storage**: Note that in the lesson_templates collection, both `outcomeRefs` and `cards` are stored as JSON strings, not as arrays or objects. This matches the current codebase implementation.
+
+2. **Session Snapshots**: The `lessonSnapshot` field in sessions contains the parsed (object) version of the template data to preserve the exact lesson content at the time of session creation.
+
+3. **Evidence Tracking**: Each evidence record maps to specific learning outcomes with individual scores, enabling precise mastery calculation.
+
+4. **Spaced Repetition**: The routine collection tracks when each outcome is due for review based on the spacing algorithm.
+
 ---
 
-**Document Status:** Updated after Codebase Review
-**Last Updated:** 15 Sep 2025
+**Document Status:** Updated with Database Implementation Details
+**Last Updated:** 22 Sep 2025
 **Author:** Team Sociotech
 **Codebase Review:** Completed - See codebase-alignment-addendum.md
+**Data Model Enhancement:** Completed - Added comprehensive Appwrite collection specifications, database operation patterns, context normalization rules, and caching strategy from Design Brief
 **Next Review:** Post-implementation retrospective
 
 ---

@@ -424,8 +424,8 @@ export function EnhancedStudentDashboard() {
   // Handle course change
   const handleCourseChange = useCallback(async (courseId: string) => {
     setActiveCourse(courseId);
-    await loadRecommendations(courseId);
-  }, []);
+    await loadRecommendations(courseId, student);
+  }, [student]);
 
   // Handle lesson start
   const handleStartLesson = async (lessonTemplateId: string) => {
@@ -469,10 +469,10 @@ export function EnhancedStudentDashboard() {
 
   // Handle recommendations retry
   const handleRecommendationsRetry = useCallback(() => {
-    if (activeCourse) {
-      loadRecommendations(activeCourse);
+    if (activeCourse && student) {
+      loadRecommendations(activeCourse, student);
     }
-  }, [activeCourse]);
+  }, [activeCourse, student]);
 
   // Handle dashboard retry (for initialization failures)
   const handleDashboardRetry = useCallback(() => {
@@ -518,52 +518,57 @@ export function EnhancedStudentDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="student-dashboard">
-      {/* Header */}
+      {/* Enhanced Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, {studentDisplayName}!
         </h1>
-        <p className="text-gray-600">
-          Ready to continue your learning journey?
+        <p className="text-gray-600 mb-4">
+          Ready to continue your learning across <strong>{courseData.length} courses</strong>?
+          {courseData.length > 0 && " Here's what we recommend next:"}
         </p>
+        {courseData.length > 0 && (
+          <div className="flex gap-2 justify-center flex-wrap">
+            {courseData.map(course => (
+              <span
+                key={course.id}
+                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full"
+              >
+                {course.subject}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Course Navigation */}
-      <Card data-testid="course-navigation-section">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <BookOpen className="h-5 w-5 mr-2" />
-            Your Courses
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CourseNavigationTabs
-            courses={courseData}
-            activeCourse={activeCourse}
-            onCourseChange={handleCourseChange}
-            loading={coursesLoading}
-            error={coursesError}
-          />
-        </CardContent>
-      </Card>
+      <div data-testid="course-navigation-section" className="mb-8">
+        <h2 className="text-xl font-semibold mb-4 flex items-center">
+          <BookOpen className="h-5 w-5 mr-2" />
+          Your Courses
+        </h2>
+        <CourseNavigationTabs
+          courses={courseData}
+          activeCourse={activeCourse}
+          onCourseChange={handleCourseChange}
+          loading={coursesLoading}
+          error={coursesError}
+        />
+      </div>
 
       {/* Recommendations Section */}
       {hasActiveCourse && (
-        <Card>
-          <CardHeader>
-            <CardTitle>AI Recommendations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <RecommendationSection
-              courseId={activeCourse}
-              recommendations={recommendations}
-              loading={recommendationsLoading}
-              error={recommendationsError}
-              onStartLesson={handleStartLesson}
-              onRetry={handleRecommendationsRetry}
-            />
-          </CardContent>
-        </Card>
+        <div>
+          <RecommendationSection
+            courseId={activeCourse}
+            recommendations={recommendations}
+            loading={recommendationsLoading}
+            error={recommendationsError}
+            onStartLesson={handleStartLesson}
+            onRetry={handleRecommendationsRetry}
+            courseName={courseData.find(c => c.id === activeCourse)?.subject}
+          />
+        </div>
       )}
     </div>
   );

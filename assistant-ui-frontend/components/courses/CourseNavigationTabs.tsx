@@ -1,10 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { Badge } from '../ui/badge';
-import { Progress } from '../ui/progress';
-import { Loader2, BookOpen, Clock, CheckCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export interface CourseData {
   id: string;
@@ -16,6 +14,7 @@ export interface CourseData {
   totalLessons: number;
   nextLessonTitle?: string;
   status: 'active' | 'completed' | 'paused';
+  overdueLessons?: number;
 }
 
 export interface CourseNavigationTabsProps {
@@ -124,22 +123,16 @@ export function CourseNavigationTabs({
   }
 
   return (
-    <Tabs
-      value={activeCourse}
-      onValueChange={onCourseChange}
-      className="w-full"
-      data-testid="course-navigation-tabs"
-    >
-      <TabsList
-        className="grid w-full gap-1 bg-gray-100 p-1 rounded-lg"
-        style={{ gridTemplateColumns: `repeat(${courses.length}, 1fr)` }}
-        role="tablist"
-      >
+    <div className="w-full" data-testid="course-navigation-tabs">
+      <div className="flex gap-1 border-b border-gray-200">
         {courses.map((course) => (
-          <TabsTrigger
+          <button
             key={course.id}
-            value={course.id}
-            className="relative flex flex-col items-center p-3 min-h-[80px] data-[state=active]:bg-white data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 transition-all duration-200 hover:bg-gray-50"
+            className={`px-4 py-2 border-b-2 font-medium text-sm transition-colors relative ${
+              activeCourse === course.id
+                ? 'border-blue-500 text-blue-600 bg-blue-50'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
             data-testid={`course-tab-${course.subject}`}
             role="tab"
             tabIndex={focusedTab === course.id ? 0 : -1}
@@ -148,70 +141,21 @@ export function CourseNavigationTabs({
             onKeyDown={(e) => handleKeyDown(e, course.id)}
             onFocus={() => setFocusedTab(course.id)}
           >
-            {/* Course Icon and Title */}
-            <div className="flex items-center space-x-2 mb-1">
-              <BookOpen className="h-4 w-4" />
-              <span className="font-medium text-sm">{course.title}</span>
-            </div>
-
-            {/* Enrollment Indicator */}
-            <div
-              className="flex items-center space-x-1 mb-2"
-              data-testid="enrollment-indicator"
-            >
-              {course.enrolled ? (
-                <>
-                  <CheckCircle className="h-3 w-3 text-green-500" />
-                  <span className="text-xs text-green-600">Enrolled</span>
-                </>
-              ) : (
-                <>
-                  <Clock className="h-3 w-3 text-gray-400" />
-                  <span className="text-xs text-gray-500">Not Enrolled</span>
-                </>
+            <div className="flex items-center gap-2">
+              <span>{course.subject}</span>
+              {course.overdueLessons && course.overdueLessons > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="px-1.5 py-0.5 text-xs bg-red-100 text-red-600 rounded-full"
+                >
+                  {course.overdueLessons}
+                </Badge>
               )}
             </div>
-
-            {/* Course Progress */}
-            {course.enrolled && (
-              <div
-                className="w-full"
-                data-testid="course-progress"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-gray-600">
-                    {course.completedLessons}/{course.totalLessons} lessons
-                  </span>
-                  <span className="text-xs font-medium">
-                    {Math.round(course.progress)}%
-                  </span>
-                </div>
-                <Progress
-                  value={course.progress}
-                  className="h-1 w-full"
-                />
-              </div>
-            )}
-
-            {/* Status Badge */}
-            <Badge
-              variant={
-                course.status === 'completed' ? 'default' :
-                course.status === 'active' ? 'secondary' : 'outline'
-              }
-              className="mt-1 text-xs"
-            >
-              {course.status}
-            </Badge>
-
-            {/* Active Indicator */}
-            {activeCourse === course.id && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-500 rounded-b" />
-            )}
-          </TabsTrigger>
+          </button>
         ))}
-      </TabsList>
-    </Tabs>
+      </div>
+    </div>
   );
 }
 

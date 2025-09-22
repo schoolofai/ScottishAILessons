@@ -8,49 +8,57 @@ export interface ReasonBadgeProps {
   className?: string;
   showTooltip?: boolean;
   onClick?: () => void;
+  size?: 'default' | 'sm';
 }
 
-// Color mapping for different reason types based on scoring algorithm
-const reasonColorMap: Record<string, { bg: string; text: string; description: string }> = {
+// Color mapping for different reason types based on PRD specifications
+const reasonColorMap: Record<string, { bg: string; text: string; border: string; description: string }> = {
   // Positive reasons (bonuses)
   'overdue': {
-    bg: 'bg-red-100 dark:bg-red-900/20',
-    text: 'text-red-800 dark:text-red-200',
+    bg: 'bg-red-100',
+    text: 'text-red-700',
+    border: 'border-red-200',
     description: 'This lesson addresses overdue learning outcomes that need immediate attention'
   },
   'low mastery': {
-    bg: 'bg-orange-100 dark:bg-orange-900/20',
-    text: 'text-orange-800 dark:text-orange-200',
+    bg: 'bg-orange-100',
+    text: 'text-orange-700',
+    border: 'border-orange-200',
     description: 'Student has low mastery scores in related skills and would benefit from practice'
   },
   'early order': {
-    bg: 'bg-green-100 dark:bg-green-900/20',
-    text: 'text-green-800 dark:text-green-200',
+    bg: 'bg-green-100',
+    text: 'text-green-700',
+    border: 'border-green-200',
     description: 'This lesson follows the natural progression order in the curriculum'
   },
   'short win': {
-    bg: 'bg-blue-100 dark:bg-blue-900/20',
-    text: 'text-blue-800 dark:text-blue-200',
+    bg: 'bg-purple-100',
+    text: 'text-purple-700',
+    border: 'border-purple-200',
     description: 'A quick lesson that can boost confidence and provide an easy win'
   },
 
   // Penalty reasons (negative factors)
   'recent': {
-    bg: 'bg-gray-100 dark:bg-gray-800/20',
-    text: 'text-gray-800 dark:text-gray-200',
+    bg: 'bg-gray-100',
+    text: 'text-gray-600',
+    border: 'border-gray-200',
     description: 'This lesson was taught recently, so it has lower priority'
   },
   'long lesson': {
-    bg: 'bg-yellow-100 dark:bg-yellow-900/20',
-    text: 'text-yellow-800 dark:text-yellow-200',
+    bg: 'bg-yellow-100',
+    text: 'text-yellow-700',
+    border: 'border-yellow-200',
     description: 'This lesson takes more time than available in the current session'
   }
 };
 
 // Default styling for unknown reasons
 const defaultReasonStyle = {
-  bg: 'bg-gray-100 dark:bg-gray-800/20',
-  text: 'text-gray-700 dark:text-gray-300',
+  bg: 'bg-gray-100',
+  text: 'text-gray-700',
+  border: 'border-gray-200',
   description: 'Custom reason from the AI recommendation algorithm'
 };
 
@@ -58,15 +66,22 @@ export function ReasonBadge({
   reason,
   className,
   showTooltip = true,
-  onClick
+  onClick,
+  size = 'default'
 }: ReasonBadgeProps) {
   const reasonStyle = reasonColorMap[reason.toLowerCase()] || defaultReasonStyle;
 
+  const sizeClasses = size === 'sm'
+    ? 'px-1.5 py-0.5 text-xs'
+    : 'px-2 py-1 text-xs';
+
   const badgeClasses = cn(
-    'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium transition-colors',
+    'inline-flex items-center rounded-full font-medium transition-colors border',
     'hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500',
     reasonStyle.bg,
     reasonStyle.text,
+    reasonStyle.border,
+    sizeClasses,
     onClick && 'cursor-pointer hover:scale-105 transform transition-transform',
     className
   );
@@ -122,6 +137,7 @@ export interface ReasonBadgeListProps {
   showTooltips?: boolean;
   onReasonClick?: (reason: string) => void;
   maxDisplay?: number;
+  size?: 'default' | 'sm';
 }
 
 export function ReasonBadgeList({
@@ -129,7 +145,8 @@ export function ReasonBadgeList({
   className,
   showTooltips = true,
   onReasonClick,
-  maxDisplay = 3
+  maxDisplay = 3,
+  size = 'default'
 }: ReasonBadgeListProps) {
   const displayReasons = reasons.slice(0, maxDisplay);
   const hiddenCount = reasons.length - maxDisplay;
@@ -145,6 +162,7 @@ export function ReasonBadgeList({
           reason={reason}
           showTooltip={showTooltips}
           onClick={onReasonClick ? () => onReasonClick(reason) : undefined}
+          size={size}
         />
       ))}
       {hiddenCount > 0 && (

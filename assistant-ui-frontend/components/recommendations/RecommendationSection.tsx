@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
 import { ReasonBadgeList } from './ReasonBadge';
-import { Loader2, Play, Clock, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, Play, Clock, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export interface RecommendationCandidate {
@@ -39,6 +39,7 @@ export interface RecommendationSectionProps {
   onStartLesson?: (lessonTemplateId: string) => void;
   onRetry?: () => void;
   className?: string;
+  courseName?: string;
 }
 
 export function RecommendationSection({
@@ -48,7 +49,8 @@ export function RecommendationSection({
   error = null,
   onStartLesson,
   onRetry,
-  className
+  className,
+  courseName
 }: RecommendationSectionProps) {
   // Loading state
   if (loading) {
@@ -124,33 +126,48 @@ export function RecommendationSection({
   const otherCandidates = recommendations.candidates.slice(1);
 
   return (
-    <div className={cn("space-y-6", className)} data-testid="recommendations-section">
+    <div className={cn("bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-8", className)} data-testid="recommendations-section">
+      {/* Header with Sparkle Icon */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+          <Sparkles className="w-4 h-4 text-white" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Recommended for {courseName || 'Your Course'}
+          </h2>
+          <p className="text-sm text-gray-600">
+            AI-powered suggestions based on your progress and spaced repetition
+          </p>
+        </div>
+      </div>
+
       {/* Top Pick */}
       <div
-        className="border border-blue-200 bg-blue-50 rounded-lg p-6"
+        className="bg-white rounded-lg border-2 border-blue-300 p-4 mb-4"
         data-testid="top-pick-card"
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
             {/* Top Pick Badge and Score */}
-            <div className="flex items-center space-x-3 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <span
-                className="bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-medium"
+                className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium"
                 data-testid="top-pick-badge"
               >
-                Top Pick
+                TOP PICK
               </span>
               <span
-                className="text-sm text-gray-600"
+                className="text-sm font-medium text-gray-900"
                 data-testid="priority-score"
               >
-                {Math.round(topPick.priorityScore * 100)}% Priority
+                Score: {(topPick.priorityScore || 0).toFixed(2)}
               </span>
             </div>
 
             {/* Top Pick Title */}
             <h3
-              className="text-lg font-semibold text-gray-900 mb-3"
+              className="font-semibold text-gray-900 mb-1"
               data-testid="top-pick-title"
             >
               {topPick.title}
@@ -158,64 +175,63 @@ export function RecommendationSection({
 
             {/* Reason Badges */}
             {topPick.reasons && topPick.reasons.length > 0 && (
-              <ReasonBadgeList
-                reasons={topPick.reasons}
-                className="mb-4"
-                maxDisplay={3}
-              />
+              <div className="flex flex-wrap gap-1 mb-3">
+                <ReasonBadgeList
+                  reasons={topPick.reasons}
+                  maxDisplay={3}
+                />
+              </div>
             )}
+
+            <p className="text-sm text-gray-600">
+              Estimated time: 30 minutes
+            </p>
           </div>
 
           {/* Start Lesson Button */}
           <Button
             onClick={() => onStartLesson?.(topPick.lessonTemplateId)}
-            className="flex items-center px-6 py-2"
+            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
             data-testid="top-pick-start-button"
           >
-            <Play className="h-4 w-4 mr-2" />
-            Start Lesson
+            Start Now →
           </Button>
         </div>
       </div>
 
-      {/* Other Candidates */}
+      {/* Priority List */}
       {otherCandidates.length > 0 && (
-        <div className="space-y-3">
-          {otherCandidates.map((candidate, index) => (
+        <div className="space-y-3 mb-4">
+          {otherCandidates.slice(0, 4).map((candidate, index) => (
             <div
               key={candidate.lessonTemplateId}
-              className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
+              className="bg-white rounded-lg border p-3 hover:border-blue-200 transition-colors"
               data-testid={`candidate-card-${index + 1}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  {/* Candidate Title */}
-                  <h4 className="font-medium text-gray-900 mb-1">
-                    {candidate.title}
-                  </h4>
-
-                  {/* Priority Score */}
-                  <p className="text-sm text-gray-600 mb-2">
-                    {Math.round(candidate.priorityScore * 100)}% Priority
-                  </p>
-
-                  {/* Reason Badges */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm font-medium text-gray-600">#{index + 2}</span>
+                    <span className="text-sm text-gray-500">
+                      Score: {(candidate.priorityScore || 0).toFixed(2)}
+                    </span>
+                  </div>
+                  <h4 className="font-medium text-gray-900 mb-1">{candidate.title}</h4>
                   {candidate.reasons && candidate.reasons.length > 0 && (
-                    <ReasonBadgeList
-                      reasons={candidate.reasons}
-                      maxDisplay={2}
-                      showTooltips={false}
-                    />
+                    <div className="flex flex-wrap gap-1">
+                      <ReasonBadgeList
+                        reasons={candidate.reasons}
+                        maxDisplay={2}
+                        size="sm"
+                      />
+                    </div>
                   )}
                 </div>
-
-                {/* Start Button */}
                 <Button
                   variant="outline"
                   onClick={() => onStartLesson?.(candidate.lessonTemplateId)}
-                  className="flex items-center"
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                 >
-                  <Play className="h-4 w-4 mr-2" />
                   Start
                 </Button>
               </div>
@@ -224,40 +240,13 @@ export function RecommendationSection({
         </div>
       )}
 
-      {/* Metadata */}
-      {recommendations.metadata && (
-        <div
-          className="text-xs text-gray-500 border-t pt-4"
-          data-testid="recommendations-metadata"
-        >
-          <div className="flex items-center justify-between">
-            <span>
-              {recommendations.metadata.total_candidates} recommendations available
-            </span>
-            {recommendations.metadata.generated_at && (
-              <span>
-                Generated {new Date(recommendations.metadata.generated_at).toLocaleTimeString()}
-              </span>
-            )}
-          </div>
+      {/* Recommendation Explanation */}
+      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>How we recommend:</strong> {recommendations.metadata?.rubric || 'Overdue > Low Mastery > Early Order | -Recent -Too Long'}
+        </p>
+      </div>
 
-          {recommendations.metadata.rubric && (
-            <div className="mt-2">
-              <details className="group">
-                <summary
-                  className="cursor-pointer text-blue-600 hover:text-blue-800"
-                  data-testid="recommendation-rubric"
-                >
-                  View recommendation criteria
-                </summary>
-                <div className="mt-1 text-xs text-gray-600 font-mono">
-                  {recommendations.metadata.rubric}
-                </div>
-              </details>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
