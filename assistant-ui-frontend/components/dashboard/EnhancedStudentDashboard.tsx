@@ -19,6 +19,8 @@ import {
   getStudentDisplayName,
   debugLog
 } from "../../lib/dashboard/utils";
+import { MasteryV2Driver } from "../../lib/appwrite/driver/MasteryV2Driver";
+import { Client, Databases, Account, Query, ID } from "appwrite";
 
 // Type imports are handled by the utils file
 
@@ -63,17 +65,13 @@ export function EnhancedStudentDashboard() {
           const cookieData = JSON.parse(cookieFallback);
           const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
           storedSession = cookieData[sessionKey];
-          console.log('Found session in cookieFallback:', !!storedSession);
         } catch (e) {
-          console.log('Failed to parse cookieFallback:', e);
         }
       }
 
       if (storedSession) {
-        console.log('Setting session from localStorage');
         client.setSession(storedSession);
       } else {
-        console.log('No session found in localStorage');
         throw new Error('No active session found. Please log in.');
       }
 
@@ -82,24 +80,19 @@ export function EnhancedStudentDashboard() {
 
       // Get current user (this should work since we have an active client-side session)
       const user = await account.get();
-      console.log('Current user from client-side:', user);
 
       // Check if student record exists
       let student;
       try {
-        console.log('Attempting to list students for userId:', user.$id);
         const studentsResult = await databases.listDocuments(
           'default',
           'students',
           [Query.equal('userId', user.$id)]
         );
-        console.log('Students query result:', studentsResult);
 
         if (studentsResult.documents.length > 0) {
           student = studentsResult.documents[0];
-          console.log('Found existing student:', student);
         } else {
-          console.log('No student found, creating new student record');
           // Create student record
           student = await databases.createDocument(
             'default',
@@ -112,7 +105,6 @@ export function EnhancedStudentDashboard() {
             },
             [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
           );
-          console.log('Created new student:', student);
         }
       } catch (error) {
         console.error('Error with student record (detailed):', error);
@@ -141,12 +133,9 @@ export function EnhancedStudentDashboard() {
       setCoursesLoading(true);
       setCoursesError(null);
 
-      console.log('Getting courses...');
       const coursesResult = await databases.listDocuments('default', 'courses');
-      console.log('Courses result:', coursesResult);
 
       // Check enrollment and auto-enroll if needed
-      console.log('Checking enrollments...');
       const { Query } = await import('appwrite');
       const enrollmentsResult = await databases.listDocuments(
         'default',
@@ -156,10 +145,8 @@ export function EnhancedStudentDashboard() {
           Query.equal('courseId', 'C844 73')
         ]
       );
-      console.log('Enrollments result:', enrollmentsResult);
 
       if (enrollmentsResult.documents.length === 0) {
-        console.log('Auto-enrolling student in National 3 course...');
         const { ID } = await import('appwrite');
         // Auto-enroll in National 3 course
         await databases.createDocument(
@@ -173,7 +160,6 @@ export function EnhancedStudentDashboard() {
           },
           [`read("user:${student.userId}")`, `write("user:${student.userId}")`]
         );
-        console.log('Auto-enrollment completed');
       }
 
       const coursesData = coursesResult.documents;
@@ -206,30 +192,12 @@ export function EnhancedStudentDashboard() {
       setRecommendationsLoading(true);
       setRecommendationsError(null);
 
-      console.log('[Recommendations Debug] Loading recommendations from LangGraph Course Manager for course:', courseId);
-
-      // Get client-side Appwrite SDK components for data extraction
-      const { Client, Account, Databases, Query } = await import('appwrite');
-
+      // Initialize Appwrite client
       const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      // Use existing session
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (cookieFallback) {
-        const cookieData = JSON.parse(cookieFallback);
-        const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-        const storedSession = cookieData[sessionKey];
-        if (storedSession) {
-          client.setSession(storedSession);
-        }
-      }
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
 
       const databases = new Databases(client);
-
-      // Extract complete scheduling context from Appwrite (following Task 7 isolation test)
-      console.log('[Recommendations Debug] Extracting scheduling context from Appwrite...');
 
       // 1. Get student data (use parameter or state)
       const currentStudent = studentData || student;
@@ -249,7 +217,6 @@ export function EnhancedStudentDashboard() {
       }
 
       const course = courseQueryResult.documents[0];
-      console.log('[Recommendations Debug] Course found:', course.subject);
 
       // 3. Get lesson templates for the course (use original courseId, not document $id)
       const templatesResult = await databases.listDocuments(
@@ -257,33 +224,100 @@ export function EnhancedStudentDashboard() {
         'lesson_templates',
         [Query.equal('courseId', course.courseId)]
       );
-      console.log('[Recommendations Debug] Found', templatesResult.total, 'lesson templates');
 
-      // 4. Get mastery records for student
-      const masteryResult = await databases.listDocuments(
-        'default',
-        'mastery',
-        [Query.equal('studentId', currentStudent.$id)]
-      );
-      console.log('[Recommendations Debug] Found', masteryResult.total, 'mastery records');
+      // 4. Get mastery records using MasteryV2Driver
+      // Get session token for authenticated driver calls
+      // First, set the session from localStorage to the client
+      let sessionToken = '';
+      try {
+        const storedSession = localStorage.getItem(`a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`);
+        if (storedSession) {
+          client.setSession(storedSession);
+          sessionToken = storedSession;
+        }
+      } catch (e) {
+        // Fallback: use empty token (driver will handle auth through client)
+        sessionToken = '';
+      }
 
-      // 5. Get routine data for student
-      const routineResult = await databases.listDocuments(
-        'default',
-        'routine',
-        [Query.equal('studentId', currentStudent.$id)]
-      );
-      console.log('[Recommendations Debug] Found', routineResult.total, 'routine records');
+      const masteryV2Driver = new MasteryV2Driver(sessionToken);
+      const masteryV2Record = await masteryV2Driver.getMasteryV2(currentStudent.$id, course.courseId);
 
-      // 6. Get SOW (Scheme of Work) data for course (use original courseId, not document $id)
+      // Convert MasteryV2 to legacy format for compatibility
+      let masteryData = [];
+      if (masteryV2Record) {
+        const emaByOutcome = masteryV2Record.emaByOutcomeId || {};
+
+        // Convert EMA data to legacy mastery format for templates
+        masteryData = Object.entries(emaByOutcome).map(([outcomeId, ema]) => ({
+          outcomeRef: outcomeId,
+          masteryLevel: ema // Use EMA score as mastery level
+        }));
+      }
+
+      // 5. Routine data removed - keeping spaced repetition separate from recommendations
+
+      // 6. Get SOW data - SOWV2 ONLY (no fallbacks)
+      console.log('[SOW Query] Attempting SOWV2 query with:', {
+        studentId: currentStudent.$id,
+        courseId: course.courseId
+      });
+
       const sowResult = await databases.listDocuments(
         'default',
-        'sow',
-        [Query.equal('courseId', course.courseId)]
+        'SOWV2',
+        [
+          Query.equal('studentId', currentStudent.$id),
+          Query.equal('courseId', course.courseId)
+        ]
       );
-      console.log('[Recommendations Debug] Found', sowResult.total, 'SOW records');
+
+      // Fast fail if no SOW data
+      if (sowResult.documents.length === 0) {
+        const error = new Error(
+          `No SOWV2 data found for student: ${currentStudent.$id}, course: ${course.courseId}. ` +
+          `SOWV2 collection must be populated for this enrollment.`
+        );
+        console.error('[SOW Query] FAILED:', error.message);
+        throw error;
+      }
+
+      console.log('[SOW Query] SUCCESS - Found SOWV2 documents:', sowResult.documents.length);
+
+      // Phase 1: Data Collection Complete
+      console.log('[Recommendation Phase 1 - Data Collection]', {
+        student: currentStudent,
+        course: course,
+        templates: templatesResult.documents,
+        mastery: masteryV2Record,
+        sow: sowResult.documents
+      });
 
       // 7. Build complete scheduling context (matching Task 7 isolation test format)
+
+      // Debug SOW data transformation
+      console.log('[SOW Debug] Raw SOWV2 document:', sowResult.documents[0]);
+
+      let sowEntries = [];
+      if (sowResult.documents.length > 0) {
+        const rawEntries = sowResult.documents[0].entries || '[]';
+        console.log('[SOW Debug] Raw entries field:', rawEntries);
+
+        try {
+          const parsedEntries = JSON.parse(rawEntries);
+          console.log('[SOW Debug] Parsed entries:', parsedEntries);
+
+          sowEntries = parsedEntries.map((entry: any) => ({
+            templateId: entry.lessonTemplateId,
+            order: entry.order,
+            plannedAt: entry.plannedAt
+          }));
+          console.log('[SOW Debug] Transformed SOW entries:', sowEntries);
+        } catch (error) {
+          console.error('[SOW Debug] Error parsing entries:', error);
+        }
+      }
+
       const context = {
         mode: "course_manager",
         student: {
@@ -301,38 +335,19 @@ export function EnhancedStudentDashboard() {
           $id: template.$id,
           title: template.title,
           outcomeRefs: JSON.parse(template.outcomeRefs || '[]'),
-          estMinutes: template.estMinutes || 30,
-          sowUnit: template.sowUnit || '',
-          sowWeek: template.sowWeek || 1
+          estMinutes: template.estMinutes || 30
         })),
-        mastery: masteryResult.documents.map(record => ({
-          templateId: record.templateId,
+        mastery: masteryData.map(record => ({
+          outcomeRef: record.outcomeRef,
           masteryLevel: record.masteryLevel
         })),
-        routine: routineResult.documents.map(record => ({
-          templateId: record.templateId,
-          lastSessionDate: record.lastSessionDate,
-          daysSinceLastSession: record.daysSinceLastSession
-        })),
-        sow: sowResult.documents.map(record => ({
-          templateId: record.templateId,
-          week: record.week,
-          currentWeek: record.currentWeek
-        }))
+        sow: sowEntries
       };
 
-      console.log('[Recommendations Debug] Built scheduling context:', {
-        student: context.student.name,
-        course: context.course.title,
-        templates: context.templates.length,
-        mastery: context.mastery.length,
-        routine: context.routine.length,
-        sow: context.sow.length
-      });
+      // Phase 2: Context Building Complete
+      console.log('[Recommendation Phase 2 - Context Building]', context);
 
-      // 8. Call LangGraph Course Manager using SDK (matching isolation test pattern)
-      console.log('[Recommendations Debug] Calling LangGraph Course Manager...');
-
+      // 8. Call LangGraph Course Manager using SDK
       const { Client: LangGraphClient } = await import('@langchain/langgraph-sdk');
       const langGraphClient = new LangGraphClient({
         apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || 'http://localhost:2024'
@@ -340,7 +355,6 @@ export function EnhancedStudentDashboard() {
 
       // Create thread for Course Manager
       const thread = await langGraphClient.threads.create();
-      console.log('[Recommendations Debug] Created LangGraph thread:', thread.thread_id);
 
       // Run Course Manager with complete context
       const run = await langGraphClient.runs.create(
@@ -353,15 +367,19 @@ export function EnhancedStudentDashboard() {
           }
         }
       );
-      console.log('[Recommendations Debug] Started LangGraph run:', run.run_id);
+
+      // Phase 3: LangGraph SDK Call
+      console.log('[Recommendation Phase 3 - LangGraph SDK Call]', {
+        threadId: thread.thread_id,
+        runId: run.run_id,
+        input: { session_context: context, mode: "course_manager" }
+      });
 
       // Wait for completion
-      console.log('[Recommendations Debug] Waiting for Course Manager to complete...');
       const result = await langGraphClient.runs.join(thread.thread_id, run.run_id);
 
       // Get final state
       const state = await langGraphClient.threads.getState(thread.thread_id);
-      console.log('[Recommendations Debug] Course Manager completed with status:', result.status);
 
       // Extract recommendation from state
       let courseRecommendation;
@@ -379,7 +397,7 @@ export function EnhancedStudentDashboard() {
                 courseRecommendation = parsed.course_recommendation;
               }
             } catch (e) {
-              console.warn('[Recommendations Debug] Failed to parse message content as JSON');
+              // Keep error handling but remove debug log
             }
           }
         }
@@ -389,7 +407,11 @@ export function EnhancedStudentDashboard() {
         throw new Error('No course recommendation found in LangGraph response');
       }
 
-      console.log('[Recommendations Debug] Extracted course recommendation:', courseRecommendation);
+      // Phase 4: Response Extraction Complete
+      console.log('[Recommendation Phase 4 - Response Extraction]', {
+        state: state.values,
+        courseRecommendation: courseRecommendation
+      });
 
       // Transform LangGraph response to match RecommendationSection expected format
       const transformedRecommendations = {
@@ -411,11 +433,21 @@ export function EnhancedStudentDashboard() {
         }
       };
 
+      // Phase 5: Data Transformation Complete
+      console.log('[Recommendation Phase 5 - Data Transformation]', {
+        transformedRecommendations: transformedRecommendations
+      });
+
       setRecommendations(transformedRecommendations);
-      console.log('[Recommendations Debug] LangGraph recommendations loaded successfully:', transformedRecommendations.candidates.length, 'candidates');
     } catch (err) {
       console.error("Failed to load recommendations from LangGraph:", err);
-      setRecommendationsError(err instanceof Error ? err.message : "Failed to load recommendations from Course Manager");
+
+      // Specific error message for SOWV2 issues
+      if (err instanceof Error && err.message.includes('SOWV2')) {
+        setRecommendationsError(`SOW Data Missing: ${err.message}`);
+      } else {
+        setRecommendationsError(err instanceof Error ? err.message : "Failed to load recommendations from Course Manager");
+      }
     } finally {
       setRecommendationsLoading(false);
     }

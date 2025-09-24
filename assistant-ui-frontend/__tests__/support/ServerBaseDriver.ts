@@ -1,36 +1,25 @@
-import { Client, Account, Databases, ID } from 'appwrite';
-import type { AppwriteResponse } from '../types';
+import { Client, Account, Databases, ID, Permission } from 'node-appwrite';
+import type { AppwriteResponse } from '@/lib/appwrite/types';
 
 /**
- * Base driver class providing generic CRUD operations and session management
- * All business-specific drivers extend this class
+ * Server-side BaseDriver for integration tests with session-based authentication
+ * Uses SSR pattern with session client for proper user authentication
  */
-export abstract class BaseDriver {
+export abstract class ServerBaseDriver {
   protected client: Client;
   protected account: Account;
   protected databases: Databases;
+  protected sessionUserId?: string;
 
-  constructor(sessionTokenOrDatabases?: string | Databases) {
-    // Handle different initialization patterns
-    if (typeof sessionTokenOrDatabases === 'string') {
-      // Traditional pattern: initialize with session token
-      this.client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      if (sessionTokenOrDatabases) {
-        this.client.setSession(sessionTokenOrDatabases);
-      }
-
-      this.account = new Account(this.client);
-      this.databases = new Databases(this.client);
-    } else if (sessionTokenOrDatabases && typeof sessionTokenOrDatabases === 'object') {
-      // New pattern: use pre-configured Databases instance from planner service
-      this.databases = sessionTokenOrDatabases;
-      // Note: client and account will be undefined in this case
-      // but most drivers only need databases for CRUD operations
+  constructor(sessionClient?: { client: Client; account: Account; databases: Databases; users?: any }, sessionUserId?: string) {
+    if (sessionClient) {
+      // Use provided admin client (since SSR session auth is broken in node-appwrite v19.1.0)
+      this.client = sessionClient.client;
+      this.account = sessionClient.account;
+      this.databases = sessionClient.databases;
+      this.sessionUserId = sessionUserId;
     } else {
-      // Default: no authentication (for server-side operations)
+      // Fallback: create unauthenticated client (for backward compatibility)
       this.client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
@@ -49,30 +38,21 @@ export abstract class BaseDriver {
     permissions?: string[]
   ): Promise<T> {
     try {
-      console.log(`[BaseDriver] Creating document in ${collectionId}`);
-      console.log(`[BaseDriver] Data:`, JSON.stringify(data, null, 2));
-      console.log(`[BaseDriver] Permissions passed:`, permissions);
+      console.log(`[ServerBaseDriver] Creating document in ${collectionId} with permissions:`, permissions);
+      console.log(`[ServerBaseDriver] Data:`, JSON.stringify(data, null, 2));
 
-      // Don't pass permissions parameter since both evidence and MasteryV2
-      // have documentSecurity: false and should use collection-level permissions
       const document = await this.databases.createDocument(
         'default',
         collectionId,
         ID.unique(),
-        data
-        // Removed permissions parameter
+        data,
+        permissions
       );
 
-      console.log(`[BaseDriver] Successfully created document with ID: ${document.$id}`);
+      console.log(`[ServerBaseDriver] Successfully created document with ID: ${document.$id}`);
       return document as T;
     } catch (error) {
-      console.error(`[BaseDriver] Failed to create document in ${collectionId}:`, error);
-      console.error(`[BaseDriver] Error details:`, {
-        message: error.message,
-        code: error.code,
-        type: error.type,
-        data: error.data
-      });
+      console.error(`[ServerBaseDriver] Failed to create document in ${collectionId}:`, error);
       throw new Error(`Failed to create document in ${collectionId}: ${error.message}`);
     }
   }
@@ -93,7 +73,7 @@ export abstract class BaseDriver {
    * Generic list operation for any collection
    */
   protected async list<T>(
-    collectionId: string, 
+    collectionId: string,
     queries: string[] = []
   ): Promise<T[]> {
     try {
@@ -108,7 +88,7 @@ export abstract class BaseDriver {
    * Generic list operation with full response (including total)
    */
   protected async listWithTotal<T>(
-    collectionId: string, 
+    collectionId: string,
     queries: string[] = []
   ): Promise<AppwriteResponse<T>> {
     try {
@@ -126,15 +106,15 @@ export abstract class BaseDriver {
    * Generic update operation for any collection
    */
   protected async update<T>(
-    collectionId: string, 
-    documentId: string, 
+    collectionId: string,
+    documentId: string,
     data: any
   ): Promise<T> {
     try {
       const document = await this.databases.updateDocument(
-        'default', 
-        collectionId, 
-        documentId, 
+        'default',
+        collectionId,
+        documentId,
         data
       );
       return document as T;
@@ -155,12 +135,12 @@ export abstract class BaseDriver {
   }
 
   /**
-   * Get current authenticated user
+   * Get current authenticated user from session
    */
   protected async getCurrentUser() {
     try {
       if (!this.account) {
-        throw new Error('Account instance not available - driver initialized with Databases instance only');
+        throw new Error('Account instance not available - driver not properly initialized');
       }
       return await this.account.get();
     } catch (error) {
@@ -170,12 +150,31 @@ export abstract class BaseDriver {
 
   /**
    * Create user permissions for read/write access
+   * When using admin client, use 'any' permissions since API keys have broad access
    */
-  protected createUserPermissions(userId: string): string[] {
-    return [
-      `read("user:${userId}")`,
-      `write("user:${userId}")`
-    ];
+  protected createUserPermissions(userId?: string): string[] {
+    // Check if this is an admin client by looking for API key in config
+    const isAdminClient = this.client.config?.key;
+
+    if (isAdminClient) {
+      console.log(`[ServerBaseDriver] Using admin client - applying 'any' permissions`);
+      return []; // No document permissions needed for admin client, collection permissions handle access
+    }
+
+    const targetUserId = userId || this.sessionUserId;
+
+    if (targetUserId) {
+      console.log(`[ServerBaseDriver] Creating permissions for user: ${targetUserId}`);
+      return [
+        Permission.read(`user:${targetUserId}`),
+        Permission.update(`user:${targetUserId}`),
+        Permission.delete(`user:${targetUserId}`)
+      ];
+    }
+
+    // For authenticated users with session, try no document permissions (let collection handle it)
+    console.log(`[ServerBaseDriver] No specific user ID - using collection permissions only`);
+    return [];
   }
 
   /**

@@ -7,6 +7,29 @@ and teacher_graph_toolcall_interrupt.py to avoid code duplication.
 from __future__ import annotations
 from typing import Dict, List
 from datetime import datetime
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def parse_outcome_refs(outcome_refs_data):
+    """Parse outcomeRefs - extracts titles for display in prompts"""
+    if isinstance(outcome_refs_data, str):
+        try:
+            parsed = json.loads(outcome_refs_data)
+            # If it's objects, extract titles for prompt display
+            if parsed and isinstance(parsed[0], dict):
+                return [ref.get('title', '') for ref in parsed]
+            return parsed
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse outcomeRefs JSON: {outcome_refs_data}")
+            return []
+    elif isinstance(outcome_refs_data, list):
+        if outcome_refs_data and isinstance(outcome_refs_data[0], dict):
+            return [ref.get('title', '') for ref in outcome_refs_data]
+        return outcome_refs_data
+    return []
 
 
 def _analyze_lesson_performance(evidence: list) -> dict:
@@ -72,10 +95,17 @@ def _calculate_mastery_score(is_correct: bool, attempts: int) -> float:
     return 1.0 if is_correct and attempts == 1 else (0.7 if is_correct else 0.3)
 
 
-def _create_mastery_update(outcome: dict, score: float) -> dict:
-    """Create a single mastery update entry."""
+def _create_mastery_update(outcome: any, score: float) -> dict:
+    """Create mastery update using document ID as key"""
+    if isinstance(outcome, dict):
+        # Use document ID from course_outcomes collection
+        outcome_id = outcome.get('$id', '')
+    else:
+        # Fallback for simple strings (already a document ID)
+        outcome_id = str(outcome)
+
     return {
-        "outcome_id": f"{outcome['unit']}_{outcome['outcome']}",
+        "outcome_id": outcome_id,  # This will be the document ID
         "score": score,
         "timestamp": datetime.now().isoformat()
     }
@@ -83,7 +113,19 @@ def _create_mastery_update(outcome: dict, score: float) -> dict:
 
 def _update_mastery_scores(lesson_snapshot: dict, state: dict, existing_updates: list) -> list:
     """Calculate and append new mastery updates based on student performance."""
-    outcome_refs = lesson_snapshot.get("outcomeRefs", [])
+    # Get raw outcome data - don't parse for display
+    outcome_refs_raw = lesson_snapshot.get("outcomeRefs", [])
+
+    # Parse if needed but keep as objects
+    if isinstance(outcome_refs_raw, str):
+        try:
+            outcome_refs = json.loads(outcome_refs_raw)
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse outcomeRefs JSON: {outcome_refs_raw}")
+            outcome_refs = []
+    else:
+        outcome_refs = outcome_refs_raw
+
     mastery_updates = existing_updates.copy()
 
     is_correct = state.get("is_correct", False)

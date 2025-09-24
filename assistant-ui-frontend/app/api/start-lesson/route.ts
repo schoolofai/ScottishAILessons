@@ -86,11 +86,9 @@ export async function POST(request: NextRequest) {
     await langGraphClient.startLesson(threadId, lessonContext);
 
     // Create session record in Appwrite for tracking
-    // Convert courseId to valid format (remove spaces, replace with underscores)
-    const validCourseId = courseId.replace(/\s+/g, '_');
     const sessionResponse = await plannerService.createSession(
       student.$id,
-      { lessonTemplateId, courseId: validCourseId }
+      { lessonTemplateId, courseId }
     );
 
     console.log('Lesson started:', {

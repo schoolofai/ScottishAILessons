@@ -91,8 +91,12 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
             if isinstance(last_message, HumanMessage):
                 student_input = last_message.content if hasattr(last_message, 'content') else str(last_message)
 
+        # Extract course_id from lesson_snapshot where it's actually stored
+        course_id = lesson_snapshot.get("courseId", "") if lesson_snapshot else ""
+
         logger.info(f"Teaching session_id: {session_context.get('session_id', '')}")
         logger.info(f"Teaching student_id: {session_context.get('student_id', '')}")
+        logger.info(f"Teaching course_id: {course_id}")
 
         return {
             "session_context": session_context,  # Keep for frontend compatibility
@@ -100,6 +104,7 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
             # Extract fields for teaching subgraph
             "session_id": session_context.get("session_id", ""),
             "student_id": session_context.get("student_id", ""),
+            "course_id": course_id,  # Extract from lesson_snapshot.courseId
             "lesson_snapshot": lesson_snapshot,
             "student_response": student_input,
             **interrupt_init

@@ -1,16 +1,23 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
-import type { 
-  LessonTemplate, 
-  Session, 
+import { EvidenceDriver } from './EvidenceDriver';
+import type {
+  LessonTemplate,
+  Session,
   LessonSnapshot,
-  CreateSessionData 
+  CreateSessionData
 } from '../types';
 
 /**
  * Lesson driver handling lesson templates, sessions, and lesson management
  */
 export class LessonDriver extends BaseDriver {
+  private evidenceDriver: EvidenceDriver;
+
+  constructor(databases: any) {
+    super(databases);
+    this.evidenceDriver = new EvidenceDriver(databases);
+  }
   /**
    * Get lesson template by ID
    */
@@ -91,11 +98,15 @@ export class LessonDriver extends BaseDriver {
       // Get lesson template to create snapshot
       const lessonTemplate = await this.getLessonTemplate(lessonTemplateId);
       
-      // Create lesson snapshot
+      // Create lesson snapshot - handle both seeded JSON strings and already parsed objects
       const lessonSnapshot: LessonSnapshot = {
         title: lessonTemplate.title,
-        outcomeRefs: JSON.parse(lessonTemplate.outcomeRefs),
-        cards: JSON.parse(lessonTemplate.cards),
+        outcomeRefs: typeof lessonTemplate.outcomeRefs === 'string'
+          ? JSON.parse(lessonTemplate.outcomeRefs)
+          : lessonTemplate.outcomeRefs,
+        cards: typeof lessonTemplate.cards === 'string'
+          ? JSON.parse(lessonTemplate.cards)
+          : lessonTemplate.cards,
         templateVersion: lessonTemplate.version
       };
       
@@ -178,13 +189,11 @@ export class LessonDriver extends BaseDriver {
       const session = await this.getSessionWithSnapshot(sessionId);
       const totalCards = session.parsedSnapshot.cards.length;
       
-      // Get evidence count to determine current card
+      // Get evidence count to determine current card using EvidenceDriver
       // This is a simplified version - in production you'd want more sophisticated progress tracking
-      const evidenceCount = await this.databases.listDocuments('default', 'evidence', [
-        Query.equal('sessionId', sessionId)
-      ]);
-      
-      const currentCard = Math.min(evidenceCount.total, totalCards - 1);
+      const evidenceCount = await this.evidenceDriver.getEvidenceCount(sessionId);
+
+      const currentCard = Math.min(evidenceCount, totalCards - 1);
       
       return {
         currentCard,

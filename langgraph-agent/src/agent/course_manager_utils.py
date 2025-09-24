@@ -4,7 +4,7 @@ Implements the PRD-defined scoring rubric for multi-course recommendations.
 """
 
 from typing import Dict, List, Any, Tuple
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 
@@ -13,18 +13,57 @@ logger = logging.getLogger(__name__)
 
 def _calculate_overdue_score_simplified(
     template_id: str,
-    sow_data: List[Dict[str, Any]]
+    sow_data: List[Dict[str, Any]],
+    mastery_data: List[Dict[str, Any]] = None,
+    outcome_refs: List[str] = None
 ) -> Tuple[float, List[str], List[str]]:
-    """Calculate overdue bonus score using simplified SOW data."""
+    """Calculate overdue bonus score using plannedAt dates from SOW data."""
+    logger.debug(f"[Scoring] Checking overdue for template {template_id} in SOW data: {sow_data}")
+
     for sow_entry in sow_data:
         if sow_entry.get('templateId') == template_id:
-            current_week = sow_entry.get('currentWeek', 1)
-            lesson_week = sow_entry.get('week', 1)
+            # Check for plannedAt date field
+            planned_at_str = sow_entry.get('plannedAt')
+            if planned_at_str:
+                try:
+                    # Parse ISO format date (handles both Z and +00:00 timezone formats)
+                    planned_date = datetime.fromisoformat(planned_at_str.replace('Z', '+00:00'))
+                    current_date = datetime.now(timezone.utc)
 
-            # If lesson week < current week, it's overdue
-            if lesson_week < current_week:
-                logger.debug(f"Template {template_id}: overdue (week {lesson_week} < current {current_week}) (+0.40)")
-                return 0.40, ['overdue'], ['sow-overdue']
+                    # If planned date is in the past, check mastery before marking overdue
+                    if planned_date < current_date:
+                        # Check if lesson outcomes are already mastered
+                        if mastery_data and outcome_refs:
+                            # Calculate average mastery for this template's outcomes
+                            total_mastery = 0
+                            valid_mastery_count = 0
+
+                            for outcome_id in outcome_refs:
+                                # Find mastery record for this outcome
+                                for mastery_entry in mastery_data:
+                                    if mastery_entry.get('outcomeRef') == outcome_id:
+                                        mastery_level = mastery_entry.get('masteryLevel', 0)
+                                        total_mastery += mastery_level
+                                        valid_mastery_count += 1
+                                        break
+
+                            # Check if average mastery is high enough (treat as completed)
+                            if valid_mastery_count > 0:
+                                avg_mastery = total_mastery / valid_mastery_count
+                                if avg_mastery >= 0.8:  # High mastery threshold
+                                    days_overdue = (current_date - planned_date).days
+                                    logger.debug(f"Template {template_id}: planned {days_overdue} days ago but already mastered (avg mastery={avg_mastery:.2f})")
+                                    return 0.0, [], ['completed-on-time']  # Not overdue if mastered
+
+                        # Only mark as overdue if not mastered
+                        days_overdue = (current_date - planned_date).days
+                        logger.debug(f"Template {template_id}: overdue by {days_overdue} days (+0.40)")
+                        return 0.40, ['overdue'], [f'overdue-{days_overdue}-days']
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Invalid plannedAt date for template {template_id}: {planned_at_str}")
+
+            # No plannedAt field - cannot determine overdue status without date
+            logger.debug(f"Template {template_id}: no plannedAt field in SOW entry, skipping overdue check")
 
     return 0.0, [], []
 
@@ -68,20 +107,55 @@ def _calculate_overdue_score(
 
 def _calculate_mastery_score_simplified(
     template_id: str,
-    mastery_data: List[Dict[str, Any]]
+    mastery_data: List[Dict[str, Any]],
+    outcome_refs: List[str] = None
 ) -> Tuple[float, List[str], List[str]]:
-    """Calculate low mastery bonus score using simplified mastery data."""
-    for mastery_entry in mastery_data:
-        if mastery_entry.get('templateId') == template_id:
-            mastery_level = mastery_entry.get('masteryLevel', 1.0)
+    """Calculate mastery bonus/penalty score using outcome-based mastery data."""
+    logger.info(f"[Scoring] Checking mastery for template {template_id}")
+    logger.info(f"[Scoring] Template outcomes: {outcome_refs}")
+    logger.info(f"[Scoring] Mastery data: {mastery_data}")
 
-            # If mastery < 0.5, get +0.25 bonus
-            if mastery_level < 0.5:
-                logger.debug(f"Template {template_id}: low mastery ({mastery_level:.2f} < 0.5) (+0.25)")
-                flags = ['very-low-mastery'] if mastery_level < 0.3 else []
-                return 0.25, ['low mastery'], flags
+    if not outcome_refs or not mastery_data:
+        logger.debug(f"[Scoring] No outcomes or mastery data for template {template_id}")
+        return 0.0, [], []
 
-    return 0.0, [], []
+    # Collect mastery levels for all outcomes in this template
+    mastery_levels = []
+    matched_outcomes = []
+
+    for outcome_ref in outcome_refs:
+        for mastery_entry in mastery_data:
+            if mastery_entry.get('outcomeRef') == outcome_ref:
+                mastery_level = mastery_entry.get('masteryLevel', 1.0)
+                mastery_levels.append(mastery_level)
+                matched_outcomes.append(outcome_ref)
+                logger.info(f"[Scoring] Matched outcome {outcome_ref}: mastery={mastery_level:.2f}")
+                break
+
+    if not mastery_levels:
+        logger.info(f"[Scoring] No mastery data for template {template_id} - treating as new content (+0.25)")
+        return 0.25, ['new content'], ['never-studied']
+
+    # Calculate average mastery for this template
+    avg_mastery = sum(mastery_levels) / len(mastery_levels)
+    logger.info(f"[Scoring] Template {template_id}: average mastery={avg_mastery:.2f} from {len(mastery_levels)} outcomes")
+
+    # High mastery penalty (-0.20) - already mastered content
+    if avg_mastery > 0.8:
+        logger.info(f"Template {template_id}: high mastery ({avg_mastery:.2f} > 0.8) (-0.20)")
+        flags = ['already-mastered'] if avg_mastery > 0.9 else ['high-mastery']
+        return -0.20, ['high mastery'], flags
+
+    # Low mastery bonus (+0.25) - needs practice
+    elif avg_mastery < 0.5:
+        logger.debug(f"Template {template_id}: low mastery ({avg_mastery:.2f} < 0.5) (+0.25)")
+        flags = ['very-low-mastery'] if avg_mastery < 0.3 else []
+        return 0.25, ['low mastery'], flags
+
+    # Medium mastery (0.5-0.8) - neutral
+    else:
+        logger.debug(f"Template {template_id}: medium mastery ({avg_mastery:.2f}) (neutral)")
+        return 0.0, [], []
 
 
 def _calculate_mastery_score(
@@ -131,28 +205,15 @@ def _calculate_order_score(sow_order: int, template_id: str) -> Tuple[float, Lis
     return 0.0, []
 
 
-def _calculate_penalty_scores_simplified(
+def _calculate_time_constraint_penalty(
     template: Dict[str, Any],
-    routine_data: List[Dict[str, Any]],
     constraints: Dict[str, Any]
 ) -> Tuple[float, List[str], List[str]]:
-    """Calculate penalty scores using simplified routine data."""
+    """Calculate penalty scores based only on time constraints."""
     score = 0.0
     reasons = []
     flags = []
     template_id = template.get('$id', '')
-
-    # Check for recent sessions using daysSinceLastSession
-    for routine_entry in routine_data:
-        if routine_entry.get('templateId') == template_id:
-            days_since = routine_entry.get('daysSinceLastSession', 999)
-            # If recently completed (< 7 days ago), apply penalty
-            if days_since < 7:
-                score -= 0.10
-                reasons.append('recent')
-                flags.append('recently-taught')
-                logger.debug(f"Template {template_id}: recently taught {days_since} days ago (-0.10)")
-                break
 
     # Penalty for long lessons (-0.05)
     max_minutes = constraints.get('maxBlockMinutes', 25)
@@ -171,47 +232,12 @@ def _calculate_penalty_scores_simplified(
     return score, reasons, flags
 
 
-def _calculate_penalty_scores(
-    template: Dict[str, Any],
-    routine: Dict[str, Any],
-    constraints: Dict[str, Any]
-) -> Tuple[float, List[str], List[str]]:
-    """Calculate penalty scores and reasons."""
-    score = 0.0
-    reasons = []
-    flags = []
-    template_id = template.get('$id', '')
-
-    # Penalty for recently taught (-0.10)
-    if routine and 'recentTemplateIds' in routine:
-        recent_templates = routine.get('recentTemplateIds', [])
-        if template_id in recent_templates:
-            score -= 0.10
-            reasons.append('recent')
-            flags.append('recently-taught')
-            logger.debug(f"Template {template_id}: recently taught (-0.10)")
-
-    # Penalty for long lessons (-0.05)
-    max_minutes = constraints.get('maxBlockMinutes', 25)
-    est_minutes = template.get('estMinutes', 0)
-    if est_minutes > max_minutes:
-        score -= 0.05
-        reasons.append('long lesson')
-        if est_minutes > max_minutes * 1.5:  # Very long lessons
-            flags.append('very-long')
-        logger.debug(f"Template {template_id}: exceeds time limit {est_minutes}>{max_minutes} (-0.05)")
-
-    # Add positive reason for short lessons (< 20 minutes)
-    if est_minutes > 0 and est_minutes <= 20:
-        reasons.append('short win')
-
-    return score, reasons, flags
+# Removed _calculate_penalty_scores function - routine data no longer used in recommendations
 
 
 def calculate_priority_score(
     template: Dict[str, Any],
     mastery_data: List[Dict[str, Any]],
-    routine_data: List[Dict[str, Any]],
     sow_data: List[Dict[str, Any]],
     sow_order: int,
     constraints: Dict[str, Any]
@@ -228,9 +254,16 @@ def calculate_priority_score(
         all_reasons = []
         all_flags = []
 
+        # Log template being processed and data matching
+        logger.info(f"[Scoring] Calculating score for template {template_id}:")
+        logger.info(f"  - Template outcomes: {outcome_refs}")
+        logger.info(f"  - SOW match: {template_id in [s.get('templateId') for s in sow_data]}")
+        logger.info(f"  - Mastery match: {template_id in [m.get('templateId') for m in mastery_data]}")
+        logger.info(f"  - SOW order: {sow_order}")
+
         # Calculate overdue bonus using simplified data
         overdue_score, overdue_reasons, overdue_flags = _calculate_overdue_score_simplified(
-            template_id, sow_data
+            template_id, sow_data, mastery_data, outcome_refs
         )
         score += overdue_score
         all_reasons.extend(overdue_reasons)
@@ -238,7 +271,7 @@ def calculate_priority_score(
 
         # Calculate mastery bonus using simplified data
         mastery_score, mastery_reasons, mastery_flags = _calculate_mastery_score_simplified(
-            template_id, mastery_data
+            template_id, mastery_data, outcome_refs
         )
         score += mastery_score
         all_reasons.extend(mastery_reasons)
@@ -249,9 +282,9 @@ def calculate_priority_score(
         score += order_score
         all_reasons.extend(order_reasons)
 
-        # Calculate penalties using simplified data
-        penalty_score, penalty_reasons, penalty_flags = _calculate_penalty_scores_simplified(
-            template, routine_data, constraints
+        # Calculate time constraint penalties only
+        penalty_score, penalty_reasons, penalty_flags = _calculate_time_constraint_penalty(
+            template, constraints
         )
         score += penalty_score
         all_reasons.extend(penalty_reasons)
@@ -260,7 +293,15 @@ def calculate_priority_score(
         # Ensure score is not negative
         score = max(0.0, score)
 
-        logger.info(f"Template {template_id}: final score {score:.2f}, reasons: {all_reasons}")
+        # Log final score breakdown
+        logger.info(f"[Scoring] Template {template_id} final breakdown:")
+        logger.info(f"  - Overdue score: +{overdue_score:.2f}")
+        logger.info(f"  - Mastery score: +{mastery_score:.2f}")
+        logger.info(f"  - Order score: +{order_score:.2f}")
+        logger.info(f"  - Penalty score: {penalty_score:.2f}")
+        logger.info(f"  - FINAL SCORE: {score:.2f}")
+        logger.info(f"  - Reasons: {all_reasons}")
+        logger.info(f"  - Flags: {all_flags}")
 
         return {
             'priorityScore': round(score, 2),
@@ -290,7 +331,7 @@ def create_lesson_candidates(
         templates = context.get('templates', [])
         sow_data = context.get('sow', [])
         mastery_data = context.get('mastery', [])
-        routine_data = context.get('routine', [])
+        # Removed routine_data - keeping spaced repetition separate from recommendations
         constraints = context.get('constraints', {})
 
         if not templates:
@@ -301,9 +342,10 @@ def create_lesson_candidates(
         sow_order_lookup = {}
         for entry in sow_data:
             template_id = entry.get('templateId')
-            week = entry.get('week', 999)  # Use week as order, default high if missing
+            # Use 'order' field directly, not 'week'
+            order = entry.get('order', 999)  # Use order field, default high if missing
             if template_id:
-                sow_order_lookup[template_id] = week
+                sow_order_lookup[template_id] = order
 
         logger.info(f"Processing {len(templates)} lesson templates")
 
@@ -318,7 +360,7 @@ def create_lesson_candidates(
 
             # Calculate priority score
             score_data = calculate_priority_score(
-                template, mastery_data, routine_data, sow_data, sow_order, constraints
+                template, mastery_data, sow_data, sow_order, constraints
             )
 
             candidate = {
@@ -358,7 +400,7 @@ def generate_rubric_explanation() -> str:
     Generate human-readable explanation of scoring rubric.
     This provides transparency into the AI's decision-making process.
     """
-    return "Overdue>LowEMA>Order | -Recent -TooLong"
+    return "Overdue > Low Mastery > Early Order | -Too Long"
 
 
 def validate_scheduling_context(context: Dict[str, Any]) -> Tuple[bool, str]:

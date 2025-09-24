@@ -4,10 +4,30 @@ from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 import os
 import logging
+import json
 from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
+
+
+def parse_outcome_refs(outcome_refs_data):
+    """Parse outcomeRefs - extracts titles for display in prompts"""
+    if isinstance(outcome_refs_data, str):
+        try:
+            parsed = json.loads(outcome_refs_data)
+            # If it's objects, extract titles for prompt display
+            if parsed and isinstance(parsed[0], dict):
+                return [ref.get('title', '') for ref in parsed]
+            return parsed
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse outcomeRefs JSON: {outcome_refs_data}")
+            return []
+    elif isinstance(outcome_refs_data, list):
+        if outcome_refs_data and isinstance(outcome_refs_data[0], dict):
+            return [ref.get('title', '') for ref in outcome_refs_data]
+        return outcome_refs_data
+    return []
 
 
 class EvaluationResponse(BaseModel):
@@ -287,7 +307,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = await self.llm.ainvoke(
                 self.lesson_greeting_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     student_name=student_name
                 )
             )
@@ -431,7 +451,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.lesson_greeting_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     student_name=student_name
                 )
             )
@@ -696,7 +716,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.greeting_with_first_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
@@ -725,7 +745,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.greeting_with_first_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
@@ -766,7 +786,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.greeting_with_first_mcq_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])]),
+                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
@@ -915,7 +935,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         try:
             # Format lesson details
             lesson_title = lesson_snapshot.get("title", "Math Lesson")
-            outcome_refs = ", ".join([ref["label"] for ref in lesson_snapshot.get("outcomeRefs", [])])
+            outcome_refs = ", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", [])))
             cards = lesson_snapshot.get("cards", [])
             total_cards = len(cards)
             cards_completed = len([card for card in cards])

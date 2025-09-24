@@ -57,7 +57,7 @@ export function SignupForm() {
         throw new Error(data.error || 'Signup failed');
       }
 
-      router.push('/chat');
+      router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

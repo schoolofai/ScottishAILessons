@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionClient, appwriteConfig } from "@/lib/appwrite/server";
+import { EvidenceDriver } from "@/lib/appwrite/driver/EvidenceDriver";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,30 +19,33 @@ export async function POST(request: NextRequest) {
 
     const { account, databases } = createSessionClient(sessionId);
     const user = await account.get();
-    
+
+    // Initialize evidence driver
+    const evidenceDriver = new EvidenceDriver(databases);
+
     // Get lesson session
     const lessonSession = await databases.getDocument(
       'default',
       'sessions',
       lessonSessionId
     );
-    
+
     // For MVP, we'll do simple deterministic marking
     // Later this will call LangGraph
-    
-    // Record evidence
-    const evidence = await databases.createDocument(
-      'default',
-      'evidence',
-      `${lessonSessionId}_${event.itemId}_${Date.now()}`,
-      {
-        sessionId: lessonSessionId,
-        itemId: event.itemId,
-        response: event.value,
-        correct: false // Will be determined by LangGraph
-      },
-      [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
-    );
+
+    // Record evidence using enhanced driver
+    const evidenceData = {
+      sessionId: lessonSessionId,
+      itemId: event.itemId,
+      attemptIndex: 0, // Default for first attempt
+      response: event.value,
+      correct: false, // Will be determined by LangGraph
+      score: 0, // Will be determined by LangGraph
+      outcomeScores: {}, // Will be filled by LangGraph
+      submittedAt: new Date().toISOString()
+    };
+
+    const evidence = await evidenceDriver.recordEnhancedEvidence(evidenceData);
 
     return NextResponse.json({ 
       success: true,

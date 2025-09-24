@@ -325,3 +325,5 @@ ScottishAILessons/
 - always use playwright mcp tool to mannually test after every code change
 - can you rememeber to call @langgraph-agent/stop.sh that stops the front end and the back end and then use @langgraph-agent/start.sh so we dont get port aleady in use issue.
 - when application is not starting run @langgraph-agent/stop.sh and then @langgraph-agent/start.sh again - there is no need to check ports etc. just restart
+- the graph to use is @langgraph-agent/src/agent/graph_interrupt.py as it is pointed to by @langgraph-agent/langgraph.json do not use @langgraph-agent/src/agent/graph.py as this is only an example.
+- always check the entry point for the langgraph agent from @langgraph-agent/langgraph.json do not assume the graph to use for testing

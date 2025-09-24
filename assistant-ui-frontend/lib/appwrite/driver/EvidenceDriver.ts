@@ -2,6 +2,18 @@ import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { Evidence, EvidenceData } from '../types';
 
+export interface EnhancedEvidenceData {
+  sessionId: string;
+  itemId: string;
+  attemptIndex: number;
+  response: string;
+  correct: boolean;
+  score: number;
+  outcomeScores: { [outcomeId: string]: number };
+  submittedAt: string;
+  feedback?: string;
+}
+
 /**
  * Evidence driver handling student response recording and retrieval
  */
@@ -11,11 +23,12 @@ export class EvidenceDriver extends BaseDriver {
    */
   async recordEvidence(evidenceData: EvidenceData): Promise<Evidence> {
     try {
-      const user = await this.getCurrentUser();
-      const permissions = this.createUserPermissions(user.$id);
-      
-      return await this.create<Evidence>('evidence', evidenceData, permissions);
+      console.log('[EvidenceDriver] Recording evidence:', evidenceData);
+
+      // No need to get user or set permissions since evidence has documentSecurity: false
+      return await this.create<Evidence>('evidence', evidenceData);
     } catch (error) {
+      console.error('[EvidenceDriver] Record evidence failed:', error);
       throw this.handleError(error, 'record evidence');
     }
   }
@@ -226,26 +239,214 @@ export class EvidenceDriver extends BaseDriver {
    */
   async batchRecordEvidence(evidenceList: EvidenceData[]): Promise<Evidence[]> {
     try {
-      const user = await this.getCurrentUser();
-      const permissions = this.createUserPermissions(user.$id);
+      console.log('[EvidenceDriver] Starting batch evidence recording for', evidenceList.length, 'records');
+      console.log('[EvidenceDriver] Sample evidence data:', evidenceList[0]);
+
+      // No need to get user or set permissions since evidence has documentSecurity: false
       const results: Evidence[] = [];
 
       // Process in batches to avoid overwhelming the database
       const batchSize = 10;
       for (let i = 0; i < evidenceList.length; i += batchSize) {
         const batch = evidenceList.slice(i, i + batchSize);
+        console.log(`[EvidenceDriver] Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(evidenceList.length/batchSize)}:`, batch.length, 'records');
 
-        const batchPromises = batch.map(evidenceData =>
-          this.create<Evidence>('evidence', evidenceData, permissions)
-        );
+        const batchPromises = batch.map(async (evidenceData, index) => {
+          try {
+            console.log(`[EvidenceDriver] Creating evidence record ${index + 1}:`, evidenceData);
+            const result = await this.create<Evidence>('evidence', evidenceData);
+            console.log(`[EvidenceDriver] Successfully created evidence record ${index + 1} with ID:`, result.$id);
+            return result;
+          } catch (error) {
+            console.error(`[EvidenceDriver] Failed to create evidence record ${index + 1}:`, evidenceData, error);
+            throw error; // Don't silently fail individual records
+          }
+        });
 
         const batchResults = await Promise.all(batchPromises);
         results.push(...batchResults);
+        console.log(`[EvidenceDriver] Batch ${Math.floor(i/batchSize) + 1} completed successfully`);
       }
 
+      console.log('[EvidenceDriver] All evidence records created successfully. Total:', results.length);
       return results;
     } catch (error) {
+      console.error('[EvidenceDriver] Batch record evidence failed:', error);
       throw this.handleError(error, 'batch record evidence');
+    }
+  }
+
+  // === Enhanced Evidence Methods (New Fields) ===
+
+  /**
+   * Record enhanced evidence with new fields (attemptIndex, score, outcomeScores, submittedAt)
+   */
+  async recordEnhancedEvidence(evidenceData: EnhancedEvidenceData): Promise<any> {
+    try {
+      console.log('[EvidenceDriver] Recording enhanced evidence:', evidenceData);
+
+      // No need to get user or set permissions since evidence has documentSecurity: false
+      const docData = {
+        sessionId: evidenceData.sessionId,
+        itemId: evidenceData.itemId,
+        attemptIndex: evidenceData.attemptIndex,
+        response: evidenceData.response,
+        correct: evidenceData.correct,
+        score: evidenceData.score,
+        outcomeScores: JSON.stringify(evidenceData.outcomeScores),
+        submittedAt: evidenceData.submittedAt,
+        feedback: evidenceData.feedback
+      };
+
+      return await this.create('evidence', docData);
+    } catch (error) {
+      console.error('[EvidenceDriver] Record enhanced evidence failed:', error);
+      throw this.handleError(error, 'record enhanced evidence');
+    }
+  }
+
+  /**
+   * Get evidence with enhanced fields
+   */
+  async getEnhancedEvidence(evidenceId: string): Promise<EnhancedEvidenceData | null> {
+    try {
+      const evidence = await this.get('Evidence', evidenceId);
+
+      return {
+        sessionId: evidence.sessionId,
+        itemId: evidence.itemId,
+        attemptIndex: evidence.attemptIndex || 0,
+        response: evidence.response,
+        correct: evidence.correct,
+        score: evidence.score || (evidence.correct ? 1 : 0),
+        outcomeScores: JSON.parse(evidence.outcomeScores || '{}'),
+        submittedAt: evidence.submittedAt || evidence.timestamp || evidence.$createdAt,
+        feedback: evidence.feedback
+      };
+    } catch (error) {
+      throw this.handleError(error, 'get enhanced evidence');
+    }
+  }
+
+  /**
+   * Get evidence for session with enhanced data
+   */
+  async getSessionEnhancedEvidence(sessionId: string): Promise<EnhancedEvidenceData[]> {
+    try {
+      const evidenceList = await this.list('Evidence', [
+        Query.equal('sessionId', sessionId),
+        Query.orderAsc('attemptIndex'),
+        Query.orderAsc('submittedAt')
+      ]);
+
+      return evidenceList.map(evidence => ({
+        sessionId: evidence.sessionId,
+        itemId: evidence.itemId,
+        attemptIndex: evidence.attemptIndex || 0,
+        response: evidence.response,
+        correct: evidence.correct,
+        score: evidence.score || (evidence.correct ? 1 : 0),
+        outcomeScores: JSON.parse(evidence.outcomeScores || '{}'),
+        submittedAt: evidence.submittedAt || evidence.timestamp || evidence.$createdAt,
+        feedback: evidence.feedback
+      }));
+    } catch (error) {
+      throw this.handleError(error, 'get session enhanced evidence');
+    }
+  }
+
+  /**
+   * Get outcome scores aggregated across all evidence for a session
+   */
+  async getSessionOutcomeScores(sessionId: string): Promise<{ [outcomeId: string]: number[] }> {
+    try {
+      const evidenceList = await this.getSessionEnhancedEvidence(sessionId);
+      const outcomeScores: { [outcomeId: string]: number[] } = {};
+
+      evidenceList.forEach(evidence => {
+        Object.entries(evidence.outcomeScores).forEach(([outcomeId, score]) => {
+          if (!outcomeScores[outcomeId]) {
+            outcomeScores[outcomeId] = [];
+          }
+          outcomeScores[outcomeId].push(score);
+        });
+      });
+
+      return outcomeScores;
+    } catch (error) {
+      throw this.handleError(error, 'get session outcome scores');
+    }
+  }
+
+  /**
+   * Calculate average outcome scores for EMA updates
+   */
+  async calculateOutcomeAverages(sessionId: string): Promise<{ [outcomeId: string]: number }> {
+    try {
+      const outcomeScores = await this.getSessionOutcomeScores(sessionId);
+      const averages: { [outcomeId: string]: number } = {};
+
+      Object.entries(outcomeScores).forEach(([outcomeId, scores]) => {
+        if (scores.length > 0) {
+          const average = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+          averages[outcomeId] = Math.max(0, Math.min(1, average)); // Clamp to [0,1]
+        }
+      });
+
+      return averages;
+    } catch (error) {
+      throw this.handleError(error, 'calculate outcome averages');
+    }
+  }
+
+  /**
+   * Get item attempt history (all attempts for specific item)
+   */
+  async getItemAttemptHistory(sessionId: string, itemId: string): Promise<EnhancedEvidenceData[]> {
+    try {
+      const evidenceList = await this.list('Evidence', [
+        Query.equal('sessionId', sessionId),
+        Query.equal('itemId', itemId),
+        Query.orderAsc('attemptIndex')
+      ]);
+
+      return evidenceList.map(evidence => ({
+        sessionId: evidence.sessionId,
+        itemId: evidence.itemId,
+        attemptIndex: evidence.attemptIndex || 0,
+        response: evidence.response,
+        correct: evidence.correct,
+        score: evidence.score || (evidence.correct ? 1 : 0),
+        outcomeScores: JSON.parse(evidence.outcomeScores || '{}'),
+        submittedAt: evidence.submittedAt || evidence.timestamp || evidence.$createdAt,
+        feedback: evidence.feedback
+      }));
+    } catch (error) {
+      throw this.handleError(error, 'get item attempt history');
+    }
+  }
+
+  /**
+   * Update outcome scores for existing evidence
+   */
+  async updateOutcomeScores(evidenceId: string, outcomeScores: { [outcomeId: string]: number }): Promise<any> {
+    try {
+      return await this.update('Evidence', evidenceId, {
+        outcomeScores: JSON.stringify(outcomeScores)
+      });
+    } catch (error) {
+      throw this.handleError(error, 'update outcome scores');
+    }
+  }
+
+  /**
+   * Add feedback to evidence record
+   */
+  async addFeedback(evidenceId: string, feedback: string): Promise<any> {
+    try {
+      return await this.update('Evidence', evidenceId, { feedback });
+    } catch (error) {
+      throw this.handleError(error, 'add feedback');
     }
   }
 }

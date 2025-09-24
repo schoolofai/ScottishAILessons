@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import { useRouter } from "next/navigation";
@@ -96,56 +96,160 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
     });
 
     const [selectedTab, setSelectedTab] = useState("performance");
+    const [persistenceCompleted, setPersistenceCompleted] = useState(false);
     const isLoading = status.type === "executing";
 
+    // Automatically persist data when component receives completion summary
+    useEffect(() => {
+      const persistData = async () => {
+        if (persistenceCompleted) {
+          console.log('🔄 Data already persisted, skipping...');
+          return;
+        }
 
+        try {
+          const evidenceDriver = createDriver(EvidenceDriver);
+          const sessionDriver = createDriver(SessionDriver);
+          const masteryDriver = createDriver(MasteryDriver);
+
+          console.log('🚀 Auto-persisting lesson completion data...');
+          console.log(`Evidence records: ${evidence.length}, Mastery updates: ${mastery_updates.length}`);
+          console.log('📋 Session context:', { session_id, student_id, course_id });
+
+          // 1. Validate and map evidence data
+          console.log('🔍 Validating and mapping evidence data...');
+          const evidenceData = evidence.map((entry, index) => {
+            const mapped = {
+              sessionId: session_id,
+              itemId: entry.item_id,
+              response: entry.response,
+              correct: entry.correct,
+              attempts: entry.attempts,
+              confidence: entry.confidence,
+              reasoning: entry.reasoning,
+              feedback: entry.feedback,
+              timestamp: entry.timestamp
+            };
+
+            console.log(`[Evidence Debug] Entry ${index + 1}:`, {
+              original: entry,
+              mapped: mapped
+            });
+
+            // Validate required fields
+            if (!mapped.sessionId) throw new Error(`Evidence ${index + 1}: Missing sessionId`);
+            if (!mapped.itemId) throw new Error(`Evidence ${index + 1}: Missing itemId`);
+            if (mapped.response === undefined) throw new Error(`Evidence ${index + 1}: Missing response`);
+            if (mapped.correct === undefined) throw new Error(`Evidence ${index + 1}: Missing correct flag`);
+
+            return mapped;
+          });
+
+          // 2. Batch save all evidence to Appwrite
+          if (evidenceData.length > 0) {
+            console.log('📝 Starting evidence persistence...');
+            console.log('[Evidence Debug] About to call batchRecordEvidence with:', evidenceData);
+
+            const evidenceResults = await evidenceDriver.batchRecordEvidence(evidenceData);
+
+            console.log(`✅ Successfully persisted ${evidenceResults.length} evidence records`);
+            console.log('[Evidence Debug] Evidence creation results:', evidenceResults.map(r => ({ id: r.$id, itemId: r.itemId })));
+          } else {
+            console.log('⚠️ No evidence data to persist');
+          }
+
+          // 3. Convert mastery updates to MasteryV2 format and persist
+          if (mastery_updates.length > 0) {
+            console.log('🎯 Starting MasteryV2 EMA updates persistence...');
+            console.log('[Mastery Debug] Converting mastery updates to EMA format:', mastery_updates);
+
+            // Convert mastery_updates to EMA format for MasteryV2
+            const emaUpdates: { [outcomeId: string]: number } = {};
+            mastery_updates.forEach(update => {
+              emaUpdates[update.outcome_id] = update.score;
+            });
+
+            console.log('[MasteryV2 Debug] EMA updates to apply:', emaUpdates);
+
+            const masteryResult = await masteryDriver.batchUpdateEMAs(student_id, course_id, emaUpdates);
+
+            console.log('✅ Successfully updated MasteryV2 EMAs');
+            console.log('[MasteryV2 Debug] MasteryV2 update result:', {
+              studentId: masteryResult.studentId,
+              courseId: masteryResult.courseId,
+              emaByOutcome: JSON.parse(masteryResult.emaByOutcome || '{}'),
+              updatedAt: masteryResult.updatedAt
+            });
+          } else {
+            console.log('⚠️ No mastery updates to persist');
+          }
+
+          // 4. Mark session as complete
+          console.log('📊 Updating session status to complete...');
+          const sessionUpdate = {
+            endedAt: new Date().toISOString(),
+            stage: "done"
+          };
+          console.log('[Session Debug] Session update data:', sessionUpdate);
+
+          await sessionDriver.updateSession(session_id, sessionUpdate);
+          console.log('✅ Session marked as complete');
+
+          console.log('🎉 All lesson completion data auto-persisted successfully!');
+          setPersistenceCompleted(true);
+
+        } catch (error) {
+          console.error('❌ CRITICAL FAILURE: Failed to auto-persist lesson completion data:', error);
+          console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+          // Log detailed context for debugging
+          console.error('Debug context:', {
+            session_id,
+            student_id,
+            course_id,
+            evidenceCount: evidence?.length,
+            masteryCount: mastery_updates?.length,
+            evidenceSample: evidence?.[0],
+            masterySample: mastery_updates?.[0]
+          });
+
+          // Show detailed error to user
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          const errorDetails = error instanceof Error && error.stack
+            ? error.stack.split('\n').slice(0, 3).join('\n')
+            : 'No additional details available';
+
+          alert(`CRITICAL ERROR: Failed to auto-save lesson data!\n\nError: ${errorMessage}\n\nDetails: ${errorDetails}\n\nPlease screenshot this message and contact support. Your progress may not be saved.`);
+        }
+      };
+
+      // Only persist if we have valid data
+      if (session_id && student_id && course_id && evidence && mastery_updates) {
+        persistData();
+      } else {
+        console.warn('⚠️ Missing required data for auto-persistence:', {
+          session_id: !!session_id,
+          student_id: !!student_id,
+          course_id: !!course_id,
+          evidence: !!evidence,
+          mastery_updates: !!mastery_updates
+        });
+      }
+    }, [session_id, student_id, course_id, evidence, mastery_updates, persistenceCompleted, createDriver]);
 
     const handleComplete = async () => {
+      // Data already persisted automatically, just handle UI actions
+      if (!persistenceCompleted) {
+        console.warn('⚠️ Manual completion triggered but auto-persistence not complete yet');
+        return;
+      }
+
       try {
-        const evidenceDriver = createDriver(EvidenceDriver);
-        const sessionDriver = createDriver(SessionDriver);
-        const masteryDriver = createDriver(MasteryDriver);
+        console.log('🔄 Manual completion - data already persisted, handling UI actions...');
 
-        console.log('🚀 Starting lesson completion persistence...');
-        console.log(`Evidence records: ${evidence.length}, Mastery updates: ${mastery_updates.length}`);
-
-        // 1. Batch save all evidence to Appwrite for better performance
-        console.log('📝 Persisting evidence records...');
-        const evidenceData = evidence.map(entry => ({
-          sessionId: session_id,
-          itemId: entry.item_id,
-          response: entry.response,
-          correct: entry.correct,
-          attempts: entry.attempts,
-          confidence: entry.confidence,
-          reasoning: entry.reasoning,
-          feedback: entry.feedback,
-          timestamp: entry.timestamp
-        }));
-
-        if (evidenceData.length > 0) {
-          await evidenceDriver.batchRecordEvidence(evidenceData);
-          console.log(`✅ Persisted ${evidenceData.length} evidence records`);
-        }
-
-        // 2. Batch save mastery scores using MasteryDriver
-        console.log('🎯 Persisting mastery updates...');
-        if (mastery_updates.length > 0) {
-          await masteryDriver.batchUpdateMasteries(student_id, course_id, mastery_updates);
-          console.log(`✅ Persisted ${mastery_updates.length} mastery updates`);
-        }
-
-        // 3. Mark session as complete
-        console.log('📊 Updating session status...');
-        await sessionDriver.updateSession(session_id, {
-          endedAt: new Date().toISOString(),
-          stage: "done"
-        });
-
-        console.log('✅ All lesson completion data persisted successfully');
-
-        // 4. Only call tool if it's available (during interrupts)
+        // 5. Only call tool if it's available (during interrupts)
         if (typeof callTool === "function") {
+          console.log('📞 Calling completion tool...');
           callTool({
             action: "complete",
             interaction_type: "lesson_completion",
@@ -156,12 +260,32 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
         }
 
         // Navigate to dashboard after marking as complete
+        console.log('🏠 Navigating to dashboard...');
         router.push("/dashboard");
       } catch (error) {
-        console.error('❌ Failed to persist lesson completion data:', error);
-        // Still navigate but show error with more specific information
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        alert(`Warning: Failed to save lesson data (${errorMessage}). Your progress may not be saved. Please check your connection and try again.`);
+        console.error('❌ CRITICAL FAILURE: Failed to persist lesson completion data:', error);
+        console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+
+        // Log detailed context for debugging
+        console.error('Debug context:', {
+          session_id,
+          student_id,
+          course_id,
+          evidenceCount: evidence?.length,
+          masteryCount: mastery_updates?.length,
+          evidenceSample: evidence?.[0],
+          masterySample: mastery_updates?.[0]
+        });
+
+        // Show detailed error to user
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const errorDetails = error instanceof Error && error.stack
+          ? error.stack.split('\n').slice(0, 3).join('\n')
+          : 'No additional details available';
+
+        alert(`CRITICAL ERROR: Failed to save lesson data!\n\nError: ${errorMessage}\n\nDetails: ${errorDetails}\n\nPlease screenshot this message and contact support. Your progress may not be saved.`);
+
+        // Still navigate to avoid user being stuck
         router.push("/dashboard");
       }
     };
@@ -442,10 +566,10 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
             <Button
               variant="secondary"
               onClick={handleComplete}
-              disabled={isLoading}
+              disabled={isLoading || !persistenceCompleted}
               className="flex-1"
             >
-              Mark as Complete
+              {persistenceCompleted ? "Continue to Dashboard" : "Saving Progress..."}
             </Button>
 
             <Button

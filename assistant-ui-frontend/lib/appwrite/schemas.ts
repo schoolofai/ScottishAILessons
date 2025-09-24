@@ -214,7 +214,7 @@ export const CreateSessionRequestSchema = z.object({
   courseId: z.string()
     .min(1, 'Course ID is required')
     .max(20, 'Course ID is too long')
-    .regex(/^[A-Z]\d{3}[\s_]\d{2}$/, 'Course ID must match format like C844 73 or C844_73')
+    .regex(/^[A-Z]\d{3}\s\d{2}$/, 'Course ID must match format like C844 73')
     .transform(sanitizeString)
 }).strict();
 

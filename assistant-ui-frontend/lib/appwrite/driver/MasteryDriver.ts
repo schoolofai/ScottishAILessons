@@ -10,6 +10,13 @@ export interface MasteryData {
   confidence: number;
 }
 
+export interface MasteryV2Data {
+  studentId: string;
+  courseId: string;
+  emaByOutcome: { [outcomeId: string]: number };
+  updatedAt: string;
+}
+
 export interface MasteryUpdate {
   outcome_id: string;
   score: number;
@@ -22,8 +29,10 @@ export interface MasteryUpdate {
 export class MasteryDriver extends BaseDriver {
   /**
    * Create or update mastery record
+   * @deprecated Use MasteryV2 methods instead (upsertMasteryV2, batchUpdateEMAs). Will be removed in next version.
    */
   async upsertMastery(masteryData: MasteryData): Promise<Mastery> {
+    console.warn('[MasteryDriver] upsertMastery is deprecated. Use upsertMasteryV2 or updateOutcomeEMA instead.');
     try {
       const user = await this.getCurrentUser();
       const permissions = this.createUserPermissions(user.$id);
@@ -55,8 +64,10 @@ export class MasteryDriver extends BaseDriver {
 
   /**
    * Get mastery record by student and outcome
+   * @deprecated Use getOutcomeEMA from MasteryV2 instead. Will be removed in next version.
    */
   async getMasteryByOutcome(studentId: string, outcomeRef: string): Promise<Mastery | null> {
+    console.warn('[MasteryDriver] getMasteryByOutcome is deprecated. Use getOutcomeEMA instead.');
     try {
       const records = await this.list<Mastery>('mastery', [
         Query.equal('studentId', studentId),
@@ -72,8 +83,10 @@ export class MasteryDriver extends BaseDriver {
 
   /**
    * Get all mastery records for a student
+   * @deprecated Use getMasteryV2 from MasteryV2 instead. Will be removed in next version.
    */
   async getStudentMasteries(studentId: string): Promise<Mastery[]> {
+    console.warn('[MasteryDriver] getStudentMasteries is deprecated. Use getMasteryV2 instead.');
     try {
       return await this.list<Mastery>('mastery', [
         Query.equal('studentId', studentId),
@@ -101,8 +114,10 @@ export class MasteryDriver extends BaseDriver {
 
   /**
    * Batch update mastery records from backend mastery_updates
+   * @deprecated Use batchUpdateEMAs from MasteryV2 instead. Will be removed in next version.
    */
   async batchUpdateMasteries(studentId: string, courseId: string, masteryUpdates: MasteryUpdate[]): Promise<Mastery[]> {
+    console.warn('[MasteryDriver] batchUpdateMasteries is deprecated. Use batchUpdateEMAs instead.');
     try {
       const results: Mastery[] = [];
 
@@ -190,6 +205,234 @@ export class MasteryDriver extends BaseDriver {
       }
     } catch (error) {
       throw this.handleError(error, 'delete student masteries');
+    }
+  }
+
+  // === MasteryV2 Methods (Consolidated JSON Structure) ===
+
+  /**
+   * Get consolidated mastery record for student/course using MasteryV2
+   */
+  async getMasteryV2(studentId: string, courseId: string): Promise<MasteryV2Data | null> {
+    try {
+      console.log('[MasteryDriver] getMasteryV2 called:', { studentId, courseId });
+
+      const records = await this.list('MasteryV2', [
+        Query.equal('studentId', studentId),
+        Query.equal('courseId', courseId),
+        Query.limit(1)
+      ]);
+
+      console.log('[MasteryDriver] getMasteryV2 query results:', { recordCount: records.length });
+
+      if (records.length === 0) {
+        console.log('[MasteryDriver] No MasteryV2 record found');
+        return null;
+      }
+
+      const record = records[0];
+      console.log('[MasteryDriver] Raw MasteryV2 record:', record);
+
+      const parsedEmaByOutcome = JSON.parse(record.emaByOutcome || '{}');
+      console.log('[MasteryDriver] Parsed emaByOutcome:', parsedEmaByOutcome);
+
+      const result = {
+        studentId: record.studentId,
+        courseId: record.courseId,
+        emaByOutcome: parsedEmaByOutcome,
+        updatedAt: record.updatedAt
+      };
+
+      console.log('[MasteryDriver] getMasteryV2 returning:', result);
+      return result;
+    } catch (error) {
+      console.error('[MasteryDriver] getMasteryV2 failed:', {
+        studentId,
+        courseId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw this.handleError(error, 'get masteryV2');
+    }
+  }
+
+  /**
+   * Upsert consolidated mastery record using MasteryV2
+   */
+  async upsertMasteryV2(masteryData: MasteryV2Data): Promise<any> {
+    try {
+      console.log('[MasteryDriver] Upserting MasteryV2 record:', masteryData);
+
+      // No need to get user or set permissions since MasteryV2 has documentSecurity: false
+
+      // Check if record exists
+      const existing = await this.getMasteryV2(masteryData.studentId, masteryData.courseId);
+
+      const docData = {
+        studentId: masteryData.studentId,
+        courseId: masteryData.courseId,
+        emaByOutcome: JSON.stringify(masteryData.emaByOutcome),
+        updatedAt: masteryData.updatedAt
+      };
+
+      console.log('[MasteryDriver] Document data to upsert:', docData);
+
+      if (existing) {
+        // Update existing record - find by querying since we need the document ID
+        const existingRecords = await this.list('MasteryV2', [
+          Query.equal('studentId', masteryData.studentId),
+          Query.equal('courseId', masteryData.courseId),
+          Query.limit(1)
+        ]);
+
+        if (existingRecords.length > 0) {
+          console.log('[MasteryDriver] Updating existing MasteryV2 record with ID:', existingRecords[0].$id);
+          return await this.update('MasteryV2', existingRecords[0].$id, docData);
+        }
+      }
+
+      // Create new record
+      console.log('[MasteryDriver] Creating new MasteryV2 record');
+      return await this.create('MasteryV2', docData);
+    } catch (error) {
+      console.error('[MasteryDriver] Upsert MasteryV2 failed:', error);
+      throw this.handleError(error, 'upsert masteryV2');
+    }
+  }
+
+  /**
+   * Update specific outcome EMA in consolidated record
+   * Auto-creates mastery record if it doesn't exist
+   */
+  async updateOutcomeEMA(studentId: string, courseId: string, outcomeId: string, emaScore: number): Promise<any> {
+    try {
+      let existing = await this.getMasteryV2(studentId, courseId);
+
+      // Auto-create initial mastery record if none exists
+      if (!existing) {
+        existing = await this.createInitialMasteryV2(studentId, courseId, outcomeId);
+      }
+
+      const emaByOutcome = { ...existing.emaByOutcome };
+      emaByOutcome[outcomeId] = Math.max(0, Math.min(1, emaScore)); // Clamp to [0,1]
+
+      return await this.upsertMasteryV2({
+        studentId,
+        courseId,
+        emaByOutcome,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      throw this.handleError(error, 'update outcome EMA');
+    }
+  }
+
+  /**
+   * Create initial mastery record with default EMA values
+   */
+  private async createInitialMasteryV2(studentId: string, courseId: string, firstOutcomeId?: string): Promise<MasteryV2Data> {
+    try {
+      console.log('[MasteryDriver] createInitialMasteryV2 called:', { studentId, courseId, firstOutcomeId });
+
+      const initialEMAByOutcome: { [outcomeId: string]: number } = {};
+
+      // If we have a specific outcome to start with, give it a default EMA of 0.3
+      if (firstOutcomeId) {
+        initialEMAByOutcome[firstOutcomeId] = 0.3; // Default starting EMA
+        console.log('[MasteryDriver] Setting initial EMA for outcome:', firstOutcomeId, '= 0.3');
+      }
+
+      const masteryData: MasteryV2Data = {
+        studentId,
+        courseId,
+        emaByOutcome: initialEMAByOutcome,
+        updatedAt: new Date().toISOString()
+      };
+
+      console.log('[MasteryDriver] Creating initial MasteryV2 with data:', masteryData);
+
+      const result = await this.upsertMasteryV2(masteryData);
+      console.log('[MasteryDriver] Initial MasteryV2 upsert result:', result);
+
+      console.log('[MasteryDriver] createInitialMasteryV2 completed successfully');
+      return masteryData;
+    } catch (error) {
+      console.error('[MasteryDriver] createInitialMasteryV2 failed:', {
+        studentId,
+        courseId,
+        firstOutcomeId,
+        error: error.message,
+        stack: error.stack
+      });
+      throw this.handleError(error, 'create initial masteryV2');
+    }
+  }
+
+  /**
+   * Batch update multiple outcome EMAs
+   * Auto-creates mastery record if it doesn't exist
+   */
+  async batchUpdateEMAs(studentId: string, courseId: string, emaUpdates: { [outcomeId: string]: number }): Promise<any> {
+    try {
+      console.log('[MasteryDriver] batchUpdateEMAs called:', { studentId, courseId, emaUpdates });
+
+      let existing = await this.getMasteryV2(studentId, courseId);
+      console.log('[MasteryDriver] Existing MasteryV2 record:', existing ? 'Found' : 'Not found', existing);
+
+      // Auto-create initial mastery record if none exists
+      if (!existing) {
+        console.log('[MasteryDriver] No existing record, auto-creating initial MasteryV2...');
+        const firstOutcomeId = Object.keys(emaUpdates)[0];
+        existing = await this.createInitialMasteryV2(studentId, courseId, firstOutcomeId);
+        console.log('[MasteryDriver] Initial MasteryV2 created:', existing);
+      }
+
+      const emaByOutcome = { ...existing.emaByOutcome };
+      console.log('[MasteryDriver] Current EMAs before update:', emaByOutcome);
+
+      // Apply all updates
+      Object.entries(emaUpdates).forEach(([outcomeId, score]) => {
+        const clampedScore = Math.max(0, Math.min(1, score)); // Clamp to [0,1]
+        console.log(`[MasteryDriver] Updating outcome ${outcomeId}: ${score} -> ${clampedScore}`);
+        emaByOutcome[outcomeId] = clampedScore;
+      });
+
+      console.log('[MasteryDriver] Merged EMAs to upsert:', emaByOutcome);
+
+      const result = await this.upsertMasteryV2({
+        studentId,
+        courseId,
+        emaByOutcome,
+        updatedAt: new Date().toISOString()
+      });
+
+      console.log('[MasteryDriver] batchUpdateEMAs completed successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('[MasteryDriver] batchUpdateEMAs failed:', {
+        studentId,
+        courseId,
+        emaUpdates,
+        error: error.message,
+        stack: error.stack
+      });
+      throw this.handleError(error, 'batch update EMAs');
+    }
+  }
+
+  /**
+   * Get EMA score for specific outcome
+   */
+  async getOutcomeEMA(studentId: string, courseId: string, outcomeId: string): Promise<number | null> {
+    try {
+      const masteryRecord = await this.getMasteryV2(studentId, courseId);
+      if (!masteryRecord) {
+        return null;
+      }
+
+      return masteryRecord.emaByOutcome[outcomeId] || null;
+    } catch (error) {
+      throw this.handleError(error, 'get outcome EMA');
     }
   }
 }

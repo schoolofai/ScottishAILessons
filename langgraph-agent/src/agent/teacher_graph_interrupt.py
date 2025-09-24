@@ -24,6 +24,7 @@ try:
         should_use_interrupts,
         update_interrupt_history
     )
+    from .teaching_utils import parse_outcome_refs
 except ImportError:
     from agent.interrupt_state import InterruptUnifiedState
     from agent.interrupt_tools import (
@@ -34,6 +35,7 @@ except ImportError:
         should_use_interrupts,
         update_interrupt_history
     )
+    from agent.teaching_utils import parse_outcome_refs
 
 
 def _should_skip_design(state: InterruptUnifiedState) -> bool:
@@ -538,7 +540,7 @@ def _create_mastery_update(outcome: dict, score: float) -> dict:
 
 def _update_mastery_scores(lesson_snapshot: dict, state: InterruptUnifiedState, existing_updates: list) -> list:
     """Calculate and append new mastery updates based on student performance."""
-    outcome_refs = lesson_snapshot.get("outcomeRefs", [])
+    outcome_refs = parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))
     mastery_updates = existing_updates.copy()
     
     is_correct = state.get("is_correct", False)

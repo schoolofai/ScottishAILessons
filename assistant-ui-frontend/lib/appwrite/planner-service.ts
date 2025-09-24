@@ -1,6 +1,10 @@
 import { createAdminClient, createSessionClient } from './client';
 import { Query } from 'appwrite';
 import { AppwriteSDKWrapper, SDKError, SDKErrorType } from './sdk-wrapper';
+import { MasteryDriver } from './driver/MasteryDriver';
+import { RoutineDriver } from './driver/RoutineDriver';
+import { SOWDriver } from './driver/SOWDriver';
+import { EvidenceDriver } from './driver/EvidenceDriver';
 import {
   SchedulingContext,
   Course,
@@ -32,6 +36,10 @@ export class CoursePlannerService {
   private databases;
   private account;
   private sdkWrapper: AppwriteSDKWrapper;
+  private masteryDriver: MasteryDriver;
+  private routineDriver: RoutineDriver;
+  private sowDriver: SOWDriver;
+  private evidenceDriver: EvidenceDriver;
 
   constructor(sessionSecret?: string) {
     if (sessionSecret) {
@@ -51,6 +59,12 @@ export class CoursePlannerService {
       // Fallback for test environments without Appwrite config
       this.sdkWrapper = null as any;
     }
+
+    // Initialize drivers for new data structures
+    this.masteryDriver = new MasteryDriver(this.databases);
+    this.routineDriver = new RoutineDriver(this.databases);
+    this.sowDriver = new SOWDriver(this.databases);
+    this.evidenceDriver = new EvidenceDriver(this.databases);
   }
 
   async getCurrentUser() {
@@ -233,19 +247,37 @@ export class CoursePlannerService {
         throw new Error(`Invalid courseId format: ${course.courseId}. Expected format like C844 73`);
       }
 
-      // Get scheme of work entries
-      const sowResult = await this.databases.listDocuments(
-        'default',
-        'scheme_of_work',
-        [
-          Query.equal('courseId', course.courseId),
-          Query.orderAsc('order')
-        ]
-      );
-
-      const sowEntries = sowResult.documents.map(doc =>
-        transformAppwriteDocument(doc, SchemeOfWorkEntrySchema)
-      );
+      // Get scheme of work entries using new SOWV2 structure
+      let sowEntries: any[] = [];
+      try {
+        console.log('[SOW Debug] Calling getSOWForEnrollment with:', { studentId, courseId });
+        const sowData = await this.sowDriver.getSOWForEnrollment(studentId, courseId);
+        console.log('[SOW Debug] getSOWForEnrollment result:', sowData);
+        if (sowData) {
+          sowEntries = sowData.entries;
+          console.log('[SOW Debug] Extracted SOW entries:', { count: sowEntries.length, entries: sowEntries });
+        } else {
+          console.warn('[SOW Debug] No SOW found for enrollment, using empty entries');
+        }
+      } catch (error) {
+        console.warn('[SOW Debug] SOW data not available:', error.message);
+        // Fallback to old collection if new one doesn't exist yet
+        try {
+          const sowResult = await this.databases.listDocuments(
+            'default',
+            'scheme_of_work',
+            [
+              Query.equal('courseId', course.courseId),
+              Query.orderAsc('order')
+            ]
+          );
+          sowEntries = sowResult.documents.map(doc =>
+            transformAppwriteDocument(doc, SchemeOfWorkEntrySchema)
+          );
+        } catch (fallbackError) {
+          console.warn('Legacy SOW also not available:', fallbackError.message);
+        }
+      }
 
       // Get published lesson templates for this course
       const templatesResult = await this.databases.listDocuments(
@@ -311,20 +343,14 @@ export class CoursePlannerService {
         }
       }
 
-      // Get mastery data (EMA by outcome)
-      let mastery: MasteryRecord | undefined;
+      // Get mastery data (EMA by outcome) using new MasteryV2 structure
+      let mastery: any | undefined;
       try {
-        const masteryResult = await this.databases.listDocuments(
-          'default',
-          'mastery',
-          [Query.equal('studentId', studentId)]
-        );
-
-        if (masteryResult.documents.length > 0) {
-          mastery = transformAppwriteDocument(
-            masteryResult.documents[0],
-            MasteryRecordSchema
-          );
+        const masteryData = await this.masteryDriver.getMasteryV2(studentId, courseId);
+        if (masteryData) {
+          mastery = {
+            emaByOutcome: masteryData.emaByOutcome
+          };
 
           // Enhanced validation for mastery EMA values
           if (mastery.emaByOutcome) {
@@ -336,26 +362,40 @@ export class CoursePlannerService {
           }
         }
       } catch (error) {
-        console.warn('Mastery data not available:', error.message);
+        console.warn('MasteryV2 data not available:', error.message);
+        // Fully migrated to MasteryV2 - no legacy fallback needed
       }
 
-      // Get routine data (due dates by outcome)
-      let routine: RoutineRecord | undefined;
+      // Get routine data (due dates by outcome) using new structure
+      let routine: any | undefined;
       try {
-        const routineResult = await this.databases.listDocuments(
-          'default',
-          'routine',
-          [Query.equal('studentId', studentId)]
-        );
-
-        if (routineResult.documents.length > 0) {
-          routine = transformAppwriteDocument(
-            routineResult.documents[0],
-            RoutineRecordSchema
-          );
+        const routineData = await this.routineDriver.getRoutineForCourse(studentId, courseId);
+        if (routineData) {
+          routine = {
+            dueAtByOutcome: routineData.dueAtByOutcome,
+            lastTaughtAt: routineData.lastTaughtAt,
+            recentTemplateIds: [] // This will be derived from the dueAtByOutcome data
+          };
         }
       } catch (error) {
-        console.warn('Routine data not available:', error.message);
+        console.warn('Routine data not available, trying legacy:', error.message);
+        // Fallback to old collection if new one doesn't exist yet
+        try {
+          const routineResult = await this.databases.listDocuments(
+            'default',
+            'routine',
+            [Query.equal('studentId', studentId)]
+          );
+
+          if (routineResult.documents.length > 0) {
+            routine = transformAppwriteDocument(
+              routineResult.documents[0],
+              RoutineRecordSchema
+            );
+          }
+        } catch (fallbackError) {
+          console.warn('Legacy routine also not available:', fallbackError.message);
+        }
       }
 
       // Get existing planner thread
@@ -494,6 +534,48 @@ export class CoursePlannerService {
     }
   }
 
+  /**
+   * Enrich outcome reference IDs with full outcome data from course_outcomes collection
+   * @param outcomeRefIds Array of outcome document IDs
+   * @returns Array of outcome objects with $id, outcomeRef, and title fields
+   */
+  private async enrichOutcomeRefs(outcomeRefIds: string[]): Promise<Array<{$id: string, outcomeRef: string, title: string}>> {
+    if (!outcomeRefIds || outcomeRefIds.length === 0) {
+      return [];
+    }
+
+    try {
+      const enrichedOutcomes: Array<{$id: string, outcomeRef: string, title: string}> = [];
+
+      // Fetch each outcome document individually to handle failures gracefully
+      for (const outcomeId of outcomeRefIds) {
+        try {
+          const outcomeDoc = await this.databases.getDocument(
+            'default',
+            'course_outcomes',
+            outcomeId
+          );
+
+          enrichedOutcomes.push({
+            $id: outcomeDoc.$id,
+            outcomeRef: outcomeDoc.outcomeRef || '',
+            title: outcomeDoc.title || ''
+          });
+        } catch (error) {
+          console.warn(`[PlnnerService] Failed to fetch outcome ${outcomeId}:`, error);
+          // Skip invalid outcome references instead of failing the entire operation
+        }
+      }
+
+      console.log(`[PlannerService] Enriched ${enrichedOutcomes.length}/${outcomeRefIds.length} outcome references`);
+      return enrichedOutcomes;
+    } catch (error) {
+      console.error('[PlannerService] Failed to enrich outcome references:', error);
+      // Return empty array instead of failing - lesson can still be created
+      return [];
+    }
+  }
+
   async createSession(
     studentId: string,
     request: { lessonTemplateId: string; courseId: string }
@@ -514,6 +596,11 @@ export class CoursePlannerService {
       if (template.status !== 'published') {
         throw new Error('Lesson template is not published');
       }
+
+      // Enrich outcome references with full outcome data
+      const enrichedOutcomeRefs = await this.enrichOutcomeRefs(template.outcomeRefs || []);
+
+      console.log(`[PlannerService] Creating session with ${enrichedOutcomeRefs.length} enriched outcomes for template: ${template.title}`);
 
       // Generate unique thread ID for the session
       const threadId = `thread_${studentId}_${validatedRequest.courseId}_${Date.now()}`;
@@ -537,7 +624,7 @@ export class CoursePlannerService {
             courseId: validatedRequest.courseId,
             title: template.title,
             cards: template.cards || [],
-            outcomeRefs: template.outcomeRefs || [],
+            outcomeRefs: enrichedOutcomeRefs, // Use enriched outcome objects
             estMinutes: template.estMinutes,
             startedAt: now
           }), // Required field in Appwrite
