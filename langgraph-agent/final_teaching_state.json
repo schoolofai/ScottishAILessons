@@ -1,0 +1,160 @@
+{
+  "values": {
+    "messages": [
+      {
+        "content": "Let's start the lesson",
+        "additional_kwargs": {},
+        "response_metadata": {},
+        "type": "human",
+        "name": null,
+        "id": "ee2399ac-21ab-4e89-b68b-97998e01da5a",
+        "example": false
+      }
+    ],
+    "session_context": {
+      "session_id": "test-extraction-session",
+      "student_id": "test-student-123",
+      "lesson_snapshot": {
+        "courseId": "math-fractions-101",
+        "title": "Introduction to Fractions",
+        "topic": "Mathematics - Fractions",
+        "objectives": [
+          "Understand numerator and denominator",
+          "Compare simple fractions",
+          "Recognize equivalent fractions"
+        ],
+        "cards": [
+          {
+            "id": "card-1",
+            "content": "What is 2/10 simplified?",
+            "cfu": {
+              "type": "text",
+              "answer": "1/5"
+            }
+          },
+          {
+            "id": "card-2",
+            "content": "Which is larger: 3/4 or 2/3?",
+            "cfu": {
+              "type": "mcq",
+              "options": [
+                "3/4",
+                "2/3"
+              ],
+              "correct": 0
+            }
+          }
+        ]
+      }
+    },
+    "mode": "teaching",
+    "session_id": "test-extraction-session",
+    "student_id": "test-student-123",
+    "lesson_snapshot": {
+      "courseId": "math-fractions-101",
+      "title": "Introduction to Fractions",
+      "topic": "Mathematics - Fractions",
+      "objectives": [
+        "Understand numerator and denominator",
+        "Compare simple fractions",
+        "Recognize equivalent fractions"
+      ],
+      "cards": [
+        {
+          "id": "card-1",
+          "content": "What is 2/10 simplified?",
+          "cfu": {
+            "type": "text",
+            "answer": "1/5"
+          }
+        },
+        {
+          "id": "card-2",
+          "content": "Which is larger: 3/4 or 2/3?",
+          "cfu": {
+            "type": "mcq",
+            "options": [
+              "3/4",
+              "2/3"
+            ],
+            "correct": 0
+          }
+        }
+      ]
+    },
+    "student_response": "Let's start the lesson",
+    "course_id": "math-fractions-101",
+    "card_presentation_complete": false,
+    "interrupt_count": 0,
+    "interrupt_history": [],
+    "tool_response_received": false,
+    "cards_presented_via_ui": [],
+    "feedback_interactions_count": 0,
+    "can_resume_from_interrupt": true
+  },
+  "next": [
+    "teaching"
+  ],
+  "tasks": [
+    {
+      "id": "23804d98-bbfa-d7f6-d4cf-e48a8d425491",
+      "name": "teaching",
+      "path": [
+        "__pregel_pull",
+        "teaching"
+      ],
+      "error": "KeyError('id')",
+      "interrupts": [],
+      "checkpoint": {
+        "thread_id": "ed848d17-7482-4ad8-94fc-04d0c245843c",
+        "checkpoint_ns": "teaching:23804d98-bbfa-d7f6-d4cf-e48a8d425491"
+      },
+      "state": null,
+      "result": null
+    }
+  ],
+  "metadata": {
+    "host": "localhost:2024",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "connection": "keep-alive",
+    "user-agent": "langgraph-sdk-py/0.2.4",
+    "content-length": "817",
+    "content-type": "application/json",
+    "accept": "text/event-stream",
+    "cache-control": "no-store",
+    "x-request-id": "9df0235f-babd-435e-859a-213804677383",
+    "langgraph_auth_user": null,
+    "langgraph_auth_user_id": "",
+    "langgraph_auth_permissions": [],
+    "langgraph_request_id": "9df0235f-babd-435e-859a-213804677383",
+    "graph_id": "agent",
+    "assistant_id": "fe096781-5601-53d2-b2f6-0d3403f7e9ca",
+    "user_id": "",
+    "created_by": "system",
+    "run_attempt": 1,
+    "langgraph_version": "0.6.7",
+    "langgraph_api_version": "0.4.7",
+    "langgraph_plan": "developer",
+    "langgraph_host": "self-hosted",
+    "langgraph_api_url": "http://127.0.0.1:2024",
+    "run_id": "01997c93-4522-7057-afdd-a330138f78af",
+    "thread_id": "ed848d17-7482-4ad8-94fc-04d0c245843c",
+    "source": "loop",
+    "step": 2,
+    "parents": {}
+  },
+  "created_at": "2025-09-24T16:34:12.575477+00:00",
+  "checkpoint": {
+    "checkpoint_id": "1f099644-d932-69ce-8002-12b8d72bd649",
+    "thread_id": "ed848d17-7482-4ad8-94fc-04d0c245843c",
+    "checkpoint_ns": ""
+  },
+  "parent_checkpoint": {
+    "checkpoint_id": "1f099644-d92b-60de-8001-72eb80011664",
+    "thread_id": "ed848d17-7482-4ad8-94fc-04d0c245843c",
+    "checkpoint_ns": ""
+  },
+  "interrupts": [],
+  "checkpoint_id": "1f099644-d932-69ce-8002-12b8d72bd649",
+  "parent_checkpoint_id": "1f099644-d92b-60de-8001-72eb80011664"
+}

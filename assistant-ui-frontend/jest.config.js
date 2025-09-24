@@ -1,14 +1,30 @@
 module.exports = {
-  testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.test.ts'],
+  testEnvironment: 'jsdom',
+  testMatch: ['**/__tests__/**/*.test.{ts,tsx}'],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testTimeout: 30000, // 30 seconds for integration tests
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/__tests__/'
   ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(@assistant-ui|@langchain|nanoid)/)',
+  ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1'
   },
-  preset: 'ts-jest'
+  preset: 'ts-jest',
+  globals: {
+    'ts-jest': {
+      tsconfig: {
+        jsx: 'react-jsx'
+      }
+    }
+  },
+  transform: {
+    '^.+\\.(ts|tsx)$': 'ts-jest',
+    '^.+\\.(js|jsx)$': ['ts-jest', { useESM: true }]
+  },
+  extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json']
 };

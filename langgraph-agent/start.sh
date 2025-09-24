@@ -15,6 +15,7 @@ NC='\033[0m' # No Color
 
 # Store PIDs globally
 BACKEND_PID=""
+CONTEXT_CHAT_PID=""
 FRONTEND_PID=""
 
 # Function to cleanup on exit
@@ -23,10 +24,16 @@ cleanup() {
     
     # Kill backend if running
     if [ ! -z "$BACKEND_PID" ] && kill -0 $BACKEND_PID 2>/dev/null; then
-        echo -e "${YELLOW}Stopping backend server...${NC}"
+        echo -e "${YELLOW}Stopping main backend server...${NC}"
         kill $BACKEND_PID 2>/dev/null
     fi
-    
+
+    # Kill context chat backend if running
+    if [ ! -z "$CONTEXT_CHAT_PID" ] && kill -0 $CONTEXT_CHAT_PID 2>/dev/null; then
+        echo -e "${YELLOW}Stopping context chat backend server...${NC}"
+        kill $CONTEXT_CHAT_PID 2>/dev/null
+    fi
+
     # Kill frontend if running
     if [ ! -z "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
         echo -e "${YELLOW}Stopping frontend server...${NC}"
@@ -95,18 +102,68 @@ langgraph dev &> backend.log &
 BACKEND_PID=$!
 
 # Wait for backend to be ready
-echo -e "${YELLOW}Waiting for backend to start...${NC}"
+echo -e "${YELLOW}Waiting for main backend to start...${NC}"
 for i in {1..30}; do
     if curl -s http://localhost:2024/docs &> /dev/null; then
-        echo -e "${GREEN}✅ Backend is ready!${NC}"
+        echo -e "${GREEN}✅ Main backend is ready!${NC}"
         break
     fi
     if [ $i -eq 30 ]; then
-        echo -e "${RED}❌ Backend failed to start. Check backend.log for errors.${NC}"
+        echo -e "${RED}❌ Main backend failed to start. Check backend.log for errors.${NC}"
         exit 1
     fi
     sleep 1
 done
+
+# Set up context chat backend
+echo -e "${GREEN}🧠 Setting up context chat backend...${NC}"
+cd ../langgraph-generic-chat
+
+# Check if langgraph-generic-chat directory exists
+if [ ! -d "." ]; then
+    echo -e "${RED}❌ langgraph-generic-chat directory not found. Please ensure it exists.${NC}"
+    exit 1
+fi
+
+# Use the same virtual environment as main backend
+source ../venv/bin/activate
+
+# Check if .env file exists for context chat
+if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+    echo -e "${YELLOW}Creating .env file for context chat from .env.example...${NC}"
+    cp .env.example .env
+    echo -e "${YELLOW}⚠️  Please add your API keys to langgraph-generic-chat/.env file if needed${NC}"
+fi
+
+# Install context chat dependencies if needed
+if ! pip show langgraph-cli &> /dev/null; then
+    echo -e "${YELLOW}Installing context chat backend dependencies...${NC}"
+    pip install -e . "langgraph-cli[inmem]" &> ../langgraph-agent/context-chat-install.log
+    echo -e "${GREEN}✅ Context chat backend dependencies installed${NC}"
+fi
+
+# Start context chat backend server
+echo -e "${GREEN}🚀 Starting context chat backend server...${NC}"
+touch ../langgraph-agent/context-chat.log  # Create log file if it doesn't exist
+langgraph dev --host 0.0.0.0 --port 2700 &> ../langgraph-agent/context-chat.log &
+CONTEXT_CHAT_PID=$!
+
+# Wait for context chat backend to be ready
+echo -e "${YELLOW}Waiting for context chat backend to start...${NC}"
+for i in {1..30}; do
+    if curl -s http://localhost:2700/docs &> /dev/null; then
+        echo -e "${GREEN}✅ Context chat backend is ready!${NC}"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo -e "${RED}❌ Context chat backend failed to start. Check context-chat.log for errors.${NC}"
+        exit 1
+    fi
+    sleep 1
+done
+
+# Return to langgraph-agent directory for frontend setup
+cd ../langgraph-agent
 
 # Check if frontend dependencies are installed
 echo -e "${GREEN}⚛️  Setting up frontend...${NC}"
@@ -149,9 +206,12 @@ echo -e "${GREEN}🎉 Application is running!${NC}"
 echo -e "${GREEN}================================================${NC}"
 echo ""
 echo -e "${BLUE}📍 Frontend (Chat UI):${NC} http://localhost:3000"
-echo -e "${BLUE}📍 Backend API:${NC} http://localhost:2024"
-echo -e "${BLUE}📍 API Documentation:${NC} http://localhost:2024/docs"
-echo -e "${BLUE}📍 LangGraph Studio:${NC} https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024"
+echo -e "${BLUE}📍 Main Backend API:${NC} http://localhost:2024"
+echo -e "${BLUE}📍 Main API Documentation:${NC} http://localhost:2024/docs"
+echo -e "${BLUE}📍 Context Chat Backend API:${NC} http://localhost:2700"
+echo -e "${BLUE}📍 Context Chat API Documentation:${NC} http://localhost:2700/docs"
+echo -e "${BLUE}📍 LangGraph Studio (Main):${NC} https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024"
+echo -e "${BLUE}📍 LangGraph Studio (Context Chat):${NC} https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2700"
 echo ""
 
 # Open browser
@@ -177,34 +237,52 @@ fi
 echo -e "${GREEN}✅ Browser opened${NC}"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop all servers${NC}"
-echo -e "${YELLOW}Logs: backend.log, frontend.log${NC}"
+echo -e "${YELLOW}Logs: backend.log, context-chat.log, frontend.log${NC}"
 echo ""
 
 # Keep script running
 echo -e "${GREEN}Servers are running successfully!${NC}"
 echo -e "${YELLOW}To view logs in real-time, open a new terminal and run:${NC}"
-echo -e "${BLUE}  tail -f backend.log${NC}    (for backend logs)"
-echo -e "${BLUE}  tail -f frontend.log${NC}   (for frontend logs)"
+echo -e "${BLUE}  tail -f backend.log${NC}         (for main backend logs)"
+echo -e "${BLUE}  tail -f context-chat.log${NC}   (for context chat backend logs)"
+echo -e "${BLUE}  tail -f frontend.log${NC}       (for frontend logs)"
 echo ""
 echo -e "${YELLOW}The application will keep running until you press Ctrl+C${NC}"
 echo ""
 
 # Optional: Show last few lines of logs
-if [ -f "backend.log" ] && [ -f "frontend.log" ]; then
+if [ -f "backend.log" ] || [ -f "context-chat.log" ] || [ -f "frontend.log" ]; then
     echo -e "${GREEN}Recent log entries:${NC}"
-    echo -e "${BLUE}--- Backend (last 5 lines) ---${NC}"
-    tail -5 backend.log 2>/dev/null || echo "No backend logs yet"
-    echo ""
-    echo -e "${BLUE}--- Frontend (last 5 lines) ---${NC}"
-    tail -5 frontend.log 2>/dev/null || echo "No frontend logs yet"
-    echo ""
+
+    if [ -f "backend.log" ]; then
+        echo -e "${BLUE}--- Main Backend (last 3 lines) ---${NC}"
+        tail -3 backend.log 2>/dev/null || echo "No main backend logs yet"
+        echo ""
+    fi
+
+    if [ -f "context-chat.log" ]; then
+        echo -e "${BLUE}--- Context Chat Backend (last 3 lines) ---${NC}"
+        tail -3 context-chat.log 2>/dev/null || echo "No context chat backend logs yet"
+        echo ""
+    fi
+
+    if [ -f "frontend.log" ]; then
+        echo -e "${BLUE}--- Frontend (last 3 lines) ---${NC}"
+        tail -3 frontend.log 2>/dev/null || echo "No frontend logs yet"
+        echo ""
+    fi
 fi
 
 # Keep the script running
 while true; do
     # Check if processes are still running
     if ! kill -0 $BACKEND_PID 2>/dev/null; then
-        echo -e "${RED}❌ Backend server has stopped unexpectedly${NC}"
+        echo -e "${RED}❌ Main backend server has stopped unexpectedly${NC}"
+        cleanup
+        exit 1
+    fi
+    if ! kill -0 $CONTEXT_CHAT_PID 2>/dev/null; then
+        echo -e "${RED}❌ Context chat backend server has stopped unexpectedly${NC}"
         cleanup
         exit 1
     fi

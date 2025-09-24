@@ -164,6 +164,40 @@ export class SessionDriver extends BaseDriver {
   }
 
   /**
+   * Update session with context chat thread ID for separate context conversations
+   */
+  async updateContextChatThreadId(sessionId: string, contextChatThreadId: string) {
+    try {
+      await this.update('sessions', sessionId, {
+        contextChatThreadId,
+        lastMessageAt: new Date().toISOString()
+      });
+      console.log(`SessionDriver - Updated session ${sessionId} with context chat thread ID: ${contextChatThreadId}`);
+    } catch (error) {
+      throw this.handleError(error, 'update context chat thread ID');
+    }
+  }
+
+  /**
+   * Get session with both main and context chat thread information
+   */
+  async getSessionWithContextChat(sessionId: string) {
+    try {
+      const session = await this.get<Session>('sessions', sessionId);
+      return {
+        session,
+        threadId: session.threadId || undefined,
+        contextChatThreadId: session.contextChatThreadId || undefined,
+        hasExistingConversation: !!session.threadId,
+        hasExistingContextChat: !!session.contextChatThreadId,
+        lastMessageAt: session.lastMessageAt || undefined
+      };
+    } catch (error) {
+      throw this.handleError(error, 'get session with context chat');
+    }
+  }
+
+  /**
    * Update session data
    */
   async updateSession(sessionId: string, data: Partial<Session>): Promise<Session> {

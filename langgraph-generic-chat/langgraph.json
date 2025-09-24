@@ -1,0 +1,9 @@
+{
+  "$schema": "https://langgra.ph/schema.json",
+  "dependencies": ["."],
+  "graphs": {
+    "agent": "./src/react_agent/graph.py:graph",
+    "context-chat-agent": "./src/react_agent/graph.py:context_chat_agent"
+  },
+  "env": ".env"
+}

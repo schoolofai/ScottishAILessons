@@ -201,6 +201,7 @@ const Composer: FC = () => {
           rows={1}
           autoFocus
           aria-label="Message input"
+          data-testid="chat-input"
         />
         <ComposerAction />
       </ComposerPrimitive.Root>
@@ -232,6 +233,7 @@ const ComposerAction: FC = () => {
             // aui-composer-send
             className="dark:border-muted-foreground/90 border-muted-foreground/60 hover:bg-primary/75 size-8 rounded-full border"
             aria-label="Send message"
+            data-testid="chat-send"
           >
             {/* aui-composer-send-icon */}
             <ArrowUpIcon className="size-5" />
@@ -279,6 +281,7 @@ const AssistantMessage: FC = () => {
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"
+        data-testid="ai-message"
       >
         {/* aui-assistant-message-avatar */}
         <div className="ring-border bg-background col-start-1 row-start-1 flex size-8 shrink-0 items-center justify-center rounded-full ring-1">

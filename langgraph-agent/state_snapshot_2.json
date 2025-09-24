@@ -1,0 +1,93 @@
+{
+  "messages": [
+    {
+      "content": "Let's start the lesson",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": "ee2399ac-21ab-4e89-b68b-97998e01da5a",
+      "example": false
+    }
+  ],
+  "session_context": {
+    "session_id": "test-extraction-session",
+    "student_id": "test-student-123",
+    "lesson_snapshot": {
+      "courseId": "math-fractions-101",
+      "title": "Introduction to Fractions",
+      "topic": "Mathematics - Fractions",
+      "objectives": [
+        "Understand numerator and denominator",
+        "Compare simple fractions",
+        "Recognize equivalent fractions"
+      ],
+      "cards": [
+        {
+          "id": "card-1",
+          "content": "What is 2/10 simplified?",
+          "cfu": {
+            "type": "text",
+            "answer": "1/5"
+          }
+        },
+        {
+          "id": "card-2",
+          "content": "Which is larger: 3/4 or 2/3?",
+          "cfu": {
+            "type": "mcq",
+            "options": [
+              "3/4",
+              "2/3"
+            ],
+            "correct": 0
+          }
+        }
+      ]
+    }
+  },
+  "mode": "teaching",
+  "session_id": "test-extraction-session",
+  "student_id": "test-student-123",
+  "lesson_snapshot": {
+    "courseId": "math-fractions-101",
+    "title": "Introduction to Fractions",
+    "topic": "Mathematics - Fractions",
+    "objectives": [
+      "Understand numerator and denominator",
+      "Compare simple fractions",
+      "Recognize equivalent fractions"
+    ],
+    "cards": [
+      {
+        "id": "card-1",
+        "content": "What is 2/10 simplified?",
+        "cfu": {
+          "type": "text",
+          "answer": "1/5"
+        }
+      },
+      {
+        "id": "card-2",
+        "content": "Which is larger: 3/4 or 2/3?",
+        "cfu": {
+          "type": "mcq",
+          "options": [
+            "3/4",
+            "2/3"
+          ],
+          "correct": 0
+        }
+      }
+    ]
+  },
+  "student_response": "Let's start the lesson",
+  "course_id": "math-fractions-101",
+  "card_presentation_complete": false,
+  "interrupt_count": 0,
+  "interrupt_history": [],
+  "tool_response_received": false,
+  "cards_presented_via_ui": [],
+  "feedback_interactions_count": 0,
+  "can_resume_from_interrupt": true
+}

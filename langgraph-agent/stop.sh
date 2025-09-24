@@ -59,8 +59,11 @@ echo ""
 # Stop frontend server (port 3000)
 kill_by_port 3000 "Frontend server"
 
-# Stop backend server (port 2024)
-kill_by_port 2024 "LangGraph backend server"
+# Stop main backend server (port 2024)
+kill_by_port 2024 "LangGraph main backend server"
+
+# Stop context chat backend server (port 2700)
+kill_by_port 2700 "LangGraph context chat backend server"
 
 # Stop any remaining langgraph processes
 kill_by_name "langgraph" "LangGraph"
@@ -76,9 +79,10 @@ echo -e "${GREEN}============================================${NC}"
 echo ""
 
 # Clean up log files if they exist
-if [ -f "backend.log" ] || [ -f "frontend.log" ]; then
+if [ -f "backend.log" ] || [ -f "context-chat.log" ] || [ -f "frontend.log" ]; then
     echo -e "${YELLOW}Log files available:${NC}"
     [ -f "backend.log" ] && echo -e "${BLUE}  📄 backend.log${NC}"
+    [ -f "context-chat.log" ] && echo -e "${BLUE}  📄 context-chat.log${NC}"
     [ -f "frontend.log" ] && echo -e "${BLUE}  📄 frontend.log${NC}"
     echo ""
     echo -e "${YELLOW}To clean up logs, run: rm -f *.log${NC}"

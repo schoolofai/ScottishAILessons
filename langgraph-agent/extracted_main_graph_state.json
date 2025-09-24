@@ -1,0 +1,152 @@
+{
+  "values": {
+    "messages": [
+      {
+        "content": "I need help with advanced fractions",
+        "additional_kwargs": {},
+        "response_metadata": {},
+        "type": "human",
+        "name": null,
+        "id": "fd195d26-148a-4c09-adc7-8297e25488d6",
+        "example": false
+      }
+    ],
+    "session_context": {
+      "session_id": "test-state-extraction",
+      "student_id": "test-student-456",
+      "lesson_snapshot": {
+        "courseId": "math-fractions-advanced",
+        "title": "Advanced Fraction Operations",
+        "topic": "Mathematics - Fraction Operations",
+        "objectives": [
+          "Add and subtract fractions with different denominators",
+          "Multiply and divide fractions",
+          "Solve word problems involving fractions"
+        ],
+        "cards": [
+          {
+            "id": "card-1",
+            "content": "Add 1/4 + 2/3 by finding a common denominator",
+            "cfu": {
+              "type": "text",
+              "answer": "11/12"
+            }
+          },
+          {
+            "id": "card-2",
+            "content": "Solve: 3/5 \u00d7 2/7",
+            "cfu": {
+              "type": "text",
+              "answer": "6/35"
+            }
+          }
+        ]
+      }
+    },
+    "mode": "teaching",
+    "session_id": "test-state-extraction",
+    "student_id": "test-student-456",
+    "lesson_snapshot": {
+      "courseId": "math-fractions-advanced",
+      "title": "Advanced Fraction Operations",
+      "topic": "Mathematics - Fraction Operations",
+      "objectives": [
+        "Add and subtract fractions with different denominators",
+        "Multiply and divide fractions",
+        "Solve word problems involving fractions"
+      ],
+      "cards": [
+        {
+          "id": "card-1",
+          "content": "Add 1/4 + 2/3 by finding a common denominator",
+          "cfu": {
+            "type": "text",
+            "answer": "11/12"
+          }
+        },
+        {
+          "id": "card-2",
+          "content": "Solve: 3/5 \u00d7 2/7",
+          "cfu": {
+            "type": "text",
+            "answer": "6/35"
+          }
+        }
+      ]
+    },
+    "student_response": "I need help with advanced fractions",
+    "course_id": "math-fractions-advanced",
+    "card_presentation_complete": false,
+    "interrupt_count": 0,
+    "interrupt_history": [],
+    "tool_response_received": false,
+    "cards_presented_via_ui": [],
+    "feedback_interactions_count": 0,
+    "can_resume_from_interrupt": true
+  },
+  "next": [
+    "teaching"
+  ],
+  "tasks": [
+    {
+      "id": "90c9c6c4-8a2c-ec7f-e12a-07152a870441",
+      "name": "teaching",
+      "path": [
+        "__pregel_pull",
+        "teaching"
+      ],
+      "error": null,
+      "interrupts": [],
+      "checkpoint": {
+        "thread_id": "fb5ff9dc-6eec-457a-9786-64b779670b04",
+        "checkpoint_ns": "teaching:90c9c6c4-8a2c-ec7f-e12a-07152a870441"
+      },
+      "state": null,
+      "result": null
+    }
+  ],
+  "metadata": {
+    "host": "localhost:2024",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "connection": "keep-alive",
+    "user-agent": "langgraph-sdk-py/0.2.4",
+    "content-length": "853",
+    "content-type": "application/json",
+    "accept": "text/event-stream",
+    "cache-control": "no-store",
+    "x-request-id": "765f4141-9d3e-4f2f-8a4c-70718994cb5f",
+    "langgraph_auth_user": null,
+    "langgraph_auth_user_id": "",
+    "langgraph_auth_permissions": [],
+    "langgraph_request_id": "765f4141-9d3e-4f2f-8a4c-70718994cb5f",
+    "graph_id": "agent",
+    "assistant_id": "fe096781-5601-53d2-b2f6-0d3403f7e9ca",
+    "user_id": "",
+    "created_by": "system",
+    "run_attempt": 1,
+    "langgraph_version": "0.6.7",
+    "langgraph_api_version": "0.4.7",
+    "langgraph_plan": "developer",
+    "langgraph_host": "self-hosted",
+    "langgraph_api_url": "http://127.0.0.1:2024",
+    "run_id": "01997c9b-35df-7239-9b29-6b24a02e5703",
+    "thread_id": "fb5ff9dc-6eec-457a-9786-64b779670b04",
+    "source": "loop",
+    "step": 2,
+    "parents": {}
+  },
+  "created_at": "2025-09-24T16:42:52.664085+00:00",
+  "checkpoint": {
+    "checkpoint_id": "1f099658-3926-6304-8002-5209e1a4ddab",
+    "thread_id": "fb5ff9dc-6eec-457a-9786-64b779670b04",
+    "checkpoint_ns": ""
+  },
+  "parent_checkpoint": {
+    "checkpoint_id": "1f099658-391a-6266-8001-96074417cf7e",
+    "thread_id": "fb5ff9dc-6eec-457a-9786-64b779670b04",
+    "checkpoint_ns": ""
+  },
+  "interrupts": [],
+  "checkpoint_id": "1f099658-3926-6304-8002-5209e1a4ddab",
+  "parent_checkpoint_id": "1f099658-391a-6266-8001-96074417cf7e"
+}

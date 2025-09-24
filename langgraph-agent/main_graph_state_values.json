@@ -1,0 +1,85 @@
+{
+  "messages": [
+    {
+      "content": "I need help with advanced fractions",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": "fd195d26-148a-4c09-adc7-8297e25488d6",
+      "example": false
+    }
+  ],
+  "session_context": {
+    "session_id": "test-state-extraction",
+    "student_id": "test-student-456",
+    "lesson_snapshot": {
+      "courseId": "math-fractions-advanced",
+      "title": "Advanced Fraction Operations",
+      "topic": "Mathematics - Fraction Operations",
+      "objectives": [
+        "Add and subtract fractions with different denominators",
+        "Multiply and divide fractions",
+        "Solve word problems involving fractions"
+      ],
+      "cards": [
+        {
+          "id": "card-1",
+          "content": "Add 1/4 + 2/3 by finding a common denominator",
+          "cfu": {
+            "type": "text",
+            "answer": "11/12"
+          }
+        },
+        {
+          "id": "card-2",
+          "content": "Solve: 3/5 \u00d7 2/7",
+          "cfu": {
+            "type": "text",
+            "answer": "6/35"
+          }
+        }
+      ]
+    }
+  },
+  "mode": "teaching",
+  "session_id": "test-state-extraction",
+  "student_id": "test-student-456",
+  "lesson_snapshot": {
+    "courseId": "math-fractions-advanced",
+    "title": "Advanced Fraction Operations",
+    "topic": "Mathematics - Fraction Operations",
+    "objectives": [
+      "Add and subtract fractions with different denominators",
+      "Multiply and divide fractions",
+      "Solve word problems involving fractions"
+    ],
+    "cards": [
+      {
+        "id": "card-1",
+        "content": "Add 1/4 + 2/3 by finding a common denominator",
+        "cfu": {
+          "type": "text",
+          "answer": "11/12"
+        }
+      },
+      {
+        "id": "card-2",
+        "content": "Solve: 3/5 \u00d7 2/7",
+        "cfu": {
+          "type": "text",
+          "answer": "6/35"
+        }
+      }
+    ]
+  },
+  "student_response": "I need help with advanced fractions",
+  "course_id": "math-fractions-advanced",
+  "card_presentation_complete": false,
+  "interrupt_count": 0,
+  "interrupt_history": [],
+  "tool_response_received": false,
+  "cards_presented_via_ui": [],
+  "feedback_interactions_count": 0,
+  "can_resume_from_interrupt": true
+}

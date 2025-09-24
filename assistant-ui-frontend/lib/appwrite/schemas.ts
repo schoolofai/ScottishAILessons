@@ -173,6 +173,7 @@ export const SessionSchema = z.object({
   $id: IdSchema,
   studentId: IdSchema,
   threadId: IdSchema,
+  contextChatThreadId: IdSchema.optional(), // Context chat thread ID for separate context-aware conversations
   lessonTemplateId: IdSchema,
   courseId: IdSchema,
   status: z.enum(['created', 'active', 'completed', 'abandoned', 'failed']).default('created'),

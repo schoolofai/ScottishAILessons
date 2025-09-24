@@ -1,0 +1,112 @@
+{
+  "values": {
+    "messages": [
+      {
+        "content": "Start lesson",
+        "additional_kwargs": {},
+        "response_metadata": {},
+        "type": "human",
+        "name": null,
+        "id": "5216a729-936c-476e-8aed-5e30ecf5496c",
+        "example": false
+      }
+    ],
+    "session_context": {
+      "session_id": "test-123",
+      "student_id": "student-456",
+      "lesson_snapshot": {
+        "courseId": "math-101",
+        "title": "Fractions",
+        "topic": "Math",
+        "objectives": [
+          "Learn fractions"
+        ]
+      }
+    },
+    "mode": "teaching",
+    "session_id": "test-123",
+    "student_id": "student-456",
+    "lesson_snapshot": {
+      "courseId": "math-101",
+      "title": "Fractions",
+      "topic": "Math",
+      "objectives": [
+        "Learn fractions"
+      ]
+    },
+    "student_response": "Start lesson",
+    "course_id": "math-101",
+    "card_presentation_complete": false,
+    "interrupt_count": 0,
+    "interrupt_history": [],
+    "tool_response_received": false,
+    "cards_presented_via_ui": [],
+    "feedback_interactions_count": 0,
+    "can_resume_from_interrupt": true
+  },
+  "next": [
+    "teaching"
+  ],
+  "tasks": [
+    {
+      "id": "6f67c0bb-7b30-ae74-65db-d35911b84561",
+      "name": "teaching",
+      "path": [
+        "__pregel_pull",
+        "teaching"
+      ],
+      "error": null,
+      "interrupts": [],
+      "checkpoint": {
+        "thread_id": "aecb080b-03e4-4047-8f82-a2e2c9969c7e",
+        "checkpoint_ns": "teaching:6f67c0bb-7b30-ae74-65db-d35911b84561"
+      },
+      "state": null,
+      "result": null
+    }
+  ],
+  "metadata": {
+    "host": "localhost:2024",
+    "accept-encoding": "gzip, deflate, br, zstd",
+    "connection": "keep-alive",
+    "user-agent": "langgraph-sdk-py/0.2.4",
+    "content-length": "429",
+    "content-type": "application/json",
+    "accept": "text/event-stream",
+    "cache-control": "no-store",
+    "x-request-id": "08a37322-277b-4fd7-9050-a6d8842b50ef",
+    "langgraph_auth_user": null,
+    "langgraph_auth_user_id": "",
+    "langgraph_auth_permissions": [],
+    "langgraph_request_id": "08a37322-277b-4fd7-9050-a6d8842b50ef",
+    "graph_id": "agent",
+    "assistant_id": "fe096781-5601-53d2-b2f6-0d3403f7e9ca",
+    "user_id": "",
+    "created_by": "system",
+    "run_attempt": 1,
+    "langgraph_version": "0.6.7",
+    "langgraph_api_version": "0.4.7",
+    "langgraph_plan": "developer",
+    "langgraph_host": "self-hosted",
+    "langgraph_api_url": "http://127.0.0.1:2024",
+    "run_id": "01997c92-ed42-72a2-bdde-9566ab0a0a52",
+    "thread_id": "aecb080b-03e4-4047-8f82-a2e2c9969c7e",
+    "source": "loop",
+    "step": 2,
+    "parents": {}
+  },
+  "created_at": "2025-09-24T16:33:49.896824+00:00",
+  "checkpoint": {
+    "checkpoint_id": "1f099644-00ea-6cec-8002-bbfd26602dbb",
+    "thread_id": "aecb080b-03e4-4047-8f82-a2e2c9969c7e",
+    "checkpoint_ns": ""
+  },
+  "parent_checkpoint": {
+    "checkpoint_id": "1f099644-00c5-6230-8001-b8584572a19b",
+    "thread_id": "aecb080b-03e4-4047-8f82-a2e2c9969c7e",
+    "checkpoint_ns": ""
+  },
+  "interrupts": [],
+  "checkpoint_id": "1f099644-00ea-6cec-8002-bbfd26602dbb",
+  "parent_checkpoint_id": "1f099644-00c5-6230-8001-b8584572a19b"
+}
