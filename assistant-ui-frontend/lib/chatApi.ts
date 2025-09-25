@@ -63,8 +63,8 @@ export const sendMessage = async (params: {
       input: Object.keys(input).length > 0 ? input : null,
       command: params.command,
       // streamMode: ["updates"],
-      streamMode: ["messages"],
-      // streamMode: ["messages", "updates"],
+      // streamMode: ["messages"],
+      streamMode: ["messages", "updates"],
       streamSubgraphs: true ,
     }
   );

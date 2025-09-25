@@ -381,30 +381,32 @@ export function EnhancedStudentDashboard() {
       // Get final state
       const state = await langGraphClient.threads.getState(thread.thread_id);
 
-      // Extract recommendation from state
-      let courseRecommendation;
-      if (state.values?.course_recommendation) {
-        courseRecommendation = state.values.course_recommendation;
-      } else {
-        // Fallback: look in messages
-        const messages = state.values?.messages || [];
-        if (messages.length > 0) {
-          const lastMessage = messages[messages.length - 1];
-          if (lastMessage.content) {
-            try {
-              const parsed = JSON.parse(lastMessage.content);
-              if (parsed.course_recommendation) {
-                courseRecommendation = parsed.course_recommendation;
-              }
-            } catch (e) {
-              // Keep error handling but remove debug log
-            }
-          }
-        }
-      }
+      // Extract recommendation from state only - NO FALLBACKS
+      const courseRecommendation = state.values?.course_recommendation;
+
+      // Detailed logging for debugging
+      console.log('[Recommendation Extraction] State values keys:', Object.keys(state.values || {}));
+      console.log('[Recommendation Extraction] Course recommendation present:', !!courseRecommendation);
 
       if (!courseRecommendation) {
-        throw new Error('No course recommendation found in LangGraph response');
+        const errorDetails = {
+          stateKeys: Object.keys(state.values || {}),
+          stateHasCourseRec: !!state.values?.course_recommendation,
+          stateHasError: !!state.values?.error,
+          stateError: state.values?.error,
+          threadId: thread.thread_id,
+          runId: run.run_id,
+          timestamp: new Date().toISOString()
+        };
+
+        console.error('[Recommendation Extraction] FAILED - No course_recommendation in state:', errorDetails);
+
+        throw new Error(
+          `No course_recommendation found in LangGraph state. ` +
+          `Available state keys: [${Object.keys(state.values || {}).join(', ')}]. ` +
+          `Thread: ${thread.thread_id}, Run: ${run.run_id}. ` +
+          `State error: ${state.values?.error || 'none'}`
+        );
       }
 
       // Phase 4: Response Extraction Complete

@@ -8,7 +8,6 @@ based on the PRD-defined scoring rubric.
 
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
-from langchain_core.messages import AIMessage
 from .shared_state import UnifiedState
 from .course_manager_utils import (
     create_lesson_candidates,
@@ -107,31 +106,11 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
             'rubric': generate_rubric_explanation()
         }
 
-        # Create response message with both human-readable and structured content
-        top_candidate = candidates[0] if candidates else None
-        human_content = f"Generated {len(candidates)} lesson recommendations for course {course_id}"
-
-        if top_candidate:
-            human_content += f". Top recommendation: '{top_candidate['title']}' "
-            human_content += f"(score: {top_candidate['score']}, reasons: {', '.join(top_candidate['reasons'])})"
-
-        response_message = AIMessage(
-            content=human_content,
-            additional_kwargs={
-                'recommendation': recommendation,
-                'summary': summary,
-                'function_call': {
-                    'name': 'generate_course_recommendations',
-                    'arguments': json.dumps(recommendation)
-                }
-            }
-        )
-
         logger.info(f"Course Manager completed successfully. Generated {len(candidates)} candidates.")
 
+        # Return state with recommendation data only (no messages)
         return {
             **state,
-            'messages': state.get('messages', []) + [response_message],
             'course_recommendation': recommendation,
             'recommendation_summary': summary
         }
@@ -139,23 +118,15 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
     except Exception as e:
         logger.error(f"Course Manager node failed: {str(e)}", exc_info=True)
 
-        # Create error response
-        error_message = AIMessage(
-            content=f"Course Manager failed: {str(e)}",
-            additional_kwargs={
-                'error': str(e),
-                'error_type': 'course_manager_error',
-                'function_call': {
-                    'name': 'course_manager_error',
-                    'arguments': json.dumps({'error': str(e)})
-                }
-            }
-        )
-
+        # Return error state without adding messages
         return {
             **state,
-            'messages': state.get('messages', []) + [error_message],
-            'error': str(e)
+            'error': str(e),
+            'course_recommendation_error': {
+                'error': str(e),
+                'error_type': 'course_manager_error',
+                'timestamp': datetime.now().isoformat()
+            }
         }
 
 

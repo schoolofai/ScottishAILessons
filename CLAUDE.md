@@ -327,3 +327,4 @@ ScottishAILessons/
 - when application is not starting run @langgraph-agent/stop.sh and then @langgraph-agent/start.sh again - there is no need to check ports etc. just restart
 - the graph to use is @langgraph-agent/src/agent/graph_interrupt.py as it is pointed to by @langgraph-agent/langgraph.json do not use @langgraph-agent/src/agent/graph.py as this is only an example.
 - always check the entry point for the langgraph agent from @langgraph-agent/langgraph.json do not assume the graph to use for testing
+- Never use fallback pattern as it is an anti pattern and caused silent fails - always throw exceptions for failing fast and perform detailed error logging
