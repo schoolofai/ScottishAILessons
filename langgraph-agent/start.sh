@@ -145,7 +145,7 @@ fi
 # Start context chat backend server
 echo -e "${GREEN}🚀 Starting context chat backend server...${NC}"
 touch ../langgraph-agent/context-chat.log  # Create log file if it doesn't exist
-langgraph dev --host 0.0.0.0 --port 2700 &> ../langgraph-agent/context-chat.log &
+langgraph dev --port 2700 &> ../langgraph-agent/context-chat.log &
 CONTEXT_CHAT_PID=$!
 
 # Wait for context chat backend to be ready

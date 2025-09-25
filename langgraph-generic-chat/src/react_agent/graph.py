@@ -157,19 +157,7 @@ async def call_model(
     return {"messages": [response]}
 
 
-# Define context-aware graph
-
-builder = StateGraph(State, input_schema=InputState, context_schema=Context)
-
-# Define the nodes for context-aware processing
-builder.add_node("extract_context", extract_context)
-builder.add_node(call_model)
-builder.add_node("tools", ToolNode(TOOLS))
-
-# Set context extraction as entrypoint
-builder.add_edge("__start__", "extract_context")
-builder.add_edge("extract_context", "call_model")
-
+# Define routing function (used by context_chat_agent below)
 
 def route_model_output(state: State) -> Literal["__end__", "tools"]:
     """Determine the next node based on the model's output.
@@ -192,22 +180,6 @@ def route_model_output(state: State) -> Literal["__end__", "tools"]:
         return "__end__"
     # Otherwise we execute the requested actions
     return "tools"
-
-
-# Add a conditional edge to determine the next step after `call_model`
-builder.add_conditional_edges(
-    "call_model",
-    # After call_model finishes running, the next node(s) are scheduled
-    # based on the output from route_model_output
-    route_model_output,
-)
-
-# Add a normal edge from `tools` to `call_model`
-# This creates a cycle: after using tools, we always return to the model
-builder.add_edge("tools", "call_model")
-
-# Compile the builder into an executable graph
-graph = builder.compile(name="ReAct Agent")
 
 # Create context-aware chat agent as separate graph
 context_builder = StateGraph(State, input_schema=InputState, context_schema=Context)
