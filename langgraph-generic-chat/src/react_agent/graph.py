@@ -20,8 +20,12 @@ from react_agent.utils import (
     calculate_context_quality_score,
     format_recent_exchanges,
     format_student_progress,
-    format_lesson_objectives
+    format_lesson_objectives,
+    format_current_card_context,
+    format_learning_progress,
+    format_card_explainer_and_examples
 )
+from react_agent.prompts import LATEX_FORMATTING_INSTRUCTIONS
 
 # Define context extraction function
 
@@ -103,6 +107,11 @@ async def call_model(
         student_progress = format_student_progress(teaching_context.student_progress)
         lesson_objectives = format_lesson_objectives(teaching_context.lesson_snapshot)
 
+        # Format new teaching progression context
+        current_card_context = format_current_card_context(teaching_context)
+        learning_progress = format_learning_progress(teaching_context)
+        card_explainer_and_examples = format_card_explainer_and_examples(teaching_context.current_card)
+
         system_message = system_prompt.format(
             system_time=datetime.now(tz=timezone.utc).isoformat(),
             session_id=teaching_context.session_id,
@@ -112,7 +121,13 @@ async def call_model(
             current_stage=teaching_context.current_stage,
             recent_exchanges=recent_exchanges,
             student_progress=student_progress,
-            lesson_objectives=lesson_objectives
+            lesson_objectives=lesson_objectives,
+            # New context-aware fields
+            current_card_context=current_card_context,
+            learning_progress=learning_progress,
+            card_explainer_and_examples=card_explainer_and_examples,
+            # LaTeX formatting instructions
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
         )
 
     elif teaching_context and quality_score > 0.0:
@@ -124,14 +139,16 @@ async def call_model(
         system_message = system_prompt.format(
             system_time=datetime.now(tz=timezone.utc).isoformat(),
             session_id=teaching_context.session_id,
-            available_context_summary=available_context
+            available_context_summary=available_context,
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
         )
 
     else:
         # Use standard prompt with no context
         system_prompt = runtime.context.system_prompt_no_context
         system_message = system_prompt.format(
-            system_time=datetime.now(tz=timezone.utc).isoformat()
+            system_time=datetime.now(tz=timezone.utc).isoformat(),
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
         )
 
     # Get the model's response

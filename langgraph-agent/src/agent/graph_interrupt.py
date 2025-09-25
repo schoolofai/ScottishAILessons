@@ -45,12 +45,10 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
     # Initialize interrupt-related fields - NO FALLBACK
     interrupt_init = {
         "interrupt_count": state.get("interrupt_count", 0),
-        "interrupt_history": state.get("interrupt_history", []),
         "card_presentation_complete": False,
         "tool_response_received": False,
         "cards_presented_via_ui": state.get("cards_presented_via_ui", []),
-        "feedback_interactions_count": state.get("feedback_interactions_count", 0),
-        "can_resume_from_interrupt": True
+        "feedback_interactions_count": state.get("feedback_interactions_count", 0)
     }
 
     # Initialize teaching progression fields (matching graph_simple.py)
@@ -84,10 +82,19 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
         logger.info(f"Student ID: {student_info.get('$id', 'NOT_PROVIDED')}")
         logger.info(f"Available context keys: {list(session_context.keys()) if session_context else []}")
 
+        # Course manager doesn't need interrupt-related fields, but needs tool_response_received=True
+        # to prevent router from overriding mode to teaching
+        course_manager_init = {
+            "interrupt_count": 0,
+            "tool_response_received": True,  # Prevent router override
+            "cards_presented_via_ui": [],
+            "feedback_interactions_count": 0
+        }
+
         return {
             "session_context": session_context,
             "mode": mode,
-            **interrupt_init
+            **course_manager_init
         }
 
     elif session_context and isinstance(session_context, dict) and session_context.get("session_id"):
@@ -146,10 +153,10 @@ async def router_node_interrupt(state: InterruptUnifiedState) -> dict:
 
     session_context = state.get("session_context")
 
-    # Check if we have pending interrupt responses to handle
-    if state.get("user_interaction_response") and not state.get("tool_response_received", True):
-        logger.info("🔄 ROUTER: Processing pending interrupt response -> teaching")
-        # Process pending interrupt response
+    # Check if we have pending tool responses to handle
+    if not state.get("tool_response_received", True):
+        logger.info("🔄 ROUTER: Processing pending tool response -> teaching")
+        # Process pending tool response
         return {
             "mode": "teaching",
             "tool_response_received": True

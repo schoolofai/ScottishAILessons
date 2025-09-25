@@ -50,6 +50,46 @@ class TeachingContext:
     timestamp: str = ""
     """When this context was captured"""
 
+    # Teaching progression fields from main graph state
+    current_card_index: int = 0
+    """Current position in the lesson cards (0-based index)"""
+
+    current_card: Optional[Dict[str, Any]] = None
+    """Current lesson card data including question, explainer, examples"""
+
+    cards_completed: List[str] = field(default_factory=list)
+    """List of completed card IDs"""
+
+    is_correct: Optional[bool] = None
+    """Whether the student's last answer was correct"""
+
+    should_progress: Optional[bool] = None
+    """Whether the student should move to the next card"""
+
+    feedback: Optional[str] = None
+    """Generated feedback message for the student's last response"""
+
+    hint_level: int = 0
+    """Current hint level (0-3) for the current question"""
+
+    attempts: int = 0
+    """Number of attempts on the current question"""
+
+    max_attempts: int = 3
+    """Maximum attempts allowed before force progression"""
+
+    evidence: List[Dict[str, Any]] = field(default_factory=list)
+    """Performance tracking data for the current session"""
+
+    mastery_updates: List[Dict[str, Any]] = field(default_factory=list)
+    """Skill mastery changes during the session"""
+
+    stage: str = ""
+    """Teaching flow stage: design/deliver/mark/progress/done"""
+
+    should_exit: bool = False
+    """Whether the lesson has been completed"""
+
 
 @dataclass
 class InputState:

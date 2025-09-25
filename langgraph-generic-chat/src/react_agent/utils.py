@@ -82,6 +82,15 @@ def extract_teaching_context(session_context: Dict[str, Any], max_recent_exchang
         # Extract current stage - use mode for general stage awareness
         current_stage = main_state.get("current_stage", main_state.get("mode", "teaching"))
 
+        # Extract teaching progression fields
+        current_card_index = main_state.get("current_card_index", 0)
+        cards = lesson_snapshot.get("cards", [])
+        current_card = None
+
+        # Get the current card based on index
+        if isinstance(current_card_index, int) and 0 <= current_card_index < len(cards):
+            current_card = cards[current_card_index]
+
         return TeachingContext(
             session_id=session_id,
             student_id=student_id,
@@ -92,7 +101,21 @@ def extract_teaching_context(session_context: Dict[str, Any], max_recent_exchang
             lesson_snapshot=lesson_snapshot,
             recent_exchanges=recent_exchanges,
             student_progress=main_state.get("student_progress", {}),
-            timestamp=datetime.now(tz=timezone.utc).isoformat()
+            timestamp=datetime.now(tz=timezone.utc).isoformat(),
+            # Teaching progression fields
+            current_card_index=current_card_index,
+            current_card=current_card,
+            cards_completed=main_state.get("cards_completed", []),
+            is_correct=main_state.get("is_correct"),
+            should_progress=main_state.get("should_progress"),
+            feedback=main_state.get("feedback"),
+            hint_level=main_state.get("hint_level", 0),
+            attempts=main_state.get("attempts", 0),
+            max_attempts=main_state.get("max_attempts", 3),
+            evidence=main_state.get("evidence", []),
+            mastery_updates=main_state.get("mastery_updates", []),
+            stage=main_state.get("stage", ""),
+            should_exit=main_state.get("should_exit", False)
         )
 
     except (json.JSONDecodeError, KeyError, TypeError) as e:
@@ -364,3 +387,204 @@ def truncate_text(text: str, max_length: int = 200, suffix: str = "...") -> str:
         return text
 
     return text[:max_length - len(suffix)] + suffix
+
+
+def format_math_content(text: str) -> str:
+    """Convert various LaTeX formats to standard $ and $$ format.
+
+    This ensures consistency with the frontend's LaTeX rendering which expects
+    $ for inline math and $$ for display math.
+
+    Args:
+        text: Text potentially containing mathematical expressions
+
+    Returns:
+        Text with standardized LaTeX delimiters
+    """
+    if not text:
+        return text
+
+    import re
+
+    # Convert [ ... ] to $$...$$  (display math)
+    text = re.sub(r'\[\s*(.*?)\s*\]', r'$$\1$$', text)
+
+    # Convert \( ... \) to $...$ (inline math)
+    text = re.sub(r'\\\\?\(\s*(.*?)\s*\\\\?\)', r'$\1$', text)
+
+    # Convert \[ ... \] to $$...$$ (display math)
+    text = re.sub(r'\\\\?\[\s*(.*?)\s*\\\\?\]', r'$$\1$$', text)
+
+    # Convert ( ... ) patterns that look mathematical to $...$ (be conservative)
+    # Only convert if it contains obvious math symbols
+    def is_math_expression(match_text):
+        math_indicators = ['\\frac', '\\sqrt', '\\sum', '\\int', '\\lim', '\\pi', '\\theta',
+                          '\\alpha', '\\beta', '\\gamma', '\\delta', '\\epsilon',
+                          '\\cdot', '\\times', '\\div', '\\pm', '\\le', '\\ge', '\\ne',
+                          '\\text{', '\\overline', '\\underline', '^', '_']
+        return any(indicator in match_text for indicator in math_indicators)
+
+    # Convert ( ... ) to $...$ only if it contains mathematical content
+    def convert_parentheses(match):
+        content = match.group(1)
+        if is_math_expression(content):
+            return f'${content}$'
+        return match.group(0)  # Return original if not mathematical
+
+    text = re.sub(r'\(\s*([^)]*(?:\\frac|\\sqrt|\\sum|\\int|\\lim|\\pi|\\theta|\\alpha|\\beta|\\gamma|\\delta|\\epsilon|\\cdot|\\times|\\div|\\pm|\\le|\\ge|\\ne|\\text\{|\\overline|\\underline|\^|_)[^)]*)\s*\)', convert_parentheses, text)
+
+    return text
+
+
+def format_current_card_context(teaching_context: TeachingContext) -> str:
+    """Format current card/question information for prompt inclusion.
+
+    Args:
+        teaching_context: TeachingContext with current card information
+
+    Returns:
+        Formatted string with current question context
+    """
+    if not teaching_context or not teaching_context.current_card:
+        return "No current question available"
+
+    current_card = teaching_context.current_card
+    lesson_snapshot = teaching_context.lesson_snapshot
+    total_cards = len(lesson_snapshot.get("cards", [])) if lesson_snapshot else 0
+    current_index = teaching_context.current_card_index
+
+    # Extract question information
+    cfu = current_card.get("cfu", {})
+    question_stem = format_math_content(cfu.get("stem", ""))  # Format LaTeX in question
+    question_type = cfu.get("type", "unknown")
+
+    # Format question details based on type
+    question_details = []
+    if question_type == "numeric":
+        expected = cfu.get("expected")
+        tolerance = cfu.get("tolerance")
+        if expected is not None:
+            question_details.append(f"Expected answer: {expected}")
+        if tolerance is not None:
+            question_details.append(f"Tolerance: ±{tolerance}")
+    elif question_type == "mcq":
+        options = cfu.get("options", [])
+        if options:
+            question_details.append("Options:")
+            for i, option in enumerate(options):
+                question_details.append(f"  {chr(65+i)}. {option}")
+
+    formatted_parts = [
+        f"Card {current_index + 1} of {total_cards}",
+        f"Question: {question_stem}",
+        f"Type: {question_type.upper()}"
+    ]
+
+    if question_details:
+        formatted_parts.extend(question_details)
+
+    # Add attempt information
+    attempts = teaching_context.attempts
+    max_attempts = teaching_context.max_attempts
+    if attempts > 0:
+        formatted_parts.append(f"Student attempts: {attempts}/{max_attempts}")
+
+    # Add feedback if available
+    if teaching_context.feedback:
+        feedback = format_math_content(truncate_text(teaching_context.feedback, 100))
+        formatted_parts.append(f"Last feedback: {feedback}")
+
+    # Add correctness status
+    if teaching_context.is_correct is not None:
+        status = "correct" if teaching_context.is_correct else "incorrect"
+        formatted_parts.append(f"Last answer: {status}")
+
+    return "\n".join(formatted_parts)
+
+
+def format_learning_progress(teaching_context: TeachingContext) -> str:
+    """Format overall lesson progress for prompt inclusion.
+
+    Args:
+        teaching_context: TeachingContext with lesson progress information
+
+    Returns:
+        Formatted string with learning progress summary
+    """
+    if not teaching_context:
+        return "No progress information available"
+
+    lesson_snapshot = teaching_context.lesson_snapshot
+    total_cards = len(lesson_snapshot.get("cards", [])) if lesson_snapshot else 0
+    completed_cards = len(teaching_context.cards_completed)
+    current_index = teaching_context.current_card_index
+
+    progress_parts = []
+
+    # Overall progress
+    if total_cards > 0:
+        progress_pct = int((completed_cards / total_cards) * 100)
+        progress_parts.append(f"Overall progress: {completed_cards}/{total_cards} cards completed ({progress_pct}%)")
+
+    # Current position
+    if total_cards > 0:
+        progress_parts.append(f"Currently on: Card {current_index + 1} of {total_cards}")
+
+    # Completed cards
+    if teaching_context.cards_completed:
+        completed_list = ", ".join(teaching_context.cards_completed[:3])
+        if len(teaching_context.cards_completed) > 3:
+            completed_list += f" (and {len(teaching_context.cards_completed) - 3} more)"
+        progress_parts.append(f"Completed cards: {completed_list}")
+
+    # Current stage
+    if teaching_context.stage:
+        stage_description = {
+            "design": "presenting question",
+            "deliver": "waiting for student response",
+            "mark": "evaluating student answer",
+            "progress": "moving to next question",
+            "done": "lesson completed"
+        }.get(teaching_context.stage.lower(), teaching_context.stage)
+        progress_parts.append(f"Current stage: {stage_description}")
+
+    # Evidence/performance data
+    evidence_count = len(teaching_context.evidence)
+    if evidence_count > 0:
+        progress_parts.append(f"Performance data points: {evidence_count}")
+
+    return "\n".join(progress_parts) if progress_parts else "Basic lesson tracking active"
+
+
+def format_card_explainer_and_examples(current_card: Dict[str, Any]) -> str:
+    """Format the explainer and examples from current card for context.
+
+    Args:
+        current_card: Current lesson card data
+
+    Returns:
+        Formatted explanation and examples
+    """
+    if not current_card:
+        return "No explanation available"
+
+    formatted_parts = []
+
+    # Add card title if available
+    if current_card.get("title"):
+        formatted_parts.append(f"Topic: {current_card['title']}")
+
+    # Add explainer
+    if current_card.get("explainer"):
+        explainer = format_math_content(current_card['explainer'])
+        formatted_parts.append(f"Concept explanation: {explainer}")
+
+    # Add examples
+    examples = current_card.get("example", [])
+    if examples:
+        formatted_parts.append("Examples:")
+        for example in examples[:3]:  # Limit to first 3 examples
+            formatted_example = format_math_content(str(example))
+            formatted_parts.append(f"  • {formatted_example}")
+
+    return "\n".join(formatted_parts) if formatted_parts else "No detailed explanation available"
