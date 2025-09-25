@@ -19,8 +19,11 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isContextChatCollapsed, setIsContextChatCollapsed] = useState(false);
+  const [contextChatWidth, setContextChatWidth] = useState(33); // Width as percentage (1/3 = 33%)
+  const [isResizing, setIsResizing] = useState(false);
   const { createDriver } = useAppwrite();
   const threadIdRef = useRef<string | undefined>(existingThreadId);
+  const resizeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadSessionContext = async () => {
@@ -108,20 +111,20 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
       const state = await client.threads.getState(threadIdRef.current);
 
-      console.log('SessionChatAssistant - Extracted main graph state keys:', Object.keys(state.values || {}));
+      console.log('🔍 [MAIN GRAPH STATE EXTRACTION] Available state keys:', Object.keys(state.values || {}));
+      console.log('🔍 [MAIN GRAPH STATE EXTRACTION] Full state values:', state.values);
 
-      return {
-        messages: state.values.messages?.slice(-10) || [], // Last 10 messages for context
-        lesson_snapshot: state.values.lesson_snapshot,
-        current_stage: state.values.current_stage,
-        student_progress: state.values.student_progress,
-        course_id: state.values.course_id,
-        session_id: state.values.session_id,
-        student_id: state.values.student_id,
-        card_presentation_complete: state.values.card_presentation_complete,
-        interrupt_count: state.values.interrupt_count || 0,
-        mode: state.values.mode
+      // Return ALL available state fields instead of cherry-picking
+      // This ensures context chat gets complete state information
+      const fullState = {
+        ...state.values, // Spread all fields from the actual state
+        messages: Array.isArray(state.values?.messages) ? state.values.messages.slice(-10) : [], // Limit messages for context efficiency
       };
+
+      console.log('📤 [MAIN GRAPH STATE EXTRACTION] Returning complete state with fields:', Object.keys(fullState));
+      console.log('📤 [MAIN GRAPH STATE EXTRACTION] Complete state details:', fullState);
+
+      return fullState;
     } catch (error) {
       console.error('SessionChatAssistant - Failed to extract main graph state:', error);
       return null;
@@ -144,6 +147,44 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   useEffect(() => {
     threadIdRef.current = existingThreadId;
   }, [existingThreadId]);
+
+  // Handle mouse drag for resizing
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const windowWidth = window.innerWidth;
+      const mouseX = e.clientX;
+      const newWidth = ((windowWidth - mouseX) / windowWidth) * 100;
+
+      // Constrain to 20% minimum and 50% maximum
+      const constrainedWidth = Math.max(20, Math.min(50, newWidth));
+      setContextChatWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
 
   if (loading) {
     return (
@@ -180,7 +221,21 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
       {/* Context Chat Panel - Only show in layout when expanded */}
       {sessionContext && !isContextChatCollapsed && (
-        <div className="w-1/3 flex-shrink-0">
+        <div
+          className="relative flex-shrink-0"
+          style={{ width: `${contextChatWidth}%` }}
+        >
+          {/* Drag Handle */}
+          <div
+            ref={resizeRef}
+            onMouseDown={handleMouseDown}
+            className={`absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize z-10 transition-colors duration-200 ${
+              isResizing ? 'bg-blue-500' : ''
+            }`}
+            style={{ marginLeft: '-2px' }}
+            data-testid="resize-handle"
+            title="Drag to resize panel"
+          />
           <ContextChatPanel
             sessionId={sessionId}
             getMainGraphState={getMainGraphState}
@@ -192,20 +247,33 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         </div>
       )}
 
-      {/* Collapsed Chat Tab - Fixed position when collapsed */}
+      {/* Chat Bubble with Text - Fixed position when collapsed */}
       {sessionContext && isContextChatCollapsed && (
         <button
           onClick={() => setIsContextChatCollapsed(false)}
-          className="fixed top-1/2 right-0 transform -translate-y-1/2 bg-gray-200 hover:bg-gray-300 text-gray-600 hover:text-gray-800 px-2 py-4 rounded-l-lg shadow-lg z-50 transition-all duration-300"
-          aria-label="Expand context chat"
-          data-testid="context-chat-tab"
+          className="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg hover:shadow-xl z-50 transition-all duration-300 flex items-center gap-2 px-4 py-3 group"
+          aria-label="Open AI tutor assistant"
+          data-testid="context-chat-bubble"
         >
-          <div className="flex flex-col items-center">
-            <span className="text-lg font-bold">▶</span>
-            <span className="text-xs mt-1 writing-mode-vertical" style={{ writingMode: 'vertical-rl' }}>
-              Chat
-            </span>
-          </div>
+          {/* Speech bubble icon */}
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+            />
+          </svg>
+
+          {/* Call-to-action text */}
+          <span className="text-sm font-medium whitespace-nowrap">
+            Stuck? Ask Your AI Tutor
+          </span>
         </button>
       )}
     </div>

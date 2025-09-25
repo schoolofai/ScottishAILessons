@@ -88,8 +88,10 @@ export function ContextChatPanel({
         }
 
         // Extract current main graph state
+        console.log('🔄 [CONTEXT CHAT] Fetching fresh state from main graph at:', new Date().toISOString());
         const mainState = await getMainGraphState();
-        console.log('ContextChatPanel - Extracted main graph state:', mainState);
+        console.log('📊 [CONTEXT CHAT] Extracted main graph state with fields:', Object.keys(mainState || {}));
+        console.log('📊 [CONTEXT CHAT] Full extracted state:', mainState);
 
         // Prepare input matching backend integration test format
         // CRITICAL: Send DIRECT state structure, not nested under main_graph_state
@@ -112,10 +114,13 @@ export function ContextChatPanel({
           }
         };
 
-        console.log('ContextChatPanel - Sending to context-chat-agent:', {
-          threadId: threadIdRef.current,
-          input: JSON.stringify(input, null, 2)
-        });
+        console.group('📤 [CONTEXT CHAT] SENDING TO BACKEND');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('Context Chat Thread ID:', threadIdRef.current);
+        console.log('Target Agent:', "context-chat-agent");
+        console.log('Session Context Fields:', Object.keys(input.session_context || {}));
+        console.log('Complete Input Payload:', JSON.stringify(input, null, 2));
+        console.groupEnd();
 
         // Use "context-chat-agent", NOT "agent" - from backend integration tests
         return contextChatClient.current!.runs.stream(
@@ -173,20 +178,22 @@ export function ContextChatPanel({
           }`}
         >
           {!isCollapsed && (
-            <div>
-              <h3 className="font-semibold text-red-800">Learning Assistant</h3>
-              <p className="text-sm text-red-600">Service unavailable</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleCollapsed}
+                className="text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded transition-all duration-200"
+                aria-label="Collapse learning assistant"
+                aria-expanded={!isCollapsed}
+                data-testid="context-chat-toggle"
+              >
+                <span className="text-sm font-bold">&gt;&gt;</span>
+              </button>
+              <div>
+                <h3 className="font-semibold text-red-800">Learning Assistant</h3>
+                <p className="text-sm text-red-600">Service unavailable</p>
+              </div>
             </div>
           )}
-          <button
-            onClick={toggleCollapsed}
-            className="text-red-600 hover:text-red-800 font-bold text-lg"
-            aria-label={isCollapsed ? 'Expand context chat' : 'Collapse context chat'}
-            aria-expanded={!isCollapsed}
-            data-testid="context-chat-toggle"
-          >
-            {isCollapsed ? '▶' : '◀'}
-          </button>
         </div>
 
         {!isCollapsed && (
@@ -235,26 +242,22 @@ export function ContextChatPanel({
         data-testid="context-chat-header"
       >
         {!isCollapsed && (
-          <div>
-            <h3 className="font-semibold text-gray-800">Learning Assistant</h3>
-            <p className="text-sm text-gray-600">Ask questions about your lesson</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleCollapsed}
+              className="text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-2 py-1 rounded transition-all duration-200"
+              aria-label="Collapse learning assistant"
+              aria-expanded={!isCollapsed}
+              data-testid="context-chat-toggle"
+            >
+              <span className="text-sm font-bold">&gt;&gt;</span>
+            </button>
+            <div>
+              <h3 className="font-semibold text-gray-800">Learning Assistant</h3>
+              <p className="text-sm text-gray-600">Ask questions about your lesson</p>
+            </div>
           </div>
         )}
-        <button
-          onClick={toggleCollapsed}
-          className={`text-gray-600 hover:text-gray-800 font-bold text-lg ${
-            isCollapsed ? 'rotate-0' : ''
-          }`}
-          style={{
-            transform: isCollapsed ? 'rotate(0deg)' : 'rotate(0deg)',
-            transition: 'transform 0.3s ease-in-out'
-          }}
-          aria-label={isCollapsed ? 'Expand context chat' : 'Collapse context chat'}
-          aria-expanded={!isCollapsed}
-          data-testid="context-chat-toggle"
-        >
-          {isCollapsed ? '▶' : '◀'}
-        </button>
       </div>
 
       {/* Chat content */}

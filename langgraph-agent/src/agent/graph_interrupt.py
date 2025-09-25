@@ -53,6 +53,22 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
         "can_resume_from_interrupt": True
     }
 
+    # Initialize teaching progression fields (matching graph_simple.py)
+    teaching_init = {
+        "current_stage": "design",
+        "current_card_index": 0,
+        "attempts": 0,
+        "max_attempts": 3,
+        "evidence": [],
+        "cards_completed": [],
+        "hint_level": 0,
+        "is_correct": None,
+        "should_progress": None,
+        "feedback": None,
+        "mastery_updates": [],
+        "should_exit": False
+    }
+
     print(f"🚨 INTERRUPT DEBUG - entry_node_interrupt initialized with session_context: {bool(session_context)}")
 
     # Determine mode based on session context
@@ -105,9 +121,11 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
             "session_id": session_context.get("session_id", ""),
             "student_id": session_context.get("student_id", ""),
             "course_id": course_id,  # Extract from lesson_snapshot.courseId
+            "lesson_template_id": lesson_snapshot.get("lessonTemplateId", "") if lesson_snapshot else "",
             "lesson_snapshot": lesson_snapshot,
             "student_response": student_input,
-            **interrupt_init
+            **interrupt_init,  # Interrupt fields
+            **teaching_init    # Teaching progression fields
         }
     else:
         logger.info("💬 CHAT MODE DETECTED (default)")
