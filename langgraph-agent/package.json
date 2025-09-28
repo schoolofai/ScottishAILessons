@@ -1,0 +1,17 @@
+{
+  "name": "langgraph-agent-test",
+  "version": "1.0.0",
+  "description": "Test scripts for LangGraph agent using matching SDK versions",
+  "main": "test_langgraph_connection.js",
+  "scripts": {
+    "test": "node test_langgraph_connection.js",
+    "test-python": "python test_langgraph_connection.py"
+  },
+  "dependencies": {
+    "@langchain/langgraph-sdk": "^0.0.105",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": ["langgraph", "test", "sdk", "streaming"],
+  "author": "LangGraph Agent Test Suite",
+  "license": "MIT"
+}

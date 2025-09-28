@@ -92,6 +92,32 @@ class TeachingContext:
 
 
 @dataclass
+class DynamicLessonContext:
+    """Current lesson interaction context from UI tool (real-time).
+
+    This represents the current card being presented to the student,
+    captured directly from the LessonCardPresentationTool when it renders.
+    This provides deterministic context that works even when the main
+    teaching graph is interrupted.
+    """
+
+    card_data: Dict[str, Any] = field(default_factory=dict)
+    """Current card data including question, explainer, examples, CFU details"""
+
+    card_index: int = 0
+    """Current card position (0-based index)"""
+
+    total_cards: int = 0
+    """Total number of cards in the lesson"""
+
+    interaction_state: str = "unknown"
+    """Current interaction state: 'presenting', 'evaluating', 'completed'"""
+
+    lesson_context: Optional[Dict[str, Any]] = None
+    """Lesson context from the tool including title, student name, progress"""
+
+
+@dataclass
 class InputState:
     """Defines the input state for the agent, representing a narrower interface to the outside world.
 
@@ -118,16 +144,40 @@ class InputState:
     updating by ID to maintain an "append-only" state unless a message with the same ID is provided.
     """
 
-    session_context: Optional[Dict[str, Any]] = None
+    static_context: Optional[Dict[str, Any]] = None
     """
-    Optional session context from frontend containing teaching session information.
+    Static session context provided at conversation start.
 
-    When provided, contains:
+    Contains immutable session data:
     - session_id, student_id: identifiers
     - lesson_snapshot: current lesson details
-    - main_graph_state: extracted teaching thread state
+    - mode: conversation mode (teaching, chat, etc.)
 
-    This enables context-aware responses based on current learning state.
+    This provides baseline context that doesn't change during graph interrupts.
+    """
+
+    dynamic_context: Optional[DynamicLessonContext] = None
+    """
+    Dynamic lesson context from UI tool interactions (real-time).
+
+    Contains current lesson card presentation data:
+    - card_data: current card content and structure
+    - card_index: current position in lesson
+    - interaction_state: presenting/evaluating/completed
+    - lesson_context: UI-level lesson metadata
+
+    This provides deterministic context even when main teaching graph is interrupted.
+    Populated by LessonCardPresentationTool via CurrentCardContext.
+    """
+
+    # DEPRECATED: Legacy session_context field for backward compatibility
+    session_context: Optional[Dict[str, Any]] = None
+    """
+    DEPRECATED: Legacy session context field.
+
+    Use static_context and dynamic_context for new implementations.
+    This field is maintained for backward compatibility with existing code
+    that hasn't been migrated to the dual-source context pattern.
     """
 
 
@@ -149,19 +199,38 @@ class State(InputState):
 
     teaching_context: Optional[TeachingContext] = None
     """
-    Processed teaching context extracted from session_context.
+    Processed teaching context extracted from static_context.
 
     This is populated by the context extraction node and contains
     structured information about the current lesson, student progress,
-    and recent learning interactions.
+    and recent learning interactions from the initial session data.
     """
 
+    processed_dynamic_context: Optional[Dict[str, Any]] = None
+    """
+    Processed dynamic context from current UI tool interactions.
+
+    Contains structured information about the current lesson card
+    being presented, including question type, progress, and interaction state.
+    This provides real-time context that works even when main graph is interrupted.
+    """
+
+    context_fusion_metadata: Dict[str, Any] = field(default_factory=dict)
+    """
+    Metadata about how static and dynamic contexts were combined.
+
+    Tracks context quality, timestamp differences, consistency checks,
+    and any detected discrepancies between static and dynamic data sources.
+    """
+
+    # DEPRECATED: Legacy main graph state field
     main_graph_state: Optional[Dict[str, Any]] = None
     """
-    Raw main graph state extracted from session_context.
+    DEPRECATED: Raw main graph state extracted from session_context.
 
-    Contains the complete state from the teaching thread for
-    detailed context processing and debugging.
+    This field is deprecated because it contains stale data when the main
+    teaching graph is in interrupted state. Use dynamic_context instead
+    for accurate current lesson state.
     """
 
     search_results: List[Dict[str, Any]] = field(default_factory=list)
@@ -174,15 +243,27 @@ class State(InputState):
 
     context_processed: bool = field(default=False)
     """
-    Flag indicating whether context processing has been completed.
+    Flag indicating whether dual-source context processing has been completed.
 
     Used by the graph to track processing state and avoid
-    redundant context extraction operations.
+    redundant context extraction operations for both static and dynamic sources.
     """
 
-    # Context-aware processing metadata
-    context_extraction_timestamp: Optional[str] = None
-    """Timestamp when context was last extracted and processed"""
+    # Dual-source context processing metadata
+    static_context_timestamp: Optional[str] = None
+    """Timestamp when static context was extracted from initial session data"""
+
+    dynamic_context_timestamp: Optional[str] = None
+    """Timestamp when dynamic context was last updated from UI tool"""
 
     context_quality_score: float = field(default=0.0)
-    """Quality score of available context (0.0 = no context, 1.0 = rich context)"""
+    """Combined quality score of available context (0.0 = no context, 1.0 = rich dual-source context)"""
+
+    static_context_quality: float = field(default=0.0)
+    """Quality score of static session context (0.0 = no static context, 1.0 = complete session data)"""
+
+    dynamic_context_quality: float = field(default=0.0)
+    """Quality score of dynamic card context (0.0 = no card context, 1.0 = complete card data)"""
+
+    context_consistency_score: float = field(default=1.0)
+    """Consistency score between static and dynamic contexts (0.0 = inconsistent, 1.0 = perfectly aligned)"""

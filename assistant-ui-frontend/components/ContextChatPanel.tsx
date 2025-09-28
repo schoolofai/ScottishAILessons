@@ -6,10 +6,10 @@ import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 import { Client } from "@langchain/langgraph-sdk";
 import { Thread } from "./assistant-ui/thread";
 import { SessionContext } from "./MyAssistant";
+import { useCurrentCardData } from "@/contexts/CurrentCardContext";
 
 interface ContextChatPanelProps {
   sessionId: string;
-  getMainGraphState: () => Promise<any>;
   sessionContext?: SessionContext;
   existingContextThreadId?: string; // Existing context chat thread ID from session
   onThreadCreated?: (threadId: string) => void; // Callback when new context thread is created
@@ -18,7 +18,6 @@ interface ContextChatPanelProps {
 
 export function ContextChatPanel({
   sessionId,
-  getMainGraphState,
   sessionContext,
   existingContextThreadId,
   onThreadCreated,
@@ -28,6 +27,9 @@ export function ContextChatPanel({
   const [threadId, setThreadId] = useState<string | undefined>(existingContextThreadId);
   const [error, setError] = useState<string | null>(null);
   const threadIdRef = useRef<string | undefined>(existingContextThreadId);
+
+  // Get current card data for dual-source context (replaces getMainGraphState)
+  const currentCardData = useCurrentCardData();
 
   // Context chat client - Port 2700 from backend integration tests
   const contextChatClient = useRef<Client>();
@@ -87,31 +89,27 @@ export function ContextChatPanel({
           }
         }
 
-        // Extract current main graph state
-        console.log('🔄 [CONTEXT CHAT] Fetching fresh state from main graph at:', new Date().toISOString());
-        const mainState = await getMainGraphState();
-        console.log('📊 [CONTEXT CHAT] Extracted main graph state with fields:', Object.keys(mainState || {}));
-        console.log('📊 [CONTEXT CHAT] Full extracted state:', mainState);
+        // DUAL-SOURCE CONTEXT: Static session data + Dynamic current card
+        console.log('🎯 [CONTEXT CHAT] Using dual-source context at:', new Date().toISOString());
+        console.log('📊 [STATIC CONTEXT] Session data:', sessionContext?.session_id);
+        console.log('📊 [DYNAMIC CONTEXT] Current card:', currentCardData?.card_index, currentCardData?.interaction_state);
 
-        // Prepare input matching backend integration test format
-        // CRITICAL: Send DIRECT state structure, not nested under main_graph_state
+        // Prepare input with dual-source context (NO dependency on getMainGraphState)
         const input = {
           messages,
-          session_context: {
-            // Direct main graph state fields (from integration tests)
-            session_id: sessionContext?.session_id || sessionId,
-            student_id: sessionContext?.student_id || "",
-            course_id: mainState?.course_id || sessionContext?.lesson_snapshot?.courseId || "",
-            mode: "teaching",
-            lesson_snapshot: sessionContext?.lesson_snapshot || {},
-            messages: mainState?.messages?.slice(-10) || [], // Last 10 messages for context
-            current_stage: mainState?.current_stage || "unknown",
-            student_progress: mainState?.student_progress || {},
-            card_presentation_complete: false,
-            interrupt_count: 0,
-            // Include other direct fields from main graph state
-            ...mainState
-          }
+          static_context: sessionContext ? {
+            session_id: sessionContext.session_id,
+            student_id: sessionContext.student_id,
+            lesson_snapshot: sessionContext.lesson_snapshot,
+            mode: "teaching"
+          } : null,
+          dynamic_context: currentCardData ? {
+            card_data: currentCardData.card_data,
+            card_index: currentCardData.card_index,
+            total_cards: currentCardData.total_cards,
+            interaction_state: currentCardData.interaction_state,
+            lesson_context: currentCardData.lesson_context
+          } : null
         };
 
         console.group('📤 [CONTEXT CHAT] SENDING TO BACKEND');

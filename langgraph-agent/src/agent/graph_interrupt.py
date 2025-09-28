@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
+async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Entry point that processes input and sets up initial state with interrupt support.
 
     This node receives the initial input from the client which may contain
@@ -144,7 +144,7 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> dict:
         }
 
 
-async def router_node_interrupt(state: InterruptUnifiedState) -> dict:
+async def router_node_interrupt(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Route to appropriate handler based on context with interrupt awareness."""
     logger.info("=== ROUTER NODE INTERRUPT START ===")
 
@@ -187,7 +187,7 @@ async def router_node_interrupt(state: InterruptUnifiedState) -> dict:
             return {"mode": "chat"}
 
 
-async def chat_node_interrupt(state: InterruptUnifiedState) -> dict:
+async def chat_node_interrupt(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Process chat messages and generate responses with optional interrupts.
     
     This maintains the same functionality as the original chat node but could

@@ -6,6 +6,7 @@ import { useAppwrite, SessionDriver } from "@/lib/appwrite";
 import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
 import { Client } from "@langchain/langgraph-sdk";
+import { CurrentCardProvider } from "@/contexts/CurrentCardContext";
 
 interface SessionChatAssistantProps {
   sessionId: string;
@@ -97,39 +98,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     }
   };
 
-  // State extraction method for context chat
-  const getMainGraphState = useCallback(async () => {
-    if (!threadIdRef.current) {
-      console.warn('SessionChatAssistant - No thread ID available for state extraction');
-      return null;
-    }
-
-    try {
-      const client = new Client({
-        apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || "http://localhost:2024"
-      });
-
-      const state = await client.threads.getState(threadIdRef.current);
-
-      console.log('🔍 [MAIN GRAPH STATE EXTRACTION] Available state keys:', Object.keys(state.values || {}));
-      console.log('🔍 [MAIN GRAPH STATE EXTRACTION] Full state values:', state.values);
-
-      // Return ALL available state fields instead of cherry-picking
-      // This ensures context chat gets complete state information
-      const fullState = {
-        ...state.values, // Spread all fields from the actual state
-        messages: Array.isArray(state.values?.messages) ? state.values.messages.slice(-10) : [], // Limit messages for context efficiency
-      };
-
-      console.log('📤 [MAIN GRAPH STATE EXTRACTION] Returning complete state with fields:', Object.keys(fullState));
-      console.log('📤 [MAIN GRAPH STATE EXTRACTION] Complete state details:', fullState);
-
-      return fullState;
-    } catch (error) {
-      console.error('SessionChatAssistant - Failed to extract main graph state:', error);
-      return null;
-    }
-  }, [threadIdRef.current]);
+  // NOTE: getMainGraphState method removed - replaced with CurrentCardContext for deterministic context
 
   // Handle new context chat thread creation - persist to session
   const handleContextThreadCreated = async (newContextThreadId: string) => {
@@ -205,7 +174,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   }
 
   return (
-    <div className="flex h-screen">
+    <CurrentCardProvider>
+      <div className="flex h-screen">
       {/* Main Teaching Panel - Always takes available space */}
       <div className="flex flex-col flex-1">
         <SessionHeader sessionContext={sessionContext} />
@@ -238,7 +208,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           />
           <ContextChatPanel
             sessionId={sessionId}
-            getMainGraphState={getMainGraphState}
             sessionContext={sessionContext}
             existingContextThreadId={contextChatThreadId}
             onThreadCreated={handleContextThreadCreated}
@@ -276,6 +245,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           </span>
         </button>
       )}
-    </div>
+      </div>
+    </CurrentCardProvider>
   );
 }

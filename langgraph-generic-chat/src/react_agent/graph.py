@@ -12,7 +12,7 @@ from langgraph.prebuilt import ToolNode
 from langgraph.runtime import Runtime
 
 from react_agent.context import Context
-from react_agent.state import InputState, State, TeachingContext
+from react_agent.state import InputState, State, TeachingContext, DynamicLessonContext
 from react_agent.tools import TOOLS
 from react_agent.utils import (
     load_chat_model,
@@ -23,50 +23,108 @@ from react_agent.utils import (
     format_lesson_objectives,
     format_current_card_context,
     format_learning_progress,
-    format_card_explainer_and_examples
+    format_card_explainer_and_examples,
+    # New dual-source context functions
+    extract_static_context,
+    extract_dynamic_context,
+    merge_dual_source_contexts,
+    calculate_dual_source_quality_scores,
+    format_dual_source_context_for_prompt
 )
-from react_agent.prompts import LATEX_FORMATTING_INSTRUCTIONS
+from react_agent.prompts import (
+    LATEX_FORMATTING_INSTRUCTIONS,
+    SYSTEM_PROMPT_DUAL_SOURCE_FULL,
+    SYSTEM_PROMPT_STATIC_ONLY,
+    SYSTEM_PROMPT_DYNAMIC_ONLY,
+    SYSTEM_PROMPT_NO_DUAL_CONTEXT
+)
 
 # Define context extraction function
 
 
 async def extract_context(
     state: State, runtime: Runtime[Context]
-) -> Dict[str, Optional[TeachingContext]]:
-    """Extract and process teaching context from session context.
+) -> Dict[str, any]:
+    """Extract and process dual-source teaching context.
 
-    This function processes the session_context to extract structured
-    teaching information and calculate context quality for prompt selection.
+    This function processes both static_context (immutable session data) and
+    dynamic_context (real-time card presentation data) to create comprehensive
+    context that works even when main teaching graph is interrupted.
 
     Args:
-        state (State): The current state with session_context.
+        state (State): The current state with static_context and dynamic_context.
         runtime: Runtime context configuration.
 
     Returns:
-        dict: Dictionary containing processed teaching context.
+        dict: Dictionary containing processed dual-source context and metadata.
     """
-    session_context = state.session_context
+    print("🎯 [DUAL-SOURCE CONTEXT] Starting context extraction...")
 
-    if not session_context:
-        return {
-            "teaching_context": None,
-            "context_quality_score": 0.0,
-            "context_processed": True
-        }
+    # Extract dual-source context
+    static_context_data = state.static_context
+    dynamic_context_data = state.dynamic_context
 
-    # Extract structured teaching context
-    teaching_context = extract_teaching_context(
-        session_context,
-        max_recent_exchanges=runtime.context.max_recent_exchanges
-    )
+    print(f"Static context available: {static_context_data is not None}")
+    print(f"Dynamic context available: {dynamic_context_data is not None}")
 
-    # Calculate context quality score
-    quality_score = calculate_context_quality_score(teaching_context)
+    # Extract static context (session data)
+    static_context = None
+    if static_context_data:
+        static_context = extract_static_context(static_context_data)
+        print(f"Static context extraction: {'Success' if static_context else 'Failed'}")
+
+    # Extract dynamic context (current card data)
+    dynamic_context = None
+    if dynamic_context_data:
+        dynamic_context = extract_dynamic_context(dynamic_context_data)
+        print(f"Dynamic context extraction: {'Success' if dynamic_context else 'Failed'}")
+
+    # Merge contexts
+    merged_context = merge_dual_source_contexts(static_context, dynamic_context)
+    print(f"Context merge completed with {len(merged_context)} fields")
+
+    # Calculate quality scores
+    quality_scores = calculate_dual_source_quality_scores(static_context, dynamic_context)
+    print(f"Quality scores - Static: {quality_scores['static_quality']:.2f}, Dynamic: {quality_scores['dynamic_quality']:.2f}, Combined: {quality_scores['combined_quality']:.2f}")
+
+    # Store processing timestamps
+    current_time = datetime.now(tz=timezone.utc).isoformat()
+
+    # Legacy compatibility: maintain teaching_context for existing code
+    # Use static_context as the primary teaching context source
+    legacy_teaching_context = static_context
+
+    # LEGACY FALLBACK: If no dual-source context available, try session_context
+    if not static_context and not dynamic_context and state.session_context:
+        print("⚠️  [FALLBACK] Using legacy session_context for backward compatibility")
+        legacy_teaching_context = extract_teaching_context(
+            state.session_context,
+            max_recent_exchanges=runtime.context.max_recent_exchanges
+        )
+        # Convert legacy quality score
+        quality_scores["combined_quality"] = calculate_context_quality_score(legacy_teaching_context)
 
     return {
-        "teaching_context": teaching_context,
-        "context_quality_score": quality_score,
-        "context_processed": True
+        # Dual-source context fields (NEW)
+        "teaching_context": static_context,  # Primary static context
+        "processed_dynamic_context": dynamic_context.__dict__ if dynamic_context else None,
+        "context_fusion_metadata": merged_context,
+
+        # Quality scores (NEW)
+        "static_context_quality": quality_scores["static_quality"],
+        "dynamic_context_quality": quality_scores["dynamic_quality"],
+        "context_consistency_score": quality_scores["consistency_score"],
+        "context_quality_score": quality_scores["combined_quality"],  # Legacy compatibility
+
+        # Timestamps (NEW)
+        "static_context_timestamp": current_time if static_context else None,
+        "dynamic_context_timestamp": current_time if dynamic_context else None,
+
+        # Processing flags
+        "context_processed": True,
+
+        # Legacy compatibility fields
+        "main_graph_state": state.session_context  # Deprecated but maintained
     }
 
 
@@ -76,80 +134,107 @@ async def extract_context(
 async def call_model(
     state: State, runtime: Runtime[Context]
 ) -> Dict[str, List[AIMessage]]:
-    """Call the LLM with context-aware prompt selection.
+    """Call the LLM with dual-source context-aware prompt selection.
 
-    This function selects the appropriate prompt based on teaching context
-    availability and quality, then calls the model for response generation.
+    This function selects the appropriate prompt based on availability of
+    static context (session data) and dynamic context (current card data),
+    providing the most accurate context even during graph interrupts.
 
     Args:
-        state (State): The current state of the conversation.
+        state (State): The current state with dual-source context.
         runtime: Runtime context configuration.
 
     Returns:
         dict: A dictionary containing the model's response message.
     """
+    print("🎯 [DUAL-SOURCE MODEL] Starting model call with context selection...")
+
     # Initialize the model with tool binding
     model = load_chat_model(runtime.context.model).bind_tools(TOOLS)
 
-    # Select appropriate prompt based on context quality
-    teaching_context = state.teaching_context
-    quality_score = state.context_quality_score
+    # Get dual-source context information
+    static_context = state.teaching_context  # TeachingContext from static data
+    dynamic_context = state.processed_dynamic_context  # Dynamic card data
+    merged_context = state.context_fusion_metadata  # Merged context information
 
-    if teaching_context and quality_score >= runtime.context.context_quality_threshold:
-        # Use rich context-aware prompt
-        system_prompt = runtime.context.system_prompt_with_context
+    static_quality = state.static_context_quality
+    dynamic_quality = state.dynamic_context_quality
+    combined_quality = state.context_quality_score
+    consistency_score = state.context_consistency_score
 
-        # Format context information for prompt
-        recent_exchanges = format_recent_exchanges(
-            teaching_context.recent_exchanges,
-            max_count=runtime.context.max_recent_exchanges
-        )
-        student_progress = format_student_progress(teaching_context.student_progress)
-        lesson_objectives = format_lesson_objectives(teaching_context.lesson_snapshot)
+    print(f"Context qualities - Static: {static_quality:.2f}, Dynamic: {dynamic_quality:.2f}, Combined: {combined_quality:.2f}")
 
-        # Format new teaching progression context
-        current_card_context = format_current_card_context(teaching_context)
-        learning_progress = format_learning_progress(teaching_context)
-        card_explainer_and_examples = format_card_explainer_and_examples(teaching_context.current_card)
+    # Select prompt based on dual-source context availability
+    if static_context and dynamic_context and combined_quality >= runtime.context.context_quality_threshold:
+        # BEST CASE: Both static and dynamic context available
+        print("🟢 Using DUAL-SOURCE FULL context prompt")
 
-        system_message = system_prompt.format(
-            system_time=datetime.now(tz=timezone.utc).isoformat(),
-            session_id=teaching_context.session_id,
-            student_id=teaching_context.student_id,
-            lesson_title=teaching_context.lesson_title,
-            lesson_topic=teaching_context.lesson_topic,
-            current_stage=teaching_context.current_stage,
-            recent_exchanges=recent_exchanges,
-            student_progress=student_progress,
-            lesson_objectives=lesson_objectives,
-            # New context-aware fields
-            current_card_context=current_card_context,
-            learning_progress=learning_progress,
-            card_explainer_and_examples=card_explainer_and_examples,
-            # LaTeX formatting instructions
-            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
+        formatted_dual_context = format_dual_source_context_for_prompt(merged_context)
+
+        system_message = SYSTEM_PROMPT_DUAL_SOURCE_FULL.format(
+            formatted_dual_context=formatted_dual_context,
+            static_available="✓ Available",
+            dynamic_available="✓ Available",
+            consistency_status="✓ Good" if consistency_score > 0.8 else "⚠️ Some issues detected",
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS,
+            system_time=datetime.now(tz=timezone.utc).isoformat()
         )
 
-    elif teaching_context and quality_score > 0.0:
-        # Use degraded context prompt
-        system_prompt = runtime.context.system_prompt_degraded_context
+    elif static_context and static_quality >= 0.5:
+        # MEDIUM CASE: Only static context available
+        print("🟡 Using STATIC ONLY context prompt")
 
-        available_context = f"Lesson: {teaching_context.lesson_title or 'Unknown'}, Topic: {teaching_context.lesson_topic or 'Unknown'}"
+        # Format static session information
+        static_session_info = f"""
+Session ID: {static_context.session_id}
+Student ID: {static_context.student_id}
+Lesson Title: {static_context.lesson_title}
+Subject Area: {static_context.lesson_topic}
+Total Cards: {len(static_context.lesson_snapshot.get('cards', [])) if static_context.lesson_snapshot else 'Unknown'}
+        """.strip()
 
-        system_message = system_prompt.format(
-            system_time=datetime.now(tz=timezone.utc).isoformat(),
-            session_id=teaching_context.session_id,
-            available_context_summary=available_context,
-            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
+        system_message = SYSTEM_PROMPT_STATIC_ONLY.format(
+            static_session_info=static_session_info,
+            lesson_title=static_context.lesson_title,
+            lesson_topic=static_context.lesson_topic,
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS,
+            system_time=datetime.now(tz=timezone.utc).isoformat()
+        )
+
+    elif dynamic_context and dynamic_quality >= 0.5:
+        # MEDIUM CASE: Only dynamic context available
+        print("🟡 Using DYNAMIC ONLY context prompt")
+
+        # Format dynamic card information
+        card_data = dynamic_context.get("card_data", {}) if dynamic_context else {}
+        question_info = ""
+        if isinstance(card_data, dict) and card_data.get("cfu"):
+            cfu = card_data["cfu"]
+            question_info = f"Question: {cfu.get('stem', 'No question available')}"
+
+        dynamic_card_info = f"""
+Current Position: Card {dynamic_context.get('card_index', 0) + 1} of {dynamic_context.get('total_cards', '?')}
+Interaction State: {dynamic_context.get('interaction_state', 'unknown').title()}
+{question_info}
+        """.strip()
+
+        system_message = SYSTEM_PROMPT_DYNAMIC_ONLY.format(
+            dynamic_card_info=dynamic_card_info,
+            question_topic=card_data.get("title", "current topic") if isinstance(card_data, dict) else "current topic",
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS,
+            system_time=datetime.now(tz=timezone.utc).isoformat()
         )
 
     else:
-        # Use standard prompt with no context
-        system_prompt = runtime.context.system_prompt_no_context
-        system_message = system_prompt.format(
-            system_time=datetime.now(tz=timezone.utc).isoformat(),
-            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS
+        # FALLBACK CASE: No sufficient context available
+        print("🔴 Using NO DUAL CONTEXT prompt (fallback)")
+
+        system_message = SYSTEM_PROMPT_NO_DUAL_CONTEXT.format(
+            latex_formatting=LATEX_FORMATTING_INSTRUCTIONS,
+            system_time=datetime.now(tz=timezone.utc).isoformat()
         )
+
+    print(f"Selected prompt length: {len(system_message)} characters")
 
     # Get the model's response
     response = cast(
@@ -169,6 +254,8 @@ async def call_model(
                 )
             ]
         }
+
+    print("✅ Model response generated successfully")
 
     # Return the model's response as a list to be added to existing messages
     return {"messages": [response]}

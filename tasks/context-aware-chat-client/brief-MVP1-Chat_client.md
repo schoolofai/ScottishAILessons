@@ -12,18 +12,25 @@ The MVP1 Context-Aware Chat Client is a supplementary chat interface that provid
 3. **Fragmented Experience**: Students need to switch between different tools for help
 4. **Limited Support**: No real-time assistance during complex lesson interactions
 
+### Key Discovery: Interrupt State Issue
+**CRITICAL**: The original architecture relied on extracting main graph state via `getMainGraphState()`, but this approach fails when the teaching graph is interrupted. When the main graph is paused at an `interrupt({})` waiting for student input through the UI tool, the state returned is **stale** - it reflects the state before the current lesson card was presented.
+
+**Impact**: Fields like `current_card_index` and `current_card` are outdated during the most critical moments when students need context-aware help.
+
 ### User Pain Points
 - Students get stuck on concepts but can't get immediate help without losing lesson progress
 - Questions about lesson content require starting over or breaking the teaching flow
 - No way to get contextual explanations of current lesson materials
 - Difficulty understanding how current exercises relate to overall learning objectives
+- **Context chat provides outdated information during interactive lesson moments**
 
 ## Solution Architecture
 
-### High-Level Architecture
+### Revised Architecture: Deterministic Two-Source Context
 ```
 ┌─────────────────────────────────────────────────┐
 │           SessionChatAssistant.tsx              │
+│           CurrentCardContext.Provider           │
 ├──────────────────┬──────────────────────────────┤
 │   Main Teaching  │   Context Chat Panel         │
 │   Panel (2/3)    │   (1/3)                     │
@@ -31,23 +38,32 @@ The MVP1 Context-Aware Chat Client is a supplementary chat interface that provid
 │  MyAssistant     │  ContextChatPanel            │
 │  ↓ Thread A      │  ↓ Thread B                 │
 │                  │                              │
+│  LessonCardTool  │  Static + Dynamic Context    │
+│  ↓ Updates       │  ↓ Two Sources              │
+│                  │                              │
 ├──────────────────┼──────────────────────────────┤
 │  Teaching Graph  │  Context Chat Graph          │
-│  Port 2024       │  Port 2025                   │
+│  Port 2024       │  Port 2700                   │
 │  graph_interrupt │  Enhanced react_agent        │
+│  (INTERRUPTED)   │  (No State Dependency)       │
 └──────────────────┴──────────────────────────────┘
 ```
+
+### Context Sources
+1. **Static Context**: Immutable session data (session_id, lesson_snapshot, student_id)
+2. **Dynamic Context**: Current card from LessonCardPresentationTool (real-time, deterministic)
 
 ### Key Components
 
 #### Frontend Components
-1. **ContextChatPanel.tsx** - New chat interface component
-2. **Enhanced SessionChatAssistant.tsx** - Modified to support dual-panel layout
-3. **State extraction mechanism** - getMainGraphState() method
-4. **Environment configuration** - Separate API endpoints
+1. **ContextChatPanel.tsx** - Chat interface using dual-source context
+2. **Enhanced SessionChatAssistant.tsx** - Provides CurrentCardContext.Provider
+3. **LessonCardPresentationTool.tsx** - Updates CurrentCardContext on render
+4. **CurrentCardContext** - React Context for sharing current card data
+5. **Deterministic context extraction** - Static session + Dynamic card data
 
 #### Backend Components
-1. **Enhanced langgraph-generic-chat** - Context-aware agent
+1. **Enhanced langgraph-generic-chat** - Context-aware agent with dual-source processing
 2. **State processing** - Teaching context extraction
 3. **Search integration** - Tavily search with context
 4. **Deployment configuration** - Independent service
@@ -575,28 +591,34 @@ return (
 
 ## Data Flow
 
-### Context Extraction Flow
+### Revised Deterministic Context Flow
 ```
-1. User sends message in context chat
+1. LessonCardPresentationTool renders with card data
    ↓
-2. ContextChatPanel calls getMainGraphState()
+2. Updates CurrentCardContext with current card info
    ↓
-3. getMainGraphState() queries main thread via LangGraph SDK
+3. User sends message in context chat
    ↓
-4. Main graph state extracted (messages, lesson_snapshot, progress, etc.)
+4. ContextChatPanel reads from TWO SOURCES:
+   - Static Context: sessionContext (immutable session data)
+   - Dynamic Context: CurrentCardContext (current card being presented)
    ↓
-5. State packaged with user message and session_context
+5. Dual-source context packaged with user message
    ↓
-6. Sent to context-chat-agent on port 2025
+6. Sent to context-chat-agent on port 2700
    ↓
-7. extract_teaching_context node processes the state
+7. extract_teaching_context_v2 node processes both contexts
    ↓
-8. Context-aware prompt generated with lesson details
+8. Context-aware prompt generated with accurate card details
    ↓
 9. LLM response enriched with search if needed
    ↓
 10. Response streamed back to ContextChatPanel
 ```
+
+### Problem Solved: Interrupt State Independence
+- **OLD**: Dependency on main graph state (stale during interrupts)
+- **NEW**: Independent dual-source context (always current)
 
 ### State Synchronization
 - **Trigger**: Every message sent to context chat

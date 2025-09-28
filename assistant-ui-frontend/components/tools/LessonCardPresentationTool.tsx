@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
   useLangGraphInterruptState,
   useLangGraphSendCommand
 } from "@assistant-ui/react-langgraph";
+import { useCurrentCard } from "@/contexts/CurrentCardContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,11 +55,39 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const interrupt = useLangGraphInterruptState();
     const sendCommand = useLangGraphSendCommand();
 
+    // Get current card context for updating with real-time card data
+    const { setCurrentCard } = useCurrentCard();
+
     // Component state - must be before early return to avoid hook order issues
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
 
+    // Update CurrentCardContext with card data for context-aware chat
+    useEffect(() => {
+      console.log('🎯 LessonCardTool - Updating CurrentCardContext with:', {
+        card_index: args.card_index,
+        card_id: args.card_data.id,
+        lesson_title: args.lesson_context.lesson_title
+      });
+
+      setCurrentCard({
+        card_data: args.card_data,
+        card_index: args.card_index,
+        total_cards: args.total_cards,
+        interaction_state: "presenting",
+        lesson_context: args.lesson_context
+      });
+
+      // Cleanup: Mark as completed when component unmounts
+      return () => {
+        console.log('🎯 LessonCardTool - Component unmounting, marking card as completed');
+        setCurrentCard(prev => prev ? {
+          ...prev,
+          interaction_state: "completed"
+        } : null);
+      };
+    }, [args.card_data.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
 
     // CHECK: Only render if there's an interrupt
     if (!interrupt) return null;
@@ -83,6 +112,11 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         card_id: card_data.id
       });
 
+      // Update interaction state to "evaluating" for context-aware chat
+      setCurrentCard(prev => prev ? {
+        ...prev,
+        interaction_state: "evaluating"
+      } : null);
 
       // Send command with resume value as JSON string
       sendCommand({

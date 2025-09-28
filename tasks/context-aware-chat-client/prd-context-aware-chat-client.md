@@ -15,18 +15,19 @@ The design brief contains:
 
 The Context-Aware Chat Client is a supplementary chat interface that provides students with contextual assistance during their learning sessions. This feature adds a collapsible secondary chat panel alongside the main teaching interface, enabling students to ask questions about their current lesson without disrupting the primary teaching flow. The chat client has real-time access to the teaching session state and provides contextual responses enriched with lesson details, student progress, and recent exchanges.
 
-**Problem Statement**: Students currently cannot ask clarifying questions without interrupting the main teaching flow, leading to learning disruption and context loss.
+**Problem Statement**: Students currently cannot ask clarifying questions without interrupting the main teaching flow, leading to learning disruption and context loss. Additionally, the original implementation relied on stale graph state during interrupts, providing outdated context when students need help most.
 
-**Goal**: Enable seamless, context-aware assistance during lessons through a non-disruptive secondary chat interface.
+**Goal**: Enable seamless, context-aware assistance during lessons through a non-disruptive secondary chat interface with deterministic, real-time context extraction.
 
 ## 2. Goals
 
 1. **Reduce Learning Disruption**: Enable students to ask questions without interrupting the main teaching flow
 2. **Provide Contextual Assistance**: Deliver responses enriched with current lesson state, progress, and recent exchanges
 3. **Maintain Chat History**: Persist conversations across sessions for continuity
-4. **Ensure Real-time Context**: Always provide assistance based on the most current lesson state
-5. **Enable Additional Resources**: Allow students to search for supplementary learning materials
-6. **Deliver Graceful Experience**: Provide streaming responses with appropriate error handling
+4. **Ensure Real-time Context**: Always provide assistance based on the most current lesson state using deterministic dual-source context
+5. **Handle Interrupt States**: Provide accurate context even when main teaching graph is interrupted
+6. **Enable Additional Resources**: Allow students to search for supplementary learning materials
+7. **Deliver Graceful Experience**: Provide streaming responses with appropriate error handling
 
 ## 3. User Stories
 
@@ -49,34 +50,43 @@ The Context-Aware Chat Client is a supplementary chat interface that provides st
 3. **The system must provide real-time streaming responses following the same pattern as SessionChatAssistant.tsx**
 4. **The system must maintain separate conversation threads for context chat and main teaching**
 
-### Context Awareness
-5. **The system must extract the current main teaching graph state on every message sent to the context chat**
-6. **The system must include lesson details, current stage, student progress, and recent exchanges in context**
-7. **The system must format context-aware prompts that reference current lesson content**
-8. **The system must provide responses that demonstrate understanding of the current learning state**
+### Context Awareness (Revised for Interrupt Handling)
+5. **The system must use dual-source context extraction instead of relying on main graph state**
+6. **The system must extract static context from initial session data (immutable lesson information)**
+7. **The system must extract dynamic context from LessonCardPresentationTool (current card being presented)**
+8. **The system must combine static and dynamic context to provide accurate, real-time lesson awareness**
+9. **The system must provide accurate context even when main teaching graph is interrupted**
+10. **The system must format context-aware prompts that reference current lesson content and active card**
+11. **The system must provide responses that demonstrate understanding of the current learning state**
 
 ### Chat History & Persistence
-9. **The system must add a 'contextChatThreadId' field to the session data model**
-10. **The system must create and store the context chat thread ID when first context message is sent**
-11. **The system must load previous context chat conversations when returning to a session**
-12. **The system must persist chat history through the LangGraph platform thread system**
+12. **The system must add a 'contextChatThreadId' field to the session data model**
+13. **The system must create and store the context chat thread ID when first context message is sent**
+14. **The system must load previous context chat conversations when returning to a session**
+15. **The system must persist chat history through the LangGraph platform thread system**
 
 ### Search Integration
-13. **The system must integrate with Tavily search tool for finding additional resources**
-14. **The system must enhance search queries with lesson context (topic, current concepts)**
-15. **The system must stream search results as part of the conversational response**
+16. **The system must integrate with Tavily search tool for finding additional resources**
+17. **The system must enhance search queries with lesson context (topic, current concepts)**
+18. **The system must stream search results as part of the conversational response**
 
-### Backend Architecture
-16. **The system must run the context chat agent on a separate port (2025) from main teaching (2024)**
-17. **The system must implement the enhanced react_agent graph with context processing nodes**
-18. **The system must extract and process teaching context from main graph state**
-19. **The system must use environment variables for LLM model and API key configuration**
+### Backend Architecture (Updated for Dual-Source Context)
+19. **The system must run the context chat agent on a separate port (2700) from main teaching (2024)**
+20. **The system must implement the enhanced react_agent graph with dual-source context processing nodes**
+21. **The system must process static context from session data and dynamic context from current card**
+22. **The system must use environment variables for LLM model and API key configuration**
 
-### Error Handling
-20. **The system must never provide fallback generic responses when context extraction fails**
-21. **The system must log detailed error information for debugging purposes**
-22. **The system must display friendly error messages to users when services are unavailable**
-23. **The system must inform users to "try later, we're looking into it" during service outages**
+### Frontend Context Integration
+23. **The system must implement CurrentCardContext React Context provider**
+24. **The system must update CurrentCardContext when LessonCardPresentationTool renders**
+25. **The system must read from both static session data and CurrentCardContext in ContextChatPanel**
+
+### Error Handling (Enhanced for Interrupt States)
+26. **The system must never provide fallback generic responses when context extraction fails**
+27. **The system must log detailed error information for debugging purposes**
+28. **The system must display friendly error messages to users when services are unavailable**
+29. **The system must handle cases where no card is currently being presented gracefully**
+30. **The system must inform users to "try later, we're looking into it" during service outages**
 
 ## 5. Non-Goals (Out of Scope)
 

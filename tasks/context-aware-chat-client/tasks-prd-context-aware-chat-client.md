@@ -700,7 +700,7 @@ Based on PRD: `prd-context-aware-chat-client.md`
   - [ ] 4.1 Add contextChatThreadId field to session schema and database
   - [ ] 4.2 Enhance SessionDriver with context chat thread management methods
   - [ ] 4.3 Modify SessionChatAssistant to include ContextChatPanel with dual-panel layout
-  - [ ] 4.4 Implement getMainGraphState method for real-time context extraction
+  - [ ] 4.4 ~~Implement getMainGraphState method for real-time context extraction~~ **REPLACED BY TASK 6.0 - Interrupt handling refactor**
   - [ ] 4.5 Add context chat thread persistence and loading logic
   - [ ] 4.6 Run integration tests to verify session persistence and dual-panel behavior
 
@@ -848,3 +848,133 @@ Based on PRD: `prd-context-aware-chat-client.md`
       }
     };
     ```
+
+- [ ] 6.0 Refactor for deterministic context with interrupt handling (CRITICAL: Replaces stale state extraction)
+  - [ ] 6.1 Create CurrentCardContext React Context provider for sharing current card data
+  - [ ] 6.2 Modify LessonCardPresentationTool.tsx to update CurrentCardContext on render
+  - [ ] 6.3 Update ContextChatPanel.tsx to use dual-source context (static + dynamic)
+  - [ ] 6.4 Remove stale getMainGraphState method from SessionChatAssistant.tsx
+  - [ ] 6.5 Update backend state.py with DynamicLessonContext dataclass
+  - [ ] 6.6 Modify utils.py for dual-source context extraction (extract_teaching_context_v2)
+  - [ ] 6.7 Update prompts.py with card-aware prompt templates
+  - [ ] 6.8 Refactor graph.py extract_context node for dual-source processing
+  - [ ] 6.9 Add integration tests for interrupted state scenarios
+  - [ ] 6.10 Update existing integration tests to use dual-source context format
+  - [ ] 6.11 Validate context accuracy during graph interrupt states
+
+    **Problem Solved**: Original implementation relied on `getMainGraphState()` which returns stale data when the main teaching graph is interrupted (waiting for student input). This refactor uses deterministic dual-source context:
+    1. **Static Context**: Immutable session data passed to teaching graph
+    2. **Dynamic Context**: Current card data from LessonCardPresentationTool
+
+    **Benefits**:
+    - ✅ **Always Current**: Context reflects what student is actually seeing
+    - ✅ **Interrupt Independent**: Works regardless of main graph execution state
+    - ✅ **Deterministic**: No dependency on potentially stale state
+    - ✅ **Real-time**: Updates immediately when new card is presented
+
+    **Files Created/Updated**:
+    - `assistant-ui-frontend/contexts/CurrentCardContext.tsx` - NEW: React Context for card sharing
+    - `assistant-ui-frontend/components/tools/LessonCardPresentationTool.tsx` - Update context on render
+    - `assistant-ui-frontend/components/ContextChatPanel.tsx` - Use dual-source context
+    - `assistant-ui-frontend/components/SessionChatAssistant.tsx` - Provide CurrentCardContext, remove getMainGraphState
+    - `langgraph-generic-chat/src/react_agent/state.py` - Add DynamicLessonContext
+    - `langgraph-generic-chat/src/react_agent/utils.py` - Dual-source extraction
+    - `langgraph-generic-chat/src/react_agent/prompts.py` - Card-aware templates
+    - `langgraph-generic-chat/src/react_agent/graph.py` - Updated extract_context node
+
+    **Code/Pseudo-code**:
+    ```typescript
+    // NEW: assistant-ui-frontend/contexts/CurrentCardContext.tsx
+    export interface CurrentCardData {
+      card_data: any;
+      card_index: number;
+      total_cards: number;
+      interaction_state: "presenting" | "evaluating" | "completed";
+    }
+
+    export const CurrentCardContext = createContext<CurrentCardData | null>(null);
+    ```
+
+    ```typescript
+    // MODIFIED: assistant-ui-frontend/components/tools/LessonCardPresentationTool.tsx
+    export const LessonCardPresentationTool = makeAssistantToolUI<...>({
+      render: function LessonCardPresentationUI({ args }) {
+        const setCurrentCard = useContext(CurrentCardContext);
+
+        // Update context when tool renders with new card
+        useEffect(() => {
+          setCurrentCard({
+            card_data: args.card_data,
+            card_index: args.card_index,
+            total_cards: args.total_cards,
+            interaction_state: "presenting"
+          });
+        }, [args.card_data, args.card_index]);
+
+        // ... rest of component
+      }
+    });
+    ```
+
+    ```typescript
+    // MODIFIED: assistant-ui-frontend/components/ContextChatPanel.tsx
+    export function ContextChatPanel({ sessionId, sessionContext }: ContextChatPanelProps) {
+      const currentCard = useContext(CurrentCardContext);
+
+      const runtime = useLangGraphRuntime({
+        stream: async (messages) => {
+          // Dual-source context - NO dependency on getMainGraphState
+          const input = {
+            messages,
+            static_context: sessionContext,  // Immutable session data
+            dynamic_context: currentCard     // Current card being presented
+          };
+
+          return contextChatClient.runs.stream(threadId, "context-chat-agent", {
+            input,
+            streamMode: ["messages"]
+          });
+        }
+      });
+    }
+    ```
+
+    ```python
+    # NEW: langgraph-generic-chat/src/react_agent/state.py
+    @dataclass
+    class DynamicLessonContext:
+        """Current lesson interaction context from UI tool."""
+        card_data: Dict[str, Any] = field(default_factory=dict)
+        card_index: int = 0
+        total_cards: int = 0
+        interaction_state: str = "unknown"  # presenting, evaluating, etc
+
+    @dataclass
+    class State(InputState):
+        static_context: Optional[Dict[str, Any]] = None
+        dynamic_context: Optional[DynamicLessonContext] = None
+        # ... other fields
+    ```
+
+    ```python
+    # MODIFIED: langgraph-generic-chat/src/react_agent/utils.py
+    def extract_teaching_context_v2(static_context: Dict, dynamic_context: DynamicLessonContext) -> TeachingContext:
+        """Extract context from dual deterministic sources."""
+        lesson_snapshot = static_context.get("lesson_snapshot", {}) if static_context else {}
+
+        return TeachingContext(
+            session_id=static_context.get("session_id", "") if static_context else "",
+            lesson_title=lesson_snapshot.get("title", ""),
+            lesson_topic=lesson_snapshot.get("topic", ""),
+            current_card=dynamic_context.card_data if dynamic_context else {},
+            current_card_index=dynamic_context.card_index if dynamic_context else 0,
+            total_cards=dynamic_context.total_cards if dynamic_context else 0,
+            interaction_state=dynamic_context.interaction_state if dynamic_context else "unknown"
+        )
+    ```
+
+    **Testing Strategy**:
+    1. **Interrupt State Tests**: Verify context accuracy when main graph is interrupted at `interrupt({})`
+    2. **Card Transition Tests**: Ensure dynamic context updates when new cards are presented
+    3. **No Card Tests**: Handle gracefully when no card is active (lesson start/end)
+    4. **Dual Context Integration**: Test combination of static session + dynamic card data

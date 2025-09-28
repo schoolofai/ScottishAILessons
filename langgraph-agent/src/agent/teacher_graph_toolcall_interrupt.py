@@ -78,7 +78,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
 
 
 
-def design_node(state: InterruptUnifiedState) -> Dict:
+def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Design node - handles all routing decisions and creates tool calls for lesson card presentation."""
     from .llm_teacher import LLMTeacher
     
@@ -275,7 +275,7 @@ def design_node(state: InterruptUnifiedState) -> Dict:
     }
 
 
-def get_answer_node(state: InterruptUnifiedState) -> Dict:
+def get_answer_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Get answer node - captures interrupt response and returns to design."""
     current_idx = state.get("current_card_index", 0)
     print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx}")
@@ -328,7 +328,7 @@ def get_answer_node(state: InterruptUnifiedState) -> Dict:
     }
 
 
-def mark_node(state: InterruptUnifiedState) -> Dict:
+def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Mark node - evaluate student response and provide feedback."""
     from .llm_teacher import LLMTeacher
     
@@ -402,7 +402,7 @@ def mark_node(state: InterruptUnifiedState) -> Dict:
     }
 
 
-def retry_node(state: InterruptUnifiedState) -> Dict:
+def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Retry node - shows feedback and creates tool call for retry attempt."""
     current_idx = state.get("current_card_index", 0)
     attempts = state.get("attempts", 1)
@@ -513,7 +513,7 @@ def retry_node(state: InterruptUnifiedState) -> Dict:
     }
 
 
-def get_answer_retry_node(state: InterruptUnifiedState) -> Dict:
+def get_answer_retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Get answer retry node - captures interrupt response for retry attempts and returns to retry."""
     current_idx = state.get("current_card_index", 0)
     attempts = state.get("attempts", 1)
@@ -567,7 +567,7 @@ def get_answer_retry_node(state: InterruptUnifiedState) -> Dict:
     }
 
 
-def progress_node(state: InterruptUnifiedState) -> Dict:
+def progress_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Progress node - move to next card."""
     from .llm_teacher import LLMTeacher
     
