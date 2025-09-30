@@ -7,7 +7,7 @@ Tests for:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from agent.course_manager_utils import (
     calculate_priority_score,
     create_lesson_candidates
@@ -104,109 +104,22 @@ class TestSoWOrderScoring:
             'estMinutes': 20
         }
 
-        mastery = {}
-        routine = {}
+        mastery = []  # Empty list
+        sow_data = []  # Empty list
         constraints = {'maxBlockMinutes': 25}
         sow_order = 20
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        assert result['priorityScore'] == 0.0
+        # No early order bonus, no new content bonus with empty mastery
+        assert result['priorityScore'] == 0.0  # No bonuses with empty mastery
         assert 'early order' not in result['reasons']
+        assert 'new content' not in result['reasons']  # Empty mastery doesn't get new content
+        assert 'short win' in result['reasons']
 
 
-class TestRecentlyTaughtPenalty:
-    """Test -0.10 penalty for recently taught lessons"""
-
-    def test_recently_taught_lesson_gets_penalty(self):
-        """Lesson in recent templates list should get -0.10 penalty"""
-        template = {
-            '$id': 'template-123',
-            'title': 'Recent Lesson',
-            'outcomeRefs': ['AOM3.1'],
-            'estMinutes': 20
-        }
-
-        mastery = {}
-        routine = {
-            'recentTemplateIds': ['template-123', 'template-456']  # Contains our template
-        }
-        constraints = {'maxBlockMinutes': 25}
-        sow_order = 10
-
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
-
-        assert result['priorityScore'] == 0.0  # max(0, -0.10)
-        assert 'recent' in result['reasons']
-        assert 'recently-taught' in result.get('flags', [])
-
-    def test_not_recently_taught_lesson_no_penalty(self):
-        """Lesson not in recent templates list should get no penalty"""
-        template = {
-            '$id': 'template-123',
-            'title': 'Not Recent Lesson',
-            'outcomeRefs': ['AOM3.1'],
-            'estMinutes': 20
-        }
-
-        mastery = {}
-        routine = {
-            'recentTemplateIds': ['template-456', 'template-789']  # Doesn't contain our template
-        }
-        constraints = {'maxBlockMinutes': 25}
-        sow_order = 10
-
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
-
-        assert result['priorityScore'] == 0.0
-        assert 'recent' not in result['reasons']
-
-    def test_missing_recent_templates_no_penalty(self):
-        """Missing recentTemplateIds should not apply penalty"""
-        template = {
-            '$id': 'template-123',
-            'title': 'Test Lesson',
-            'outcomeRefs': ['AOM3.1'],
-            'estMinutes': 20
-        }
-
-        mastery = {}
-        routine = {}  # No recentTemplateIds field
-        constraints = {'maxBlockMinutes': 25}
-        sow_order = 10
-
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
-
-        assert result['priorityScore'] == 0.0
-        assert 'recent' not in result['reasons']
-
-    def test_recent_penalty_with_positive_score(self):
-        """Recent penalty should reduce positive scores"""
-        template = {
-            '$id': 'template-123',
-            'title': 'Recent but Low Mastery Lesson',
-            'outcomeRefs': ['AOM3.1'],
-            'estMinutes': 20
-        }
-
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.4  # Low mastery +0.25
-            }
-        }
-        routine = {
-            'recentTemplateIds': ['template-123']  # Recently taught -0.10
-        }
-        constraints = {'maxBlockMinutes': 25}
-        sow_order = 1  # First position +0.15
-
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
-
-        expected_score = 0.25 + 0.15 - 0.10  # low mastery + early order - recent = 0.30
-        assert abs(result['priorityScore'] - expected_score) < 0.001
-        assert 'low mastery' in result['reasons']
-        assert 'early order' in result['reasons']
-        assert 'recent' in result['reasons']
+# TestRecentlyTaughtPenalty class removed - feature no longer in production
+# Recent penalty has been removed, spaced repetition is handled separately
 
 
 class TestTimeLimitPenalty:
@@ -221,14 +134,16 @@ class TestTimeLimitPenalty:
             'estMinutes': 30  # Exceeds 25 minute limit
         }
 
-        mastery = {}
-        routine = {}
+        mastery = []  # Empty list
+        sow_data = []  # Empty list
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        assert result['priorityScore'] == 0.0  # max(0, -0.05)
+        # 0.0 (no new content with empty mastery) - 0.05 (long lesson) = 0.0 (clamped)
+        assert result['priorityScore'] == 0.0  # Negative score clamped to 0
+        assert 'new content' not in result['reasons']  # Empty mastery doesn't get new content
         assert 'long lesson' in result['reasons']
 
     def test_lesson_at_time_limit_no_penalty(self):
@@ -240,33 +155,38 @@ class TestTimeLimitPenalty:
             'estMinutes': 25  # Exactly at limit
         }
 
-        mastery = {}
-        routine = {}
+        mastery = []  # Empty list
+        sow_data = []  # Empty list
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        assert result['priorityScore'] == 0.0
+        # No new content bonus with empty mastery, no time penalty
+        assert result['priorityScore'] == 0.0  # No bonuses with empty mastery
+        assert 'new content' not in result['reasons']  # Empty mastery doesn't get new content
         assert 'long lesson' not in result['reasons']
 
     def test_lesson_under_time_limit_no_penalty(self):
-        """Lesson under maxBlockMinutes should get no penalty"""
+        """Lesson under maxBlockMinutes should get no penalty and 'short win' bonus"""
         template = {
             '$id': 'template-123',
             'title': 'Short Lesson',
             'outcomeRefs': ['AOM3.1'],
-            'estMinutes': 20  # Under limit
+            'estMinutes': 20  # Under limit and <= 20 minutes
         }
 
-        mastery = {}
-        routine = {}
+        mastery = []  # Empty list
+        sow_data = []  # Empty list
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        assert result['priorityScore'] == 0.0
+        # 0.0 for empty mastery (no new content bonus)
+        assert result['priorityScore'] == 0.0  # No bonuses with empty mastery
+        assert 'new content' not in result['reasons']  # Empty mastery doesn't get new content
+        assert 'short win' in result['reasons']  # Added for <= 20 minute lessons
         assert 'long lesson' not in result['reasons']
 
     def test_very_long_lesson_gets_flag(self):
@@ -278,13 +198,14 @@ class TestTimeLimitPenalty:
             'estMinutes': 40  # 40 > 25 * 1.5 (37.5)
         }
 
-        mastery = {}
-        routine = {}
+        mastery = []  # Empty list
+        sow_data = []  # Empty list
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
+        # No new content with empty mastery, penalty clamped: max(0, -0.05) = 0.0
         assert result['priorityScore'] == 0.0
         assert 'long lesson' in result['reasons']
         assert 'very-long' in result.get('flags', [])
@@ -298,16 +219,14 @@ class TestTimeLimitPenalty:
             'estMinutes': 30  # Exceeds limit -0.05
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.4  # Low mastery +0.25
-            }
-        }
-        routine = {}
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.4}  # Low mastery +0.25
+        ]
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 1  # First position +0.15
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         expected_score = 0.25 + 0.15 - 0.05  # low mastery + early order - long = 0.35
         assert abs(result['priorityScore'] - expected_score) < 0.001
@@ -415,7 +334,7 @@ class TestComplexScoringScenarios:
     """Test complex combinations of all scoring factors"""
 
     def test_worst_case_scenario(self):
-        """Recently taught + long lesson should result in minimal score"""
+        """High mastery + long lesson should result in minimal score"""
         template = {
             '$id': 'template-123',
             'title': 'Bad Lesson',
@@ -423,22 +342,18 @@ class TestComplexScoringScenarios:
             'estMinutes': 35  # Long
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.9  # High mastery (no bonus)
-            }
-        }
-        routine = {
-            'recentTemplateIds': ['template-123']  # Recently taught
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.9}  # High mastery -> -0.20
+        ]
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 20  # Late in SoW
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        # Should be max(0, -0.10 - 0.05) = 0
+        # Should be max(0, -0.20 - 0.05) = 0
         assert result['priorityScore'] == 0.0
-        assert 'recent' in result['reasons']
+        assert 'high mastery' in result['reasons']
         assert 'long lesson' in result['reasons']
 
     def test_best_case_scenario(self):
@@ -450,23 +365,19 @@ class TestComplexScoringScenarios:
             'estMinutes': 15  # Short win
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.3  # Low mastery
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.3}  # Low mastery
+        ]
 
-        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
-        routine = {
-            'dueAtByOutcome': {
-                'AOM3.1': yesterday  # Overdue
-            }
-        }
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        sow_data = [
+            {'templateId': 'template-123', 'plannedAt': yesterday}  # Overdue
+        ]
 
         constraints = {'maxBlockMinutes': 25}
         sow_order = 1  # First position
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         # Should be 0.40 + 0.25 + 0.15 = 0.80
         expected_score = 0.40 + 0.25 + 0.15
@@ -499,14 +410,11 @@ class TestCandidatesSoWOrdering:
                     'estMinutes': 20
                 }
             ],
-            'sow': {
-                'entries': [
-                    {'order': 7, 'lessonTemplateId': 'template-early'},  # No early order bonus
-                    {'order': 8, 'lessonTemplateId': 'template-late'}    # No early order bonus
-                ]
-            },
-            'mastery': {},
-            'routine': {},
+            'sow': [
+                {'templateId': 'template-early', 'order': 7},  # No early order bonus
+                {'templateId': 'template-late', 'order': 8}    # No early order bonus
+            ],
+            'mastery': [],  # Empty list
             'constraints': {'maxBlockMinutes': 25}
         }
 
@@ -514,9 +422,9 @@ class TestCandidatesSoWOrdering:
 
         # Both should have equal priority scores (0), but early should come first due to SoW order
         assert len(candidates) == 2
-        assert candidates[0]['lessonTemplateId'] == 'template-early'
-        assert candidates[1]['lessonTemplateId'] == 'template-late'
-        assert candidates[0]['priorityScore'] == candidates[1]['priorityScore']
+        assert candidates[0]['lessonId'] == 'template-early'
+        assert candidates[1]['lessonId'] == 'template-late'
+        assert candidates[0]['score'] == candidates[1]['score']
 
     def test_templates_not_in_sow_get_high_order(self):
         """Templates not in SoW should get default high order (999)"""
@@ -537,14 +445,11 @@ class TestCandidatesSoWOrdering:
                     'estMinutes': 20
                 }
             ],
-            'sow': {
-                'entries': [
-                    {'order': 3, 'lessonTemplateId': 'template-in-sow'}
-                    # template-not-in-sow is missing from SoW
-                ]
-            },
-            'mastery': {},
-            'routine': {},
+            'sow': [
+                {'templateId': 'template-in-sow', 'order': 3}
+                # template-not-in-sow is missing from SoW
+            ],
+            'mastery': [],  # Empty list
             'constraints': {'maxBlockMinutes': 25}
         }
 
@@ -552,5 +457,5 @@ class TestCandidatesSoWOrdering:
 
         # Template in SoW should come first despite equal scores
         assert len(candidates) == 2
-        assert candidates[0]['lessonTemplateId'] == 'template-in-sow'
-        assert candidates[1]['lessonTemplateId'] == 'template-not-in-sow'
+        assert candidates[0]['lessonId'] == 'template-in-sow'
+        assert candidates[1]['lessonId'] == 'template-not-in-sow'

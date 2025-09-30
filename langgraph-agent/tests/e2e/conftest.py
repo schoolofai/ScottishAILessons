@@ -7,6 +7,7 @@ running backend server, providing true black-box testing.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import subprocess
 import time
@@ -112,7 +113,7 @@ def _wait_for_server(url: str, timeout: int = 60) -> bool:
     return False
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def langgraph_client(backend_server: str):
     """Create LangGraph SDK client for testing.
 
@@ -135,7 +136,7 @@ async def langgraph_client(backend_server: str):
     return client
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_thread(langgraph_client):
     """Create a test thread for E2E testing.
 
@@ -161,6 +162,7 @@ async def test_thread(langgraph_client):
 def sample_course_context():
     """Sample course context for recommendation testing."""
     return {
+        "mode": "course_manager",  # Explicit mode for course manager
         "request_type": "get_recommendations",
         "course": {
             "$id": "course_c84473",
@@ -168,10 +170,11 @@ def sample_course_context():
             "subject": "Applications of Mathematics",
             "level": "Nat3"
         },
-        "student": {"id": "stu_e2e_test"},
+        "student": {"$id": "stu_e2e_test", "id": "stu_e2e_test"},  # Both formats for compatibility
         "templates": [
             {
                 "$id": "lt_nat3_aom_best_deal_v1",
+                "templateId": "lt_nat3_aom_best_deal_v1",  # Add templateId field
                 "title": "Best Deal: Unit Price & Simple Discounts",
                 "status": "published",
                 "outcomeRefs": ["HV7Y73_O1.4", "H22573_O1.2"],
@@ -179,11 +182,25 @@ def sample_course_context():
             },
             {
                 "$id": "lt_nat3_num_frac_dec_pct_v1",
+                "templateId": "lt_nat3_num_frac_dec_pct_v1",  # Add templateId field
                 "title": "Fractions ↔ Decimals ↔ Percents",
                 "status": "published",
                 "outcomeRefs": ["H22573_O1.2", "H22573_O1.5"],
                 "estMinutes": 20
             }
+        ],
+        # Add required data structures as flat lists (based on course_manager fixes)
+        "sow": [
+            {"order": 1, "templateId": "lt_nat3_aom_best_deal_v1"},
+            {"order": 2, "templateId": "lt_nat3_num_frac_dec_pct_v1"}
+        ],
+        "mastery": [
+            {"templateId": "lt_nat3_aom_best_deal_v1", "emaScore": 0.4},
+            {"templateId": "lt_nat3_num_frac_dec_pct_v1", "emaScore": 0.6}
+        ],
+        "routine": [
+            {"templateId": "lt_nat3_aom_best_deal_v1", "dueAt": "2024-01-15"},
+            {"templateId": "lt_nat3_num_frac_dec_pct_v1", "dueAt": "2024-01-20"}
         ],
         "constraints": {"maxBlockMinutes": 25}
     }
@@ -193,25 +210,35 @@ def sample_course_context():
 def sample_lesson_context():
     """Sample lesson context for teaching testing."""
     return {
-        "lesson_selection": {
-            "lessonTemplateId": "lt_nat3_aom_best_deal_v1",
-            "sessionId": "sess_e2e_test_001"
-        },
         "session_id": "sess_e2e_test_001",
+        "student_id": "stu_e2e_test",
         "lesson_snapshot": {
             "title": "Best Deal: Unit Price & Simple Discounts",
+            "courseId": "course_c84473",  # Add courseId to lesson_snapshot
+            "lessonTemplateId": "lt_nat3_aom_best_deal_v1",
             "cards": [
                 {
                     "id": "intro_card",
-                    "type": "info",
-                    "content": "Welcome to the lesson on finding the best deal!"
+                    "title": "Introduction",
+                    "explainer": "Welcome to the lesson on finding the best deal! We'll learn about unit prices and simple discounts.",
+                    "cfu": {
+                        "id": "intro_cfu",
+                        "type": "text",
+                        "question": "Are you ready to learn about finding the best deal?",
+                        "expected": "yes"
+                    }
                 },
                 {
                     "id": "q1",
-                    "type": "mcq",
-                    "question": "Which is the better deal?",
-                    "options": ["Option A", "Option B", "Option C"],
-                    "correct": 1
+                    "title": "Practice Question",
+                    "explainer": "Let's practice what we learned about unit prices.",
+                    "cfu": {
+                        "id": "q1_cfu",
+                        "type": "multiple_choice",
+                        "question": "Which is the better deal: $5 for 2 items or $7 for 3 items?",
+                        "options": ["$5 for 2 items", "$7 for 3 items", "They are equal"],
+                        "expected": "$7 for 3 items"
+                    }
                 }
             ]
         }

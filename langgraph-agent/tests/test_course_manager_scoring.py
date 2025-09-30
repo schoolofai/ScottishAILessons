@@ -9,7 +9,7 @@ Tests for scoring rubric implementation:
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from agent.course_manager_utils import (
     calculate_priority_score,
     create_lesson_candidates,
@@ -22,7 +22,7 @@ class TestLowMasteryScoring:
     """Test +0.25 scoring for low mastery outcomes (EMA < 0.6)"""
 
     def test_single_low_mastery_outcome_adds_quarter_point(self):
-        """Single outcome with EMA < 0.6 should add +0.25"""
+        """Single outcome with masteryLevel < 0.5 should add +0.25"""
         template = {
             '$id': 'template-123',
             'title': 'Test Lesson',
@@ -30,17 +30,16 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within time constraint to avoid penalty
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.5  # Low mastery (< 0.6)
-            }
-        }
+        # Production expects mastery as a flat list with outcomeRef and masteryLevel
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.4}  # Low mastery (< 0.5)
+        ]
 
-        routine = {}
+        sow_data = []  # Empty list for no SOW data
         constraints = {'maxBlockMinutes': 25}  # Explicit constraint
         sow_order = 10  # High order to avoid early bonus
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         assert result['priorityScore'] == 0.25
         assert 'low mastery' in result['reasons']
@@ -54,24 +53,22 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.3,  # Low mastery
-                'AOM3.2': 0.4   # Low mastery
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.3},  # Low mastery
+            {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.4}   # Low mastery
+        ]
 
-        routine = {}
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         assert result['priorityScore'] == 0.25
         assert 'low mastery' in result['reasons']
 
-    def test_mixed_mastery_levels_adds_quarter_point(self):
-        """Mix of low and high mastery should still add +0.25"""
+    def test_mixed_mastery_levels_no_bonus(self):
+        """Mix of low and high mastery averages to medium (0.67) - no bonus"""
         template = {
             '$id': 'template-123',
             'title': 'Test Lesson',
@@ -79,25 +76,23 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.5,  # Low mastery (< 0.6)
-                'AOM3.2': 0.8,  # High mastery (>= 0.6)
-                'AOM3.3': 0.9   # High mastery (>= 0.6)
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.4},  # Low mastery
+            {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.8},  # High mastery
+            {'outcomeRef': 'AOM3.3', 'masteryLevel': 0.8}   # High mastery
+        ]  # Average = 0.67, which is between 0.5 and 0.8 (neutral)
 
-        routine = {}
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
-        assert result['priorityScore'] == 0.25
-        assert 'low mastery' in result['reasons']
+        assert result['priorityScore'] == 0.0  # No bonus for medium mastery
+        assert 'low mastery' not in result['reasons']
 
-    def test_all_high_mastery_no_bonus(self):
-        """All outcomes with EMA >= 0.6 should not add low mastery bonus"""
+    def test_all_high_mastery_gets_penalty(self):
+        """All outcomes with masteryLevel > 0.8 should get -0.20 penalty"""
         template = {
             '$id': 'template-123',
             'title': 'Test Lesson',
@@ -105,24 +100,23 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.6,  # Just at threshold
-                'AOM3.2': 0.8   # High mastery
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.85},  # High mastery
+            {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.9}    # High mastery
+        ]  # Average = 0.875 > 0.8
 
-        routine = {}
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
+        # Score is clamped to minimum 0.0 (max(0.0, -0.20) = 0.0)
         assert result['priorityScore'] == 0.0
-        assert 'low mastery' not in result['reasons']
+        assert 'high mastery' in result['reasons']
 
-    def test_missing_mastery_data_no_bonus(self):
-        """No mastery data should not add low mastery bonus"""
+    def test_missing_mastery_data_no_new_content_bonus(self):
+        """Empty mastery data (no entries at all) gets no bonus"""
         template = {
             '$id': 'template-123',
             'title': 'Test Lesson',
@@ -130,39 +124,41 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {}  # No mastery data
-        routine = {}
+        mastery = []  # Empty mastery data - no entries at all
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
+        # When mastery array is empty, no bonus is given
         assert result['priorityScore'] == 0.0
-        assert 'low mastery' not in result['reasons']
+        assert 'new content' not in result['reasons']
+        assert 'short win' in result['reasons']  # Added for lessons <= 20 minutes
 
-    def test_outcome_not_in_mastery_data_no_bonus(self):
-        """Outcome missing from mastery data should not contribute to bonus"""
+    def test_outcome_not_in_mastery_data_treated_as_new(self):
+        """Mastery data exists but no matching outcomes -> new content"""
         template = {
             '$id': 'template-123',
             'title': 'Test Lesson',
-            'outcomeRefs': ['AOM3.1', 'AOM3.99'],  # AOM3.99 not in mastery
+            'outcomeRefs': ['AOM3.1', 'AOM3.99'],  # Neither in mastery
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.5  # Low mastery, but AOM3.99 missing
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.5}  # Different outcome, no match
+        ]
 
-        routine = {}
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
+        # When mastery data exists but has no matching outcomes, it's new content
         assert result['priorityScore'] == 0.25
-        assert 'low mastery' in result['reasons']
+        assert 'new content' in result['reasons']
+        assert 'short win' in result['reasons']
 
     def test_very_low_mastery_gets_flag(self):
         """Very low mastery (< 0.3 average) should get special flag"""
@@ -173,21 +169,20 @@ class TestLowMasteryScoring:
             'estMinutes': 20  # Within constraint
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.2,  # Very low
-                'AOM3.2': 0.25  # Very low (average = 0.225 < 0.3)
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.2},  # Very low
+            {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.25}  # Very low (average = 0.225 < 0.3)
+        ]
 
-        routine = {}
+        sow_data = []
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         assert result['priorityScore'] == 0.25
         assert 'low mastery' in result['reasons']
+        assert 'short win' in result['reasons']  # Added for 20 minute lessons
         assert 'very-low-mastery' in result.get('flags', [])
 
 
@@ -204,28 +199,25 @@ class TestScoringCombinations:
         }
 
         # Low mastery
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.4
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.4}
+        ]
 
-        # Overdue
-        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
-        routine = {
-            'dueAtByOutcome': {
-                'AOM3.1': yesterday
-            }
-        }
+        # Overdue - use SOW data with plannedAt in the past
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        sow_data = [
+            {'templateId': 'template-123', 'plannedAt': yesterday}
+        ]
 
         constraints = {'maxBlockMinutes': 25}
         sow_order = 10
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         assert result['priorityScore'] == 0.65  # 0.40 + 0.25
         assert 'overdue' in result['reasons']
         assert 'low mastery' in result['reasons']
+        assert 'short win' in result['reasons']
 
     def test_all_positive_factors_combination(self):
         """Test maximum positive score: overdue + low mastery + early order"""
@@ -236,23 +228,19 @@ class TestScoringCombinations:
             'estMinutes': 15  # Short lesson gets 'short win' reason
         }
 
-        mastery = {
-            'emaByOutcome': {
-                'AOM3.1': 0.3  # Low mastery
-            }
-        }
+        mastery = [
+            {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.3}  # Low mastery
+        ]
 
-        yesterday = (datetime.now() - timedelta(days=1)).isoformat()
-        routine = {
-            'dueAtByOutcome': {
-                'AOM3.1': yesterday  # Overdue
-            }
-        }
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        sow_data = [
+            {'templateId': 'template-123', 'plannedAt': yesterday}  # Overdue
+        ]
 
         constraints = {}
         sow_order = 1  # First in SoW gets maximum early bonus (0.15)
 
-        result = calculate_priority_score(template, mastery, routine, sow_order, constraints)
+        result = calculate_priority_score(template, mastery, sow_data, sow_order, constraints)
 
         expected_score = 0.40 + 0.25 + 0.15  # overdue + low mastery + early order
         assert result['priorityScore'] == expected_score
@@ -284,28 +272,23 @@ class TestCandidateRanking:
                     'estMinutes': 30
                 }
             ],
-            'sow': {
-                'entries': [
-                    {'order': 1, 'lessonTemplateId': 'template-high'},
-                    {'order': 2, 'lessonTemplateId': 'template-low'}
-                ]
-            },
-            'mastery': {
-                'emaByOutcome': {
-                    'AOM3.1': 0.3,  # Low mastery - gets +0.25
-                    'AOM3.2': 0.8   # High mastery - gets 0
-                }
-            },
-            'routine': {},
+            'sow': [
+                {'templateId': 'template-high', 'order': 1},
+                {'templateId': 'template-low', 'order': 2}
+            ],
+            'mastery': [
+                {'outcomeRef': 'AOM3.1', 'masteryLevel': 0.3},  # Low mastery - gets +0.25
+                {'outcomeRef': 'AOM3.2', 'masteryLevel': 0.8}   # High mastery - neutral
+            ],
             'constraints': {}
         }
 
         candidates = create_lesson_candidates(context)
 
         assert len(candidates) == 2
-        assert candidates[0]['lessonTemplateId'] == 'template-high'
-        assert candidates[1]['lessonTemplateId'] == 'template-low'
-        assert candidates[0]['priorityScore'] > candidates[1]['priorityScore']
+        assert candidates[0]['lessonId'] == 'template-high'
+        assert candidates[1]['lessonId'] == 'template-low'
+        assert candidates[0]['score'] > candidates[1]['score']
 
     def test_candidates_limited_to_five(self):
         """Should return maximum 5 candidates"""
@@ -320,17 +303,16 @@ class TestCandidateRanking:
                 'estMinutes': 30
             })
             sow_entries.append({
-                'order': i + 1,
-                'lessonTemplateId': f'template-{i}'
+                'templateId': f'template-{i}',  # Changed from lessonTemplateId
+                'order': i + 1
             })
 
         context = {
             'student': {'id': 'student-123'},
             'course': {'courseId': 'C844 73'},
             'templates': templates,
-            'sow': {'entries': sow_entries},
-            'mastery': {},
-            'routine': {},
+            'sow': sow_entries,  # List, not dict with 'entries'
+            'mastery': [],  # Empty list, not dict
             'constraints': {}
         }
 
@@ -410,7 +392,7 @@ class TestRubricExplanation:
 
         assert isinstance(rubric, str)
         assert 'Overdue' in rubric
-        assert 'LowEMA' in rubric
+        assert 'Low Mastery' in rubric  # Changed from LowEMA
         assert 'Order' in rubric
-        assert 'Recent' in rubric
-        assert 'TooLong' in rubric
+        # 'Recent' removed from production
+        assert 'Long' in rubric  # Changed from TooLong

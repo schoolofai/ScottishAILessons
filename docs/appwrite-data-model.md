@@ -1,0 +1,543 @@
+# Appwrite Data Model Documentation
+
+## Overview
+
+This document provides comprehensive documentation for the Scottish AI Lessons Appwrite database schema. The system uses a microservice architecture with a central Appwrite database for data persistence, serving both the main teaching application and the course management system.
+
+## Database Structure
+
+### Databases Available
+
+1. **default** (`Scottish AI Lessons`) - Main production database
+2. **sqa_education** (`SQA Education Database`) - Legacy database
+3. **sqa_education_test** (`SQA Education Database - Testing`) - Test database
+
+This documentation focuses on the **default** database which contains the active data model.
+
+## Collections Overview
+
+| Collection | Purpose | Security | Key Relationships |
+|------------|---------|----------|------------------|
+| `students` | Student profile management | User-scoped | Links to users, enrollments |
+| `courses` | Course catalog definition | Read-only public | Referenced by enrollments, lessons |
+| `enrollments` | Student-course relationships | User-scoped | Links students to courses |
+| `lesson_templates` | Lesson content definitions | Read-only public | Referenced by sessions |
+| `sessions` | Learning session tracking | User-scoped | Links students to lessons |
+| `evidence` | Student response data | Collection-level | Links to sessions |
+| `mastery` / `MasteryV2` | Learning progress tracking | Collection/Public | Links to students, outcomes |
+| `course_outcomes` | Learning objective definitions | Read-only public | Referenced by lessons, mastery |
+| `sow` / `SOWV2` | Scheme of work planning | Collection/User-scoped | Course curriculum structure |
+| `routine` | Spaced repetition scheduling | User-scoped | Student learning routines |
+| `planner_threads` | Course manager state | User-scoped | LangGraph execution tracking |
+
+## Detailed Collection Schemas
+
+### Students Collection
+
+**Purpose**: Stores student profile information and enrollment data.
+
+**Security**: `documentSecurity: false` - Uses collection-level permissions with user scope.
+
+**Permissions**:
+- `create("users")`, `read("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Student {
+  $id: string;              // Appwrite document ID
+  userId: string;           // Reference to Appwrite Auth user (required, 36 chars)
+  name: string;             // Student display name (required, max 128 chars)
+  role: string;             // User role (default: "student", max 20 chars)
+  accommodations: string;   // JSON array of accommodation needs (max 5000 chars, default: "[]")
+  enrolledCourses: string;  // JSON array of course IDs (max 1000 chars, default: "[]")
+}
+```
+
+**Indexes**:
+- `userId_idx` - Key index on userId for efficient lookups
+
+**Usage in Frontend**:
+- Managed by `StudentDriver.ts`
+- Used in authentication flow and dashboard displays
+- Accommodations field supports accessibility features
+
+### Courses Collection
+
+**Purpose**: Defines available courses with SQA (Scottish Qualifications Authority) alignment.
+
+**Security**: `documentSecurity: false` - Public read access for course catalog.
+
+**Permissions**:
+- `read("any")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Course {
+  $id: string;           // Appwrite document ID (usually matches courseId)
+  courseId: string;      // SQA course identifier (required, max 50 chars)
+  subject: string;       // Subject area (required, max 128 chars)
+  phase: string;         // Education phase (required, max 50 chars)
+  level: string;         // Qualification level (required, max 50 chars)
+  schema_version: number; // Data schema version (default: 1)
+  sqaCode: string;       // Official SQA code (max 20 chars)
+}
+```
+
+**Example Data**:
+- `C844 73` - Applications of Mathematics, Senior Phase, Nat3
+- `C747 75` - Mathematics, Senior Phase, National 5
+- `C843 73` - Physics, Senior Phase, Nat3
+
+**Usage in Frontend**:
+- Course selection in dashboards
+- Lesson template filtering
+- Progress tracking context
+
+### Enrollments Collection
+
+**Purpose**: Manages student enrollment in specific courses.
+
+**Security**: `documentSecurity: true` - Document-level permissions.
+
+**Permissions**:
+- `read("users")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Enrollment {
+  $id: string;        // Appwrite document ID
+  studentId: string;  // Reference to student (required, max 50 chars)
+  courseId: string;   // Reference to course (required, max 50 chars)
+  role: 'student' | 'observer'; // Enrollment type (default: "student")
+  schema_version: number; // Data schema version (default: 1)
+  enrolledAt: string; // ISO datetime string
+}
+```
+
+**Indexes**:
+- `student_course_idx` - Compound key index on (studentId, courseId)
+
+**Usage in Frontend**:
+- Dashboard course filtering
+- Permission checking for lesson access
+- Progress tracking scope
+
+### Lesson Templates Collection
+
+**Purpose**: Stores reusable lesson content with learning cards and assessments.
+
+**Security**: `documentSecurity: false` - Public read access for educational content.
+
+**Permissions**:
+- `read("any")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface LessonTemplate {
+  $id: string;           // Appwrite document ID
+  courseId: string;      // Reference to course (required, max 50 chars)
+  title: string;         // Lesson title (required, max 255 chars)
+  outcomeRefs: string;   // JSON array of learning outcome IDs (required, max 4000 chars)
+  cards: string;         // JSON array of lesson cards (required, max 8000 chars)
+  version: number;       // Template version (default: 1)
+  status: 'draft' | 'published'; // Publication status (default: "draft")
+  createdBy: string;     // Creator user ID (required, max 50 chars)
+  estMinutes: number;    // Estimated duration (min: 5, max: 120, default: 30)
+}
+```
+
+**Lesson Card Structure**:
+```typescript
+interface LessonCard {
+  id: string;            // Unique card identifier
+  title: string;         // Card title
+  explainer: string;     // Learning content explanation
+  example?: string[];    // Optional worked examples
+  cfu: {                 // Check for Understanding assessment
+    type: "numeric" | "mcq";
+    id: string;
+    stem: string;        // Question text
+    expected?: number | string;   // Correct answer
+    tolerance?: number;           // Numeric tolerance
+    options?: string[];           // MCQ options
+    answerIndex?: number;         // MCQ correct answer index
+  };
+}
+```
+
+**Usage in Frontend**:
+- Lesson content rendering via `LessonCardPresentationTool.tsx`
+- Course manager lesson recommendations
+- Teaching graph lesson delivery
+
+### Sessions Collection
+
+**Purpose**: Tracks individual learning sessions between students and lessons.
+
+**Security**: `documentSecurity: true` - Document-level permissions.
+
+**Permissions**:
+- `read("users")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Session {
+  $id: string;                // Appwrite document ID
+  studentId: string;          // Reference to student (required, max 50 chars)
+  courseId: string;           // Reference to course (required, max 50 chars)
+  lessonTemplateId: string;   // Reference to lesson template (max 50 chars)
+  startedAt: string;          // Session start time (required, ISO datetime)
+  endedAt: string;            // Session end time (ISO datetime)
+  stage: 'design' | 'deliver' | 'mark' | 'progress' | 'done'; // Session stage (default: "design")
+  lessonSnapshot: string;     // JSON snapshot of lesson content (required, max 8000 chars)
+  threadId: string;           // LangGraph conversation thread ID (max 100 chars)
+  lastMessageAt: string;      // Last chat interaction timestamp (ISO datetime)
+  contextChatThreadId: string; // Context chat thread ID (max 100 chars)
+}
+```
+
+**Indexes**:
+- `studentId_idx` - Key index on studentId for efficient student lookups
+
+**Stage Progression**:
+1. `design` - Lesson planning phase
+2. `deliver` - Active teaching/learning
+3. `mark` - Assessment and feedback
+4. `progress` - Progress tracking updates
+5. `done` - Session completed
+
+**Usage in Frontend**:
+- Session management via `SessionDriver.ts`
+- LangGraph teaching integration
+- Progress tracking and analytics
+
+### Evidence Collection
+
+**Purpose**: Stores student responses and assessment data for learning analytics.
+
+**Security**: `documentSecurity: false` - Collection-level permissions.
+
+**Permissions**:
+- `read("users")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Evidence {
+  $id: string;           // Appwrite document ID
+  sessionId: string;     // Reference to session (required, max 50 chars)
+  itemId: string;        // Reference to lesson card/question (required, max 50 chars)
+  response: string;      // Student's response (required, max 1000 chars)
+  correct: boolean;      // Whether response was correct (required)
+  attempts: number;      // Number of attempts (min: 1, max: 10, default: 1)
+  confidence: number;    // Confidence score (min: 0, max: 1, default: 0)
+  reasoning: string;     // AI reasoning for assessment (max 2000 chars)
+  feedback: string;      // Feedback provided to student (max 2000 chars)
+  timestamp: string;     // Response timestamp (ISO datetime)
+  attemptIndex: number;  // Zero-based attempt counter (min: 0, max: 10, default: 0)
+  score: number;         // Normalized score (min: 0, max: 1, default: 0)
+  outcomeScores: string; // JSON object of outcome-specific scores (max 2000 chars, default: "{}")
+  submittedAt: string;   // Submission timestamp (ISO datetime)
+}
+```
+
+**Usage in Frontend**:
+- Managed by `EvidenceDriver.ts`
+- Learning analytics and progress tracking
+- Mastery calculation inputs
+
+### Mastery Collections (V1 and V2)
+
+**Purpose**: Tracks student mastery levels for learning outcomes using exponential moving averages.
+
+#### MasteryV2 Collection (Current)
+
+**Security**: `documentSecurity: false` - Public access for analytics.
+
+**Permissions**:
+- Full CRUD access for users and any role
+
+**Schema**:
+```typescript
+interface MasteryV2 {
+  $id: string;           // Appwrite document ID
+  studentId: string;     // Reference to student (required, max 50 chars)
+  courseId: string;      // Reference to course (required, max 50 chars)
+  emaByOutcome: string;  // JSON object mapping outcome IDs to EMA scores (max 5000 chars, default: "{}")
+  updatedAt: string;     // Last update timestamp (required, ISO datetime)
+}
+```
+
+**Indexes**:
+- `unique_student_course` - Unique compound index on (studentId, courseId)
+
+#### Legacy Mastery Collection
+
+**Security**: `documentSecurity: true` - Document-level permissions.
+
+**Schema**:
+```typescript
+interface Mastery {
+  $id: string;           // Appwrite document ID
+  studentId: string;     // Reference to student (required, max 50 chars)
+  courseId: string;      // Reference to course (max 50 chars, default: "")
+  outcomeId: string;     // Outcome identifier (max 100 chars, default: "")
+  ema: number;           // Exponential moving average score (min: 0, max: 1, default: 0)
+  outcomeRef: string;    // Outcome reference (required, max 100 chars)
+  level: number;         // Mastery level (required, min: 0, max: 1)
+  confidence: number;    // Confidence in assessment (required, min: 0, max: 1)
+  lastUpdated: string;   // Last update timestamp (required, ISO datetime)
+}
+```
+
+**Usage in Frontend**:
+- Managed by `MasteryV2Driver.ts` and `MasteryDriver.ts`
+- Course manager recommendation algorithms
+- Student progress dashboards
+
+### Course Outcomes Collection
+
+**Purpose**: Defines learning objectives and outcomes for courses.
+
+**Security**: `documentSecurity: false` - Public read access for educational standards.
+
+**Permissions**:
+- `read("any")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface CourseOutcome {
+  $id: string;        // Appwrite document ID
+  courseId: string;   // Reference to course (required, max 50 chars)
+  outcomeRef: string; // Outcome reference code (required, max 100 chars)
+  title: string;      // Outcome description (required, max 255 chars)
+}
+```
+
+**Usage in Frontend**:
+- Lesson template outcome mapping
+- Progress tracking granularity
+- Assessment alignment
+
+### Scheme of Work Collections (SOW and SOWV2)
+
+**Purpose**: Manages curriculum planning and lesson sequencing.
+
+#### SOWV2 Collection (Current)
+
+**Security**: `documentSecurity: false` - Collection-level permissions.
+
+**Schema**:
+```typescript
+interface SOWV2 {
+  $id: string;        // Appwrite document ID
+  studentId: string;  // Reference to student (required, max 50 chars)
+  courseId: string;   // Reference to course (required, max 50 chars)
+  entries: string;    // JSON array of curriculum entries (max 10000 chars, default: "[]")
+  createdAt: string;  // Creation timestamp (required, ISO datetime)
+}
+```
+
+**Indexes**:
+- `unique_student_course` - Unique compound index on (studentId, courseId)
+
+#### Legacy SOW Collection
+
+**Schema**:
+```typescript
+interface SOW {
+  $id: string;        // Appwrite document ID
+  courseId: string;   // Reference to course (required, max 50 chars)
+  unitNumber: string; // Unit identifier (required, max 20 chars)
+  unitTitle: string;  // Unit title (required, max 255 chars)
+  weekNumber: number; // Week in curriculum (required, min: 1, max: 52)
+  lessonIds: string;  // JSON array of lesson template IDs (required, max 2000 chars)
+}
+```
+
+**Usage in Frontend**:
+- Course planning and sequencing
+- Lesson recommendation ordering
+- Curriculum progress tracking
+
+### Routine Collection
+
+**Purpose**: Manages spaced repetition scheduling for personalized learning.
+
+**Security**: `documentSecurity: true` - Document-level permissions.
+
+**Permissions**:
+- `read("users")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface Routine {
+  $id: string;              // Appwrite document ID
+  studentId: string;        // Reference to student (required, max 50 chars)
+  courseId: string;         // Reference to course (required, max 50 chars)
+  lastSessionDate: string;  // Last learning session date (ISO datetime)
+  daysSinceLastSession: number; // Days since last session (min: 0, max: 365, default: 0)
+  lastTaughtAt: string;     // Last teaching timestamp (ISO datetime)
+  dueAtByOutcome: string;   // JSON object mapping outcomes to due dates (max 5000 chars, default: "{}")
+  spacingPolicyVersion: number; // Spaced repetition algorithm version (min: 1, max: 100, default: 1)
+  schema_version: number;   // Data schema version (min: 1, max: 100, default: 1)
+}
+```
+
+**Usage in Frontend**:
+- Managed by `RoutineDriver.ts`
+- Spaced repetition scheduling
+- Course manager lesson prioritization
+
+### Planner Threads Collection
+
+**Purpose**: Tracks Course Manager LangGraph execution state for recommendation continuity.
+
+**Security**: `documentSecurity: true` - Document-level permissions.
+
+**Permissions**:
+- `read("users")`, `create("users")`, `update("users")`, `delete("users")`
+
+**Schema**:
+```typescript
+interface PlannerThread {
+  $id: string;        // Appwrite document ID
+  studentId: string;  // Reference to student (required, max 50 chars)
+  courseId: string;   // Reference to course (required, max 50 chars)
+  graphRunId: string; // LangGraph execution run ID (required, max 100 chars)
+}
+```
+
+**Usage in Frontend**:
+- Managed by `planner-service.ts`
+- Course manager state persistence
+- Recommendation session continuity
+
+## Frontend Integration Patterns
+
+### Driver Architecture
+
+The frontend uses a driver pattern for data access:
+
+- **BaseDriver**: Generic CRUD operations and session management
+- **StudentDriver**: Student profile management
+- **SessionDriver**: Learning session lifecycle
+- **EvidenceDriver**: Assessment data persistence
+- **MasteryV2Driver**: Learning progress tracking
+- **LessonDriver**: Lesson template operations
+- **RoutineDriver**: Spaced repetition scheduling
+- **SOWDriver**: Curriculum planning
+
+### Schema Validation
+
+All data operations use Zod schemas for validation (`schemas.ts`):
+
+- Input sanitization and XSS prevention
+- Type safety and validation
+- Transformation for Appwrite compatibility
+- Error handling and user feedback
+
+### Permission Patterns
+
+#### Collection-Level Security
+- **Public Collections**: `courses`, `lesson_templates`, `course_outcomes`
+- **User-Scoped Collections**: `students`, `evidence`, `MasteryV2`
+- **Mixed Collections**: `mastery` (legacy document-level)
+
+#### Document-Level Security
+- **User-Private**: `sessions`, `enrollments`, `routine`, `planner_threads`
+- **Automatic Permissions**: Generated based on authenticated user
+
+### Authentication Integration
+
+Frontend authentication flows:
+1. **Login/Signup**: `auth/LoginForm.tsx`, `auth/SignupForm.tsx`
+2. **Session Management**: `hooks/useAuth.ts`, `hooks/useAppwrite.ts`
+3. **Protected Routes**: `middleware.ts`
+4. **Server-Side Auth**: `lib/appwrite/server.ts`
+
+## Key Data Relationships
+
+### Student Learning Journey
+```
+User (Appwrite Auth)
+  ↓
+Student (profile)
+  ↓
+Enrollment (course access)
+  ↓
+Session (learning instance)
+  ↓
+Evidence (assessment data)
+  ↓
+MasteryV2 (progress tracking)
+```
+
+### Curriculum Management
+```
+Course (subject definition)
+  ↓
+Course Outcomes (learning objectives)
+  ↓
+Lesson Templates (content structure)
+  ↓
+SOWV2 (curriculum sequencing)
+  ↓
+Routine (spaced repetition)
+```
+
+### Course Manager Flow
+```
+Student + Course Context
+  ↓
+Planner Threads (LangGraph state)
+  ↓
+Recommendation Generation
+  ↓
+Session Creation
+  ↓
+Teaching Delivery
+```
+
+## Performance Considerations
+
+### Indexing Strategy
+- **Student Lookups**: `userId_idx` on students
+- **Session History**: `studentId_idx` on sessions
+- **Enrollment Checks**: `student_course_idx` on enrollments
+- **Mastery Uniqueness**: `unique_student_course` on MasteryV2 and SOWV2
+
+### Data Size Limits
+- **Large JSON Fields**: `cards` (8000 chars), `lessonSnapshot` (8000 chars)
+- **Text Content**: `accommodations` (5000 chars), `emaByOutcome` (5000 chars)
+- **Regular Fields**: Most strings limited to 50-255 characters
+
+### Caching Strategies
+- **Static Content**: Courses, lesson templates, outcomes cached client-side
+- **Dynamic Data**: Student progress, sessions fetched on-demand
+- **Real-time Updates**: Session state updated during active learning
+
+## Security Considerations
+
+### Data Protection
+- **Input Sanitization**: All string fields sanitized for XSS prevention
+- **Permission Validation**: Collection and document-level access control
+- **Authentication Required**: All user-specific operations require valid session
+
+### Privacy Controls
+- **Student Data**: Isolated by user permissions
+- **Progress Tracking**: Anonymizable for analytics
+- **Session Content**: Temporary storage with cleanup policies
+
+## Migration and Versioning
+
+### Schema Evolution
+- **Version Fields**: `schema_version` for forward compatibility
+- **V2 Collections**: `MasteryV2`, `SOWV2` for improved data models
+- **Backward Compatibility**: Legacy collections maintained during transition
+
+### Data Migration Patterns
+- **Incremental Migration**: Gradual transition from V1 to V2 schemas
+- **Validation**: Zod schemas handle both old and new data formats
+- **Fallback Handling**: Graceful degradation for missing fields
+
+This data model supports the full Scottish AI Lessons learning platform, from course enrollment through personalized lesson delivery and progress tracking, with robust security and performance characteristics.

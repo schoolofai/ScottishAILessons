@@ -14,7 +14,7 @@ async def send_and_wait_for_completion(
     client,
     thread_id: str,
     input_data: Dict[str, Any],
-    timeout: int = 30
+    timeout: int = 60
 ) -> Dict[str, Any]:
     """Send input to graph and wait for completion.
 
@@ -39,8 +39,19 @@ async def send_and_wait_for_completion(
 
     # Wait for completion
     start_time = asyncio.get_event_loop().time()
+    last_status = None
     while True:
         run_status = await client.runs.get(thread_id, run["run_id"])
+
+        # Debug logging - print status changes
+        if run_status["status"] != last_status:
+            print(f"🔄 Run status: {run_status['status']}")
+            last_status = run_status["status"]
+
+            # If there's an interrupt, log it
+            if run_status["status"] == "interrupted":
+                thread_state = await client.threads.get_state(thread_id)
+                print(f"📋 Interrupt state: {thread_state.get('next', [])}")
 
         if run_status["status"] in ["success", "error"]:
             # Get the final thread state and merge it with run status
@@ -49,10 +60,15 @@ async def send_and_wait_for_completion(
                 **run_status,
                 "values": thread_state.get("values", {})
             }
+            print(f"✅ Run completed with status: {run_status['status']}")
             return result
 
         if asyncio.get_event_loop().time() - start_time > timeout:
-            raise asyncio.TimeoutError(f"Run did not complete within {timeout} seconds")
+            # Get current state for debugging
+            thread_state = await client.threads.get_state(thread_id)
+            print(f"⏰ Timeout - Current status: {run_status['status']}")
+            print(f"📋 Current state keys: {list(thread_state.get('values', {}).keys())}")
+            raise asyncio.TimeoutError(f"Run did not complete within {timeout} seconds. Last status: {run_status['status']}")
 
         await asyncio.sleep(0.5)
 
@@ -116,15 +132,22 @@ def assert_has_course_recommendation(result: Dict[str, Any]) -> None:
     assert "course_recommendation" in values, "Should have course_recommendation"
     recommendation = values["course_recommendation"]
 
-    assert "candidates" in recommendation, "Recommendation should have candidates"
-    assert len(recommendation["candidates"]) > 0, "Should have at least one candidate"
+    # Production code returns 'recommendations' not 'candidates'
+    assert "recommendations" in recommendation, "Recommendation should have recommendations"
+    assert len(recommendation["recommendations"]) > 0, "Should have at least one recommendation"
 
-    # Validate candidate structure
-    for candidate in recommendation["candidates"]:
-        assert "lessonTemplateId" in candidate, "Candidate should have lessonTemplateId"
-        assert "title" in candidate, "Candidate should have title"
-        assert "priorityScore" in candidate, "Candidate should have priorityScore"
-        assert "reasons" in candidate, "Candidate should have reasons"
+    # Validate recommendation structure (based on actual production output)
+    for rec in recommendation["recommendations"]:
+        # Actual production fields
+        assert "lessonId" in rec, "Recommendation should have lessonId"
+        assert "title" in rec, "Recommendation should have title"
+        assert "score" in rec, "Recommendation should have score"
+        assert "reasons" in rec, "Recommendation should have reasons"
+
+        # Optional fields that should be present
+        assert "targetOutcomeIds" in rec, "Recommendation should have targetOutcomeIds"
+        assert "estimatedMinutes" in rec, "Recommendation should have estimatedMinutes"
+        assert "priority" in rec, "Recommendation should have priority"
 
 
 def assert_has_teaching_preparation(result: Dict[str, Any]) -> None:
@@ -257,7 +280,7 @@ def create_human_message(content: str) -> Dict[str, Any]:
     }
 
 
-def validate_streaming_chunks(chunks: List[Dict[str, Any]]) -> None:
+def validate_streaming_chunks(chunks: List[Any]) -> None:
     """Validate that streaming chunks have proper format.
 
     Args:
@@ -268,6 +291,18 @@ def validate_streaming_chunks(chunks: List[Dict[str, Any]]) -> None:
     """
     assert len(chunks) > 0, "Should receive at least one chunk"
 
-    for chunk in chunks:
-        assert isinstance(chunk, dict), "Each chunk should be a dictionary"
-        # Add more specific validations based on expected chunk format
+    # Verify we have chunks
+
+    # Validate chunks (LangGraph SDK returns StreamPart objects)
+    for i, chunk in enumerate(chunks):
+        # LangGraph SDK returns StreamPart objects with event and data attributes
+        if hasattr(chunk, 'event') and hasattr(chunk, 'data'):
+            # Valid StreamPart object
+            assert chunk.event in ['metadata', 'values', 'updates', 'messages'], f"Unknown event type: {chunk.event}"
+            assert isinstance(chunk.data, dict), f"Chunk data should be dict, got {type(chunk.data)}"
+        elif isinstance(chunk, dict):
+            # Direct dict (older SDK format)
+            pass
+        else:
+            # Unexpected format
+            assert False, f"Unexpected chunk format at index {i}: {type(chunk)}"

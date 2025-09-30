@@ -77,7 +77,7 @@ async def test_context_chat_agent_comprehensive():
         "messages": [
             HumanMessage(content="What fraction are we currently discussing in this lesson?")
         ],
-        "session_context": teaching_context
+        "static_context": teaching_context
     }
 
     response_content = ""
@@ -121,7 +121,7 @@ async def test_context_chat_agent_comprehensive():
         "messages": [
             HumanMessage(content="Can you help me understand fractions?")
         ],
-        "session_context": {
+        "static_context": {
             "session_id": "generic_chat_session",
             "student_id": "student_generic"
             # No lesson_snapshot or teaching data
@@ -205,7 +205,7 @@ async def test_context_chat_agent_comprehensive():
         "messages": [
             HumanMessage(content="I'm struggling with finding common denominators. Can you help?")
         ],
-        "session_context": advanced_context
+        "static_context": advanced_context
     }
 
     response_content3 = ""

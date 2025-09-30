@@ -9,9 +9,9 @@ This script:
 4. Cleanly shuts down the server
 
 Usage:
-    python test_server.py                           # Run all context integration tests
-    python test_server.py -k test_context          # Run specific test pattern
-    python test_server.py --cov=src --cov-report=html  # Run with coverage
+    python tests/utils/server_manager.py                           # Run all context integration tests
+    python tests/utils/server_manager.py -k test_context          # Run specific test pattern
+    python tests/utils/server_manager.py --cov=src --cov-report=html  # Run with coverage
 """
 
 import sys
@@ -112,7 +112,7 @@ def run_tests(pytest_args: List[str]) -> int:
     """Run pytest with the given arguments."""
     print("🧪 Running context integration tests...")
 
-    cmd = ["python", "-m", "pytest", "tests/test_context_integration.py"] + pytest_args
+    cmd = ["python", "-m", "pytest", "../integration_tests/test_context_integration.py"] + pytest_args
 
     print(f"Running: {' '.join(cmd)}")
     return subprocess.call(cmd)

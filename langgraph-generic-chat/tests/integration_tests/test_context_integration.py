@@ -1,17 +1,14 @@
 """
 Backend Integration Tests for Context-Aware Chat Agent
 
-These tests validate the context-aware chat agent in complete isolation using
+These tests validate the dual-source context-aware chat agent using
 the LangGraph Python SDK against a live `langgraph dev` server on port 2700.
 
-RED STATE: All tests will initially FAIL as context processing doesn't exist yet.
-GREEN STATE: Tests pass when context-aware agent is fully implemented.
-
 Test Coverage:
-- Context awareness and lesson understanding
-- Student progress adaptation
+- Dual-source context awareness (static + dynamic)
+- Lesson understanding and adaptation
 - Search integration with context
-- Error handling for missing context
+- Error handling for missing/malformed context
 - Response quality and relevance
 """
 
@@ -28,21 +25,18 @@ class TestContextAwareAgent:
     async def test_agent_understands_current_lesson_context(
         self, langgraph_client, teaching_context
     ):
-        """
-        RED: This test will fail initially - context processing doesn't exist.
-
-        Test that agent demonstrates understanding of current lesson state
-        by referencing specific content from the teaching context.
+        """Test that agent demonstrates understanding of current lesson state
+        by referencing specific content from the static teaching context.
         """
         # Create new thread for this test
         thread = await langgraph_client.threads.create()
 
-        # Input matching exact frontend format
+        # Input using new dual-source context format
         input_data = {
             "messages": [
                 HumanMessage(content="What fraction are we currently discussing in this lesson?")
             ],
-            "session_context": teaching_context
+            "static_context": teaching_context
         }
 
         # Stream response and collect content
@@ -116,7 +110,7 @@ class TestContextAwareAgent:
             "messages": [
                 HumanMessage(content="What should I learn next in my fraction studies?")
             ],
-            "session_context": teaching_context
+            "static_context": teaching_context
         }
 
         response_content = ""
@@ -165,7 +159,7 @@ class TestContextAwareAgent:
             "messages": [
                 HumanMessage(content="Can you search for more examples of fraction-decimal conversions like we're studying?")
             ],
-            "session_context": search_teaching_context
+            "static_context": search_teaching_context
         }
 
         tool_calls_made = []
@@ -242,7 +236,7 @@ class TestContextAwareAgent:
             "messages": [
                 HumanMessage(content="I'm struggling with finding common denominators. Can you help?")
             ],
-            "session_context": advanced_teaching_context
+            "static_context": advanced_teaching_context
         }
 
         response_content = ""
@@ -291,7 +285,7 @@ class TestContextAwareAgent:
             "messages": [
                 HumanMessage(content="Can you help me understand fractions?")
             ],
-            "session_context": no_context_session
+            "static_context": no_context_session
         }
 
         response_content = ""
@@ -339,7 +333,7 @@ class TestContextProcessingEdgeCases:
 
         input_data = {
             "messages": [HumanMessage(content="Help me with math")],
-            "session_context": malformed_context
+            "static_context": malformed_context
         }
 
         # Should not crash, should handle gracefully
@@ -382,7 +376,7 @@ class TestContextProcessingEdgeCases:
 
         input_data = {
             "messages": [HumanMessage(content="What are we learning?")],
-            "session_context": empty_lesson_context
+            "static_context": empty_lesson_context
         }
 
         response_content = ""
