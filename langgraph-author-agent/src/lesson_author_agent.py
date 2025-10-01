@@ -2,7 +2,6 @@ import os
 from typing import Literal
 
 from tavily import TavilyClient
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
 from deepagents import create_deep_agent
 

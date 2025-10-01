@@ -95,13 +95,13 @@ echo ""
 
 # Step 7: Verify Python can import the module
 echo -e "${BLUE}Step 7: Testing Python imports${NC}"
-python -c "from src.prompts import SUB_RESEARCH_PROMPT, SUB_CRITIQUE_PROMPT, RESEARCH_INSTRUCTIONS; print('✓ Imports successful')" 2>/dev/null
+python -c "from src.research_agent_prompts import SUB_RESEARCH_PROMPT, RESEARCH_INSTRUCTIONS_SQA; print('✓ Imports successful')" 2>/dev/null
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Python imports work correctly${NC}"
 else
     echo -e "${YELLOW}⚠️  Package imports failed, trying fallback import...${NC}"
     cd src
-    python -c "from prompts import SUB_RESEARCH_PROMPT; print('✓ Fallback import successful')" 2>/dev/null
+    python -c "from research_agent_prompts import SUB_RESEARCH_PROMPT; print('✓ Fallback import successful')" 2>/dev/null
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Fallback imports work correctly${NC}"
     else

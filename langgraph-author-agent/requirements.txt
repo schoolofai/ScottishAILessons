@@ -1,3 +1,7 @@
 langgraph-cli[inmem]
 tavily-python
 deepagents
+langchain-google-genai
+langchain-mcp-adapters
+langchain-anthropic
+python-dotenv

@@ -1,0 +1,351 @@
+{
+    "level_name": "National 3",
+    "level_aliases": [
+        "N3",
+        "Nat 3"
+    ],
+    "qualification": {
+        "title": "National 3 Applications of Mathematics",
+        "course_code": "C844 73",
+        "scqf": {
+            "level": 3,
+            "credits": 18,
+            "core_skill_auto_cert": "Numeracy at SCQF level 3"
+        }
+    },
+    "course_structure": {
+        "units": [
+            {
+                "code": "HV7Y 73",
+                "title": "Applications of Mathematics: Manage Money and Data (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [
+                    {
+                        "id": "O1",
+                        "title": "Manage money in basic real-life contexts",
+                        "assessment_standards": [
+                            {
+                                "code": "AS1.1",
+                                "desc": "Identifying factors affecting income and expenditure",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for correctly identifying a range of factors affecting income and expenditure for different personal circumstances, including basic pay, benefits, income tax, VAT, and 'needs and wants' (e.g., utility bills, food, clothing). Accept evidence from real-life or simulated scenarios."
+                            },
+                            {
+                                "code": "AS1.2",
+                                "desc": "Preparing a simple budget",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for preparing a simple budget that balances income and expenditure over a given period. Accept budgets that use spreadsheets or other tools to organise information and perform calculations. Look for evidence of considering basic labour costs, tax, National Insurance, and material costs."
+                            },
+                            {
+                                "code": "AS1.3",
+                                "desc": "Developing a basic savings plan",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for developing a basic savings plan for an item or event. This should involve calculating amounts of money to be saved over a given period and may include considering interest rates and calculating percentages. Accept plans that use spreadsheets to organise data and perform calculations."
+                            },
+                            {
+                                "code": "AS1.4",
+                                "desc": "Making a decision based on the best deal",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for making a decision based on the best deal when comparing two products or services, given two pieces of information (e.g., cost and discounts). Accept evidence from real-life resources, Internet research, or simulations. Candidates should demonstrate the ability to calculate and compare offers like 'buy one get one free' or percentage discounts."
+                            }
+                        ]
+                    },
+                    {
+                        "id": "O2",
+                        "title": "Manage data in basic real-life contexts",
+                        "assessment_standards": [
+                            {
+                                "code": "AS2.1",
+                                "desc": "Organising primary data",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for organising primary data using appropriate methods such as tables, lists, or tally charts. This can include given data or data collected by the learner. Look for clear and logical organisation."
+                            },
+                            {
+                                "code": "AS2.2",
+                                "desc": "Carrying out simple calculations to compare data",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for carrying out simple calculations, such as totals or simple averages, to compare data. Accept evidence where learners analyse data from service providers or other real-life contexts to make comparisons."
+                            },
+                            {
+                                "code": "AS2.3",
+                                "desc": "Representing data in an appropriate format",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for representing data in an appropriate basic statistical diagram with given simple scales. Accept pictographs, bar graphs, or line graphs. Technology may be used for creating graphical forms. Ensure the chosen format is suitable for the data."
+                            },
+                            {
+                                "code": "AS2.4",
+                                "desc": "Interpreting simple data to draw conclusions",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for interpreting simple data to draw conclusions. Look for evidence of learners analysing data, making comparisons, and forming simple conclusions based on their interpretation. This could involve discussing implications of results or identifying common activities from surveys."
+                            }
+                        ]
+                    }
+                ],
+                "unit_marking_guidance": "For this unit, assessors should use professional judgement to give learners credit for an appropriate degree of accuracy. This may mean giving credit for incomplete or numerically incorrect solutions which show correct methodology, demonstrating required knowledge and understanding of money and data processes. A calculator or equivalent technologies may be used. Assessment evidence can be collected for both Outcomes at the same time or sequentially."
+            },
+            {
+                "code": "HV80 73",
+                "title": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [
+                    {
+                        "id": "O1",
+                        "title": "Use shape and space in basic real-life contexts",
+                        "assessment_standards": [
+                            {
+                                "code": "AS1.1",
+                                "desc": "Calculating and using the perimeter and area of a regular 2D shape",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for calculating and using the perimeter and area of regular 2D shapes (e.g., rectangles or squares). Accept methods involving counting squares or using simple formulae expressed in words or symbols. Look for application in real-life contexts such as garden planning or measuring for curtains."
+                            },
+                            {
+                                "code": "AS1.2",
+                                "desc": "Calculating and using the volume of a cuboid",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for calculating and using the volume of a cuboid (e.g., a box or container). Accept methods involving counting cubes or using simple formulae expressed in words or symbols. Look for application in real-life contexts such as estimating container volumes or fitting items into boxes."
+                            },
+                            {
+                                "code": "AS1.3",
+                                "desc": "Giving or following directions",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for giving or following directions for a simple route, journey, or task involving spatial awareness. This could include completing a picture, using local maps or plans, and incorporating directions, measurements (distance/time), and prepositions. Look for clear and concise instructions."
+                            },
+                            {
+                                "code": "AS1.4",
+                                "desc": "Working with simple patterns",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for working with simple patterns involving shape, such as repeating, continuing, or creating patterns. Accept practical activities like tiling patterns or creating designs. Look for evidence of identifying and extending patterns."
+                            }
+                        ]
+                    },
+                    {
+                        "id": "O2",
+                        "title": "Use measures in basic real-life contexts",
+                        "assessment_standards": [
+                            {
+                                "code": "AS2.1",
+                                "desc": "Selecting and using appropriate units of measurement",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for selecting and using appropriate units of measurement for at least two of length, weight, volume, or temperature. Learners should demonstrate understanding of everyday measurements and equivalence within the same measurement family (e.g., mm/cm, g/kg, ml/l). Practical measurement activities are appropriate."
+                            },
+                            {
+                                "code": "AS2.2",
+                                "desc": "Stating and using simple formulae expressed in words or symbols",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for stating and using simple formulae expressed in words or symbols for area or volume. This assessment standard can be delivered through Outcome 1 when calculating perimeter, area, and volume of shapes and objects. Look for correct application of formulae."
+                            },
+                            {
+                                "code": "AS2.3",
+                                "desc": "Interpreting simple scale drawings",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for interpreting simple scale drawings involving 2D composite shapes or simple maps. Learners should be able to interpret actual distances or measurements from a given scale (e.g., 1cm to 2m) and record them in tabular format."
+                            },
+                            {
+                                "code": "AS2.4",
+                                "desc": "Applying a basic scale factor",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for applying a basic scale factor to increase or decrease the size of a shape, or an amount/measurement. This could involve doubling or halving amounts in real-life contexts (length, weight, volume, temperature). Look for correct application of the scale factor."
+                            },
+                            {
+                                "code": "AS2.5",
+                                "desc": "Calculating time intervals to manage activities",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for calculating time intervals to manage activities using the 24-hour clock. Learners should be familiar with both 12-hour and 24-hour clock times and their inter-relationship. Accept evidence from simple problem-solving tasks involving travel arrangements, event management, or cooking times, using resources like timetables."
+                            }
+                        ]
+                    }
+                ],
+                "unit_marking_guidance": "For this unit, assessors should use professional judgement to give learners credit for an appropriate degree of accuracy. This may mean giving credit for incomplete or numerically incorrect solutions which show correct methodology, demonstrating required knowledge and understanding of shape, space, and measures. A calculator or equivalent technologies may be used. Assessment evidence can be collected for both Outcomes at the same time or sequentially. Some learners may benefit from achieving Outcome 2 prior to Outcome 1 to reinforce unit selection and use."
+            },
+            {
+                "code": "H225 73",
+                "title": "Numeracy (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [
+                    {
+                        "id": "O1",
+                        "title": "Use numerical skills to solve simple, real-life problems involving money/time/measurement",
+                        "assessment_standards": [
+                            {
+                                "code": "AS1.1",
+                                "desc": "Selecting and using appropriate numerical notation and units",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for selecting and using appropriate numerical notation (e.g., =, +, -, ×, /, ÷, decimal point) and units for money (pounds/pence), time (months, weeks, days, hours, minutes), and measurement (length, weight, volume, temperature). Ensure correct notation is applied in real-life problem contexts."
+                            },
+                            {
+                                "code": "AS1.2",
+                                "desc": "Selecting and carrying out calculations",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for selecting and carrying out calculations involving whole numbers up to four digits (addition, subtraction, multiplication by one or two digits, division by one or two digits). Also, award marks for rounding answers to at most two decimal places, using simple percentages (50%, 10%, 20%, 25%) and fractions (1/2, 1/4, 1/10, 1/5), expressing numbers up to 10,000 in words and figures, and converting equivalences between simple fractions, decimals, and percentages. Look for efficient calculation strategies and understanding of interrelationships between number forms."
+                            },
+                            {
+                                "code": "AS1.3",
+                                "desc": "Recording measurements using a simple scale on an instrument",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for using measuring instruments with simple scales to measure length, weight, volume, and temperature. Learners should read scales to the nearest marked, numbered division with functional accuracy (e.g., centimetres to the nearest cm, ±2mm for small objects). Learners should be aware of measurement accuracy limitations."
+                            },
+                            {
+                                "code": "AS1.4",
+                                "desc": "Interpreting measurements and the results of calculations",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for interpreting results of measurements involving time, length, weight, volume, and temperature. This includes using appropriate checking methods (e.g., check sums, estimation) and recognising inter-relationships between units in the same family. Look for correct use of measurement vocabulary for comparisons."
+                            },
+                            {
+                                "code": "AS1.5",
+                                "desc": "Making decisions based on the results of measurements or calculations",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for making simple decisions based on the results of measurements or calculations. An explanation for the decision is not required. Learners should demonstrate the ability to use calculated or measured data to inform a choice."
+                            }
+                        ]
+                    },
+                    {
+                        "id": "O2",
+                        "title": "Interpret graphical data and situations involving probability to solve simple, real-life problems involving money/time/measurement",
+                        "assessment_standards": [
+                            {
+                                "code": "AS2.1",
+                                "desc": "Extracting and interpreting data from at least one simple graphical form",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for extracting and interpreting data from at least one simple graphical form. This includes tables with at least three categories, bar charts, pictograms, single line graphs with obvious scales, or 2D plans. This can be delivered concurrently with the data Outcome in the Manage Money and Data Unit."
+                            },
+                            {
+                                "code": "AS2.2",
+                                "desc": "Making decisions based on the interpretation of data",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for making decisions based on observations of data, calculations involving data, or reading scales. This can be delivered concurrently with the data Outcome in the Manage Money and Data Unit. Look for clear decisions supported by data interpretation."
+                            },
+                            {
+                                "code": "AS2.3",
+                                "desc": "Making decisions based on probability",
+                                "skills_list": [],
+                                "marking_guidance": "Award marks for using data to state the likelihood of an event, making decisions based on likelihood, and using the probability scale. Learners should be introduced to probability as a measure of chance and uncertainty, using simple fractions, decimals, or percentages to describe it. Examples could include sporting events or weather forecasts."
+                            }
+                        ]
+                    }
+                ],
+                "unit_marking_guidance": "For this unit, assessors should use professional judgement to give learners credit for an appropriate degree of accuracy. This may mean giving credit for incomplete or numerically incorrect solutions which show correct methodology, demonstrating required knowledge and understanding of numerical and information handling processes. A calculator or equivalent technologies may be used. Assessment evidence can be collected for both Outcomes at the same time or sequentially."
+            }
+        ],
+        "added_value_unit": {
+            "present": false
+        },
+        "recommended_sequence": [
+            "Numeracy",
+            "Applications of Mathematics: Shape, Space and Measures",
+            "Applications of Mathematics: Manage Money and Data"
+        ],
+        "sequence_rationale": "This sequential approach allows learners to reinforce and consolidate numerical skills at the beginning of the Course. Focusing on numerical skills using contexts of money, time, and measurement provides an introduction to the themes of the subsequent units. The Shape, Space and Measures Unit and the Manage Money and Data Unit can be delivered in any order after Numeracy.",
+        "delivery_notes": [
+            "Units can be delivered individually, combined, or integrated across the course.",
+            "Interdisciplinary learning can be used, e.g., trade fairs, sponsored events, shows, sports days, external visits, school trips, linking with technology, geography, science, PE.",
+            "Investigative/problem-solving approaches encourage observation, exploration, experimentation, and discussion of mathematical approaches to real-life problems.",
+            "Individual and/or collaborative working can be used for 'think, pair, share' strategies.",
+            "Resource-based learning includes using technology (calculators, computers, tablets, mobile phones) for data handling, calculations, and simulations, as well as real-life materials (invoices, bills, adverts).",
+            "E-learning can support learning and teaching through ICT, multimedia packages, online tests, and spreadsheets.",
+            "Assessment should be carried out under supervision and can take various forms including written evidence, oral evidence, computer-generated records, photographs, and spreadsheets/graphics."
+        ]
+    },
+    "assessment_model": {
+        "exam_papers": [],
+        "calculator_policy": "A calculator or equivalent technologies may be used for all assessments.",
+        "coursework_present": true,
+        "coursework_type": "Unit assessment (pass/fail basis), including problem-solving tasks, projects, investigations, and short/extended response tests.",
+        "coursework_notes": "All Units are internally assessed against the requirements shown in the Unit Specification on a pass/fail basis within centres. SQA provides rigorous external quality assurance. Evidence must be generated for all Outcomes and Assessment Standards. Learners who fail to achieve all Assessment Standards within an Outcome will only need to be re-assessed on those not achieved. Assessment should be carried out under supervision. For Applications of Mathematics and Numeracy units, a threshold of 60% for Outcome 1 and 60% for Outcome 2 is applied, with each outcome requiring a separate judgement. Assessors can ignore minor errors like incorrect rounding or truncation if the mathematical skill is demonstrated, and a candidate should not be penalised for incorrect rounding multiple times in the same assessment unless specifically requested by the question. Assessors must follow through working subsequent to an error and award possible consequential marks if the difficulty level is similar. Omission of units is penalised only once per assessment, unless specified otherwise.",
+        "avu_present": false
+    },
+    "marking_guidance": {
+        "provided": true,
+        "guidance": "The assessment for National 3 Applications of Mathematics is internally assessed on a pass/fail basis for each unit's outcomes. The primary goal of marking is to confirm that learners have demonstrated the required skills, knowledge, and understanding as outlined in the assessment standards. Assessors should adopt a positive marking approach, awarding credit for demonstrated competence rather than deducting for errors. Professional judgment is key, especially in cases of minor errors or incomplete solutions that still show correct methodology.\n\nGeneral Marking Principles:\n\nIssue: How to award marks when a candidate makes an error.\nExamples: A calculation error in an early step, but subsequent steps correctly apply the incorrect value.\nInstructions: Assessors must follow through working subsequent to an error and award possible consequential marks, provided that the level of difficulty involved is approximately similar to the intended task. Do not deduct marks for errors or omissions; instead, award marks for the demonstration of relevant skills, knowledge, and understanding.\n\nIssue: When to award full marks for an answer.\nExamples: A correct final answer is given without any supporting calculations or steps.\nInstructions: Only award full marks where the solution contains appropriate working. A correct answer with no working receives no mark, unless specifically mentioned in the marking instructions for a particular assessment.\n\nIssue: Handling minor inaccuracies or rounding errors.\nExamples: A candidate rounds an intermediate answer incorrectly, or truncates a decimal prematurely.\nInstructions: Assessors can ignore minor errors, such as incorrectly rounded or truncated answers, if these errors do not prevent the candidate from demonstrating the mathematical skill being assessed. If a candidate is penalised for incorrect rounding in one part of an assessment, they should not be penalised for incorrect rounding again in the same assessment, unless the question explicitly requests specific rounding.\n\nIssue: Omission of units in answers.\nExamples: A candidate provides a numerical answer (e.g., \"15\") but omits the unit (e.g., \"cm\" or \"£\").\nInstructions: Candidates should not miss out on marks for omitting units unless this is specifically mentioned in the marking instructions for that particular assessment. If units are omitted on multiple occasions within an assessment, the candidate should only be penalised for this once.\n\nIssue: Candidate uses an alternative, but mathematically correct, method.\nExamples: A candidate solves a problem using a different formula or approach than what was anticipated, but the method is valid.\nInstructions: Candidates may use any mathematically correct method to answer questions, except in cases where a particular method is specified or explicitly excluded by the assessment instructions.\n\nIssue: Transcription errors (copying numbers/symbols incorrectly).\nExamples: A candidate copies a number from the question paper to their script incorrectly, or makes a minor error when rewriting an expression within their working.\nInstructions: If a candidate makes a transcription error, they lose the opportunity to gain the next process mark associated with that step. However, if the error is trivial and the candidate proceeds to deal with the intended problem correctly, benefit of the doubt may be given.\n\nIssue: Simplifying numerical values in final answers.\nExamples: A final answer is left as an unsimplified fraction (e.g., 15/12) or an uncalculated square root of a perfect square (e.g., √64).\nInstructions: In final answers, candidates should simplify numerical values as far as possible, unless the detailed marking instructions specifically state otherwise. For example, 15/12 should be simplified to 5/4 or 1 1/4, and √64 should be simplified to 8.\n\nIssue: Assessment thresholds for outcomes.\nExamples: A candidate achieves 55% for Outcome 1 and 65% for Outcome 2 in a unit.\nInstructions: For Applications of Mathematics and Numeracy units, a threshold of 60% is applied for Outcome 1 and 60% for Outcome 2. Each outcome requires a separate judgement. If a candidate does not reach the threshold for an outcome or a unit, they could still achieve the outcome or unit if they pass the assessment standards individually. Centres should use the approach that benefits their candidates most.\n\nIssue: Clarity of assessment judgements during internal verification.\nExamples: Assessor and internal verifier disagree on a mark, and the final decision is not clearly recorded.\nInstructions: Where assessment judgements differ, it is helpful to clearly mark the final decision on the candidate's script and record of achievement table. Assessors should ensure accurate recording of marks on achievement tables to prevent candidates from not being awarded units they have achieved."
+    },
+    "cfe_alignment": {
+        "levels": [],
+        "es_os": [],
+        "benchmarks": []
+    },
+    "documents": {
+        "course_specification": [
+            {
+                "title": "National 3 Applications of Mathematics Course Specification",
+                "url": "https://www.sqa.org.uk/files/nq/AppsofMathsCourseSpecN3.pdf",
+                "year": 2017,
+                "filetype": "pdf"
+            },
+            {
+                "title": "Applications of Mathematics: Shape, Space and Measures (National 3) Unit Specification",
+                "url": "https://www.sqa.org.uk/files/nu/AppsofMathsShapeSpaceMeasuresUnitN3.pdf",
+                "year": 2017,
+                "filetype": "pdf"
+            },
+            {
+                "title": "Applications of Mathematics: Manage Money and Data (National 3) Unit Specification",
+                "url": "https://www.sqa.org.uk/files/nu/AppsofMathsManageMoneyDataUnitN3.pdf",
+                "year": 2017,
+                "filetype": "pdf"
+            }
+        ],
+        "specimen_papers": [],
+        "past_papers": [],
+        "marking_instructions": [
+            {
+                "title": "Mathematics Marking Guidance",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/MathematicsMarkingGuidance.pdf",
+                "year": 2024,
+                "filetype": "pdf"
+            }
+        ],
+        "coursework_tasks": [],
+        "general_documents": [
+            {
+                "title": "National 3 Applications of Mathematics Course and Unit Support Notes",
+                "url": "https://www.sqa.org.uk/files_ccc/AppsofMathsCUSNN3.pdf",
+                "filetype": "pdf"
+            },
+            {
+                "title": "National 4 Applications of Mathematics AVU Analysis Grid",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/N4AppsofMathsAVUAnalysisGrid.xlsx",
+                "filetype": "xlsx"
+            },
+            {
+                "title": "National 5 Applications of Mathematics Analysis Grid",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/National5ApplicationsofMathematicsAnalysisGridsheet4.xlsx",
+                "filetype": "xlsx"
+            }
+        ],
+        "course_reports": [
+            {
+                "title": "Mathematics Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-2025.pdf",
+                "year": 2025,
+                "filetype": "pdf"
+            },
+            {
+                "title": "Mathematics Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-2024.pdf",
+                "year": 2024,
+                "filetype": "pdf"
+            },
+            {
+                "title": "Mathematics Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-round-2-2023.pdf",
+                "year": 2023,
+                "filetype": "pdf"
+            }
+        ],
+        "formulae_support": [],
+        "assignments": []
+    },
+    "provenance": {
+        "source_pages": [
+            "https://www.sqa.org.uk/files/nq/AppsofMathsCourseSpecN3.pdf",
+            "https://www.sqa.org.uk/files/nu/AppsofMathsShapeSpaceMeasuresUnitN3.pdf",
+            "https://www.sqa.org.uk/files/nu/AppsofMathsManageMoneyDataUnitN3.pdf",
+            "https://www.sqa.org.uk/files_ccc/AppsofMathsCUSNN3.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/N4AppsofMathsAVUAnalysisGrid.xlsx",
+            "https://www.sqa.org.uk/sqa/files_ccc/National5ApplicationsofMathematicsAnalysisGridsheet4.xlsx",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-2025.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-2024.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-mathematics-qvsr-round-1-round-2-2023.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/MathematicsMarkingGuidance.pdf"
+        ]
+    }
+}

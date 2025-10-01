@@ -1,36 +1,51 @@
-# LangGraph Author Agent
+# LangGraph Author Agent - Gemini 2.5 Pro Edition
 
-A research agent powered by LangGraph and DeepAgents that conducts thorough research using web search and generates comprehensive reports with citations.
+A research agent powered by LangGraph, DeepAgents, and Google's Gemini 2.5 Pro that conducts thorough research using web search and generates comprehensive reports with citations.
 
 ## Features
 
+- **Gemini 2.5 Pro Integration**: Powered by Google's latest large language model
 - **Deep Research**: Uses Tavily web search to gather information from multiple sources
 - **Iterative Refinement**: Employs sub-agents for research and critique to improve report quality
 - **Structured Output**: Generates well-formatted markdown reports with proper citations
 - **Flexible Structure**: Adapts report structure based on the research question
+- **Scottish Education Focus**: Specialized prompts for SQA, CfE, and Scottish context
 
 ## Prerequisites
 
 - Python 3.11 or higher
+- [Google API Key](https://makersuite.google.com/app/apikey) for Gemini 2.5 Pro
 - [Tavily API Key](https://tavily.com/) for web search
-- [Anthropic API Key](https://console.anthropic.com/) for LLM calls (used by DeepAgents)
+- [LangSmith API Key](https://smith.langchain.com/) (optional, for tracing)
 
 ## Quick Start
 
+### Using the Start Script (Recommended)
+
+The easiest way to get started:
+
+```bash
+./start.sh
+```
+
+This script will:
+- Create/activate virtual environment
+- Install dependencies automatically
+- Verify API keys are configured
+- Start LangGraph server with Gemini 2.5 Pro
+
+The server will be available at:
+- 🚀 API: http://127.0.0.1:2025
+- 🎨 Studio UI: https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2025
+- 📚 API Docs: http://127.0.0.1:2025/docs
+
 ### Automated Installation Test
 
-To validate the installation process works correctly, run the provided test script:
+To validate the installation process works correctly:
 
 ```bash
 ./test_clean_install.sh
 ```
-
-This script will:
-- Create a clean virtual environment
-- Install all dependencies
-- Verify imports and configuration
-- Test server startup
-- Validate the complete setup
 
 **Note**: This script will remove any existing `venv` directory to ensure a clean test.
 
@@ -75,20 +90,31 @@ cp .env.example .env  # if example exists
 
 # Or create manually
 cat > .env << EOF
+GOOGLE_API_KEY=your_google_api_key_here
 TAVILY_API_KEY=your_tavily_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Optional (for LangSmith tracing)
+LANGSMITH_PROJECT=research-agent
+LANGSMITH_API_KEY=your_langsmith_api_key_here
 EOF
 ```
 
-Replace the placeholder values with your actual API keys.
+**Important**:
+- Get your Google API Key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+- Get your Tavily API Key from [Tavily](https://tavily.com/)
+- Replace the placeholder values with your actual API keys
 
 ### 4. Start the Development Server
 
+**Important**: Use the `--allow-blocking` flag for Gemini compatibility:
+
 ```bash
-langgraph dev
+langgraph dev --allow-blocking --port 2025
 ```
 
-The server will start on `http://127.0.0.1:2024` and automatically open LangGraph Studio in your browser.
+The server will start on `http://127.0.0.1:2025` and automatically open LangGraph Studio in your browser.
+
+**Why `--allow-blocking`?**: Gemini's initialization makes synchronous file I/O calls that would otherwise block the async event loop. This flag is safe for development.
 
 You should see output like:
 ```
@@ -143,20 +169,49 @@ The project uses a dual-import pattern to work with both:
 
 ```python
 try:
-    from src.prompts import SUB_RESEARCH_PROMPT  # Package mode
+    from src.research_agent_prompts import SUB_RESEARCH_PROMPT  # Package mode
 except ImportError:
-    from prompts import SUB_RESEARCH_PROMPT      # Direct loading
+    from research_agent_prompts import SUB_RESEARCH_PROMPT      # Direct loading
 ```
 
 ### Agent Components
 
-1. **Research Sub-Agent**: Conducts deep research on specific topics
-2. **Critique Sub-Agent**: Reviews and critiques the generated report
-3. **Main Agent**: Orchestrates research, writing, and refinement
+1. **LLM Backend**: Google Gemini 2.5 Pro (temperature: 0.7)
+2. **Research Sub-Agent**: Conducts deep research on specific topics
+3. **Critique Sub-Agents**: Multiple specialized critics for quality assurance
+4. **Main Agent**: Orchestrates research, writing, and refinement
+
+### Gemini 2.5 Pro Configuration
+
+The agent uses Google's Gemini 2.5 Pro model configured in `src/research_agent_sqa.py`:
+
+```python
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+gemini = ChatGoogleGenerativeAI(
+    model="gemini-2.5-pro",
+    api_key=os.environ["GOOGLE_API_KEY"],
+    temperature=0.7,
+)
+
+agent = create_deep_agent(
+    model=gemini,  # Gemini model passed here
+    tools=[internet_search],
+    instructions=RESEARCH_INSTRUCTIONS_SQA,
+    subagents=[...],
+)
+```
+
+**Model Options**:
+- `gemini-2.5-pro` - Latest production model (recommended)
+- `gemini-2.0-flash-exp` - Faster experimental model
+- `gemini-1.5-pro` - Previous generation
+
+**Temperature**: 0.7 balances creativity with consistency for research tasks
 
 ### Prompt Organization
 
-All prompts are centralized in `src/prompts.py` (8 prompts total, 609 lines, 32KB):
+All prompts are centralized in `src/research_agent_prompts.py` (8 prompts total, 609 lines, 32KB):
 
 **Main Research Instructions:**
 - `RESEARCH_INSTRUCTIONS_SQA` - Scottish Qualifications Authority research (currently in use)
@@ -238,6 +293,65 @@ pip install -e .
 
 This creates a link to your source directory in the virtual environment's site-packages.
 
+### Adding New Dependencies
+
+When you need to add additional dependencies to the project (e.g., `langchain-mcp-adapters`):
+
+#### 1. Activate the Virtual Environment
+
+```bash
+source venv/bin/activate  # or ../venv/bin/activate if shared venv
+```
+
+#### 2. Install the New Package
+
+```bash
+pip install package-name
+```
+
+Example:
+```bash
+pip install langchain-mcp-adapters
+```
+
+#### 3. Verify the Import
+
+Test that the package imports correctly:
+
+```bash
+python3 -c "from package_name import ClassName; print('✅ Import successful')"
+```
+
+Example:
+```bash
+python3 -c "from langchain_mcp_adapters.client import MultiServerMCPClient; print('✅ Import successful')"
+```
+
+#### 4. Update requirements.txt (Optional)
+
+If you want to track the dependency for future installations:
+
+```bash
+pip freeze | grep package-name >> requirements.txt
+```
+
+Or manually add it to `setup.py` in the `install_requires` list for a cleaner dependency management.
+
+#### 5. Verify Agent Code
+
+Check that your agent files compile without syntax errors:
+
+```bash
+python3 -m py_compile src/your_agent_file.py
+```
+
+Example:
+```bash
+python3 -m py_compile src/research_agent_sqa.py src/sow_author_agent.py
+```
+
+**Note**: The agent may fail to fully import if environment variables (like `TAVILY_API_KEY`) are missing, but the syntax check will confirm that the import statements themselves are valid.
+
 ### Why We Need setup.py
 
 LangGraph CLI loads modules directly from file paths, which can break relative imports. The `setup.py` file solves this by:
@@ -252,9 +366,9 @@ LangGraph CLI loads modules directly from file paths, which can break relative i
 **With setup.py**: The dual-import pattern works seamlessly:
 ```python
 try:
-    from src.prompts import PROMPT  # Works when installed as package
+    from src.research_agent_prompts import PROMPT  # Works when installed as package
 except ImportError:
-    from prompts import PROMPT      # Works when loaded directly by CLI
+    from research_agent_prompts import PROMPT      # Works when loaded directly by CLI
 ```
 
 ### Verifying Installation
@@ -288,6 +402,20 @@ langgraph-author-agent    0.1.0    /path/to/langgraph-author-agent
 **Port 2024 already in use**
 - Stop existing LangGraph server: `lsof -ti:2024 | xargs kill -9`
 - Or use a different port: `langgraph dev --port 8080`
+
+**BlockingError: Blocking call to io.TextIOWrapper.read**
+- This occurs when Gemini initializes without `--allow-blocking` flag
+- Solution: Always use `langgraph dev --allow-blocking` (included in `start.sh`)
+- For production: Set `BG_JOB_ISOLATED_LOOPS=true` environment variable
+
+**ALTS Credentials Warning**
+- Warning: `ALTS creds ignored. Not running on GCP` is normal
+- This is a harmless gRPC security feature for Google Cloud Platform
+- No action needed - Gemini API works fine without GCP
+
+**Module not found: langchain_google_genai**
+- Run `pip install langchain-google-genai`
+- Or reinstall all dependencies: `pip install -r requirements.txt`
 
 ## Usage Examples
 
@@ -373,12 +501,12 @@ def internet_search(
 
 ### Customizing Prompts
 
-Edit prompts in `src/prompts.py` to change agent behavior:
+Edit prompts in `src/research_agent_prompts.py` to change agent behavior:
 - Modify SQA research requirements in `RESEARCH_INSTRUCTIONS_SQA`
 - Add domain expertise in `SUB_RESEARCH_PROMPT`
 - Change critique criteria in `SUB_CRITIQUE_PROMPT`
 
-**Note**: The agent currently uses `RESEARCH_INSTRUCTIONS_SQA` for Scottish education context. To switch back to general research, change line 51 in `src/research_agent.py` from `instructions=RESEARCH_INSTRUCTIONS_SQA` to `instructions=RESEARCH_INSTRUCTIONS` (after adding the generic prompt back to prompts.py).
+**Note**: The agent currently uses `RESEARCH_INSTRUCTIONS_SQA` for Scottish education context. To switch back to general research, change line 51 in `src/research_agent.py` from `instructions=RESEARCH_INSTRUCTIONS_SQA` to `instructions=RESEARCH_INSTRUCTIONS` (after adding the generic prompt back to research_agent_prompts.py).
 
 ## API Endpoints
 
@@ -397,7 +525,7 @@ For production deployment, use [LangGraph Platform](https://langchain-ai.github.
 ## Contributing
 
 When making changes:
-1. Keep prompts in `src/prompts.py`
+1. Keep prompts in `src/research_agent_prompts.py`
 2. Keep agent logic in `src/research_agent.py`
 3. Test with `langgraph dev` before committing
 4. Ensure imports work with the dual-import pattern
@@ -408,13 +536,19 @@ When making changes:
 ### Common Commands
 
 ```bash
-# Initial setup
+# Quick start (recommended)
+./start.sh
+
+# Initial setup (manual)
 python3 -m venv venv
 source venv/bin/activate
-pip install -e .
+pip install -r requirements.txt
 
-# Start development server
-langgraph dev
+# Start development server (with Gemini support)
+langgraph dev --allow-blocking --port 2025
+
+# Start development server (alternative)
+./start.sh
 
 # Run installation test
 ./test_clean_install.sh
@@ -422,8 +556,11 @@ langgraph dev
 # Deactivate virtual environment
 deactivate
 
-# Kill process on port 2024
-lsof -ti:2024 | xargs kill -9
+# Kill process on port 2025
+lsof -ti:2025 | xargs kill -9
+
+# Test Gemini import
+python -c "from langchain_google_genai import ChatGoogleGenerativeAI; print('✅ OK')"
 
 # View logs
 tail -f /tmp/langgraph_test.log
@@ -444,9 +581,9 @@ Before starting development, ensure these files exist:
 ```python
 # Use this pattern for all imports from local modules
 try:
-    from src.prompts import PROMPT_NAME  # Package mode
+    from src.research_agent_prompts import PROMPT_NAME  # Package mode
 except ImportError:
-    from prompts import PROMPT_NAME      # Direct loading mode
+    from research_agent_prompts import PROMPT_NAME      # Direct loading mode
 ```
 
 **Why this works:**
