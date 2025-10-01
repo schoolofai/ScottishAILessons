@@ -1,13 +1,9 @@
 """SoW Author DeepAgent - Orchestrates 8 subagents to produce schema-compliant Scheme of Work JSON documents for Scottish secondary education."""
 
 import os
-from typing import Literal
 
-from tavily import TavilyClient
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_mcp_adapters.client import MultiServerMCPClient
-
-from deepagents import create_deep_agent
+from deepagents import async_create_deep_agent
 
 # Dual-import pattern for prompts
 try:
@@ -35,8 +31,25 @@ except ImportError:
     from research_agent_prompts import SUB_RESEARCH_PROMPT
     from shared_prompts import COURSE_OUTCOME_SUBAGENT_PROMPT
 
-# Initialize Tavily client for internet search
-tavily_client = TavilyClient(api_key=os.environ["TAVILY_API_KEY"])
+# Import tool utilities (Tavily + Appwrite MCP)
+try:
+    from src.sow_author_tools import (
+        internet_search,
+        appwrite_tools,
+        all_tools,
+        internet_only_tools,
+        appwrite_only_tools,
+        APPWRITE_AVAILABLE
+    )
+except ImportError:
+    from sow_author_tools import (
+        internet_search,
+        appwrite_tools,
+        all_tools,
+        internet_only_tools,
+        appwrite_only_tools,
+        APPWRITE_AVAILABLE
+    )
 
 # Initialize Gemini model
 gemini = ChatGoogleGenerativeAI(
@@ -44,22 +57,6 @@ gemini = ChatGoogleGenerativeAI(
     api_key=os.environ["GOOGLE_API_KEY"],
     temperature=0.7,
 )
-
-# Search tool to use for research
-def internet_search(
-    query: str,
-    max_results: int = 5,
-    topic: Literal["general", "news", "finance"] = "general",
-    include_raw_content: bool = False,
-):
-    """Run a web search"""
-    search_docs = tavily_client.search(
-        query,
-        max_results=max_results,
-        include_raw_content=include_raw_content,
-        topic=topic,
-    )
-    return search_docs
 
 
 # =============================================================================
@@ -71,15 +68,15 @@ research_subagent = {
     "name": "research_subagent",
     "description": "Answer clarification questions with Scotland-specific information (policy notes, sequencing hints, example contexts). No file writes unless explicitly asked.",
     "prompt": SUB_RESEARCH_PROMPT,
-    "tools": [internet_search]
+    "tools": all_tools  # Tavily + Appwrite
 }
 
-# 2. Course Outcome Subagent - Proposes coherent unit/block structure
+# 2. Course Outcome Subagent - Fetches SQA data and proposes coherent unit/block structure
 course_outcome_subagent = {
     "name": "course_outcome_subagent",
-    "description": "Propose consistent unit/block labels and simple indices for entries[].coherence (e.g., unit 'Number & Proportion', block_name 'Percents', block_index '2.1'). Do not fabricate formal SQA codes.",
+    "description": "Fetch official SQA course data from Appwrite, write to Course_data.txt, and propose unit/block structure aligned with SQA specifications. MUST be called first to establish grounding data.",
     "prompt": COURSE_OUTCOME_SUBAGENT_PROMPT,
-    "tools": []
+    "tools": appwrite_only_tools  # Database access for course structures
 }
 
 # 3. SoW Author Subagent - Drafts and revises the SoW JSON document
@@ -87,7 +84,7 @@ sow_author_subagent = {
     "name": "sow_author_subagent",
     "description": "Draft/edit the SoW according to the schema defined in <schema_sow_with_field_descriptions> and write it to authored_sow_json.",
     "prompt": SOW_AUTHOR_SUBAGENT_PROMPT,
-    "tools": []
+    "tools": appwrite_only_tools  # Database access for reference SoWs
 }
 
 # 4. Coverage Critic - Evaluates breadth and completeness
@@ -95,7 +92,7 @@ sow_coverage_critic = {
     "name": "sow_coverage_critic",
     "description": "Evaluates completeness and representativeness of SoW. Checks exemplars breadth, balance, metadata sufficiency (≥0.90 threshold).",
     "prompt": SOW_COVERAGE_CRITIC_PROMPT,
-    "tools": [internet_search]
+    "tools": all_tools  # Tavily + Appwrite for validation
 }
 
 # 5. Sequencing Critic - Validates logical ordering
@@ -103,7 +100,7 @@ sow_sequencing_critic = {
     "name": "sow_sequencing_critic",
     "description": "Validates logical ordering of SoW entries. Ensures prerequisites first, realistic lesson_type cadence (≥0.80 threshold).",
     "prompt": SOW_SEQUENCING_CRITIC_PROMPT,
-    "tools": [internet_search]
+    "tools": all_tools  # Tavily + Appwrite for validation
 }
 
 # 6. Policy Consistency Critic - Checks policy guardrails
@@ -111,7 +108,7 @@ sow_policy_consistency = {
     "name": "sow_policy_consistency",
     "description": "Checks calculator usage staging, assessment cadence, and timing consistency with research policy notes (≥0.80 threshold).",
     "prompt": SOW_POLICY_CRITIC_PROMPT,
-    "tools": [internet_search]
+    "tools": all_tools  # Tavily + Appwrite for policy checks
 }
 
 # 7. Accessibility & Engagement Critic - Reviews accessibility and engagement
@@ -119,7 +116,7 @@ sow_accessibility_engage = {
     "name": "sow_accessibility_engage",
     "description": "Reviews plain-language guidance, dyslexia-friendly cues, and authentic engagement/context tags (≥0.90 threshold).",
     "prompt": SOW_ACCESSIBILITY_CRITIC_PROMPT,
-    "tools": [internet_search]
+    "tools": internet_only_tools  # Tavily only for accessibility research
 }
 
 # 8. Scotland Authenticity Critic - Verifies Scottish context and terminology
@@ -127,7 +124,7 @@ sow_authenticity_scotland = {
     "name": "sow_authenticity_scotland",
     "description": "Verifies Scottish authenticity (currency in £, local services, SQA/CfE phrasing, place-based examples).",
     "prompt": SOW_AUTHENTICITY_CRITIC_PROMPT,
-    "tools": [internet_search]
+    "tools": all_tools  # Tavily + Appwrite for Scottish context validation
 }
 
 
@@ -136,9 +133,9 @@ sow_authenticity_scotland = {
 # =============================================================================
 
 # Create the SoW Author DeepAgent with all 8 subagents
-agent = create_deep_agent(
+agent = async_create_deep_agent(
     model=gemini,
-    tools=[internet_search],
+    tools=all_tools,  # Tavily + Appwrite for full orchestration capability
     instructions=SOW_AGENT_PROMPT,
     subagents=[
         research_subagent,

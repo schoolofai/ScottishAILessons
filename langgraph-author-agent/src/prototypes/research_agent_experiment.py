@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_google_genai import ChatGoogleGenerativeAI
-from deepagents import create_deep_agent
+from deepagents import async_create_deep_agent
 
 
 async def main():
@@ -74,7 +74,7 @@ Remember: You have direct access to Appwrite APIs through MCP tools - use them c
 
     # 5. Create deep agent with Appwrite tools
     print("🧠 Creating Deep Agent with Appwrite tools...")
-    agent = create_deep_agent(
+    agent = async_create_deep_agent(
         tools=appwrite_tools,
         instructions=appwrite_agent_instructions,
         model=llm

@@ -1,0 +1,205 @@
+
+{
+    "$id": "sow_n3_appsofmath_v1",
+    "courseId": "course_c84473",
+    "version": 1,
+    "status": "draft",
+    "entries": [
+      {
+        "order": 1,
+        "lessonTemplateId": "template_numeracy_intro",
+        "lesson_type": "teach",
+        "label": "Core Numeracy Skills",
+        "coherence": {
+          "unit": "Numeracy (National 3)",
+          "block_name": "Foundational Skills",
+          "block_index": 1,
+          "prerequisites": []
+        },
+        "policy": {
+          "calculator_section": "non_calc",
+          "assessment_notes": "Focus on mental maths and written methods for the four operations."
+        },
+        "engagement_tags": ["mental_maths", "shopping_bills"],
+        "notes": "Begin with the Numeracy unit to build a strong foundation as recommended by SQA. This lesson ensures learners have the core skills needed for subsequent units.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_A2",
+          "extra_time": true
+        },
+        "estMinutes": 50
+      },
+      {
+        "order": 2,
+        "lessonTemplateId": "template_numeracy_assessment",
+        "lesson_type": "formative_assessment",
+        "label": "Numeracy Skills Check",
+        "coherence": {
+          "unit": "Numeracy (National 3)",
+          "block_name": "Foundational Skills",
+          "block_index": 2,
+          "prerequisites": ["Core Numeracy Skills"]
+        },
+        "policy": {
+          "calculator_section": "mixed",
+          "assessment_notes": "Short, low-stakes quiz based on SQA assessment stems. Allows for both non-calc and calc questions to assess appropriate tool use."
+        },
+        "engagement_tags": [],
+        "notes": "Early formative assessment to identify and address any gaps in fundamental numeracy before moving to more complex applications.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_A2",
+          "extra_time": true
+        },
+        "estMinutes": 25
+      },
+      {
+        "order": 3,
+        "lessonTemplateId": "template_ssm_perimeter_area",
+        "lesson_type": "teach",
+        "label": "Perimeter & Area",
+        "coherence": {
+          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+          "block_name": "2D Shape",
+          "block_index": 1,
+          "prerequisites": ["Core Numeracy Skills"]
+        },
+        "policy": {
+          "calculator_section": "calc",
+          "assessment_notes": "Calculations will involve measurements in context, making calculator use appropriate."
+        },
+        "engagement_tags": ["garden_planning", "decorating", "floor_plans"],
+        "notes": "Moving to the Shape, Space and Measures unit. Using authentic contexts like garden design helps make the concepts of perimeter and area tangible.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_B1",
+          "extra_time": false
+        },
+        "estMinutes": 50
+      },
+      {
+        "order": 4,
+        "lessonTemplateId": "template_ssm_time",
+        "lesson_type": "practice",
+        "label": "Time Calculations",
+        "coherence": {
+          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+          "block_name": "Measures",
+          "block_index": 2,
+          "prerequisites": ["Core Numeracy Skills"]
+        },
+        "policy": {
+          "calculator_section": "calc",
+          "assessment_notes": "Contextual problems involving timetables where a calculator would be a realistic tool."
+        },
+        "engagement_tags": ["bus_timetables", "ScotRail", "tv_guide"],
+        "notes": "Practice-focused lesson using real Scottish timetables (e.g., First Bus, ScotRail) to build confidence with time intervals and 24-hour clock.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_B1",
+          "extra_time": true
+        },
+        "estMinutes": 50
+      },
+      {
+        "order": 5,
+        "lessonTemplateId": "template_ssm_assessment",
+        "lesson_type": "mock_assessment",
+        "label": "Shape, Space & Measures Unit Assessment",
+        "coherence": {
+          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+          "block_name": "Unit Assessment",
+          "block_index": 3,
+          "prerequisites": ["Perimeter & Area", "Time Calculations"]
+        },
+        "policy": {
+          "calculator_section": "calc",
+          "assessment_notes": "A mock assessment covering all outcomes for the unit, modelled on the official SQA Unit Assessment Support Pack."
+        },
+        "engagement_tags": [],
+        "notes": "This mock assessment provides a formal opportunity to gauge readiness for the real internal unit assessment.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_B1",
+          "extra_time": true
+        },
+        "estMinutes": 50
+      },
+      {
+        "order": 6,
+        "lessonTemplateId": "template_mmd_budgeting",
+        "lesson_type": "teach",
+        "label": "Income & Budgeting",
+        "coherence": {
+          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+          "block_name": "Personal Finance",
+          "block_index": 1,
+          "prerequisites": ["Core Numeracy Skills"]
+        },
+        "policy": {
+          "calculator_section": "calc",
+          "assessment_notes": "Budgeting involves multiple calculations where a calculator is essential."
+        },
+        "engagement_tags": ["part-time_job", "payslips", "mobile_phone_contracts"],
+        "notes": "Introducing the final unit, Manage Money and Data. This lesson uses relatable scenarios like a teenager's first job to teach budgeting.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_B1",
+          "extra_time": false
+        },
+        "estMinutes": 50
+      },
+      {
+        "order": 7,
+        "lessonTemplateId": "template_mmd_best_buys",
+        "lesson_type": "project",
+        "label": "Best Buys Project",
+        "coherence": {
+          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+          "block_name": "Personal Finance",
+          "block_index": 2,
+          "prerequisites": ["Income & Budgeting"]
+        },
+        "policy": {
+          "calculator_section": "calc",
+          "assessment_notes": "Project-based learning where students compare real products. Calculator is necessary."
+        },
+        "engagement_tags": ["supermarket_flyers", "Lidl", "Aldi", "comparison_shopping"],
+        "notes": "A project-based lesson where students use real flyers from Scottish supermarkets (Lidl, Aldi) to find the best deals, applying percentage and fraction skills in a practical context.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_B1",
+          "extra_time": true
+        },
+        "estMinutes": 100
+      },
+      {
+        "order": 8,
+        "lessonTemplateId": "template_mmd_data",
+        "lesson_type": "teach",
+        "label": "Organising & Presenting Data",
+        "coherence": {
+          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+          "block_name": "Data Handling",
+          "block_index": 3,
+          "prerequisites": []
+        },
+        "policy": {
+          "calculator_section": "mixed",
+          "assessment_notes": "Creating graphs may not require a calculator, but interpreting data to find totals or averages will."
+        },
+        "engagement_tags": ["class_survey", "weather_data", "sports_results"],
+        "notes": "This lesson covers the data handling aspect of the unit, focusing on creating and interpreting simple charts like bar graphs from relatable data sets.",
+        "accessibility_profile": {
+          "dyslexia_friendly": true,
+          "plain_language_level": "CEFR_A2",
+          "extra_time": false
+        },
+        "estMinutes": 50
+      }
+    ],
+    "accessibility_notes": "The course materials are designed to be dyslexia-friendly, using sans-serif fonts and clear layouts. Practical, hands-on activities with concrete materials are encouraged to support diverse learners. Multi-step problems will be broken down into smaller, manageable steps.",
+    "createdAt": "2024-05-20T10:00:00Z",
+    "updatedAt": "2024-05-20T10:00:00Z"
+  }
+  
