@@ -1,205 +1,2842 @@
-
 {
-    "$id": "sow_n3_appsofmath_v1",
-    "courseId": "course_c84473",
-    "version": 1,
-    "status": "draft",
-    "entries": [
-      {
-        "order": 1,
-        "lessonTemplateId": "template_numeracy_intro",
-        "lesson_type": "teach",
-        "label": "Core Numeracy Skills",
-        "coherence": {
-          "unit": "Numeracy (National 3)",
-          "block_name": "Foundational Skills",
-          "block_index": 1,
-          "prerequisites": []
-        },
-        "policy": {
-          "calculator_section": "non_calc",
-          "assessment_notes": "Focus on mental maths and written methods for the four operations."
-        },
-        "engagement_tags": ["mental_maths", "shopping_bills"],
-        "notes": "Begin with the Numeracy unit to build a strong foundation as recommended by SQA. This lesson ensures learners have the core skills needed for subsequent units.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_A2",
-          "extra_time": true
-        },
-        "estMinutes": 50
-      },
-      {
-        "order": 2,
-        "lessonTemplateId": "template_numeracy_assessment",
-        "lesson_type": "formative_assessment",
-        "label": "Numeracy Skills Check",
-        "coherence": {
-          "unit": "Numeracy (National 3)",
-          "block_name": "Foundational Skills",
-          "block_index": 2,
-          "prerequisites": ["Core Numeracy Skills"]
-        },
-        "policy": {
-          "calculator_section": "mixed",
-          "assessment_notes": "Short, low-stakes quiz based on SQA assessment stems. Allows for both non-calc and calc questions to assess appropriate tool use."
-        },
-        "engagement_tags": [],
-        "notes": "Early formative assessment to identify and address any gaps in fundamental numeracy before moving to more complex applications.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_A2",
-          "extra_time": true
-        },
-        "estMinutes": 25
-      },
-      {
-        "order": 3,
-        "lessonTemplateId": "template_ssm_perimeter_area",
-        "lesson_type": "teach",
-        "label": "Perimeter & Area",
-        "coherence": {
-          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
-          "block_name": "2D Shape",
-          "block_index": 1,
-          "prerequisites": ["Core Numeracy Skills"]
-        },
-        "policy": {
-          "calculator_section": "calc",
-          "assessment_notes": "Calculations will involve measurements in context, making calculator use appropriate."
-        },
-        "engagement_tags": ["garden_planning", "decorating", "floor_plans"],
-        "notes": "Moving to the Shape, Space and Measures unit. Using authentic contexts like garden design helps make the concepts of perimeter and area tangible.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_B1",
-          "extra_time": false
-        },
-        "estMinutes": 50
-      },
-      {
-        "order": 4,
-        "lessonTemplateId": "template_ssm_time",
-        "lesson_type": "practice",
-        "label": "Time Calculations",
-        "coherence": {
-          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
-          "block_name": "Measures",
-          "block_index": 2,
-          "prerequisites": ["Core Numeracy Skills"]
-        },
-        "policy": {
-          "calculator_section": "calc",
-          "assessment_notes": "Contextual problems involving timetables where a calculator would be a realistic tool."
-        },
-        "engagement_tags": ["bus_timetables", "ScotRail", "tv_guide"],
-        "notes": "Practice-focused lesson using real Scottish timetables (e.g., First Bus, ScotRail) to build confidence with time intervals and 24-hour clock.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_B1",
-          "extra_time": true
-        },
-        "estMinutes": 50
-      },
-      {
-        "order": 5,
-        "lessonTemplateId": "template_ssm_assessment",
-        "lesson_type": "mock_assessment",
-        "label": "Shape, Space & Measures Unit Assessment",
-        "coherence": {
-          "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
-          "block_name": "Unit Assessment",
-          "block_index": 3,
-          "prerequisites": ["Perimeter & Area", "Time Calculations"]
-        },
-        "policy": {
-          "calculator_section": "calc",
-          "assessment_notes": "A mock assessment covering all outcomes for the unit, modelled on the official SQA Unit Assessment Support Pack."
-        },
-        "engagement_tags": [],
-        "notes": "This mock assessment provides a formal opportunity to gauge readiness for the real internal unit assessment.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_B1",
-          "extra_time": true
-        },
-        "estMinutes": 50
-      },
-      {
-        "order": 6,
-        "lessonTemplateId": "template_mmd_budgeting",
-        "lesson_type": "teach",
-        "label": "Income & Budgeting",
-        "coherence": {
-          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
-          "block_name": "Personal Finance",
-          "block_index": 1,
-          "prerequisites": ["Core Numeracy Skills"]
-        },
-        "policy": {
-          "calculator_section": "calc",
-          "assessment_notes": "Budgeting involves multiple calculations where a calculator is essential."
-        },
-        "engagement_tags": ["part-time_job", "payslips", "mobile_phone_contracts"],
-        "notes": "Introducing the final unit, Manage Money and Data. This lesson uses relatable scenarios like a teenager's first job to teach budgeting.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_B1",
-          "extra_time": false
-        },
-        "estMinutes": 50
-      },
-      {
-        "order": 7,
-        "lessonTemplateId": "template_mmd_best_buys",
-        "lesson_type": "project",
-        "label": "Best Buys Project",
-        "coherence": {
-          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
-          "block_name": "Personal Finance",
-          "block_index": 2,
-          "prerequisites": ["Income & Budgeting"]
-        },
-        "policy": {
-          "calculator_section": "calc",
-          "assessment_notes": "Project-based learning where students compare real products. Calculator is necessary."
-        },
-        "engagement_tags": ["supermarket_flyers", "Lidl", "Aldi", "comparison_shopping"],
-        "notes": "A project-based lesson where students use real flyers from Scottish supermarkets (Lidl, Aldi) to find the best deals, applying percentage and fraction skills in a practical context.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_B1",
-          "extra_time": true
-        },
-        "estMinutes": 100
-      },
-      {
-        "order": 8,
-        "lessonTemplateId": "template_mmd_data",
-        "lesson_type": "teach",
-        "label": "Organising & Presenting Data",
-        "coherence": {
-          "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
-          "block_name": "Data Handling",
-          "block_index": 3,
-          "prerequisites": []
-        },
-        "policy": {
-          "calculator_section": "mixed",
-          "assessment_notes": "Creating graphs may not require a calculator, but interpreting data to find totals or averages will."
-        },
-        "engagement_tags": ["class_survey", "weather_data", "sports_results"],
-        "notes": "This lesson covers the data handling aspect of the unit, focusing on creating and interpreting simple charts like bar graphs from relatable data sets.",
-        "accessibility_profile": {
-          "dyslexia_friendly": true,
-          "plain_language_level": "CEFR_A2",
-          "extra_time": false
-        },
-        "estMinutes": 50
-      }
+  "$id": "sow-n3-appsofmath-v2-revised",
+  "courseId": "course_c84473",
+  "version": 2,
+  "status": "draft",
+  "metadata": {
+    "coherence": {
+      "policy_notes": [
+        "A calculator or equivalent technology may be used for all assessments.",
+        "Non-calculator skills should be developed for foundational numeracy, but assessment will be in context.",
+        "Assessment is Pass/Fail based on demonstrating competence in all Assessment Standards for each Unit."
+      ],
+      "sequencing_notes": [
+        "The SoW follows the SQA recommended sequence: 'Numeracy' first to build foundational skills, followed by 'Shape, Space and Measures', and then 'Manage Money and Data'.",
+        "Within units, each Assessment Standard is addressed with a dedicated 'teach -> formative_assessment -> independent_practice -> revision' cycle to ensure mastery."
+      ]
+    },
+    "accessibility_notes": [
+      "Use clear, sans-serif fonts and large, uncluttered diagrams.",
+      "Provide concrete materials (e.g., fake money, 3D shapes, measuring tapes) for hands-on learning.",
+      "Break down multi-step problems into smaller, numbered steps to reduce cognitive load."
     ],
-    "accessibility_notes": "The course materials are designed to be dyslexia-friendly, using sans-serif fonts and clear layouts. Practical, hands-on activities with concrete materials are encouraged to support diverse learners. Multi-step problems will be broken down into smaller, manageable steps.",
-    "createdAt": "2024-05-20T10:00:00Z",
-    "updatedAt": "2024-05-20T10:00:00Z"
-  }
-  
+    "engagement_notes": [
+      "Use authentic Scottish contexts such as ScotRail or First Bus timetables, local supermarket flyers (Lidl, Aldi), and realistic part-time job scenarios.",
+      "Incorporate practical, hands-on activities like creating a 'class shop' or using Google Maps for measurement tasks."
+    ],
+    "weeks": 38,
+    "periods_per_week": 3
+  },
+  "entries": [
+    {
+      "order": 1,
+      "lessonTemplateRef": "AUTO_TBD_1",
+      "label": "Introduction to Numeracy Skills",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Notation and Units",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on understanding place value and symbols."
+      },
+      "engagement_tags": ["foundations", "notation"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Introduce core mathematical symbols (+, -, ×, /, ÷, .) and units for money, time, and measurement."
+    },
+    {
+      "order": 2,
+      "lessonTemplateRef": "AUTO_TBD_2",
+      "label": "Check-in: Notation and Units",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Notation and Units",
+        "block_index": "1.2",
+        "prerequisites": ["Introduction to Numeracy Skills"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Low-stakes quiz to check recognition of symbols and units."
+      },
+      "engagement_tags": ["quiz", "notation", "units"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Use mini-whiteboards for quick-fire questions on symbols and matching units to quantities."
+    },
+    {
+      "order": 3,
+      "lessonTemplateRef": "AUTO_TBD_3",
+      "label": "Practice: Using Notation and Units",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Notation and Units",
+        "block_index": "1.3",
+        "prerequisites": ["Check-in: Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet-based practice applying correct notation."
+      },
+      "engagement_tags": ["worksheet", "practice"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide a worksheet with mixed problems where students must select the correct operation and unit."
+    },
+    {
+      "order": 4,
+      "lessonTemplateRef": "AUTO_TBD_4",
+      "label": "Revision: Core Notation and Units",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Notation and Units",
+        "block_index": "1.4",
+        "prerequisites": ["Practice: Using Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS1.1."
+      },
+      "engagement_tags": ["revision_game", "consolidation"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use a team-based game to consolidate understanding before moving on."
+    },
+    {
+      "order": 5,
+      "lessonTemplateRef": "AUTO_TBD_5",
+      "label": "Core Calculations (Wages and Bills)",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Calculation",
+        "block_index": "2.1",
+        "prerequisites": ["Revision: Core Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Teach non-calc strategies first, then introduce calculator for checking."
+      },
+      "engagement_tags": ["shopping", "bills", "wages"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on addition, subtraction, multiplication, and division in the context of shopping bills and wages. Cover rounding to 2 d.p. for money."
+    },
+    {
+      "order": 6,
+      "lessonTemplateRef": "AUTO_TBD_6",
+      "label": "Check-in: Core Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Calculation",
+        "block_index": "2.2",
+        "prerequisites": ["Core Calculations (Wages and Bills)"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short quiz covering all four operations and rounding."
+      },
+      "engagement_tags": ["quiz", "problem_solving"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "A mini-test covering whole numbers and rounding in context."
+    },
+        {
+      "order": 7,
+      "lessonTemplateRef": "AUTO_TBD_7",
+      "label": "Practice: Calculation Problems",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Calculation",
+        "block_index": "2.3",
+        "prerequisites": ["Check-in: Core Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Application of skills to multi-step, real-life problems."
+      },
+      "engagement_tags": ["real_life_maths", "problem_solving"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Worksheet with problems modelled on SQA assessment stems, e.g., calculating sale prices, working out total costs."
+    },
+    {
+      "order": 8,
+      "lessonTemplateRef": "AUTO_TBD_8",
+      "label": "Revision: Core Calculation Skills",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Core Skills: Calculation",
+        "block_index": "2.4",
+        "prerequisites": ["Practice: Calculation Problems"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.2."
+      },
+      "engagement_tags": ["revision_game", "consolidation"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review all calculation types. Use a 'beat the teacher' or similar game to maintain engagement."
+    },
+    {
+      "order": 9,
+      "lessonTemplateRef": "AUTO_TBD_9",
+      "label": "Reading Scales on Instruments",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Skills: Reading Scales",
+        "block_index": "3.1",
+        "prerequisites": ["Revision: Core Calculation Skills"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Practical lesson focusing on reading scales accurately."
+      },
+      "engagement_tags": ["measurement", "practical", "cooking", "weather"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real instruments: rulers, weighing scales, measuring jugs, thermometers."
+    },
+    {
+      "order": 10,
+      "lessonTemplateRef": "AUTO_TBD_10",
+      "label": "Check-in: Reading Scales",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Skills: Reading Scales",
+        "block_index": "3.2",
+        "prerequisites": ["Reading Scales on Instruments"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check of reading various scales."
+      },
+      "engagement_tags": ["quiz", "measurement"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Show images of different scales on the board and have students write down the reading."
+    },
+    {
+      "order": 11,
+      "lessonTemplateRef": "AUTO_TBD_11",
+      "label": "Practice: Recording Measurements",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Skills: Reading Scales",
+        "block_index": "3.3",
+        "prerequisites": ["Check-in: Reading Scales"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with various scales to read and record."
+      },
+      "engagement_tags": ["worksheet", "practical"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include scales where divisions are not unitary, requiring students to calculate the interval value."
+    },
+    {
+      "order": 12,
+      "lessonTemplateRef": "AUTO_TBD_12",
+      "label": "Revision: Reading Scales",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Skills: Reading Scales",
+        "block_index": "3.4",
+        "prerequisites": ["Practice: Recording Measurements"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS1.3."
+      },
+      "engagement_tags": ["revision_game", "consolidation"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Peer-assessment activity where students create their own scales for a partner to read."
+    },
+    {
+      "order": 13,
+      "lessonTemplateRef": "AUTO_TBD_13",
+      "label": "Interpreting Measurements",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Interpretation",
+        "block_index": "4.1",
+        "prerequisites": ["Revision: Reading Scales"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on using measurement vocabulary (e.g., heavier, longer, colder)."
+      },
+      "engagement_tags": ["comparison", "data_analysis", "weather"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide data sets (e.g., temperatures in different cities) for students to compare."
+    },
+    {
+      "order": 14,
+      "lessonTemplateRef": "AUTO_TBD_14",
+      "label": "Check-in: Interpreting Measurements",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Interpretation",
+        "block_index": "4.2",
+        "prerequisites": ["Interpreting Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short questions requiring comparison of measurements."
+      },
+      "engagement_tags": ["quiz", "decision_making"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Example: 'Which parcel is heavier? Parcel A: 2.5kg, Parcel B: 2.7kg.'"
+    },
+    {
+      "order": 15,
+      "lessonTemplateRef": "AUTO_TBD_15",
+      "label": "Practice: Interpreting Measurements",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Interpretation",
+        "block_index": "4.3",
+        "prerequisites": ["Check-in: Interpreting Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with scenarios requiring interpretation."
+      },
+      "engagement_tags": ["problem_solving", "real_life_maths"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use contexts like comparing journey times or product weights."
+    },
+    {
+      "order": 16,
+      "lessonTemplateRef": "AUTO_TBD_16",
+      "label": "Revision: Interpreting Measurements",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Interpretation",
+        "block_index": "4.4",
+        "prerequisites": ["Practice: Interpreting Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.4."
+      },
+      "engagement_tags": ["consolidation", "problem_solving"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review questions that involve interpreting measurements."
+    },
+    {
+      "order": 17,
+      "lessonTemplateRef": "AUTO_TBD_17",
+      "label": "Making Decisions from Measurements",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Decision Making",
+        "block_index": "5.1",
+        "prerequisites": ["Revision: Interpreting Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on making a simple choice based on a calculation or measurement."
+      },
+      "engagement_tags": ["decision_making", "cooking", "packing"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide scenarios like 'A lift has a weight limit of 500kg. Can these three people use it?'"
+    },
+    {
+      "order": 18,
+      "lessonTemplateRef": "AUTO_TBD_18",
+      "label": "Check-in: Decision Making",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Decision Making",
+        "block_index": "5.2",
+        "prerequisites": ["Making Decisions from Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short questions requiring a simple decision based on data."
+      },
+      "engagement_tags": ["quiz", "decision_making"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Example: 'A bag can hold 5kg. Are these items too heavy? Item A: 2.5kg, Item B: 2.7kg. Yes/No?'"
+    },
+    {
+      "order": 19,
+      "lessonTemplateRef": "AUTO_TBD_19",
+      "label": "Practice: Making Decisions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Decision Making",
+        "block_index": "5.3",
+        "prerequisites": ["Check-in: Decision Making"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with scenarios requiring a final decision."
+      },
+      "engagement_tags": ["problem_solving", "real_life_maths"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use contexts like cooking (do I have enough flour?), or comparing journey times."
+    },
+    {
+      "order": 20,
+      "lessonTemplateRef": "AUTO_TBD_20",
+      "label": "Revision: Decision Making",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Measurement Application: Decision Making",
+        "block_index": "5.4",
+        "prerequisites": ["Practice: Making Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.5."
+      },
+      "engagement_tags": ["consolidation", "problem_solving"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review questions that combine reading scales, interpreting, and making a decision."
+    },
+    {
+      "order": 21,
+      "lessonTemplateRef": "AUTO_TBD_21",
+      "label": "Extracting Data from Tables and Charts",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Extraction",
+        "block_index": "6.1",
+        "prerequisites": ["Revision: Decision Making"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on reading information accurately from tables, bar charts, and pictograms."
+      },
+      "engagement_tags": ["data", "charts", "timetables"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real-life examples like bus/train timetables, weather charts, or survey results from the class."
+    },
+    {
+      "order": 22,
+      "lessonTemplateRef": "AUTO_TBD_22",
+      "label": "Check-in: Extracting Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Extraction",
+        "block_index": "6.2",
+        "prerequisites": ["Extracting Data from Tables and Charts"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short quiz with a chart and extraction questions."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Provide a simple bar chart and ask 'How many people chose red?'"
+    },
+    {
+      "order": 23,
+      "lessonTemplateRef": "AUTO_TBD_23",
+      "label": "Practice: Extracting Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Extraction",
+        "block_index": "6.3",
+        "prerequisites": ["Check-in: Extracting Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of charts and tables."
+      },
+      "engagement_tags": ["worksheet", "data_analysis"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include at least one table, one bar chart, and one pictogram to ensure breadth of experience."
+    },
+    {
+      "order": 24,
+      "lessonTemplateRef": "AUTO_TBD_24",
+      "label": "Revision: Extracting Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Extraction",
+        "block_index": "6.4",
+        "prerequisites": ["Practice: Extracting Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.1."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use a mix of past-paper style questions and interactive online quizzes."
+    },
+    {
+      "order": 25,
+      "lessonTemplateRef": "AUTO_TBD_25",
+      "label": "Making Decisions from Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Decision Making",
+        "block_index": "7.1",
+        "prerequisites": ["Revision: Extracting Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach students to answer questions based on the data they have extracted."
+      },
+      "engagement_tags": ["data_analysis", "decision_making"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Move from simple data extraction to interpretation ('Which is the most popular colour?')."
+    },
+    {
+      "order": 26,
+      "lessonTemplateRef": "AUTO_TBD_26",
+      "label": "Check-in: Data Decisions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Decision Making",
+        "block_index": "7.2",
+        "prerequisites": ["Making Decisions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short quiz with a chart and interpretation questions."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Provide a simple bar chart and ask 'Which item is most popular?'"
+    },
+    {
+      "order": 27,
+      "lessonTemplateRef": "AUTO_TBD_27",
+      "label": "Practice: Data Decisions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Decision Making",
+        "block_index": "7.3",
+        "prerequisites": ["Check-in: Data Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of charts and interpretation questions."
+      },
+      "engagement_tags": ["worksheet", "data_analysis"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Questions should require students to find information and then make a simple judgement."
+    },
+    {
+      "order": 28,
+      "lessonTemplateRef": "AUTO_TBD_28",
+      "label": "Revision: Data Decisions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Graphical Data: Decision Making",
+        "block_index": "7.4",
+        "prerequisites": ["Practice: Data Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.2."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap how to interpret charts to make decisions."
+    },
+    {
+      "order": 29,
+      "lessonTemplateRef": "AUTO_TBD_29",
+      "label": "Introduction to Probability",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Probability",
+        "block_index": "8.1",
+        "prerequisites": ["Revision: Data Decisions"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on the language of probability and the probability scale."
+      },
+      "engagement_tags": ["probability", "chance", "weather", "sports"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Introduce terms like 'impossible', 'unlikely', 'even chance', 'likely', 'certain'."
+    },
+    {
+      "order": 30,
+      "lessonTemplateRef": "AUTO_TBD_30",
+      "label": "Check-in: Probability",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Probability",
+        "block_index": "8.2",
+        "prerequisites": ["Introduction to Probability"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check on understanding of probability language."
+      },
+      "engagement_tags": ["quiz", "chance"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Card sort activity: students match event descriptions to the correct probability term."
+    },
+    {
+      "order": 31,
+      "lessonTemplateRef": "AUTO_TBD_31",
+      "label": "Practice: Making Decisions with Probability",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Probability",
+        "block_index": "8.3",
+        "prerequisites": ["Check-in: Probability"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with simple scenarios requiring a decision based on likelihood."
+      },
+      "engagement_tags": ["worksheet", "games", "decision_making"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use examples like spinners, dice, and simple weather forecasts to frame questions."
+    },
+    {
+      "order": 32,
+      "lessonTemplateRef": "AUTO_TBD_32",
+      "label": "Revision: Probability",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Probability",
+        "block_index": "8.4",
+        "prerequisites": ["Practice: Making Decisions with Probability"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS2.3."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review the probability scale and language. Use simple problem-solving questions."
+    },
+    {
+      "order": 33,
+      "lessonTemplateRef": "AUTO_TBD_33",
+      "label": "Numeracy Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Unit Assessment",
+        "block_index": "9.1",
+        "prerequisites": ["Revision: Probability", "Revision: Data Decisions", "Revision: Extracting Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "A formal assessment covering all outcomes and assessment standards for the Numeracy unit."
+      },
+      "engagement_tags": ["assessment", "test"],
+      "outcomeRefs": ["O1", "O2"],
+      "assessmentStandardRefs": ["AS1.1", "AS1.2", "AS1.3", "AS1.4", "AS1.5", "AS2.1", "AS2.2", "AS2.3"],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This assessment should be conducted under supervised conditions. Use SQA-style questions."
+    },
+    {
+      "order": 34,
+      "lessonTemplateRef": "AUTO_TBD_34",
+      "label": "Calculating Perimeter and Area",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Perimeter & Area",
+        "block_index": "10.1",
+        "prerequisites": ["Numeracy Unit Assessment"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce perimeter and area of regular 2D shapes (rectangles/squares)."
+      },
+      "engagement_tags": ["perimeter", "area", "DIY", "gardening"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use string and squared paper to physically explore the concepts before introducing formulae."
+    },
+    {
+      "order": 35,
+      "lessonTemplateRef": "AUTO_TBD_35",
+      "label": "Check-in: Perimeter and Area",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Perimeter & Area",
+        "block_index": "10.2",
+        "prerequisites": ["Calculating Perimeter and Area"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Check for misconception between perimeter and area."
+      },
+      "engagement_tags": ["quiz", "perimeter", "area"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a simple rectangle diagram. Ask students to calculate BOTH the perimeter and the area."
+    },
+    {
+      "order": 36,
+      "lessonTemplateRef": "AUTO_TBD_36",
+      "label": "Practice: Perimeter and Area Problems",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Perimeter & Area",
+        "block_index": "10.3",
+        "prerequisites": ["Check-in: Perimeter and Area"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with mixed real-life problems."
+      },
+      "engagement_tags": ["worksheet", "problem_solving", "decorating"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Problems should require students to decide whether perimeter or area is needed for the context."
+    },
+    {
+      "order": 37,
+      "lessonTemplateRef": "AUTO_TBD_37",
+      "label": "Revision: Perimeter and Area",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Perimeter & Area",
+        "block_index": "10.4",
+        "prerequisites": ["Practice: Perimeter and Area Problems"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.1."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap formulae and units. Use past-paper style questions."
+    },
+    {
+      "order": 38,
+      "lessonTemplateRef": "AUTO_TBD_38",
+      "label": "Calculating Volume of a Cuboid",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Volume of a Cuboid",
+        "block_index": "11.1",
+        "prerequisites": ["Revision: Perimeter and Area"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce volume as the space inside a 3D object."
+      },
+      "engagement_tags": ["volume", "packaging", "storage"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real boxes and multi-link cubes. Contexts include packing boxes or calculating the capacity of a fish tank."
+    },
+    {
+      "order": 39,
+      "lessonTemplateRef": "AUTO_TBD_39",
+      "label": "Check-in: Volume",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Volume of a Cuboid",
+        "block_index": "11.2",
+        "prerequisites": ["Calculating Volume of a Cuboid"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on calculating volume."
+      },
+      "engagement_tags": ["quiz", "volume"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give the dimensions of a simple cuboid and ask for the volume."
+    },
+    {
+      "order": 40,
+      "lessonTemplateRef": "AUTO_TBD_40",
+      "label": "Practice: Volume Problems",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Volume of a Cuboid",
+        "block_index": "11.3",
+        "prerequisites": ["Check-in: Volume"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with real-life volume problems."
+      },
+      "engagement_tags": ["worksheet", "problem_solving"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include problems like, 'How many small boxes can fit inside a larger box?'"
+    },
+    {
+      "order": 41,
+      "lessonTemplateRef": "AUTO_TBD_41",
+      "label": "Revision: Volume of a Cuboid",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Volume of a Cuboid",
+        "block_index": "11.4",
+        "prerequisites": ["Practice: Volume Problems"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.2."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap the formula and the importance of cubic units."
+    },
+    {
+      "order": 42,
+      "lessonTemplateRef": "AUTO_TBD_42",
+      "label": "Giving and Following Directions",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Directions",
+        "block_index": "12.1",
+        "prerequisites": ["Revision: Volume of a Cuboid"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on using compass points and directional language."
+      },
+      "engagement_tags": ["directions", "maps", "journeys"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Practical activity: one student directs another around the classroom or on a simple map."
+    },
+    {
+      "order": 43,
+      "lessonTemplateRef": "AUTO_TBD_43",
+      "label": "Check-in: Directions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Directions",
+        "block_index": "12.2",
+        "prerequisites": ["Giving and Following Directions"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Short quiz on following a simple route."
+      },
+      "engagement_tags": ["quiz", "maps"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Provide a simple map and a set of directions to follow to find a location."
+    },
+    {
+      "order": 44,
+      "lessonTemplateRef": "AUTO_TBD_44",
+      "label": "Practice: Directions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Directions",
+        "block_index": "12.3",
+        "prerequisites": ["Check-in: Directions"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with mixed problems on giving and following directions."
+      },
+      "engagement_tags": ["worksheet", "problem_solving", "maps"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use SQA-style questions involving maps and plans."
+    },
+    {
+      "order": 45,
+      "lessonTemplateRef": "AUTO_TBD_45",
+      "label": "Revision: Directions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Directions",
+        "block_index": "12.4",
+        "prerequisites": ["Practice: Directions"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS1.3."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap directional language and compass points."
+    },
+    {
+      "order": 46,
+      "lessonTemplateRef": "AUTO_TBD_46",
+      "label": "Working with Simple Patterns",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Patterns",
+        "block_index": "13.1",
+        "prerequisites": ["Revision: Directions"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on identifying, continuing, and creating repeating patterns."
+      },
+      "engagement_tags": ["patterns", "tiling", "design"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Practical lesson using coloured blocks or drawing tools to create and extend tiling patterns."
+    },
+    {
+      "order": 47,
+      "lessonTemplateRef": "AUTO_TBD_47",
+      "label": "Check-in: Patterns",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Patterns",
+        "block_index": "13.2",
+        "prerequisites": ["Working with Simple Patterns"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick quiz on continuing a pattern."
+      },
+      "engagement_tags": ["quiz", "patterns"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Show a simple repeating shape pattern and ask students to draw the next two shapes."
+    },
+    {
+      "order": 48,
+      "lessonTemplateRef": "AUTO_TBD_48",
+      "label": "Practice: Patterns",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Patterns",
+        "block_index": "13.3",
+        "prerequisites": ["Check-in: Patterns"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with various pattern-based tasks."
+      },
+      "engagement_tags": ["worksheet", "design"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include tasks for continuing, describing, and creating patterns."
+    },
+    {
+      "order": 49,
+      "lessonTemplateRef": "AUTO_TBD_49",
+      "label": "Revision: Patterns",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Patterns",
+        "block_index": "13.4",
+        "prerequisites": ["Practice: Patterns"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS1.4."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap different types of pattern tasks."
+    },
+    {
+      "order": 50,
+      "lessonTemplateRef": "AUTO_TBD_50",
+      "label": "Selecting and Using Units of Measurement",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Units of Measurement",
+        "block_index": "14.1",
+        "prerequisites": ["Revision: Patterns"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on choosing appropriate units (mm, cm, m, g, kg, ml, l)."
+      },
+      "engagement_tags": ["measurement", "practical", "estimation"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Practical lesson. Have students measure objects and select the best unit. Discuss equivalences."
+    },
+    {
+      "order": 51,
+      "lessonTemplateRef": "AUTO_TBD_51",
+      "label": "Check-in: Units of Measurement",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Units of Measurement",
+        "block_index": "14.2",
+        "prerequisites": ["Selecting and Using Units of Measurement"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check on selecting appropriate units."
+      },
+      "engagement_tags": ["quiz", "units"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Show pictures of objects and ask students to write down the best unit to measure them."
+    },
+    {
+      "order": 52,
+      "lessonTemplateRef": "AUTO_TBD_52",
+      "label": "Practice: Appropriate Units",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Units of Measurement",
+        "block_index": "14.3",
+        "prerequisites": ["Check-in: Units of Measurement"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with scenarios requiring unit selection."
+      },
+      "engagement_tags": ["worksheet", "measurement"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include questions that involve simple conversions, e.g., 'A plank is 250cm long. How many metres is this?'"
+    },
+    {
+      "order": 53,
+      "lessonTemplateRef": "AUTO_TBD_53",
+      "label": "Revision: Units of Measurement",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Units of Measurement",
+        "block_index": "14.4",
+        "prerequisites": ["Practice: Appropriate Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS2.1."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap all measurement types and their common units and equivalences."
+    },
+    {
+      "order": 54,
+      "lessonTemplateRef": "AUTO_TBD_54",
+      "label": "Using Formulae for Area and Volume",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Formulae",
+        "block_index": "15.1",
+        "prerequisites": ["Revision: Units of Measurement", "Revision: Volume of a Cuboid", "Revision: Perimeter and Area"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Explicitly teach stating and using simple formulae for area and volume."
+      },
+      "engagement_tags": ["formulae", "area", "volume"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This lesson formalises the use of formulae introduced in AS1.1 and AS1.2. Ensure students can state the formula in words or symbols."
+    },
+    {
+      "order": 55,
+      "lessonTemplateRef": "AUTO_TBD_55",
+      "label": "Check-in: Formulae",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Formulae",
+        "block_index": "15.2",
+        "prerequisites": ["Using Formulae for Area and Volume"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick check on stating and using the correct formula."
+      },
+      "engagement_tags": ["quiz", "formulae"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a diagram of a cuboid and ask students to state the formula for volume and then calculate it."
+    },
+    {
+      "order": 56,
+      "lessonTemplateRef": "AUTO_TBD_56",
+      "label": "Practice: Formulae",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Formulae",
+        "block_index": "15.3",
+        "prerequisites": ["Check-in: Formulae"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with mixed area and volume problems requiring formula use."
+      },
+      "engagement_tags": ["worksheet", "problem_solving"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure problems require students to select the correct formula for the context."
+    },
+    {
+      "order": 57,
+      "lessonTemplateRef": "AUTO_TBD_57",
+      "label": "Revision: Formulae",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Formulae",
+        "block_index": "15.4",
+        "prerequisites": ["Practice: Formulae"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.2."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap the formulae for area of a rectangle and volume of a cuboid."
+    },
+    {
+      "order": 58,
+      "lessonTemplateRef": "AUTO_TBD_58",
+      "label": "Interpreting Simple Scale Drawings",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Drawings",
+        "block_index": "16.1",
+        "prerequisites": ["Revision: Formulae"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to read and use a simple scale (e.g., 1cm = 2m)."
+      },
+      "engagement_tags": ["scale_drawing", "maps", "floor_plans"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use simple floor plans or maps. Students measure on the plan and use the scale to calculate the real distance."
+    },
+    {
+      "order": 59,
+      "lessonTemplateRef": "AUTO_TBD_59",
+      "label": "Check-in: Scale Drawings",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Drawings",
+        "block_index": "16.2",
+        "prerequisites": ["Interpreting Simple Scale Drawings"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on using a scale."
+      },
+      "engagement_tags": ["quiz", "maps"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Provide a line on a drawing with a scale and ask for the real length."
+    },
+    {
+      "order": 60,
+      "lessonTemplateRef": "AUTO_TBD_60",
+      "label": "Practice: Scale Drawings",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Drawings",
+        "block_index": "16.3",
+        "prerequisites": ["Check-in: Scale Drawings"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with problems involving interpreting scale drawings."
+      },
+      "engagement_tags": ["worksheet", "problem_solving", "maps"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use SQA-style questions with simple maps and floor plans."
+    },
+    {
+      "order": 61,
+      "lessonTemplateRef": "AUTO_TBD_61",
+      "label": "Revision: Scale Drawings",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Drawings",
+        "block_index": "16.4",
+        "prerequisites": ["Practice: Scale Drawings"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.3."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap how to measure and apply a scale."
+    },
+    {
+      "order": 62,
+      "lessonTemplateRef": "AUTO_TBD_62",
+      "label": "Applying a Basic Scale Factor",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Factors",
+        "block_index": "17.1",
+        "prerequisites": ["Revision: Scale Drawings"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to enlarge or reduce a quantity by a simple scale factor."
+      },
+      "engagement_tags": ["scale_factor", "recipes", "enlargement"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use recipe adjustments (doubling/halving ingredients) as a key context."
+    },
+    {
+      "order": 63,
+      "lessonTemplateRef": "AUTO_TBD_63",
+      "label": "Check-in: Scale Factors",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Factors",
+        "block_index": "17.2",
+        "prerequisites": ["Applying a Basic Scale Factor"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on applying a scale factor."
+      },
+      "engagement_tags": ["quiz", "recipes"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "A recipe serves 4 people. How much flour is needed for 8 people?"
+    },
+    {
+      "order": 64,
+      "lessonTemplateRef": "AUTO_TBD_64",
+      "label": "Practice: Scale Factors",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Factors",
+        "block_index": "17.3",
+        "prerequisites": ["Check-in: Scale Factors"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with problems involving applying scale factors."
+      },
+      "engagement_tags": ["worksheet", "problem_solving"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include problems with both increasing and decreasing quantities."
+    },
+    {
+      "order": 65,
+      "lessonTemplateRef": "AUTO_TBD_65",
+      "label": "Revision: Scale Factors",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Scale Factors",
+        "block_index": "17.4",
+        "prerequisites": ["Practice: Scale Factors"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.4."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap how to multiply or divide to apply a scale factor."
+    },
+    {
+      "order": 66,
+      "lessonTemplateRef": "AUTO_TBD_66",
+      "label": "Calculating Time Intervals",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Time",
+        "block_index": "18.1",
+        "prerequisites": ["Revision: Scale Factors"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach 12-hour and 24-hour clock. Calculate durations using a timeline method."
+      },
+      "engagement_tags": ["time", "timetables", "journeys", "tv_guide"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.5"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real ScotRail or First Bus timetables. Calculate journey times."
+    },
+    {
+      "order": 67,
+      "lessonTemplateRef": "AUTO_TBD_67",
+      "label": "Check-in: Time",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Time",
+        "block_index": "18.2",
+        "prerequisites": ["Calculating Time Intervals"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on calculating a simple duration."
+      },
+      "engagement_tags": ["quiz", "time"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.5"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "A train leaves at 14:30 and arrives at 15:10. How long was the journey?"
+    },
+    {
+      "order": 68,
+      "lessonTemplateRef": "AUTO_TBD_68",
+      "label": "Practice: Time",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Time",
+        "block_index": "18.3",
+        "prerequisites": ["Check-in: Time"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with mixed problems involving time."
+      },
+      "engagement_tags": ["worksheet", "problem_solving", "timetables"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.5"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real-life scenarios like planning a day out using a timetable."
+    },
+    {
+      "order": 69,
+      "lessonTemplateRef": "AUTO_TBD_69",
+      "label": "Revision: Time",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Time",
+        "block_index": "18.4",
+        "prerequisites": ["Practice: Time"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.5."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.5"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap 24-hour clock and timeline method before the unit assessment."
+    },
+    {
+      "order": 70,
+      "lessonTemplateRef": "AUTO_TBD_70",
+      "label": "Shape, Space and Measures Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Shape, Space and Measures (National 3)",
+        "block_name": "Unit Assessment",
+        "block_index": "19.1",
+        "prerequisites": ["Revision: Time", "Revision: Scale Factors", "Revision: Scale Drawings", "Revision: Formulae"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Formal assessment covering all outcomes for the Shape, Space and Measures unit."
+      },
+      "engagement_tags": ["assessment", "test"],
+      "outcomeRefs": ["O1", "O2"],
+      "assessmentStandardRefs": ["AS1.1", "AS1.2", "AS1.3", "AS1.4", "AS2.1", "AS2.2", "AS2.3", "AS2.4", "AS2.5"],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This assessment should be conducted under supervised conditions. Use SQA-style questions."
+    },
+    {
+      "order": 71,
+      "lessonTemplateRef": "AUTO_TBD_71",
+      "label": "Factors Affecting Income and Expenditure",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Income & Expenditure",
+        "block_index": "20.1",
+        "prerequisites": ["Shape, Space and Measures Unit Assessment"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce concepts of income (wages, benefits) and expenditure (bills, needs, wants)."
+      },
+      "engagement_tags": ["income", "spending", "bills", "wages"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use a mind map to brainstorm different types of income and expenditure. Discuss 'needs' vs 'wants'."
+    },
+    {
+      "order": 72,
+      "lessonTemplateRef": "AUTO_TBD_72",
+      "label": "Check-in: Income & Expenditure",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Income & Expenditure",
+        "block_index": "20.2",
+        "prerequisites": ["Factors Affecting Income and Expenditure"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check on identifying income vs expenditure."
+      },
+      "engagement_tags": ["quiz", "budgeting"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Card sort activity: students categorise items as income, expenditure, need, or want."
+    },
+    {
+      "order": 73,
+      "lessonTemplateRef": "AUTO_TBD_73",
+      "label": "Practice: Income & Expenditure",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Income & Expenditure",
+        "block_index": "20.3",
+        "prerequisites": ["Check-in: Income & Expenditure"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with different scenarios for identifying factors."
+      },
+      "engagement_tags": ["worksheet", "personal_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide scenarios and ask students to list the factors that would affect a person's budget."
+    },
+    {
+      "order": 74,
+      "lessonTemplateRef": "AUTO_TBD_74",
+      "label": "Revision: Income & Expenditure",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Income & Expenditure",
+        "block_index": "20.4",
+        "prerequisites": ["Practice: Income & Expenditure"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.1."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review key vocabulary related to personal finance."
+    },
+    {
+      "order": 75,
+      "lessonTemplateRef": "AUTO_TBD_75",
+      "label": "Preparing a Simple Budget",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Budgeting",
+        "block_index": "21.1",
+        "prerequisites": ["Revision: Income & Expenditure"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to create a simple budget table and calculate the balance."
+      },
+      "engagement_tags": ["budgeting", "personal_finance", "planning"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Model creating a weekly budget for a teenager with a part-time job using a simple template."
+    },
+    {
+      "order": 76,
+      "lessonTemplateRef": "AUTO_TBD_76",
+      "label": "Check-in: Budgeting",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Budgeting",
+        "block_index": "21.2",
+        "prerequisites": ["Preparing a Simple Budget"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on calculating a budget balance."
+      },
+      "engagement_tags": ["quiz", "budgeting"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a short list of money in/out and ask students to calculate if the person has a surplus or deficit."
+    },
+    {
+      "order": 77,
+      "lessonTemplateRef": "AUTO_TBD_77",
+      "label": "Practice: Creating Budgets",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Budgeting",
+        "block_index": "21.3",
+        "prerequisites": ["Check-in: Budgeting"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with different scenarios for budgeting."
+      },
+      "engagement_tags": ["worksheet", "personal_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide structured templates for students to complete budgets for different people."
+    },
+    {
+      "order": 78,
+      "lessonTemplateRef": "AUTO_TBD_78",
+      "label": "Revision: Budgeting",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Budgeting",
+        "block_index": "21.4",
+        "prerequisites": ["Practice: Creating Budgets"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.2."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review the steps to creating a balanced budget."
+    },
+    {
+      "order": 79,
+      "lessonTemplateRef": "AUTO_TBD_79",
+      "label": "Developing a Basic Savings Plan",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Savings",
+        "block_index": "22.1",
+        "prerequisites": ["Revision: Budgeting"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to calculate money to be saved over a period to reach a goal."
+      },
+      "engagement_tags": ["savings", "planning", "personal_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Context: saving for a new phone or a concert ticket. Calculate how much needs to be saved each week/month."
+    },
+    {
+      "order": 80,
+      "lessonTemplateRef": "AUTO_TBD_80",
+      "label": "Check-in: Savings Plans",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Savings",
+        "block_index": "22.2",
+        "prerequisites": ["Developing a Basic Savings Plan"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on a simple savings calculation."
+      },
+      "engagement_tags": ["quiz", "savings"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "John wants to save £100 in 10 weeks. How much should he save each week?"
+    },
+    {
+      "order": 81,
+      "lessonTemplateRef": "AUTO_TBD_81",
+      "label": "Practice: Savings Plans",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Savings",
+        "block_index": "22.3",
+        "prerequisites": ["Check-in: Savings Plans"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with scenarios requiring students to create savings plans."
+      },
+      "engagement_tags": ["worksheet", "personal_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide different savings goals and timeframes."
+    },
+    {
+      "order": 82,
+      "lessonTemplateRef": "AUTO_TBD_82",
+      "label": "Revision: Savings Plans",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Savings",
+        "block_index": "22.4",
+        "prerequisites": ["Practice: Savings Plans"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.3."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review the method for calculating required savings."
+    },
+    {
+      "order": 83,
+      "lessonTemplateRef": "AUTO_TBD_83",
+      "label": "Finding the Best Deal",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Best Deals",
+        "block_index": "23.1",
+        "prerequisites": ["Revision: Savings Plans"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to compare offers, including discounts and multi-buy deals."
+      },
+      "engagement_tags": ["best_buy", "shopping", "discounts", "supermarket"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use real supermarket flyers (Lidl, Aldi). Compare prices and work out which offer is the best value."
+    },
+    {
+      "order": 84,
+      "lessonTemplateRef": "AUTO_TBD_84",
+      "label": "Check-in: Best Deals",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Best Deals",
+        "block_index": "23.2",
+        "prerequisites": ["Finding the Best Deal"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz with a best deal comparison."
+      },
+      "engagement_tags": ["quiz", "shopping"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Example: 'Which is better value: 2 litres of juice for £1.80 or 3 litres for £2.40?'"
+    },
+    {
+      "order": 85,
+      "lessonTemplateRef": "AUTO_TBD_85",
+      "label": "Practice: Best Deals",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Best Deals",
+        "block_index": "23.3",
+        "prerequisites": ["Check-in: Best Deals"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with mixed real-life comparison problems."
+      },
+      "engagement_tags": ["worksheet", "problem_solving", "personal_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include multi-buy offers, percentage discounts, and simple price comparisons."
+    },
+    {
+      "order": 86,
+      "lessonTemplateRef": "AUTO_TBD_86",
+      "label": "Revision: Best Deals",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Best Deals",
+        "block_index": "23.4",
+        "prerequisites": ["Practice: Best Deals"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS1.4."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use past-paper style questions to prepare for the unit assessment."
+    },
+    {
+      "order": 87,
+      "lessonTemplateRef": "AUTO_TBD_87",
+      "label": "Organising Primary Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Organisation",
+        "block_index": "24.1",
+        "prerequisites": ["Revision: Best Deals"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach how to organise data in tables, lists, and tally charts."
+      },
+      "engagement_tags": ["data", "surveys", "organisation"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Conduct a simple class survey (e.g., favourite colour) and model how to create a tally chart from the raw data."
+    },
+    {
+      "order": 88,
+      "lessonTemplateRef": "AUTO_TBD_88",
+      "label": "Check-in: Organising Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Organisation",
+        "block_index": "24.2",
+        "prerequisites": ["Organising Primary Data"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check on creating a tally chart."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a short list of raw data and ask students to create a tally chart."
+    },
+    {
+      "order": 89,
+      "lessonTemplateRef": "AUTO_TBD_89",
+      "label": "Practice: Organising Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Organisation",
+        "block_index": "24.3",
+        "prerequisites": ["Check-in: Organising Data"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with data sets to be organised."
+      },
+      "engagement_tags": ["worksheet", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide different raw data sets for students to organise into tables."
+    },
+    {
+      "order": 90,
+      "lessonTemplateRef": "AUTO_TBD_90",
+      "label": "Revision: Organising Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Organisation",
+        "block_index": "24.4",
+        "prerequisites": ["Practice: Organising Data"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Consolidation of AS2.1."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap the different methods for organising data."
+    },
+    {
+      "order": 91,
+      "lessonTemplateRef": "AUTO_TBD_91",
+      "label": "Simple Calculations to Compare Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Calculations",
+        "block_index": "25.1",
+        "prerequisites": ["Revision: Organising Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to perform simple calculations like totals and simple averages (mean)."
+      },
+      "engagement_tags": ["data_analysis", "calculations", "averages"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Using data from a table, calculate the total and the mean to make comparisons."
+    },
+    {
+      "order": 92,
+      "lessonTemplateRef": "AUTO_TBD_92",
+      "label": "Check-in: Data Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Calculations",
+        "block_index": "25.2",
+        "prerequisites": ["Simple Calculations to Compare Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on calculating a total and a mean."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a short list of numbers and ask for the total and the mean."
+    },
+    {
+      "order": 93,
+      "lessonTemplateRef": "AUTO_TBD_93",
+      "label": "Practice: Data Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Calculations",
+        "block_index": "25.3",
+        "prerequisites": ["Check-in: Data Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with data sets requiring calculations for comparison."
+      },
+      "engagement_tags": ["worksheet", "data_analysis"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide tables of data and ask students to make comparisons based on calculated totals or means."
+    },
+    {
+      "order": 94,
+      "lessonTemplateRef": "AUTO_TBD_94",
+      "label": "Revision: Data Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Calculations",
+        "block_index": "25.4",
+        "prerequisites": ["Practice: Data Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.2."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Recap how to calculate totals and means from tables."
+    },
+    {
+      "order": 95,
+      "lessonTemplateRef": "AUTO_TBD_95",
+      "label": "Representing Data in Charts",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Representation",
+        "block_index": "26.1",
+        "prerequisites": ["Revision: Data Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to represent data in bar graphs or pictograms with simple scales."
+      },
+      "engagement_tags": ["data", "charts", "graphs"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Using a tally chart from a previous lesson, model how to construct a bar graph on squared paper."
+    },
+    {
+      "order": 96,
+      "lessonTemplateRef": "AUTO_TBD_96",
+      "label": "Check-in: Representing Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Representation",
+        "block_index": "26.2",
+        "prerequisites": ["Representing Data in Charts"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick check on drawing a simple bar chart."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Give a simple frequency table and ask students to draw a bar chart for it."
+    },
+    {
+      "order": 97,
+      "lessonTemplateRef": "AUTO_TBD_97",
+      "label": "Practice: Representing Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Representation",
+        "block_index": "26.3",
+        "prerequisites": ["Check-in: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with data sets to be represented in charts."
+      },
+      "engagement_tags": ["worksheet", "data", "charts"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Students can work in pairs to create posters showing their charts."
+    },
+    {
+      "order": 98,
+      "lessonTemplateRef": "AUTO_TBD_98",
+      "label": "Revision: Representing Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Representation",
+        "block_index": "26.4",
+        "prerequisites": ["Practice: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.3."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review the key features of a good bar chart (title, labels, scales)."
+    },
+    {
+      "order": 99,
+      "lessonTemplateRef": "AUTO_TBD_99",
+      "label": "Drawing Conclusions from Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Interpretation",
+        "block_index": "27.1",
+        "prerequisites": ["Revision: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to interpret simple data to draw conclusions."
+      },
+      "engagement_tags": ["data_analysis", "charts", "conclusions"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice", "independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Using a chart, model how to make a simple comparative statement, e.g., 'Football is the most popular sport.'"
+    },
+    {
+      "order": 100,
+      "lessonTemplateRef": "AUTO_TBD_100",
+      "label": "Check-in: Drawing Conclusions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Interpretation",
+        "block_index": "27.2",
+        "prerequisites": ["Drawing Conclusions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick quiz on drawing a conclusion from a chart."
+      },
+      "engagement_tags": ["quiz", "data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Provide a simple bar chart and ask students to write one sentence about what it shows."
+    },
+    {
+      "order": 101,
+      "lessonTemplateRef": "AUTO_TBD_101",
+      "label": "Practice: Drawing Conclusions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Interpretation",
+        "block_index": "27.3",
+        "prerequisites": ["Check-in: Drawing Conclusions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with charts requiring interpretation and conclusions."
+      },
+      "engagement_tags": ["worksheet", "data_analysis"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include questions that ask 'What is the most popular...?' or 'What is the least common...?'"
+    },
+    {
+      "order": 102,
+      "lessonTemplateRef": "AUTO_TBD_102",
+      "label": "Revision: Drawing Conclusions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Data: Interpretation",
+        "block_index": "27.4",
+        "prerequisites": ["Practice: Drawing Conclusions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Consolidation of AS2.4."
+      },
+      "engagement_tags": ["consolidation", "revision_game"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.4"],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_A2",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Review the difference between reading data and interpreting it to form a conclusion."
+    },
+    {
+      "order": 103,
+      "lessonTemplateRef": "AUTO_TBD_103",
+      "label": "Manage Money and Data Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Manage Money and Data (National 3)",
+        "block_name": "Unit Assessment",
+        "block_index": "28.1",
+        "prerequisites": ["Revision: Drawing Conclusions", "Revision: Representing Data", "Revision: Data Calculations", "Revision: Organising Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Formal assessment covering all outcomes for the Manage Money and Data unit."
+      },
+      "engagement_tags": ["assessment", "test"],
+      "outcomeRefs": ["O1", "O2"],
+      "assessmentStandardRefs": ["AS1.1", "AS1.2", "AS1.3", "AS1.4", "AS2.1", "AS2.2", "AS2.3", "AS2.4"],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This assessment should be conducted under supervised conditions. Use SQA-style questions."
+    },
+    {
+      "order": 104,
+      "lessonTemplateRef": "AUTO_TBD_104",
+      "label": "Course Consolidation and Review",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 3)",
+        "block_name": "Course Review",
+        "block_index": "29.1",
+        "prerequisites": ["Manage Money and Data Unit Assessment"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Spiral revisit of key topics from all three units."
+      },
+      "engagement_tags": ["spiral_revisit", "consolidation"],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": ["starter", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "An opportunity to revisit any areas of weakness identified in the unit assessments."
+    }
+  ],
+  "createdAt": "2024-05-21T11:00:00Z",
+  "updatedAt": "2024-05-21T11:00:00Z"
+}
