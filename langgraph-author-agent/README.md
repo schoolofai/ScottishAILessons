@@ -11,6 +11,29 @@ A research agent powered by LangGraph, DeepAgents, and Google's Gemini 2.5 Pro t
 - **Flexible Structure**: Adapts report structure based on the research question
 - **Scottish Education Focus**: Specialized prompts for SQA, CfE, and Scottish context
 
+## 🎯 Multiple Agents Available
+
+This repository contains multiple specialized agents:
+
+### 1. **Research Agent** (this README)
+   - Conducts thorough web research
+   - Generates comprehensive reports with citations
+   - Graph ID: `research`
+
+### 2. **SoW Author Agent**
+   - Authors complete Schemes of Work for Scottish courses
+   - Graph ID: `sow_author`
+
+### 3. **Lesson Author Agent** 📚 [**Full Documentation →**](./docs/)
+   - Authors individual lesson templates with pedagogical cards
+   - Orchestrates 8 specialized subagents
+   - Validates with 5 quality critics
+   - Graph ID: `lesson_author`
+   - **Quick Start**: See [`docs/QUICKSTART_LESSON_AUTHOR.md`](./docs/QUICKSTART_LESSON_AUTHOR.md)
+   - **Comprehensive Guide**: See [`docs/README_LESSON_AUTHOR.md`](./docs/README_LESSON_AUTHOR.md)
+
+---
+
 ## Prerequisites
 
 - Python 3.11 or higher

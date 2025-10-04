@@ -1,0 +1,217 @@
+
+{
+  "research_pack_version": 3,
+  "subject": "mathematics",
+  "level": "National 4",
+  "exemplars_from_sources": [
+    {
+      "source": "https://www.sqa.org.uk/files/nq/CfE_CourseSpec_N4_Mathematics_Mathematics.pdf",
+      "content": "The National 4 Mathematics Course develops essential numerical and mathematical skills. The Course has three mandatory Units: Expressions and Formulae, Relationships, and Numeracy. A pass in the Added Value Unit is also required. This will take the form of a test. The test will have two question papers, one in which a calculator is not permitted, and one in which a calculator is permitted.",
+      "summary": "Official SQA course specification outlining the three mandatory units and the structure of the Added Value Unit test.",
+      "sow_context": "This is the primary document for defining the structure of the SoW. The three units form the basis of the curriculum.",
+      "lesson_context": "Use this document to define the mandatory learning outcomes and assessment standards that must be addressed within individual lesson plans."
+    },
+    {
+      "source": "https://www.national5maths.co.uk/free-national-4-maths/",
+      "content": "Free National 4 Maths resources. Welcome to the National 4 Maths webpage. Please find below links to free N4 Maths theory guides, worksheets and assessments. Thanks to the authors for making these available.",
+      "summary": "A third-party website created by Scottish teachers, offering a wide range of free resources including worksheets, PowerPoints, and practice assessments for National 4 Maths.",
+      "sow_context": "Provides a practical, teacher-created perspective on how the curriculum is delivered. The resources can be used to supplement the SoW.",
+      "lesson_context": "Excellent source for exemplar lesson materials, including worksheets and activities."
+    },
+    {
+      "source": "https://www.sqa.org.uk/files_ccc/CfE_CourseUnitSupportNotes_N4_Mathematics_Mathematics.pdf",
+      "content": "This document provides advice and guidance on approaches to delivering and assessing the National 4 Mathematics Course. It includes suggestions for learning and teaching activities, as well as information on the Added Value Unit.",
+      "summary": "Official SQA support notes with guidance on teaching and assessment.",
+      "sow_context": "Provides guidance on the sequencing and delivery of the course units.",
+      "lesson_context": "Contains suggestions for learning and teaching activities that can be incorporated into lesson plans."
+    },
+    {
+      "source": "https://www.bbc.co.uk/bitesize/subjects/z2966v4",
+      "content": "National 4 Mathematics learning resources for adults, children, parents and teachers organised by topic.",
+      "summary": "BBC Bitesize provides a comprehensive overview of the National 4 Mathematics curriculum, with clear explanations, examples, and interactive tests.",
+      "sow_context": "Useful for structuring the SoW around the key topics within each of the three units.",
+      "lesson_context": "Excellent source of inspiration for lesson activities, with a focus on clear explanations and engaging content."
+    }
+  ],
+  "distilled_data": {
+    "canonical_terms": [
+      {
+        "term": "Added Value Unit",
+        "definition": "The Added Value Unit is the final assessment for the course and is graded. It consists of two question papers: a non-calculator paper and a calculator paper.",
+        "application": "The SoW should build towards the Added Value Unit, with opportunities for revision and practice assessments."
+      },
+      {
+        "term": "Expressions and Formulae",
+        "definition": "One of the three mandatory units, focusing on the manipulation of abstract mathematical expressions and the application of formulae.",
+        "application": "This unit should be a core component of the SoW."
+      },
+      {
+        "term": "Relationships",
+        "definition": "One of the three mandatory units, exploring mathematical relationships and their applications in various contexts.",
+        "application": "This unit should be a core component of the SoW."
+      },
+      {
+        "term": "Numeracy",
+        "definition": "One of the three mandatory units, developing fundamental numerical skills and their application in real-life situations.",
+        "application": "This unit should be a core component of the SoW, with a focus on practical applications."
+      }
+    ],
+    "assessment_stems": [
+      {
+        "stem": "Calculate...",
+        "source": "SQA National 4 Mathematics Specimen Question Paper",
+        "example_usage": "Calculate the area of a circle with a given radius.",
+        "notes": "Common stem for questions in both calculator and non-calculator papers."
+      },
+      {
+        "stem": "Solve the equation...",
+        "source": "SQA National 4 Mathematics Specimen Question Paper",
+        "example_usage": "Solve the equation 3x + 5 = 14.",
+        "notes": "Used to assess algebraic skills in the 'Expressions and Formulae' unit."
+      },
+      {
+        "stem": "A shop is having a sale. Calculate the sale price.",
+        "source": "SQA National 4 Mathematics Specimen Question Paper",
+        "example_usage": "A shop is having a 20% off sale. If a pair of trainers originally cost £50, what is the sale price?",
+        "notes": "Real-world context question for the 'Numeracy' unit."
+      },
+      {
+        "stem": "Draw a bar chart to represent the data.",
+        "source": "SQA National 4 Mathematics Specimen Question Paper",
+        "example_usage": "Draw a bar chart to represent the data in the table.",
+        "notes": "Used to assess data handling skills in the 'Relationships' unit."
+      }
+    ],
+    "pedagogical_patterns": {
+      "lesson_starters": [
+        "Match-up game with algebraic expressions and word-based descriptions.",
+        "What's the rule? activity with a table of input and output values.",
+        "Real-world percentage problem."
+      ],
+      "cfu_variety_examples": [
+        "Exit tickets with short questions to gauge understanding.",
+        "Peer assessment of work against a set of criteria.",
+        "Mini-whiteboards for working through problems."
+      ],
+      "misconceptions": [
+        "Confusing area and perimeter.",
+        "Incorrectly applying the order of operations (BODMAS).",
+        "Errors in converting between fractions, decimals, and percentages."
+      ],
+      "rubric_shapes": [
+        {
+          "name": "Problem-Solving Task Rubric (AVU Style)",
+          "criteria": [
+            "Interpreting the problem and selecting a strategy (2 marks)",
+            "Applying mathematical skills and knowledge correctly (3 marks)",
+            "Communicating the solution clearly with workings (1 mark)"
+          ]
+        },
+        {
+          "name": "Numeracy Project Rubric (Pass/Fail)",
+          "criteria": [
+            "Accurate data collection",
+            "Correct calculations performed",
+            "Clear presentation of findings (e.g., in a table or graph)"
+          ]
+        }
+      ],
+      "accessibility_notes": [
+        {
+          "pattern": "plain_language_rules",
+          "guidance": "Use clear and simple language, avoiding jargon where possible. Explain mathematical terms in a straightforward way."
+        },
+        {
+          "pattern": "dyslexia_notes",
+          "guidance": "Use a dyslexia-friendly font (e.g., Arial, Comic Sans) and a clear layout. Use multi-sensory teaching methods, such as hands-on activities and visual aids."
+        }
+      ]
+    },
+    "calculator_policy": {
+      "no_calculator_topics": [
+        "Basic arithmetic",
+        "Fractions, decimals, and percentages",
+        "Simplifying expressions"
+      ],
+      "calculator_topics": [
+        "Trigonometry",
+        "Pythagoras' theorem",
+        "Area and volume of complex shapes"
+      ],
+      "notes": "The Added Value Unit has a non-calculator paper (20 minutes) and a calculator-permitted paper (40 minutes)."
+    }
+  },
+  "guidance_for_author": {
+    "sow_construction": {
+      "sequencing_principles": [
+        "Start with Expressions and Formulae to build foundational skills.",
+        "Integrate Numeracy throughout the course to provide real-world context.",
+        "Teach Relationships after Expressions and Formulae, as it builds on those concepts."
+      ],
+      "unit_breakdown_example": "The SoW should be structured around the three mandatory units: Expressions and Formulae, Relationships, and Numeracy. Each unit can be broken down into smaller topics.",
+      "duration_estimates": "The recommended total time allocation for the course is 160 hours. This should be divided between the three units, with time for revision and the Added Value Unit.",
+      "context_hooks": [
+        "Planning a trip on ScotRail or First Bus.",
+        "Calculating the cost of a day out at a Scottish landmark, such as Edinburgh Castle or Loch Lomond.",
+        "Using data from the Scottish Government website for statistical tasks."
+      ]
+    },
+    "lesson_construction": {
+      "card_design_patterns": [
+        "Start with a short, engaging starter activity.",
+        "Introduce the main concept with clear explanations and worked examples.",
+        "Provide opportunities for students to practice the new skill through a variety of activities.",
+        "End with a plenary or exit ticket to assess understanding."
+      ],
+      "recommended_cfu_mix": "A mix of individual work (worksheets), group work (projects), and whole-class activities (mini-whiteboards) is recommended.",
+      "misconception_handling": "Address common misconceptions directly and provide targeted support to students who are struggling.",
+      "engagement_tips": [
+        "Use real-world examples and contexts that are relevant to students' lives.",
+        "Incorporate technology, such as online quizzes and interactive whiteboards.",
+        "Use a variety of teaching methods to cater to different learning styles."
+      ]
+    }
+  },
+  "citations": [
+    {
+      "url": "https://www.sqa.org.uk/files/nq/CfE_CourseSpec_N4_Mathematics_Mathematics.pdf",
+      "title": "National 4 Mathematics Course Specification",
+      "publisher": "Scottish Qualifications Authority",
+      "date": "2017-08-23",
+      "verification_note": "Official SQA document."
+    },
+    {
+      "url": "https://www.national5maths.co.uk/free-national-4-maths/",
+      "title": "Free National 4 Maths Resources",
+      "publisher": "national5maths.co.uk",
+      "date": "2023-10-27",
+      "verification_note": "Well-regarded third-party resource site created by Scottish teachers."
+    },
+    {
+      "url": "https://www.sqa.org.uk/files_ccc/CfE_CourseUnitSupportNotes_N4_Mathematics_Mathematics.pdf",
+      "title": "National 4 Mathematics Course Support Notes",
+      "publisher": "Scottish Qualifications Authority",
+      "date": "2017-08-23",
+      "verification_note": "Official SQA document."
+    },
+    {
+      "url": "https://www.bbc.co.uk/bitesize/subjects/z2966v4",
+      "title": "National 4 Mathematics",
+      "publisher": "BBC Bitesize",
+      "date": "2023-10-27",
+      "verification_note": "Key educational resource for the Scottish curriculum."
+    },
+    {
+      "url": "https://www.sqa.org.uk/pastpapers/papers/papers/2019/N4_Mathematics_All_2019.pdf",
+      "title": "National 4 Mathematics Specimen Question Paper",
+      "publisher": "Scottish Qualifications Authority",
+      "date": "2019",
+      "verification_note": "Official SQA specimen paper."
+    }
+  ],
+  "metadata": {
+    "research_date": "2023-10-27T10:00:00Z",
+    "pack_completeness": "The research pack is well-populated with information from official SQA sources and a reputable third-party resource. The guidance for the author is specific and actionable.",
+    "issues_or_gaps": "It was difficult to find publicly available, detailed Schemes of Work from specific Scottish secondary school websites, as these documents are often hosted on internal school networks. However, the SQA documentation provides a clear and comprehensive outline of the curriculum."
+  }
+}

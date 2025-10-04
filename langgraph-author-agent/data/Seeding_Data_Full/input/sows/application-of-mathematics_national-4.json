@@ -1,0 +1,2304 @@
+{
+  "$id": "sow_nat4_app_of_math_v1",
+  "courseId": "course_c84474",
+  "version": 2,
+  "status": "draft",
+  "metadata": {
+    "coherence": {
+      "policy_notes": [
+        "Calculator use is permitted throughout, however foundational Numeracy skills in the first unit will be built in a non-calculator environment before transitioning to calculator-based work.",
+        "All assessments are internal and pass/fail. The Added Value Unit is a final test drawing on skills from all three units."
+      ],
+      "sequencing_notes": [
+        "This SoW follows the sequence: Numeracy, then Managing Finance & Statistics, then Geometry & Measures, concluding with Added Value Unit preparation.",
+        "While presented sequentially, skills from the Numeracy unit should be revisited and reinforced throughout the delivery of the other two units (spiral approach).",
+        "The SQA's recommended approach is to deliver Managing Finance and Statistics and Geometry and Measures sequentially, with Numeracy skills integrated throughout."
+      ]
+    },
+    "accessibility_notes": [
+      "Lessons should use plain language (CEFR_B1) and provide glossaries for key terms.",
+      "Use of concrete materials, real-world documents (eg, bills, flyers, timetables), and visual aids is highly recommended.",
+      "Provide formula sheets for assessments in line with SQA policy.",
+      "Ensure digital resources are screen-reader compatible and that extra time provisions are made for learners who require it."
+    ],
+    "engagement_notes": [
+      "Frame problems using authentic Scottish contexts such as local council budgets, ScotRail/Lothian Buses timetables, household utility bills (eg, Scottish Power), and supermarket shopping (Tesco, Asda).",
+      "Connect financial calculations to real-life scenarios like planning a holiday, saving for a purchase, or understanding a payslip.",
+      "Use project-based learning, especially for the Added Value Unit preparation, to synthesize skills in a meaningful context."
+    ],
+    "weeks": 36,
+    "periods_per_week": 3
+  },
+  "entries": [
+    {
+      "order": 1,
+      "lessonTemplateRef": "AUTO_TBD_1",
+      "label": "Teaching: Using Numerical Notation and Units",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on understanding place value, fractions, decimals, and percentages in context."
+      },
+      "engagement_tags": ["shopping", "recipes", "measurements"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Introduction to the core numerical concepts. Use real money and measuring tapes."
+    },
+    {
+      "order": 2,
+      "lessonTemplateRef": "AUTO_TBD_2",
+      "label": "Check-in: Using Numerical Notation and Units",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.1",
+        "prerequisites": ["Teaching: Using Numerical Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Short quiz using multiple choice and short-answer questions on notation."
+      },
+      "engagement_tags": ["shopping_list", "prices"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["quiz", "exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Quick check for understanding of basic notation before moving to calculations."
+    },
+    {
+      "order": 3,
+      "lessonTemplateRef": "AUTO_TBD_3",
+      "label": "Practice: Using Numerical Notation and Units",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.1",
+        "prerequisites": ["Check-in: Using Numerical Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with questions based on real-life scenarios."
+      },
+      "engagement_tags": ["timetables", "currency_conversion"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidation of skills. Differentiated worksheets could be used here."
+    },
+    {
+      "order": 4,
+      "lessonTemplateRef": "AUTO_TBD_4",
+      "label": "Revise: Using Numerical Notation and Units",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.1",
+        "prerequisites": ["Practice: Using Numerical Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Retrieval practice and peer-marking session."
+      },
+      "engagement_tags": ["best_deals", "budgeting"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Address common misconceptions identified in the formative assessment and practice."
+    },
+    {
+      "order": 5,
+      "lessonTemplateRef": "AUTO_TBD_5",
+      "label": "Teaching: Carrying out Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.2",
+        "prerequisites": ["Revise: Using Numerical Notation and Units"]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Start with non-calc for whole numbers and basic decimals, then introduce calculator for FDP and multi-step problems."
+      },
+      "engagement_tags": ["bills", "wages", "discounts"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on the four basic operations, fractions, decimals, and percentages of quantities."
+    },
+    {
+      "order": 6,
+      "lessonTemplateRef": "AUTO_TBD_6",
+      "label": "Check-in: Carrying out Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.2",
+        "prerequisites": ["Teaching: Carrying out Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Short, scenario-based calculation questions."
+      },
+      "engagement_tags": ["holiday_planning", "interest"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess accuracy and choice of operation."
+    },
+    {
+      "order": 7,
+      "lessonTemplateRef": "AUTO_TBD_7",
+      "label": "Practice: Carrying out Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.2",
+        "prerequisites": ["Check-in: Carrying out Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Problem-solving worksheet involving multi-step calculations."
+      },
+      "engagement_tags": ["mobile_phone_contracts", "utility_bills"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include problems requiring rounding to 2 decimal places for money."
+    },
+    {
+      "order": 8,
+      "lessonTemplateRef": "AUTO_TBD_8",
+      "label": "Revise: Carrying out Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Numeracy Fundamentals",
+        "block_index": "1.2",
+        "prerequisites": ["Practice: Carrying out Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Past-paper style questions."
+      },
+      "engagement_tags": ["scottish_budget", "payslips"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on exam-style command words and interpreting what calculation is needed."
+    },
+    {
+      "order": 9,
+      "lessonTemplateRef": "AUTO_TBD_9",
+      "label": "Teaching: Recording Measurements from a Scale",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "2.1",
+        "prerequisites": ["Revise: Carrying out Calculations"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Practical session using rulers, weighing scales, measuring jugs."
+      },
+      "engagement_tags": ["cooking", "diy", "health"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use a variety of analogue and digital scales. Emphasise reading the scale correctly and stating units."
+    },
+    {
+      "order": 10,
+      "lessonTemplateRef": "AUTO_TBD_10",
+      "label": "Check-in: Recording Measurements",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "2.1",
+        "prerequisites": ["Teaching: Recording Measurements from a Scale"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Carousel of stations with different instruments to read."
+      },
+      "engagement_tags": ["weather_chart", "speedometer"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["practical_task"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Observe learners as they take readings to identify any issues with technique."
+    },
+    {
+      "order": 11,
+      "lessonTemplateRef": "AUTO_TBD_11",
+      "label": "Practice: Recording Measurements",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "2.1",
+        "prerequisites": ["Check-in: Recording Measurements"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with images of different scales to interpret."
+      },
+      "engagement_tags": ["packaging", "fuel_gauge"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include scales with different increments to challenge learners."
+    },
+    {
+      "order": 12,
+      "lessonTemplateRef": "AUTO_TBD_12",
+      "label": "Revise: Recording Measurements",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "2.1",
+        "prerequisites": ["Practice: Recording Measurements"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Matching game: instrument to unit, or scale to reading."
+      },
+      "engagement_tags": ["maps", "recipes"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["retrieval_practice", "game"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Fun, low-stakes revision session."
+    },
+    {
+      "order": 13,
+      "lessonTemplateRef": "AUTO_TBD_13",
+      "label": "Teaching: Interpreting Results to Make Decisions",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.1",
+        "prerequisites": ["Revise: Recording Measurements"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on comparing values and using tolerance."
+      },
+      "engagement_tags": ["best_buy", "time_management", "container_packing"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Introduce concepts like 'cheapest', 'fastest', 'heaviest' and how to determine them from calculations or measurements."
+    },
+    {
+      "order": 14,
+      "lessonTemplateRef": "AUTO_TBD_14",
+      "label": "Check-in: Interpreting Results",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.1",
+        "prerequisites": ["Teaching: Interpreting Results to Make Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Given a set of results, learners must choose the best option."
+      },
+      "engagement_tags": ["mobile_data_plans", "gym_memberships"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess the logical reasoning based on the data provided."
+    },
+    {
+      "order": 15,
+      "lessonTemplateRef": "AUTO_TBD_15",
+      "label": "Practice: Interpreting Results",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.1",
+        "prerequisites": ["Check-in: Interpreting Results"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with multiple scenarios requiring a decision."
+      },
+      "engagement_tags": ["holiday_deals", "car_finance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Problems should require a calculation first, then a decision based on the result."
+    },
+    {
+      "order": 16,
+      "lessonTemplateRef": "AUTO_TBD_16",
+      "label": "Revise: Interpreting Results",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.1",
+        "prerequisites": ["Practice: Interpreting Results"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of homework and common errors."
+      },
+      "engagement_tags": ["budgeting", "savings_goals"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.4"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on how to structure the explanation of the decision."
+    },
+    {
+      "order": 17,
+      "lessonTemplateRef": "AUTO_TBD_17",
+      "label": "Teaching: Explaining Decisions",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.2",
+        "prerequisites": ["Revise: Interpreting Results"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on communication and justification."
+      },
+      "engagement_tags": ["comparison_shopping", "planning_journey"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["modelling", "sentence_starters"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Model how to write a concluding sentence that directly answers the question, referencing the calculation. E.g., 'I choose option A because £25.50 is cheaper than £26.00'."
+    },
+    {
+      "order": 18,
+      "lessonTemplateRef": "AUTO_TBD_18",
+      "label": "Check-in: Explaining Decisions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.2",
+        "prerequisites": ["Teaching: Explaining Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Peer assessment of written explanations."
+      },
+      "engagement_tags": ["event_planning", "best_value"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["peer_review"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Use a simple checklist for peer review: Is there a decision? Is it backed up by numbers? Does it answer the question?"
+    },
+    {
+      "order": 19,
+      "lessonTemplateRef": "AUTO_TBD_19",
+      "label": "Practice: Explaining Decisions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.2",
+        "prerequisites": ["Check-in: Explaining Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Full problems requiring calculation, decision, and explanation."
+      },
+      "engagement_tags": ["choosing_bank_account", "part_time_job_comparison"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Combine AS1.4 and AS1.5 into single problems."
+    },
+    {
+      "order": 20,
+      "lessonTemplateRef": "AUTO_TBD_20",
+      "label": "Revise: Explaining Decisions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "3.2",
+        "prerequisites": ["Practice: Explaining Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of exemplar answers."
+      },
+      "engagement_tags": ["project_budget", "charity_fundraising"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.5"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Deconstruct good and bad examples of explanations."
+    },
+    {
+      "order": 21,
+      "lessonTemplateRef": "AUTO_TBD_21",
+      "label": "Teaching: Extracting Data from Graphs",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.1",
+        "prerequisites": ["Revise: Explaining Decisions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on reading axes and interpreting different graph types (bar, line, pie)."
+      },
+      "engagement_tags": ["climate_data", "sports_statistics", "population_data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use at least two different graph types in the lesson, as per the AS. Use real-world examples from newspapers or websites."
+    },
+    {
+      "order": 22,
+      "lessonTemplateRef": "AUTO_TBD_22",
+      "label": "Check-in: Extracting Data from Graphs",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.1",
+        "prerequisites": ["Teaching: Extracting Data from Graphs"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on reading specific values from provided charts."
+      },
+      "engagement_tags": ["sales_figures", "social_media_trends"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for common errors like misreading scales."
+    },
+    {
+      "order": 23,
+      "lessonTemplateRef": "AUTO_TBD_23",
+      "label": "Practice: Extracting Data from Graphs",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.1",
+        "prerequisites": ["Check-in: Extracting Data from Graphs"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of graphs and tables requiring data extraction."
+      },
+      "engagement_tags": ["transport_data", "health_statistics_nhs"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include questions that require simple calculations with the extracted data (e.g., finding the difference between two bars)."
+    },
+    {
+      "order": 24,
+      "lessonTemplateRef": "AUTO_TBD_24",
+      "label": "Revise: Extracting Data from Graphs",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.1",
+        "prerequisites": ["Practice: Extracting Data from Graphs"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Past paper questions involving graphical data."
+      },
+      "engagement_tags": ["local_council_data", "scottish_economy"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on interpreting the 'story' of the graph, not just reading numbers."
+    },
+    {
+      "order": 25,
+      "lessonTemplateRef": "AUTO_TBD_25",
+      "label": "Teaching: Making Decisions from Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.2",
+        "prerequisites": ["Revise: Extracting Data from Graphs"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on justifying a choice based on graphical evidence."
+      },
+      "engagement_tags": ["market_research", "customer_feedback"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Link back to AS1.5 - the skill of explaining a decision is the same, but the evidence now comes from a graph."
+    },
+    {
+      "order": 26,
+      "lessonTemplateRef": "AUTO_TBD_26",
+      "label": "Check-in: Making Decisions from Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.2",
+        "prerequisites": ["Teaching: Making Decisions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Show a graph and ask 'Which is the most popular? How do you know?'"
+      },
+      "engagement_tags": ["voting_results", "product_sales"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check that the explanation references the graph directly."
+    },
+    {
+      "order": 27,
+      "lessonTemplateRef": "AUTO_TBD_27",
+      "label": "Practice: Making Decisions from Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.2",
+        "prerequisites": ["Check-in: Making Decisions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with scenarios requiring data interpretation and a justified decision."
+      },
+      "engagement_tags": ["business_performance", "environmental_impact"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure problems require learners to compare different data points to make their decision."
+    },
+    {
+      "order": 28,
+      "lessonTemplateRef": "AUTO_TBD_28",
+      "label": "Revise: Making Decisions from Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data Interpretation",
+        "block_index": "4.2",
+        "prerequisites": ["Practice: Making Decisions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Group work analysing a complex infographic and making recommendations."
+      },
+      "engagement_tags": ["public_health_campaign", "tourism_trends"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["collaborative_learning"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Encourage discussion and debate based on the data."
+    },
+    {
+      "order": 29,
+      "lessonTemplateRef": "AUTO_TBD_29",
+      "label": "Teaching: Making Decisions with Probability",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Probability",
+        "block_index": "5.1",
+        "prerequisites": ["Revise: Making Decisions from Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce probability scale (0 to 1) and vocabulary (impossible, likely, certain)."
+      },
+      "engagement_tags": ["games_of_chance", "lottery", "weather_forecasts"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use simple examples like dice, coins, and spinners. Express probability as fractions, decimals and percentages."
+    },
+    {
+      "order": 30,
+      "lessonTemplateRef": "AUTO_TBD_30",
+      "label": "Check-in: Decisions with Probability",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Probability",
+        "block_index": "5.1",
+        "prerequisites": ["Teaching: Making Decisions with Probability"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Given simple scenarios, learners place events on a probability scale."
+      },
+      "engagement_tags": ["risk_assessment", "raffles"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check understanding of probability vocabulary."
+    },
+    {
+      "order": 31,
+      "lessonTemplateRef": "AUTO_TBD_31",
+      "label": "Practice: Decisions with Probability",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Probability",
+        "block_index": "5.1",
+        "prerequisites": ["Check-in: Decisions with Probability"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with problems requiring calculation of simple probabilities and making a decision."
+      },
+      "engagement_tags": ["insurance", "quality_control"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Example: 'Is it wiser to bet on rolling a 6 or flipping a head? Explain why.'"
+    },
+    {
+      "order": 32,
+      "lessonTemplateRef": "AUTO_TBD_32",
+      "label": "Revise: Decisions with Probability",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Probability",
+        "block_index": "5.1",
+        "prerequisites": ["Practice: Decisions with Probability"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of key concepts and vocabulary."
+      },
+      "engagement_tags": ["board_games", "sports_outcomes"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["retrieval_practice", "game"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Numeracy unit wrap-up and review before moving to the next unit."
+    },
+    {
+      "order": 33,
+      "lessonTemplateRef": "AUTO_TBD_33",
+      "label": "Teaching: Interpreting a Financial Situation",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.1",
+        "prerequisites": ["Revise: Decisions with Probability"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on identifying key information from a scenario (e.g., income, expenditure, savings goal)."
+      },
+      "engagement_tags": ["budgeting", "payslips", "bank_statements"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use authentic documents. Teach learners to highlight or extract the relevant numbers and keywords."
+    },
+    {
+      "order": 34,
+      "lessonTemplateRef": "AUTO_TBD_34",
+      "label": "Check-in: Interpreting Financial Situations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.1",
+        "prerequisites": ["Teaching: Interpreting a Financial Situation"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Give a short text (e.g., a simple budget) and ask learners to identify the strategy needed (e.g., 'calculate total spending')."
+      },
+      "engagement_tags": ["saving_for_goal", "event_planning"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess ability to parse text and identify the mathematical task required."
+    },
+    {
+      "order": 35,
+      "lessonTemplateRef": "AUTO_TBD_35",
+      "label": "Practice: Interpreting Financial Situations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.1",
+        "prerequisites": ["Check-in: Interpreting Financial Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with various real-life financial scenarios."
+      },
+      "engagement_tags": ["best_deals", "holiday_budget", "running_a_car"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Learners should write down the steps they plan to take before they start calculating."
+    },
+    {
+      "order": 36,
+      "lessonTemplateRef": "AUTO_TBD_36",
+      "label": "Revise: Interpreting Financial Situations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.1",
+        "prerequisites": ["Practice: Interpreting Financial Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Card sort activity: match a scenario to the correct calculation strategy."
+      },
+      "engagement_tags": ["household_bills", "mobile_phone_contracts"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["retrieval_practice", "game"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Reinforces the link between the context and the mathematical process."
+    },
+    {
+      "order": 37,
+      "lessonTemplateRef": "AUTO_TBD_37",
+      "label": "Teaching: Financial Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.2",
+        "prerequisites": ["Revise: Interpreting Financial Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Building on Numeracy skills: calculating profit/loss, simple interest, currency conversion, best value."
+      },
+      "engagement_tags": ["wages_and_deductions", "exchange_rates", "discounts"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Explicitly teach methods for each type of calculation. Provide formula where necessary."
+    },
+    {
+      "order": 38,
+      "lessonTemplateRef": "AUTO_TBD_38",
+      "label": "Check-in: Financial Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.2",
+        "prerequisites": ["Teaching: Financial Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Mini-whiteboard quiz on different calculation types."
+      },
+      "engagement_tags": ["interest_charges", "sale_prices"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Quick way to see who is confident with the methods."
+    },
+    {
+      "order": 39,
+      "lessonTemplateRef": "AUTO_TBD_39",
+      "label": "Practice: Financial Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.2",
+        "prerequisites": ["Check-in: Financial Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Differentiated worksheet covering all financial calculation types from the unit."
+      },
+      "engagement_tags": ["budget_variance", "savings_projections"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure rounding to 2 decimal places is consistently applied for money."
+    },
+    {
+      "order": 40,
+      "lessonTemplateRef": "AUTO_TBD_40",
+      "label": "Revise: Financial Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.2",
+        "prerequisites": ["Practice: Financial Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Past paper questions focusing on the calculation steps."
+      },
+      "engagement_tags": ["hire_purchase", "insurance_quotes"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Address common errors, like calculating percentage increase/decrease incorrectly."
+    },
+    {
+      "order": 41,
+      "lessonTemplateRef": "AUTO_TBD_41",
+      "label": "Teaching: Explaining a Financial Solution",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.3",
+        "prerequisites": ["Revise: Financial Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on writing a clear, concise conclusion that relates back to the original problem."
+      },
+      "engagement_tags": ["investment_choice", "loan_comparison"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["modelling", "sentence_starters"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Revisit the skill from Numeracy AS1.5 but in a more complex financial context. Model how to compare two final amounts and declare which is better."
+    },
+    {
+      "order": 42,
+      "lessonTemplateRef": "AUTO_TBD_42",
+      "label": "Check-in: Explaining Financial Solutions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.3",
+        "prerequisites": ["Teaching: Explaining a Financial Solution"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Give a completed calculation and ask learners to write the concluding sentence."
+      },
+      "engagement_tags": ["budget_summary", "savings_report"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "This isolates the communication skill from the calculation skill."
+    },
+    {
+      "order": 43,
+      "lessonTemplateRef": "AUTO_TBD_43",
+      "label": "Practice: Explaining Financial Solutions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.3",
+        "prerequisites": ["Check-in: Explaining Financial Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Full problems from start to finish: interpret, calculate, and explain."
+      },
+      "engagement_tags": ["making_a_profit", "comparing_salaries"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use SQA-style questions that combine all three assessment standards (AS1.1, 1.2, 1.3) into one problem."
+    },
+    {
+      "order": 44,
+      "lessonTemplateRef": "AUTO_TBD_44",
+      "label": "Revise: Explaining Financial Solutions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Financial Skills",
+        "block_index": "6.3",
+        "prerequisites": ["Practice: Explaining Financial Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of exemplar answers and marking instructions."
+      },
+      "engagement_tags": ["financial_advice", "business_planning"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Help learners understand how marks are awarded for the explanation part of a question."
+    },
+    {
+      "order": 45,
+      "lessonTemplateRef": "AUTO_TBD_45",
+      "label": "Teaching: Interpreting a Statistical Situation",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.1",
+        "prerequisites": ["Revise: Explaining Financial Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on identifying what a question is asking: 'find an average', 'create a chart', 'make a comparison'."
+      },
+      "engagement_tags": ["surveys", "data_collection", "market_research"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Similar to the financial AS1.1, this is about deconstructing the problem. Introduce concepts of mean, median, mode, range and when each might be used."
+    },
+    {
+      "order": 46,
+      "lessonTemplateRef": "AUTO_TBD_46",
+      "label": "Check-in: Interpreting Statistical Situations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.1",
+        "prerequisites": ["Teaching: Interpreting a Statistical Situation"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Given a data set and a goal, learners choose the best strategy (e.g., 'To find the most common shoe size, I will find the mode')."
+      },
+      "engagement_tags": ["class_survey", "sports_league_table"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess understanding of statistical terminology."
+    },
+    {
+      "order": 47,
+      "lessonTemplateRef": "AUTO_TBD_47",
+      "label": "Practice: Interpreting Statistical Situations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.1",
+        "prerequisites": ["Check-in: Interpreting Statistical Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with various scenarios requiring learners to state their intended statistical method."
+      },
+      "engagement_tags": ["customer_satisfaction", "website_analytics"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Encourage learners to think about what the most appropriate average or chart would be for a given data set."
+    },
+    {
+      "order": 48,
+      "lessonTemplateRef": "AUTO_TBD_48",
+      "label": "Revise: Interpreting Statistical Situations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.1",
+        "prerequisites": ["Practice: Interpreting Statistical Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Group discussion: for a given scenario, what are the pros and cons of using the mean vs the median?"
+      },
+      "engagement_tags": ["house_prices", "salary_data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["collaborative_learning"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Deepen understanding of why certain statistical measures are chosen."
+    },
+    {
+      "order": 49,
+      "lessonTemplateRef": "AUTO_TBD_49",
+      "label": "Teaching: Representing Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.2",
+        "prerequisites": ["Revise: Interpreting Statistical Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach construction of appropriate diagrams: bar charts, line graphs, scatter plots. Use of software (e.g., Excel/Sheets) can be introduced."
+      },
+      "engagement_tags": ["data_visualisation", "presenting_findings"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on the key components of a good graph: Title, Axes Labels (with units), Accurate Plotting, Appropriate Scale."
+    },
+    {
+      "order": 50,
+      "lessonTemplateRef": "AUTO_TBD_50",
+      "label": "Check-in: Representing Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.2",
+        "prerequisites": ["Teaching: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Give a small, simple data set and have learners create a quick bar chart on squared paper."
+      },
+      "engagement_tags": ["favourite_colour_survey", "pocket_money_data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["practical_task"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Quickly identifies issues with scaling and labelling."
+    },
+    {
+      "order": 51,
+      "lessonTemplateRef": "AUTO_TBD_51",
+      "label": "Practice: Representing Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.2",
+        "prerequisites": ["Check-in: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Learners conduct a small survey in class and then represent their findings in an appropriate graph."
+      },
+      "engagement_tags": ["classroom_research", "data_handling_cycle"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["project_based_learning"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This covers the whole process from data collection to representation."
+    },
+    {
+      "order": 52,
+      "lessonTemplateRef": "AUTO_TBD_52",
+      "label": "Revise: Representing Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.2",
+        "prerequisites": ["Practice: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Gallery walk: learners display their graphs and give feedback to each other based on a checklist of features."
+      },
+      "engagement_tags": ["peer_feedback", "data_critique"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["peer_review"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Encourages self-correction and understanding of what makes a graph effective."
+    },
+    {
+      "order": 53,
+      "lessonTemplateRef": "AUTO_TBD_53",
+      "label": "Teaching: Interpreting and Comparing Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.3",
+        "prerequisites": ["Revise: Representing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on drawing simple conclusions and making comparisons. E.g., 'Group A has a higher average than Group B'."
+      },
+      "engagement_tags": ["comparing_performance", "spotting_trends"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Teach learners to compare averages (mean/median) and measures of spread (range). Use back-to-back stem and leaf, or comparative bar charts."
+    },
+    {
+      "order": 54,
+      "lessonTemplateRef": "AUTO_TBD_54",
+      "label": "Check-in: Interpreting and Comparing Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.3",
+        "prerequisites": ["Teaching: Interpreting and Comparing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Show two simple data sets or graphs and ask for one valid comparison."
+      },
+      "engagement_tags": ["before_and_after", "boys_vs_girls_data"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check that the comparison is specific and backed by data."
+    },
+    {
+      "order": 55,
+      "lessonTemplateRef": "AUTO_TBD_55",
+      "label": "Practice: Interpreting and Comparing Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.3",
+        "prerequisites": ["Check-in: Interpreting and Comparing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with pairs of data sets/graphs that require calculation of averages/range and then a written comparison."
+      },
+      "engagement_tags": ["weather_comparison_edinburgh_glasgow", "sports_team_performance"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Structure the questions to guide learners: calculate average for A, calculate average for B, write a sentence to compare them."
+    },
+    {
+      "order": 56,
+      "lessonTemplateRef": "AUTO_TBD_56",
+      "label": "Revise: Interpreting and Comparing Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Managing Finance and Statistics (National 4)",
+        "block_name": "Statistical Skills",
+        "block_index": "7.3",
+        "prerequisites": ["Practice: Interpreting and Comparing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of past paper questions and marking schemes for statistical comparisons."
+      },
+      "engagement_tags": ["analysing_reports", "making_conclusions"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Emphasise the need to make two valid comments for full marks in an assessment - one on average, one on consistency (range)."
+    },
+    {
+      "order": 57,
+      "lessonTemplateRef": "AUTO_TBD_57",
+      "label": "Teaching: Interpreting a Measurement Situation",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.1",
+        "prerequisites": ["Revise: Interpreting and Comparing Data"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on identifying the correct formula or process for a given problem (e.g., perimeter, area, volume)."
+      },
+      "engagement_tags": ["diy", "home_improvement", "gardening"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Provide a formula sheet. Teach learners to identify the shape and the required measurement from the text."
+    },
+    {
+      "order": 58,
+      "lessonTemplateRef": "AUTO_TBD_58",
+      "label": "Check-in: Interpreting Measurement Situations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.1",
+        "prerequisites": ["Teaching: Interpreting a Measurement Situation"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Show images of objects and ask learners to state the formula they would use to find the area/volume."
+      },
+      "engagement_tags": ["decorating", "cooking"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Quick check of formula recognition."
+    },
+    {
+      "order": 59,
+      "lessonTemplateRef": "AUTO_TBD_59",
+      "label": "Practice: Interpreting Measurement Situations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.1",
+        "prerequisites": ["Check-in: Interpreting Measurement Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with contextualised problems where learners first identify the strategy then solve."
+      },
+      "engagement_tags": ["floor_plans", "packaging_design", "landscaping"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include composite shapes to add a layer of challenge in identifying the strategy."
+    },
+    {
+      "order": 60,
+      "lessonTemplateRef": "AUTO_TBD_60",
+      "label": "Revise: Interpreting Measurement Situations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.1",
+        "prerequisites": ["Practice: Interpreting Measurement Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of common problem types and keywords (e.g., 'how much paint' = area, 'how much fence' = perimeter)."
+      },
+      "engagement_tags": ["crafts", "construction"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.1"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Create a mind map of measurement concepts and their applications."
+    },
+    {
+      "order": 61,
+      "lessonTemplateRef": "AUTO_TBD_61",
+      "label": "Teaching: Measurement Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.2",
+        "prerequisites": ["Revise: Interpreting Measurement Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach calculation of perimeter and area of 2D shapes (rectangles, triangles, circles) and volume of 3D objects (cuboids, cylinders)."
+      },
+      "engagement_tags": ["painting_a_room", "filling_a_pool", "calculating_carpet_cost"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure correct use of units (cm, cm^2, cm^3). Model setting out work clearly: Formula, Substitution, Answer with units."
+    },
+    {
+      "order": 62,
+      "lessonTemplateRef": "AUTO_TBD_62",
+      "label": "Check-in: Measurement Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.2",
+        "prerequisites": ["Teaching: Measurement Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "A few quick calculations on mini-whiteboards for area of a circle, volume of a cylinder etc."
+      },
+      "engagement_tags": ["pizza_sizes", "drink_cans"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["quiz"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct substitution into formulas."
+    },
+    {
+      "order": 63,
+      "lessonTemplateRef": "AUTO_TBD_63",
+      "label": "Practice: Measurement Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.2",
+        "prerequisites": ["Check-in: Measurement Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet including problems on composite shapes."
+      },
+      "engagement_tags": ["building_plans", "athletic_tracks"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Learners must break down composite shapes into simpler ones and combine their areas."
+    },
+    {
+      "order": 64,
+      "lessonTemplateRef": "AUTO_TBD_64",
+      "label": "Revise: Measurement Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.2",
+        "prerequisites": ["Practice: Measurement Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Past paper questions on area, perimeter and volume."
+      },
+      "engagement_tags": ["container_capacity", "costing_materials"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.2"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Focus on multi-step problems, e.g., calculating an area and then the cost of materials."
+    },
+    {
+      "order": 65,
+      "lessonTemplateRef": "AUTO_TBD_65",
+      "label": "Teaching: Explaining a Measurement Solution",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.3",
+        "prerequisites": ["Revise: Measurement Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on relating the numerical answer back to the context. E.g., 'Yes, the sofa will fit because the 2.5m gap is larger than the 2.2m sofa'."
+      },
+      "engagement_tags": ["room_layout", "packing_boxes"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["modelling", "sentence_starters"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Again, this is the same communication skill as in other units, applied to a new context. Emphasise comparing the calculated value to a value given in the question."
+    },
+    {
+      "order": 66,
+      "lessonTemplateRef": "AUTO_TBD_66",
+      "label": "Check-in: Explaining Measurement Solutions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.3",
+        "prerequisites": ["Teaching: Explaining a Measurement Solution"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Provide a finished calculation and ask for the final sentence."
+      },
+      "engagement_tags": ["meeting_a_specification", "tolerance"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess the clarity of the explanation."
+    },
+    {
+      "order": 67,
+      "lessonTemplateRef": "AUTO_TBD_67",
+      "label": "Practice: Explaining Measurement Solutions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.3",
+        "prerequisites": ["Check-in: Explaining Measurement Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Full SQA-style questions combining interpretation, calculation, and explanation."
+      },
+      "engagement_tags": ["event_layout_planning", "logistics"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure learners are showing all steps of their working clearly."
+    },
+    {
+      "order": 68,
+      "lessonTemplateRef": "AUTO_TBD_68",
+      "label": "Revise: Explaining Measurement Solutions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "8.3",
+        "prerequisites": ["Practice: Explaining Measurement Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Peer marking exercise using a simplified SQA marking scheme."
+      },
+      "engagement_tags": ["quality_assurance", "checking_work"],
+      "outcomeRefs": ["O1"],
+      "assessmentStandardRefs": ["AS1.3"],
+      "pedagogical_blocks": ["peer_review"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Helps learners to internalise the assessment criteria."
+    },
+    {
+      "order": 69,
+      "lessonTemplateRef": "AUTO_TBD_69",
+      "label": "Teaching: Interpreting a Geometric Situation",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.1",
+        "prerequisites": ["Revise: Explaining Measurement Solutions"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on identifying the need for scale, bearings, or container packing."
+      },
+      "engagement_tags": ["map_reading", "navigation", "interior_design"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["starter", "modelling", "guided_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Introduce scale drawing, 3-figure bearings, and the concept of packing items into a larger container."
+    },
+    {
+      "order": 70,
+      "lessonTemplateRef": "AUTO_TBD_70",
+      "label": "Check-in: Interpreting Geometric Situations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.1",
+        "prerequisites": ["Teaching: Interpreting a Geometric Situation"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions: 'What skill would you use to plan a walking route on a map?'"
+      },
+      "engagement_tags": ["journey_planning", "logistics"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check that learners can connect the context to the correct geometric skill."
+    },
+    {
+      "order": 71,
+      "lessonTemplateRef": "AUTO_TBD_71",
+      "label": "Practice: Interpreting Geometric Situations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.1",
+        "prerequisites": ["Check-in: Interpreting Geometric Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a mix of problems requiring learners to choose the correct approach."
+      },
+      "engagement_tags": ["orienteering", "package_delivery", "room_layout"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Include questions that might be ambiguous to encourage critical thinking."
+    },
+    {
+      "order": 72,
+      "lessonTemplateRef": "AUTO_TBD_72",
+      "label": "Revise: Interpreting Geometric Situations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.1",
+        "prerequisites": ["Practice: Interpreting Geometric Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of the three main geometric skills and when to apply them."
+      },
+      "engagement_tags": ["sailing", "flight_paths", "warehouse_management"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.1"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate understanding before moving to the calculation phase."
+    },
+    {
+      "order": 73,
+      "lessonTemplateRef": "AUTO_TBD_73",
+      "label": "Teaching: Geometric Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.2",
+        "prerequisites": ["Revise: Interpreting Geometric Situations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to use a scale to find a real-life distance, how to measure/draw a bearing, and how to solve a container packing problem."
+      },
+      "engagement_tags": ["map_work", "scale_models", "shipping_logistics"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["modelling", "practical_task"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use practical equipment: maps, rulers, protractors, and boxes. For packing, focus on simple 2D representations first."
+    },
+    {
+      "order": 74,
+      "lessonTemplateRef": "AUTO_TBD_74",
+      "label": "Check-in: Geometric Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.2",
+        "prerequisites": ["Teaching: Geometric Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick practical tasks: measure a bearing on a diagram, calculate a distance from a simple map scale."
+      },
+      "engagement_tags": ["treasure_map", "room_planning"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["quiz", "practical_task"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for accuracy in using a protractor and applying the scale correctly."
+    },
+    {
+      "order": 75,
+      "lessonTemplateRef": "AUTO_TBD_75",
+      "label": "Practice: Geometric Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.2",
+        "prerequisites": ["Check-in: Geometric Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a mix of scale, bearing, and container packing problems."
+      },
+      "engagement_tags": ["route_planning", "furniture_layout", "warehouse_stocking"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Container packing problems should involve drawing diagrams to show the solution."
+    },
+    {
+      "order": 76,
+      "lessonTemplateRef": "AUTO_TBD_76",
+      "label": "Revise: Geometric Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.2",
+        "prerequisites": ["Practice: Geometric Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Past paper questions focusing on the three geometric skills."
+      },
+      "engagement_tags": ["event_planning", "logistics_challenge"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.2"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Address common errors such as incorrect bearing notation or misinterpretation of scale."
+    },
+    {
+      "order": 77,
+      "lessonTemplateRef": "AUTO_TBD_77",
+      "label": "Teaching: Explaining a Geometric Solution",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.3",
+        "prerequisites": ["Revise: Geometric Calculations"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Focus on communicating the result in the context of the problem, e.g., 'The treasure is 5km away on a bearing of 045 degrees'."
+      },
+      "engagement_tags": ["giving_directions", "making_recommendations"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["modelling", "sentence_starters"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Final application of the communication skill. For packing problems, the explanation is often the diagram itself, with a concluding sentence like 'Yes, all 12 boxes fit'."
+    },
+    {
+      "order": 78,
+      "lessonTemplateRef": "AUTO_TBD_78",
+      "label": "Check-in: Explaining a Geometric Solution",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.3",
+        "prerequisites": ["Teaching: Explaining a Geometric Solution"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Provide a completed scale drawing or packing diagram and ask for a written conclusion."
+      },
+      "engagement_tags": ["summarising_findings", "confirming_a_solution"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["exit_ticket"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess if the key information (distance, bearing, number of items) is included in the conclusion."
+    },
+    {
+      "order": 79,
+      "lessonTemplateRef": "AUTO_TBD_79",
+      "label": "Practice: Explaining a Geometric Solution",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.3",
+        "prerequisites": ["Check-in: Explaining a Geometric Solution"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Full problems requiring interpretation, drawing/calculation, and a final conclusion."
+      },
+      "engagement_tags": ["diy_project", "garden_design", "delivery_route"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use past paper questions that cover all aspects of a geometric problem."
+    },
+    {
+      "order": 80,
+      "lessonTemplateRef": "AUTO_TBD_80",
+      "label": "Revise: Explaining a Geometric Solution",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Applications of Mathematics: Geometry and Measures (National 4)",
+        "block_name": "Geometric Skills",
+        "block_index": "9.3",
+        "prerequisites": ["Practice: Explaining a Geometric Solution"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of marking criteria for geometric problems."
+      },
+      "engagement_tags": ["checking_solutions", "exam_preparation"],
+      "outcomeRefs": ["O2"],
+      "assessmentStandardRefs": ["AS2.3"],
+      "pedagogical_blocks": ["retrieval_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Ensure learners know how marks are allocated for the diagram, the calculation, and the final communication."
+    },
+    {
+      "order": 81,
+      "lessonTemplateRef": "AUTO_TBD_81",
+      "label": "Course Revision: Key Skills Consolidation",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Added Value Unit Preparation",
+        "block_name": "AVU Prep",
+        "block_index": "10.1",
+        "prerequisites": ["Revise: Explaining a Geometric Solution"]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Spiral revision of all topics from the three main units."
+      },
+      "engagement_tags": ["mixed_problems", "exam_prep"],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": ["retrieval_practice", "mind_map"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Activity to identify strengths and weaknesses across the whole course to target further revision."
+    },
+    {
+      "order": 82,
+      "lessonTemplateRef": "AUTO_TBD_82",
+      "label": "Practice Assessment: Non-Calculator Skills",
+      "lesson_type": "mock_assessment",
+      "coherence": {
+        "unit": "Added Value Unit Preparation",
+        "block_name": "AVU Prep",
+        "block_index": "10.2",
+        "prerequisites": ["Course Revision: Key Skills Consolidation"]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Practice paper focusing on non-calculator questions from the Numeracy unit."
+      },
+      "engagement_tags": ["exam_conditions", "time_management"],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Simulates the non-calculator section of the AVU to build confidence and time management skills."
+    },
+    {
+      "order": 83,
+      "lessonTemplateRef": "AUTO_TBD_83",
+      "label": "Practice Assessment: Calculator Skills",
+      "lesson_type": "mock_assessment",
+      "coherence": {
+        "unit": "Added Value Unit Preparation",
+        "block_name": "AVU Prep",
+        "block_index": "10.3",
+        "prerequisites": ["Practice Assessment: Non-Calculator Skills"]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Practice paper focusing on calculator-based questions from all three units."
+      },
+      "engagement_tags": ["exam_conditions", "problem_solving"],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": ["independent_practice"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Simulates the calculator section of the AVU, focusing on multi-step, contextualised problems."
+    },
+    {
+      "order": 84,
+      "lessonTemplateRef": "AUTO_TBD_84",
+      "label": "Final Mock Assessment: Full Added Value Unit",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Added Value Unit Preparation",
+        "block_name": "AVU Prep",
+        "block_index": "10.4",
+        "prerequisites": ["Practice Assessment: Calculator Skills"]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "A full mock of the Added Value Unit assessment, including non-calculator and calculator sections, under timed conditions."
+      },
+      "engagement_tags": ["final_assessment", "demonstrating_learning"],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": ["assessment"],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 100,
+      "notes": "Provides a realistic experience of the final assessment and generates evidence for grading."
+    }
+  ],
+  "createdAt": "2024-07-29T10:00:00Z",
+  "updatedAt": "2024-07-29T11:30:00Z"
+}

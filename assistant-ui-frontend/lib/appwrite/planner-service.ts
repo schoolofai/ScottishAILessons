@@ -5,6 +5,7 @@ import { MasteryDriver } from './driver/MasteryDriver';
 import { RoutineDriver } from './driver/RoutineDriver';
 import { SOWDriver } from './driver/SOWDriver';
 import { EvidenceDriver } from './driver/EvidenceDriver';
+import { EnrichedOutcome } from '../types/course-outcomes';
 import {
   SchedulingContext,
   Course,
@@ -536,16 +537,18 @@ export class CoursePlannerService {
 
   /**
    * Enrich outcome reference IDs with full outcome data from course_outcomes collection
+   * Uses SQA-aligned schema with outcomeId, outcomeTitle, unitCode, etc.
+   *
    * @param outcomeRefIds Array of outcome document IDs
-   * @returns Array of outcome objects with $id, outcomeRef, and title fields
+   * @returns Array of enriched outcome objects with SQA context
    */
-  private async enrichOutcomeRefs(outcomeRefIds: string[]): Promise<Array<{$id: string, outcomeRef: string, title: string}>> {
+  private async enrichOutcomeRefs(outcomeRefIds: string[]): Promise<EnrichedOutcome[]> {
     if (!outcomeRefIds || outcomeRefIds.length === 0) {
       return [];
     }
 
     try {
-      const enrichedOutcomes: Array<{$id: string, outcomeRef: string, title: string}> = [];
+      const enrichedOutcomes: EnrichedOutcome[] = [];
 
       // Fetch each outcome document individually to handle failures gracefully
       for (const outcomeId of outcomeRefIds) {
@@ -558,11 +561,14 @@ export class CoursePlannerService {
 
           enrichedOutcomes.push({
             $id: outcomeDoc.$id,
-            outcomeRef: outcomeDoc.outcomeRef || '',
-            title: outcomeDoc.title || ''
+            outcomeId: outcomeDoc.outcomeId || '',        // ✅ NEW: e.g., "O1"
+            outcomeTitle: outcomeDoc.outcomeTitle || '',  // ✅ NEW: Full title
+            unitCode: outcomeDoc.unitCode || '',          // ✅ NEW: e.g., "HV7Y 73"
+            unitTitle: outcomeDoc.unitTitle || '',        // ✅ NEW: Unit name
+            courseSqaCode: outcomeDoc.courseSqaCode || '' // ✅ NEW: SQA course code
           });
         } catch (error) {
-          console.warn(`[PlnnerService] Failed to fetch outcome ${outcomeId}:`, error);
+          console.warn(`[PlannerService] Failed to fetch outcome ${outcomeId}:`, error);
           // Skip invalid outcome references instead of failing the entire operation
         }
       }

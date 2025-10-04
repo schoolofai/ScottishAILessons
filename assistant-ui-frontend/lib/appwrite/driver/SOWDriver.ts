@@ -1,10 +1,16 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
+import type { AuthoredSOWData } from '../types';
 
 export interface SOWEntry {
   order: number;
   lessonTemplateId: string;
   plannedAt?: string;
+  _metadata?: {
+    label?: string;
+    lesson_type?: string;
+    estMinutes?: number;
+  };
 }
 
 export interface SOWData {
@@ -12,6 +18,9 @@ export interface SOWData {
   courseId: string;
   entries: SOWEntry[];
   createdAt: string;
+  source_sow_id?: string; // NEW - Phase 2: tracks Authored_SOW source
+  source_version?: string; // NEW - Phase 2: tracks version copied
+  customizations?: any; // NEW - Phase 2: student-specific modifications
 }
 
 /**
@@ -138,12 +147,23 @@ export class SOWDriver extends BaseDriver {
       // Check if record exists
       const existing = await this.getSOWForEnrollment(sowData.studentId, sowData.courseId);
 
-      const docData = {
+      const docData: any = {
         studentId: sowData.studentId,
         courseId: sowData.courseId,
         entries: JSON.stringify(sowData.entries),
         createdAt: sowData.createdAt
       };
+
+      // Add Phase 2 fields if present
+      if (sowData.source_sow_id !== undefined) {
+        docData.source_sow_id = sowData.source_sow_id;
+      }
+      if (sowData.source_version !== undefined) {
+        docData.source_version = sowData.source_version;
+      }
+      if (sowData.customizations !== undefined) {
+        docData.customizations = JSON.stringify(sowData.customizations);
+      }
 
       if (existing) {
         // Update existing record - find by querying since we need the document ID
@@ -397,6 +417,87 @@ export class SOWDriver extends BaseDriver {
       return await this.upsertSOW(sowData);
     } catch (error) {
       throw this.handleError(error, 'copy SOW from template');
+    }
+  }
+
+  /**
+   * Copy Authored SOW to student enrollment - Phase 2.2 MVP2.5
+   * Called when student enrolls in a course
+   */
+  async copyFromAuthoredSOW(
+    studentId: string,
+    courseId: string,
+    authoredSOW: AuthoredSOWData
+  ): Promise<any> {
+    try {
+      if (!authoredSOW || !authoredSOW.entries) {
+        throw new Error(`Invalid Authored SOW data for course ${courseId}`);
+      }
+
+      // Convert AuthoredSOWEntry[] to SOWEntry[] format
+      const entries: SOWEntry[] = authoredSOW.entries.map((entry) => ({
+        order: entry.order,
+        lessonTemplateId: entry.lessonTemplateRef,
+        plannedAt: undefined,
+        // Store original metadata for reference
+        _metadata: {
+          label: entry.label,
+          lesson_type: entry.lesson_type,
+          estMinutes: entry.estMinutes
+        }
+      }));
+
+      const sowData: SOWData = {
+        studentId,
+        courseId,
+        entries,
+        createdAt: new Date().toISOString(),
+        source_sow_id: courseId, // Track source (courseId from Authored_SOW)
+        source_version: authoredSOW.version,
+        customizations: {} // Empty initially
+      };
+
+      console.log(`[SOWDriver] Copying Authored SOW v${authoredSOW.version} for ${studentId}/${courseId}`);
+      console.log(`[SOWDriver] ${entries.length} lessons copied`);
+
+      return await this.upsertSOW(sowData);
+    } catch (error) {
+      throw this.handleError(error, `copy Authored SOW for student ${studentId} course ${courseId}`);
+    }
+  }
+
+  /**
+   * Update enrollment SOW with customizations - Phase 2.2 MVP2.5
+   */
+  async updateCustomizations(
+    studentId: string,
+    courseId: string,
+    customizations: any
+  ): Promise<any> {
+    try {
+      const existing = await this.getSOWForEnrollment(studentId, courseId);
+
+      if (!existing) {
+        throw new Error(`SOW not found for student ${studentId} in course ${courseId}`);
+      }
+
+      const existingRecords = await this.list('SOWV2', [
+        Query.equal('studentId', studentId),
+        Query.equal('courseId', courseId),
+        Query.limit(1)
+      ]);
+
+      if (existingRecords.length === 0) {
+        throw new Error(`SOWV2 record not found for student ${studentId} in course ${courseId}`);
+      }
+
+      console.log(`[SOWDriver] Updating customizations for ${studentId}/${courseId}`);
+
+      return await this.update('SOWV2', existingRecords[0].$id, {
+        customizations: JSON.stringify(customizations)
+      });
+    } catch (error) {
+      throw this.handleError(error, `update SOW customizations for student ${studentId} course ${courseId}`);
     }
   }
 }

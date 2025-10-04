@@ -1,6 +1,21 @@
 /**
  * Clean Seed Script - Deletes and recreates all data with proper references
  *
+ * ⚠️ DEPRECATED - This script uses the OLD course_outcomes schema
+ *
+ * This script is DEPRECATED as of the SQA data migration (2025-01).
+ * It uses the old course_outcomes schema with `outcomeRef` and `title` fields.
+ *
+ * For production use, please use the new extraction workflow:
+ * 1. extractSQAOutcomes.ts - Extract from sqa_education.sqa_current
+ * 2. migrateCourseOutcomes.ts - Migrate to new SQA-aligned schema
+ * 3. seedAuthoredSOW.ts - Seed lesson templates with real outcome references
+ *
+ * See: /langgraph-author-agent/data/OUTCOME_MIGRATION_GUIDE.md
+ *
+ * This script is kept for historical reference and quick local testing only.
+ * It does NOT reflect the real SQA data structure.
+ *
  * Data Model Architecture:
  * - course_outcomes: Source of truth for all outcomes (document IDs used as references)
  * - lesson_templates: References course_outcome document IDs in outcomeRefs array

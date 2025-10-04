@@ -167,3 +167,80 @@ def _create_evidence_entry(evaluation, student_response: str, cfu: dict,
         "feedback": evaluation.feedback,
         "max_attempts_reached": attempts >= max_attempts
     }
+
+
+# ===== Phase 3.4 MVP2.5: Enhanced Lesson Metadata Functions =====
+
+def extract_lesson_metadata(lesson_snapshot: dict) -> dict:
+    """Extract lesson metadata for prompts - Phase 3.4 MVP2.5.
+
+    Extracts enhanced pedagogy fields from lesson snapshot:
+    - lesson_type (teach, independent_practice, formative_assessment, etc.)
+    - estMinutes (estimated duration)
+    - engagement_tags (authentic contexts)
+    - policy (calculator section, assessment notes, accessibility)
+    - assessmentStandardRefs (assessment standard codes)
+
+    Args:
+        lesson_snapshot: Lesson snapshot dict from session
+
+    Returns:
+        Dictionary with lesson metadata for teaching context
+    """
+    return {
+        "title": lesson_snapshot.get("title", ""),
+        "lesson_type": lesson_snapshot.get("lesson_type", "teach"),
+        "estMinutes": lesson_snapshot.get("estMinutes", 50),
+        "engagement_tags": lesson_snapshot.get("engagement_tags", []),
+        "policy": lesson_snapshot.get("policy", {}),
+        "outcomeRefs": parse_outcome_refs(lesson_snapshot.get("outcomeRefs", [])),
+        "assessmentStandardRefs": lesson_snapshot.get("assessmentStandardRefs", [])
+    }
+
+
+def format_lesson_context_for_prompt(lesson_snapshot: dict) -> str:
+    """Format lesson context for LLM prompts - Phase 3.4 MVP2.5.
+
+    Creates a concise, readable context string for teaching prompts
+    that includes the new pedagogy metadata fields.
+
+    Args:
+        lesson_snapshot: Lesson snapshot dict from session
+
+    Returns:
+        Formatted string for LLM prompt context
+    """
+    metadata = extract_lesson_metadata(lesson_snapshot)
+
+    context_parts = [
+        f"Lesson: {metadata['title']}",
+        f"Type: {metadata['lesson_type']}",
+        f"Duration: {metadata['estMinutes']} minutes"
+    ]
+
+    # Add engagement contexts if available
+    if metadata['engagement_tags']:
+        context_parts.append(f"Contexts: {', '.join(metadata['engagement_tags'])}")
+
+    # Add assessment standards if available
+    if metadata['assessmentStandardRefs']:
+        context_parts.append(f"Assessment Standards: {', '.join(metadata['assessmentStandardRefs'])}")
+
+    # Add policy notes if available
+    policy = metadata.get('policy', {})
+    if policy:
+        policy_notes = []
+        if policy.get('calculator_section'):
+            calc_section = policy['calculator_section']
+            policy_notes.append(f"Calculator: {calc_section}")
+
+        if policy.get('accessibility', {}).get('dyslexia_friendly'):
+            policy_notes.append("Dyslexia-friendly design")
+
+        if policy.get('accessibility', {}).get('extra_time'):
+            policy_notes.append("Extra time accommodations")
+
+        if policy_notes:
+            context_parts.append(f"Policy: {', '.join(policy_notes)}")
+
+    return "\n".join(context_parts)

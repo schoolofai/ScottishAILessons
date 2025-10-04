@@ -3,7 +3,8 @@
   "graphs": {
     "research": "./src/research_agent_sqa.py:agent",
     "sow_author": "./src/sow_author_agent.py:agent",
-    "research_simple": "./src/research_agent.py:agent"
+    "research_simple": "./src/research_agent.py:agent",
+    "lesson_author": "./src/lesson_author_agent.py:agent"
   },
   "env": ".env"
 }

@@ -1,0 +1,5 @@
+# Ignore all generated lesson templates
+lesson_templates/
+
+# Keep directory structure
+!.gitignore

@@ -1,0 +1,4035 @@
+
+{
+  "$id": "sow-n4-maths-v3",
+  "courseId": "course_c84774",
+  "version": 3,
+  "status": "draft",
+  "metadata": {
+    "coherence": {
+      "policy_notes": [
+        "Calculator skills are staged: concepts are introduced non-calculator first, then calculators are used for complex computations in line with the Added Value Unit test format.",
+        "The course is structured around the three mandatory SQA units, delivered sequentially.",
+        "The Added Value Unit (AVU) test is prepared for after the completion of all three mandatory units."
+      ],
+      "sequencing_notes": [
+        "The recommended sequence is Numeracy -> Expressions and Formulae -> Relationships.",
+        "This sequence builds foundational real-world numerical skills first, which are then applied in more abstract contexts.",
+        "Each assessment standard is addressed through a dedicated multi-lesson sequence: teach, formative assessment, independent practice, and revision."
+      ]
+    },
+    "accessibility_notes": [
+      "All materials should use plain language (CEFR Level B1) and dyslexia-friendly fonts.",
+      "Provide opportunities for verbal as well as written responses, especially in formative assessments.",
+      "Ensure worked examples are clear, scaffolded, and available for pupils to refer back to."
+    ],
+    "engagement_notes": [
+      "Utilise authentic Scottish contexts such as calculating distances between Scottish cities, interpreting ScotRail timetables, working with wages based on Scottish living wage, and analysing data from Scottish government sources.",
+      "Connect mathematical concepts to real-life scenarios like budgeting, shopping discounts, and sports statistics (e.g., SPFL league tables)."
+    ],
+    "weeks": 34,
+    "periods_per_week": 4
+  },
+  "entries": [
+    {
+      "order": 1,
+      "lessonTemplateRef": "AUTO_TBD_1",
+      "label": "Teach: Selecting Appropriate Numerical Notation and Units",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on understanding and selecting correct units (eg, £, p, cm, m, kg, g, ml, l) and notation (eg, decimal places for money)."
+      },
+      "engagement_tags": [
+        "scottish_currency",
+        "metric_measurement",
+        "budgeting_with_scottish_living_wage"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Introduction to the Numeracy unit. Emphasise real-world application using examples from Scottish shops like Tesco, Lidl, and Aldi."
+    },
+    {
+      "order": 2,
+      "lessonTemplateRef": "AUTO_TBD_2",
+      "label": "Check-in: Selecting Notation and Units",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Teach: Selecting Appropriate Numerical Notation and Units"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick quiz using real-life examples (eg, price tags from a Scotmid flyer, measuring jugs for an Irn-Bru recipe)."
+      },
+      "engagement_tags": [
+        "scotmid_flyer",
+        "irn_bru_recipe"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "quiz",
+        "exit_ticket"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Gauge understanding of basic units and notation before moving to calculations."
+    },
+    {
+      "order": 3,
+      "lessonTemplateRef": "AUTO_TBD_3",
+      "label": "Practice: Selecting Notation and Units",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Check-in: Selecting Notation and Units"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with varied real-world problems."
+      },
+      "engagement_tags": [
+        "utility_bills_scottish_power",
+        "calculating_scotrail_fares",
+        "measuring_for_highland_games"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills in selecting appropriate units and notation."
+    },
+    {
+      "order": 4,
+      "lessonTemplateRef": "AUTO_TBD_4",
+      "label": "Revision: Selecting Notation and Units",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Practice: Selecting Notation and Units"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of common mistakes and misconceptions."
+      },
+      "engagement_tags": [
+        "planning_a_trip_on_calmac_ferries",
+        "understanding_nhs_scotland_data"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Final consolidation before moving on."
+    },
+    {
+      "order": 5,
+      "lessonTemplateRef": "AUTO_TBD_5",
+      "label": "Teach: Carrying out Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Revision: Selecting Notation and Units"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Teach basic operations (four rules), percentages, and fractions of amounts. Start non-calc, then introduce calculator for efficiency."
+      },
+      "engagement_tags": [
+        "calculating_discounts_at_argos",
+        "working_out_scottish_living_wage",
+        "budgeting_a_weekly_shop"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Cover the core calculation skills required for the unit."
+    },
+    {
+      "order": 6,
+      "lessonTemplateRef": "AUTO_TBD_6",
+      "label": "Check-in: Carrying out Calculations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Teach: Carrying out Calculations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Mini-whiteboard questions on a mix of calculation types."
+      },
+      "engagement_tags": [
+        "finding_best_buys_at_asda",
+        "simple_interest_from_bank_of_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for accuracy and understanding of different calculation methods."
+    },
+    {
+      "order": 7,
+      "lessonTemplateRef": "AUTO_TBD_7",
+      "label": "Practice: Carrying out Calculations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Check-in: Carrying out Calculations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Differentiated worksheet with calculator and non-calculator sections."
+      },
+      "engagement_tags": [
+        "calculating_pay_slips_with_scottish_tax_bands",
+        "understanding_utility_bills",
+        "managing_a_scotrail_timetable"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in calculations."
+    },
+    {
+      "order": 8,
+      "lessonTemplateRef": "AUTO_TBD_8",
+      "label": "Revision: Carrying out Calculations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Core Numerical Skills",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Practice: Carrying out Calculations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Past-paper style questions focusing on calculations."
+      },
+      "engagement_tags": [
+        "analysing_spfl_data",
+        "planning_a_scottish_holiday_budget"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 9,
+      "lessonTemplateRef": "AUTO_TBD_9",
+      "label": "Teach: Recording Measurements from a Scale",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Revision: Carrying out Calculations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Use physical instruments like rulers, thermometers, and measuring jugs. Focus on reading scales accurately."
+      },
+      "engagement_tags": [
+        "reading_scottish_weather_maps",
+        "baking_a_scottish_shortbread",
+        "diy_at_b_and_q"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Practical lesson to develop measurement skills."
+    },
+    {
+      "order": 10,
+      "lessonTemplateRef": "AUTO_TBD_10",
+      "label": "Check-in: Recording Measurements",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Teach: Recording Measurements from a Scale"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Stations around the room with different scales to read."
+      },
+      "engagement_tags": [
+        "school_science_experiment",
+        "reading_a_clinical_thermometer"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess accuracy in reading various scales."
+    },
+    {
+      "order": 11,
+      "lessonTemplateRef": "AUTO_TBD_11",
+      "label": "Practice: Recording Measurements",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Check-in: Recording Measurements"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with images of different scales."
+      },
+      "engagement_tags": [
+        "reading_ordnance_survey_maps_of_scotland",
+        "baking_a_dundee_cake",
+        "car_speedometers"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skill of reading scales."
+    },
+    {
+      "order": 12,
+      "lessonTemplateRef": "AUTO_TBD_12",
+      "label": "Revision: Recording Measurements",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Measurement Skills",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Practice: Recording Measurements"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on tricky scales, like those with unnumbered divisions."
+      },
+      "engagement_tags": [
+        "interpreting_scottish_water_levels",
+        "understanding_food_labels_in_a_scottish_supermarket"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Final review of measurement skills."
+    },
+    {
+      "order": 13,
+      "lessonTemplateRef": "AUTO_TBD_13",
+      "label": "Teach: Interpreting Results to Make Decisions",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Revision: Recording Measurements",
+          "Revision: Carrying out Calculations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Focus on using calculations and measurements to answer a question or make a choice (e.g., 'Is the suitcase over the EasyJet weight limit at Glasgow Airport?')."
+      },
+      "engagement_tags": [
+        "easyjet_baggage_allowance",
+        "budgeting_for_a_day_out_in_edinburgh",
+        "interpreting_scotrail_timetables"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Combine calculation and measurement skills to solve problems."
+    },
+    {
+      "order": 14,
+      "lessonTemplateRef": "AUTO_TBD_14",
+      "label": "Check-in: Interpreting Results",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Teach: Interpreting Results to Make Decisions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Short, structured problems requiring a concluding statement."
+      },
+      "engagement_tags": [
+        "comparing_deals_at_currys",
+        "planning_a_journey_on_lothian_buses"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check if pupils can link their result to the context of the problem."
+    },
+    {
+      "order": 15,
+      "lessonTemplateRef": "AUTO_TBD_15",
+      "label": "Practice: Interpreting Results",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Check-in: Interpreting Results"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Worksheet with multi-step, real-life problems."
+      },
+      "engagement_tags": [
+        "choosing_a_mobile_phone_contract_vodafone_vs_ee",
+        "managing_a_personal_budget_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Develop problem-solving skills."
+    },
+    {
+      "order": 16,
+      "lessonTemplateRef": "AUTO_TBD_16",
+      "label": "Revision: Interpreting Results",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Practice: Interpreting Results"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Review of problem-solving strategies."
+      },
+      "engagement_tags": [
+        "analysing_scottish_government_spending_data",
+        "planning_a_route_using_google_maps_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate decision-making skills."
+    },
+    {
+      "order": 17,
+      "lessonTemplateRef": "AUTO_TBD_17",
+      "label": "Teach: Explaining Decisions",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Revision: Interpreting Results"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Focus on writing clear, concise explanations that refer back to the calculations (e.g., 'I chose Morrisons because it is 5p cheaper per tin of beans.')."
+      },
+      "engagement_tags": [
+        "justifying_a_choice_of_supermarket",
+        "explaining_a_travel_plan"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Develop communication skills in a mathematical context."
+    },
+    {
+      "order": 18,
+      "lessonTemplateRef": "AUTO_TBD_18",
+      "label": "Check-in: Explaining Decisions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Teach: Explaining Decisions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Peer assessment of written explanations."
+      },
+      "engagement_tags": [
+        "comparing_energy_tariffs_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "peer_review"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess clarity and accuracy of explanations."
+    },
+    {
+      "order": 19,
+      "lessonTemplateRef": "AUTO_TBD_19",
+      "label": "Practice: Explaining Decisions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Check-in: Explaining Decisions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Worksheet requiring both calculations and written justifications."
+      },
+      "engagement_tags": [
+        "planning_a_holiday_with_barrhead_travel",
+        "choosing_a_scottish_power_service"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate the link between calculation and explanation."
+    },
+    {
+      "order": 20,
+      "lessonTemplateRef": "AUTO_TBD_20",
+      "label": "Revision: Explaining Decisions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Decision Making",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Practice: Explaining Decisions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Review model answers and common errors."
+      },
+      "engagement_tags": [
+        "justifying_financial_choices_with_citizens_advice_scotland_scenarios"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 21,
+      "lessonTemplateRef": "AUTO_TBD_21",
+      "label": "Teach: Extracting and Interpreting Graphical Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Introduce various graph types (bar, line, pie, scatter). Focus on reading axes, keys, and titles to extract specific information."
+      },
+      "engagement_tags": [
+        "scottish_weather_charts_from_bbc_scotland",
+        "scotrail_passenger_numbers",
+        "scottish_government_population_data"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.1"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Introduction to handling data from at least two different graphical forms."
+    },
+    {
+      "order": 22,
+      "lessonTemplateRef": "AUTO_TBD_22",
+      "label": "Check-in: Interpreting Graphical Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.1",
+        "prerequisites": [
+          "Teach: Extracting and Interpreting Graphical Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Show two different graphs on the same topic and ask targeted questions."
+      },
+      "engagement_tags": [
+        "spfl_league_tables",
+        "scottish_media_reports"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.1"
+      ],
+      "pedagogical_blocks": [
+        "quiz",
+        "exit_ticket"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check ability to read and extract information accurately."
+    },
+    {
+      "order": 23,
+      "lessonTemplateRef": "AUTO_TBD_23",
+      "label": "Practice: Interpreting Graphical Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.1",
+        "prerequisites": [
+          "Check-in: Interpreting Graphical Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with a variety of graphs from real-world sources."
+      },
+      "engagement_tags": [
+        "nhs_scotland_waiting_times_data",
+        "scottish_environmental_protection_agency_reports"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.1"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build confidence in working with different graph types."
+    },
+    {
+      "order": 24,
+      "lessonTemplateRef": "AUTO_TBD_24",
+      "label": "Revision: Interpreting Graphical Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.1",
+        "prerequisites": [
+          "Practice: Interpreting Graphical Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of how to approach different graph types and common question stems."
+      },
+      "engagement_tags": [
+        "analysing_data_from_the_scottish_census"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.1"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate data interpretation skills."
+    },
+    {
+      "order": 25,
+      "lessonTemplateRef": "AUTO_TBD_25",
+      "label": "Teach: Making Decisions Based on Data",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.2",
+        "prerequisites": [
+          "Revision: Interpreting Graphical Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on comparing data points and explaining the choice. E.g., 'Which month had the highest rainfall in Glasgow? Explain your answer.'"
+      },
+      "engagement_tags": [
+        "analysing_scottish_business_performance",
+        "interpreting_scottish_social_trends"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.2"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Move from extracting data to using it for decision making."
+    },
+    {
+      "order": 26,
+      "lessonTemplateRef": "AUTO_TBD_26",
+      "label": "Check-in: Making Decisions Based on Data",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.2",
+        "prerequisites": [
+          "Teach: Making Decisions Based on Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Present a graph and a scenario, ask pupils to make and justify a decision."
+      },
+      "engagement_tags": [
+        "choosing_a_driving_route_in_aberdeen",
+        "analysing_sales_figures_for_a_scottish_company"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.2"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess the quality of the justification."
+    },
+    {
+      "order": 27,
+      "lessonTemplateRef": "AUTO_TBD_27",
+      "label": "Practice: Making Decisions Based on Data",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.2",
+        "prerequisites": [
+          "Check-in: Making Decisions Based on Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with problems requiring data-driven decisions and explanations."
+      },
+      "engagement_tags": [
+        "scottish_climate_change_data",
+        "scottish_economic_data"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.2"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate decision-making skills."
+    },
+    {
+      "order": 28,
+      "lessonTemplateRef": "AUTO_TBD_28",
+      "label": "Revision: Making Decisions Based on Data",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.2",
+        "prerequisites": [
+          "Practice: Making Decisions Based on Data"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of model answers and how to structure explanations."
+      },
+      "engagement_tags": [
+        "interpreting_data_from_a_scottish_council_report"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.2"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 29,
+      "lessonTemplateRef": "AUTO_TBD_29",
+      "label": "Teach: Making Decisions Based on Probability",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.3",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Introduce probability using words (likely, unlikely, even chance) and simple fractions. Use spinners, dice, and cards."
+      },
+      "engagement_tags": [
+        "games_of_chance",
+        "risk_assessment",
+        "weather_forecasts_in_scotland"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.3"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Introduction to the concept of probability and its language."
+    },
+    {
+      "order": 30,
+      "lessonTemplateRef": "AUTO_TBD_30",
+      "label": "Check-in: Decisions Based on Probability",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.3",
+        "prerequisites": [
+          "Teach: Making Decisions Based on Probability"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Mini-whiteboard questions asking pupils to describe the probability of events."
+      },
+      "engagement_tags": [
+        "national_lottery",
+        "school_raffles"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.3"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check understanding of probability language and simple calculations."
+    },
+    {
+      "order": 31,
+      "lessonTemplateRef": "AUTO_TBD_31",
+      "label": "Practice: Decisions Based on Probability",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.3",
+        "prerequisites": [
+          "Check-in: Decisions Based on Probability"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with problems involving simple probability and explanations."
+      },
+      "engagement_tags": [
+        "fair_games",
+        "making_predictions_about_spfl_matches"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.3"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate probability skills."
+    },
+    {
+      "order": 32,
+      "lessonTemplateRef": "AUTO_TBD_32",
+      "label": "Revision: Decisions Based on Probability",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Data and Probability",
+        "block_index": "2.3",
+        "prerequisites": [
+          "Practice: Decisions Based on Probability"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of key concepts and question types."
+      },
+      "engagement_tags": [
+        "analysing_risk_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "2.3"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 33,
+      "lessonTemplateRef": "AUTO_TBD_33",
+      "label": "Numeracy Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Numeracy (National 4)",
+        "block_name": "Unit Assessment",
+        "block_index": "3.0",
+        "prerequisites": [
+          "All revision lessons in Numeracy unit"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Internal assessment covering all outcomes for the Numeracy unit (H225 74)."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [
+        "1",
+        "2"
+      ],
+      "assessmentStandardRefs": [
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "1.5",
+        "2.1",
+        "2.2",
+        "2.3"
+      ],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 100,
+      "notes": "This assessment should be conducted under controlled conditions to confirm pass/fail for the unit."
+    },
+    {
+      "order": 34,
+      "lessonTemplateRef": "AUTO_TBD_34",
+      "label": "Teach: Numerical Skills with Fractions and Percentages",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Fractions and Percentages",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on finding a fraction or percentage of a quantity without a calculator. Link to prior learning in Numeracy."
+      },
+      "engagement_tags": [
+        "calculating_sale_prices_at_marks_and_spencer",
+        "analysing_scottish_election_results",
+        "adjusting_a_recipe_for_cranachan"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Start of the Expressions and Formulae unit. Build on foundational skills."
+    },
+    {
+      "order": 35,
+      "lessonTemplateRef": "AUTO_TBD_35",
+      "label": "Check-in: Fractions and Percentages",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Fractions and Percentages",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Teach: Numerical Skills with Fractions and Percentages"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick questions on finding common fractions (1/2, 1/4, 1/10) and percentages (10%, 25%, 50%)."
+      },
+      "engagement_tags": [
+        "mental_maths_with_scottish_prices"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess fluency with non-calculator methods."
+    },
+    {
+      "order": 36,
+      "lessonTemplateRef": "AUTO_TBD_36",
+      "label": "Practice: Fractions and Percentages",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Fractions and Percentages",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Check-in: Fractions and Percentages"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Worksheet with a non-calculator section for core skills and a calculator section for more complex values."
+      },
+      "engagement_tags": [
+        "personal_finance_scenarios_in_scotland",
+        "analysing_scottish_sports_statistics"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build confidence and competence."
+    },
+    {
+      "order": 37,
+      "lessonTemplateRef": "AUTO_TBD_37",
+      "label": "Revision: Fractions and Percentages",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Fractions and Percentages",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Practice: Fractions and Percentages"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Review of methods and practice with exam-style questions."
+      },
+      "engagement_tags": [
+        "interpreting_scottish_infographics"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate learning before moving to algebra."
+    },
+    {
+      "order": 38,
+      "lessonTemplateRef": "AUTO_TBD_38",
+      "label": "Teach: Simplifying Expressions by Collecting Like Terms",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Algebraic Expressions",
+        "block_index": "1.2",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Introduce the concept of variables and like terms using concrete examples (e.g., 3 apples + 2 bananas + 4 apples)."
+      },
+      "engagement_tags": [
+        "algebra_basics",
+        "sorting_items_in_a_shop"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Introduction to fundamental algebraic manipulation."
+    },
+    {
+      "order": 39,
+      "lessonTemplateRef": "AUTO_TBD_39",
+      "label": "Check-in: Simplifying Expressions",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Algebraic Expressions",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Teach: Simplifying Expressions by Collecting Like Terms"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Mini-whiteboard questions with simple expressions involving one or two variables."
+      },
+      "engagement_tags": [
+        "quick_fire_algebra"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for common misconceptions, especially with negative terms."
+    },
+    {
+      "order": 40,
+      "lessonTemplateRef": "AUTO_TBD_40",
+      "label": "Practice: Simplifying Expressions",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Algebraic Expressions",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Check-in: Simplifying Expressions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Differentiated worksheet, increasing in complexity."
+      },
+      "engagement_tags": [
+        "algebra_puzzles"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in collecting like terms."
+    },
+    {
+      "order": 41,
+      "lessonTemplateRef": "AUTO_TBD_41",
+      "label": "Revision: Simplifying Expressions",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Algebraic Expressions",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Practice: Simplifying Expressions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of the process and tackling more complex examples."
+      },
+      "engagement_tags": [
+        "algebra_review"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate before moving to evaluation."
+    },
+    {
+      "order": 42,
+      "lessonTemplateRef": "AUTO_TBD_42",
+      "label": "Teach: Evaluating a Formula or Expression",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Formulae",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Revision: Simplifying Expressions"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Teach substitution of positive and negative numbers into expressions and formulae. Start non-calc, then use calc for more complex formulae."
+      },
+      "engagement_tags": [
+        "using_scientific_formulae",
+        "calculating_mobile_phone_tariffs_in_scotland",
+        "currency_conversion_for_holidays"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Focus on correct order of operations (BODMAS/BIDMAS)."
+    },
+    {
+      "order": 43,
+      "lessonTemplateRef": "AUTO_TBD_43",
+      "label": "Check-in: Evaluating Formulae",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Formulae",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Teach: Evaluating a Formula or Expression"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Quick substitution exercises, checking for correct application of BODMAS."
+      },
+      "engagement_tags": [
+        "calculating_taxi_fares_in_dundee",
+        "working_out_cooking_times_for_a_roast"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Identify issues with substitution, especially with negative numbers."
+    },
+    {
+      "order": 44,
+      "lessonTemplateRef": "AUTO_TBD_44",
+      "label": "Practice: Evaluating Formulae",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Formulae",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Check-in: Evaluating Formulae"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Worksheet with a range of real-life formulae."
+      },
+      "engagement_tags": [
+        "physics_formulae_in_a_real_context",
+        "financial_calculations_with_scottish_banks"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build confidence in using formulae."
+    },
+    {
+      "order": 45,
+      "lessonTemplateRef": "AUTO_TBD_45",
+      "label": "Revision: Evaluating Formulae",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Formulae",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Practice: Evaluating Formulae"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Review of common mistakes and practice with multi-step problems."
+      },
+      "engagement_tags": [
+        "using_formulae_from_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 46,
+      "lessonTemplateRef": "AUTO_TBD_46",
+      "label": "Teach: Number and Shape Patterns",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Patterns and Sequences",
+        "block_index": "1.4",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach how to extend a linear number or shape pattern, describe it in words, and determine a simple formula (e.g., T = 2n + 3)."
+      },
+      "engagement_tags": [
+        "patterns_in_scottish_architecture",
+        "sequences_in_nature",
+        "tartan_designs"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Connect visual patterns to algebraic formulae."
+    },
+    {
+      "order": 47,
+      "lessonTemplateRef": "AUTO_TBD_47",
+      "label": "Check-in: Patterns and Formulae",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Patterns and Sequences",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Teach: Number and Shape Patterns"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Give a simple shape pattern and ask pupils to draw the next term and find the rule."
+      },
+      "engagement_tags": [
+        "visual_puzzles_with_scottish_symbols"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Assess ability to see the connection between the pattern and the formula."
+    },
+    {
+      "order": 48,
+      "lessonTemplateRef": "AUTO_TBD_48",
+      "label": "Practice: Patterns and Formulae",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Patterns and Sequences",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Check-in: Patterns and Formulae"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with a variety of linear patterns."
+      },
+      "engagement_tags": [
+        "number_sequences_in_a_real_context",
+        "matchstick_puzzles"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in determining formulae from patterns."
+    },
+    {
+      "order": 49,
+      "lessonTemplateRef": "AUTO_TBD_49",
+      "label": "Revision: Patterns and Formulae",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Patterns and Sequences",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Practice: Patterns and Formulae"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review the method for finding the 'zeroth' term and the multiplier."
+      },
+      "engagement_tags": [
+        "analysing_patterns_in_scottish_data"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 50,
+      "lessonTemplateRef": "AUTO_TBD_50",
+      "label": "Teach: Calculating Gradient",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.5",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Introduce gradient as 'vertical / horizontal'. Use diagrams with clear horizontal and vertical distances."
+      },
+      "engagement_tags": [
+        "slopes_of_scottish_hills",
+        "ramps_for_accessibility_in_edinburgh",
+        "roofs_of_scottish_houses"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Focus on the concept of steepness."
+    },
+    {
+      "order": 51,
+      "lessonTemplateRef": "AUTO_TBD_51",
+      "label": "Check-in: Calculating Gradient",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Teach: Calculating Gradient"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Show diagrams of slopes and ask for the gradient."
+      },
+      "engagement_tags": [
+        "accessibility_ramps_in_glasgow"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check that pupils are not mixing up vertical and horizontal."
+    },
+    {
+      "order": 52,
+      "lessonTemplateRef": "AUTO_TBD_52",
+      "label": "Practice: Calculating Gradient",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Check-in: Calculating Gradient"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with various gradient problems."
+      },
+      "engagement_tags": [
+        "scottish_road_signs",
+        "engineering_problems_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 53,
+      "lessonTemplateRef": "AUTO_TBD_53",
+      "label": "Revision: Calculating Gradient",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Practice: Calculating Gradient"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of the formula and its application."
+      },
+      "engagement_tags": [
+        "analysing_gradients_of_munros"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate understanding."
+    },
+    {
+      "order": 54,
+      "lessonTemplateRef": "AUTO_TBD_54",
+      "label": "Teach: Circumference and Area of a Circle",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.6",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce the formulae C=πd and A=πr². Ensure pupils can identify radius and diameter. Use of a calculator is expected."
+      },
+      "engagement_tags": [
+        "glasgow_science_centre_imax_screen",
+        "pizzas_from_a_local_takeaway",
+        "clocks_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Ensure pupils know how to use the π button on their calculators."
+    },
+    {
+      "order": 55,
+      "lessonTemplateRef": "AUTO_TBD_55",
+      "label": "Check-in: Circles",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Teach: Circumference and Area of a Circle"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on finding area and circumference given radius or diameter."
+      },
+      "engagement_tags": [
+        "scottish_roundabouts",
+        "uk_coins"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct formula choice and use of radius/diameter."
+    },
+    {
+      "order": 56,
+      "lessonTemplateRef": "AUTO_TBD_56",
+      "label": "Practice: Circles",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Check-in: Circles"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with problems involving circles, including semi-circles."
+      },
+      "engagement_tags": [
+        "running_tracks_at_a_scottish_sports_centre",
+        "designing_a_garden_in_a_scottish_home"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in circle calculations."
+    },
+    {
+      "order": 57,
+      "lessonTemplateRef": "AUTO_TBD_57",
+      "label": "Revision: Circles",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Gradient and Circles",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Practice: Circles"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of formulae and tackling compound shapes involving circles."
+      },
+      "engagement_tags": [
+        "designing_a_logo_for_a_scottish_company"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 58,
+      "lessonTemplateRef": "AUTO_TBD_58",
+      "label": "Teach: Area of Parallelogram, Kite, and Trapezium",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.7",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce the formulae for the area of a parallelogram, kite, and trapezium. Focus on identifying the correct lengths to use."
+      },
+      "engagement_tags": [
+        "scottish_architecture",
+        "designing_a_kite_for_a_festival",
+        "tiling_patterns_in_a_scottish_home"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Use of a calculator is expected for the calculations."
+    },
+    {
+      "order": 59,
+      "lessonTemplateRef": "AUTO_TBD_59",
+      "label": "Check-in: Area of Quadrilaterals",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Teach: Area of Parallelogram, Kite, and Trapezium"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Show different shapes and ask pupils to identify the shape and the correct formula to use."
+      },
+      "engagement_tags": [
+        "identifying_shapes_in_scottish_landmarks"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct formula choice."
+    },
+    {
+      "order": 60,
+      "lessonTemplateRef": "AUTO_TBD_60",
+      "label": "Practice: Area of Quadrilaterals",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Check-in: Area of Quadrilaterals"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a mix of parallelograms, kites, and trapeziums."
+      },
+      "engagement_tags": [
+        "floor_plans_for_a_scottish_house",
+        "construction_projects_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in area calculations."
+    },
+    {
+      "order": 61,
+      "lessonTemplateRef": "AUTO_TBD_61",
+      "label": "Revision: Area of Quadrilaterals",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Practice: Area of Quadrilaterals"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of formulae and practice with compound shapes."
+      },
+      "engagement_tags": [
+        "designing_a_garden_with_different_quadrilaterals"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 62,
+      "lessonTemplateRef": "AUTO_TBD_62",
+      "label": "Teach: Volume of a Cylinder",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.8",
+        "prerequisites": [
+          "Revision: Circles"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce the formula V=πr²h. Connect this to the area of a circle."
+      },
+      "engagement_tags": [
+        "cans_of_irn_bru",
+        "scottish_water_pipes",
+        "whisky_casks"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.8"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Use of a calculator is expected."
+    },
+    {
+      "order": 63,
+      "lessonTemplateRef": "AUTO_TBD_63",
+      "label": "Check-in: Volume of a Cylinder",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.8",
+        "prerequisites": [
+          "Teach: Volume of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on finding the volume given radius/diameter and height."
+      },
+      "engagement_tags": [
+        "packaging_for_scottish_products",
+        "containers_for_shipping"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.8"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct use of formula."
+    },
+    {
+      "order": 64,
+      "lessonTemplateRef": "AUTO_TBD_64",
+      "label": "Practice: Volume of a Cylinder",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.8",
+        "prerequisites": [
+          "Check-in: Volume of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a range of cylinder problems."
+      },
+      "engagement_tags": [
+        "calculating_capacity_of_a_silo_on_a_scottish_farm",
+        "engineering_problems_with_cylinders"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.8"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 65,
+      "lessonTemplateRef": "AUTO_TBD_65",
+      "label": "Revision: Volume of a Cylinder",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.8",
+        "prerequisites": [
+          "Practice: Volume of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of formula and practice with problems in context."
+      },
+      "engagement_tags": [
+        "real_life_volume_problems_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.8"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for assessment."
+    },
+    {
+      "order": 66,
+      "lessonTemplateRef": "AUTO_TBD_66",
+      "label": "Teach: Surface Area of a Cylinder",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.9",
+        "prerequisites": [
+          "Revision: Circles"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Introduce the concept of surface area by 'unwrapping' a cylinder into two circles and a rectangle. Build the formula from these parts."
+      },
+      "engagement_tags": [
+        "designing_packaging_for_a_scottish_product",
+        "calculating_materials_for_labelling",
+        "manufacturing_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.9"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "A physical model (e.g., a can with its label removed) is very effective here."
+    },
+    {
+      "order": 67,
+      "lessonTemplateRef": "AUTO_TBD_67",
+      "label": "Check-in: Surface Area of a Cylinder",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.9",
+        "prerequisites": [
+          "Teach: Surface Area of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick question to calculate the surface area of a standard cylinder."
+      },
+      "engagement_tags": [
+        "painting_a_cylindrical_object",
+        "calculating_materials_for_a_project"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.9"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check that pupils can calculate the area of all three parts."
+    },
+    {
+      "order": 68,
+      "lessonTemplateRef": "AUTO_TBD_68",
+      "label": "Practice: Surface Area of a Cylinder",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.9",
+        "prerequisites": [
+          "Check-in: Surface Area of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a range of problems, including open-topped cylinders."
+      },
+      "engagement_tags": [
+        "construction_problems_in_scotland",
+        "designing_a_product_package"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.9"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 69,
+      "lessonTemplateRef": "AUTO_TBD_69",
+      "label": "Revision: Surface Area of a Cylinder",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Area and Volume",
+        "block_index": "1.9",
+        "prerequisites": [
+          "Practice: Surface Area of a Cylinder"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of the formula and its derivation. Practice with contextual problems."
+      },
+      "engagement_tags": [
+        "real_life_surface_area_problems_in_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.9"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Final consolidation for this unit."
+    },
+    {
+      "order": 70,
+      "lessonTemplateRef": "AUTO_TBD_70",
+      "label": "Expressions and Formulae Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Expressions and Formulae (National 4)",
+        "block_name": "Unit Assessment",
+        "block_index": "2.0",
+        "prerequisites": [
+          "All revision lessons in Expressions and Formulae unit"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Internal assessment covering all outcomes for the Expressions and Formulae unit (H22J 74)."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "1.5",
+        "1.6",
+        "1.7",
+        "1.8",
+        "1.9"
+      ],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 100,
+      "notes": "This assessment should be conducted under controlled conditions to confirm pass/fail for the unit."
+    },
+    {
+      "order": 71,
+      "lessonTemplateRef": "AUTO_TBD_71",
+      "label": "Teach: Drawing and Recognising a Graph of a Linear Equation",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach how to create a table of values for a linear equation (e.g., y = 2x + 1), plot the points, and draw the straight line."
+      },
+      "engagement_tags": [
+        "plotting_journey_graphs_in_scotland",
+        "understanding_linear_relationships_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Start of the Relationships unit. Focus on accuracy in plotting points."
+    },
+    {
+      "order": 72,
+      "lessonTemplateRef": "AUTO_TBD_72",
+      "label": "Check-in: Drawing Linear Graphs",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Teach: Drawing and Recognising a Graph of a Linear Equation"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Give an equation and a blank table/grid. Ask pupils to complete and plot."
+      },
+      "engagement_tags": [
+        "plotting_points_on_a_map_of_scotland"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for errors in calculation and plotting."
+    },
+    {
+      "order": 73,
+      "lessonTemplateRef": "AUTO_TBD_73",
+      "label": "Practice: Drawing Linear Graphs",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Check-in: Drawing Linear Graphs"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with several linear equations to graph."
+      },
+      "engagement_tags": [
+        "creating_conversion_graphs_for_scottish_contexts",
+        "analysing_real_life_graphs_from_scottish_data"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in graphing linear equations."
+    },
+    {
+      "order": 74,
+      "lessonTemplateRef": "AUTO_TBD_74",
+      "label": "Revision: Drawing Linear Graphs",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.1",
+        "prerequisites": [
+          "Practice: Drawing Linear Graphs"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of the process and common mistakes."
+      },
+      "engagement_tags": [
+        "interpreting_linear_graphs_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills before moving on to solving equations."
+    },
+    {
+      "order": 75,
+      "lessonTemplateRef": "AUTO_TBD_75",
+      "label": "Teach: Solving Linear Equations",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Revision: Drawing Linear Graphs"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach how to solve linear equations of the form ax ± b = c, using the balancing method."
+      },
+      "engagement_tags": [
+        "problem_solving_with_equations",
+        "finding_unknown_values_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Focus on showing all steps of working."
+    },
+    {
+      "order": 76,
+      "lessonTemplateRef": "AUTO_TBD_76",
+      "label": "Check-in: Solving Linear Equations",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Teach: Solving Linear Equations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick questions on solving one- and two-step equations."
+      },
+      "engagement_tags": [
+        "quick_fire_equations"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for common errors, such as sign mistakes."
+    },
+    {
+      "order": 77,
+      "lessonTemplateRef": "AUTO_TBD_77",
+      "label": "Practice: Solving Linear Equations",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Check-in: Solving Linear Equations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with a variety of linear equations to solve."
+      },
+      "engagement_tags": [
+        "solving_real_life_problems_with_equations"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency in solving equations."
+    },
+    {
+      "order": 78,
+      "lessonTemplateRef": "AUTO_TBD_78",
+      "label": "Revision: Solving Linear Equations",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Practice: Solving Linear Equations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of the balancing method and practice with exam-style questions."
+      },
+      "engagement_tags": [
+        "problem_solving_with_linear_equations_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.2"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 79,
+      "lessonTemplateRef": "AUTO_TBD_79",
+      "label": "Teach: Changing the Subject of a Formula",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Revision: Solving Linear Equations"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach how to change the subject of a formula with one or two operations."
+      },
+      "engagement_tags": [
+        "rearranging_formulae_in_science",
+        "problem_solving_with_formulae"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Link to solving equations."
+    },
+    {
+      "order": 80,
+      "lessonTemplateRef": "AUTO_TBD_80",
+      "label": "Check-in: Changing the Subject",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Teach: Changing the Subject of a Formula"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick questions on rearranging simple formulae."
+      },
+      "engagement_tags": [
+        "quick_fire_formulae"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct application of inverse operations."
+    },
+    {
+      "order": 81,
+      "lessonTemplateRef": "AUTO_TBD_81",
+      "label": "Practice: Changing the Subject",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Check-in: Changing the Subject"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with a variety of formulae to rearrange."
+      },
+      "engagement_tags": [
+        "rearranging_formulae_in_a_real_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 82,
+      "lessonTemplateRef": "AUTO_TBD_82",
+      "label": "Revision: Changing the Subject",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Equations and Graphs",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Practice: Changing the Subject"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of the process and practice with more complex formulae."
+      },
+      "engagement_tags": [
+        "problem_solving_with_rearranged_formulae"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.3"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 83,
+      "lessonTemplateRef": "AUTO_TBD_83",
+      "label": "Teach: Applying Pythagoras' Theorem",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.4",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to use Pythagoras' theorem to find the length of a missing side in a right-angled triangle."
+      },
+      "engagement_tags": [
+        "construction_in_scotland",
+        "navigation_and_maps",
+        "diy_projects"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Ensure pupils can identify the hypotenuse."
+    },
+    {
+      "order": 84,
+      "lessonTemplateRef": "AUTO_TBD_84",
+      "label": "Check-in: Pythagoras' Theorem",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Teach: Applying Pythagoras' Theorem"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on finding the hypotenuse and a shorter side."
+      },
+      "engagement_tags": [
+        "quick_fire_pythagoras"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct use of the formula."
+    },
+    {
+      "order": 85,
+      "lessonTemplateRef": "AUTO_TBD_85",
+      "label": "Practice: Pythagoras' Theorem",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Check-in: Pythagoras' Theorem"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of right-angled triangles."
+      },
+      "engagement_tags": [
+        "real_life_problems_with_pythagoras_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 86,
+      "lessonTemplateRef": "AUTO_TBD_86",
+      "label": "Revision: Pythagoras' Theorem",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Practice: Pythagoras' Theorem"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of the formula and practice with contextual problems."
+      },
+      "engagement_tags": [
+        "problem_solving_with_pythagoras"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.4"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 87,
+      "lessonTemplateRef": "AUTO_TBD_87",
+      "label": "Teach: Applying Properties of Shapes to Determine an Angle",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.5",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Teach the properties of angles in triangles, quadrilaterals, and on straight lines."
+      },
+      "engagement_tags": [
+        "angles_in_scottish_architecture",
+        "designing_patterns",
+        "understanding_maps"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Focus on clear explanations and justifications."
+    },
+    {
+      "order": 88,
+      "lessonTemplateRef": "AUTO_TBD_88",
+      "label": "Check-in: Angles in Shapes",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Teach: Applying Properties of Shapes to Determine an Angle"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Quick questions on finding missing angles in simple diagrams."
+      },
+      "engagement_tags": [
+        "quick_fire_angles"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for understanding of angle properties."
+    },
+    {
+      "order": 89,
+      "lessonTemplateRef": "AUTO_TBD_89",
+      "label": "Practice: Angles in Shapes",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Check-in: Angles in Shapes"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Worksheet with a variety of problems involving angles."
+      },
+      "engagement_tags": [
+        "real_life_problems_with_angles_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 90,
+      "lessonTemplateRef": "AUTO_TBD_90",
+      "label": "Revision: Angles in Shapes",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Pythagoras and Angles",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Practice: Angles in Shapes"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Review of angle properties and practice with exam-style questions."
+      },
+      "engagement_tags": [
+        "problem_solving_with_angles"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.5"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 91,
+      "lessonTemplateRef": "AUTO_TBD_91",
+      "label": "Teach: Using Similarity to Find a Missing Length",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.6",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to use scale factors to find missing lengths in similar shapes."
+      },
+      "engagement_tags": [
+        "scaling_maps_of_scotland",
+        "model_making",
+        "scottish_art_and_design"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Focus on identifying corresponding sides."
+    },
+    {
+      "order": 92,
+      "lessonTemplateRef": "AUTO_TBD_92",
+      "label": "Check-in: Similarity",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Teach: Using Similarity to Find a Missing Length"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on finding missing lengths in similar triangles."
+      },
+      "engagement_tags": [
+        "quick_fire_similarity"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct use of scale factor."
+    },
+    {
+      "order": 93,
+      "lessonTemplateRef": "AUTO_TBD_93",
+      "label": "Practice: Similarity",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Check-in: Similarity"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of problems involving similar shapes."
+      },
+      "engagement_tags": [
+        "real_life_problems_with_similarity_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 94,
+      "lessonTemplateRef": "AUTO_TBD_94",
+      "label": "Revision: Similarity",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.6",
+        "prerequisites": [
+          "Practice: Similarity"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of the method and practice with exam-style questions."
+      },
+      "engagement_tags": [
+        "problem_solving_with_similarity"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.6"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 95,
+      "lessonTemplateRef": "AUTO_TBD_95",
+      "label": "Teach: Using Trigonometry to Find a Side or Angle",
+      "lesson_type": "teach",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.7",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Teach how to use SOH CAH TOA to find a missing side or angle in a right-angled triangle."
+      },
+      "engagement_tags": [
+        "navigation",
+        "surveying_in_scotland",
+        "construction"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "starter",
+        "modelling",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "notes": "Ensure pupils can identify opposite, adjacent, and hypotenuse sides."
+    },
+    {
+      "order": 96,
+      "lessonTemplateRef": "AUTO_TBD_96",
+      "label": "Check-in: Trigonometry",
+      "lesson_type": "formative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Teach: Using Trigonometry to Find a Side or Angle"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Quick questions on finding missing sides and angles."
+      },
+      "engagement_tags": [
+        "quick_fire_trigonometry"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "quiz"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 25,
+      "notes": "Check for correct use of SOH CAH TOA."
+    },
+    {
+      "order": 97,
+      "lessonTemplateRef": "AUTO_TBD_97",
+      "label": "Practice: Trigonometry",
+      "lesson_type": "independent_practice",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Check-in: Trigonometry"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Worksheet with a variety of problems involving trigonometry."
+      },
+      "engagement_tags": [
+        "real_life_problems_with_trigonometry_in_a_scottish_context"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "independent_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Build fluency."
+    },
+    {
+      "order": 98,
+      "lessonTemplateRef": "AUTO_TBD_98",
+      "label": "Revision: Trigonometry",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Similarity and Trigonometry",
+        "block_index": "1.7",
+        "prerequisites": [
+          "Practice: Trigonometry"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Review of SOH CAH TOA and practice with exam-style questions."
+      },
+      "engagement_tags": [
+        "problem_solving_with_trigonometry"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.7"
+      ],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Consolidate skills."
+    },
+    {
+      "order": 99,
+      "lessonTemplateRef": "AUTO_TBD_99",
+      "label": "Relationships Unit Assessment",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Mathematics: Relationships (National 4)",
+        "block_name": "Unit Assessment",
+        "block_index": "2.0",
+        "prerequisites": [
+          "All revision lessons in Relationships unit"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Internal assessment covering all outcomes for the Relationships unit (H22K 74)."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [
+        "1"
+      ],
+      "assessmentStandardRefs": [
+        "1.1",
+        "1.2",
+        "1.3",
+        "1.4",
+        "1.5",
+        "1.6",
+        "1.7"
+      ],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 100,
+      "notes": "This assessment should be conducted under controlled conditions to confirm pass/fail for the unit."
+    },
+    {
+      "order": 100,
+      "lessonTemplateRef": "AUTO_TBD_100",
+      "label": "Course Revision: Non-Calculator Skills",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "AVU Preparation",
+        "block_index": "1.1",
+        "prerequisites": [
+          "All unit assessments"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Revision of all non-calculator topics from across the three units."
+      },
+      "engagement_tags": [
+        "mixed_scottish_contexts"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for the non-calculator paper of the AVU test."
+    },
+    {
+      "order": 101,
+      "lessonTemplateRef": "AUTO_TBD_101",
+      "label": "Course Revision: Calculator Skills",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "AVU Preparation",
+        "block_index": "1.2",
+        "prerequisites": [
+          "All unit assessments"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "Revision of all calculator topics from across the three units."
+      },
+      "engagement_tags": [
+        "mixed_scottish_contexts"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [
+        "review",
+        "practice_questions"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Prepare for the calculator paper of the AVU test."
+    },
+    {
+      "order": 102,
+      "lessonTemplateRef": "AUTO_TBD_102",
+      "label": "Mock AVU Test: Non-Calculator Paper",
+      "lesson_type": "mock_assessment",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "AVU Preparation",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Course Revision: Non-Calculator Skills"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "A practice paper for the non-calculator section of the AVU test."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This should be conducted under exam conditions."
+    },
+    {
+      "order": 103,
+      "lessonTemplateRef": "AUTO_TBD_103",
+      "label": "Mock AVU Test: Calculator Paper",
+      "lesson_type": "mock_assessment",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "AVU Preparation",
+        "block_index": "1.4",
+        "prerequisites": [
+          "Course Revision: Calculator Skills"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc",
+        "assessment_notes": "A practice paper for the calculator section of the AVU test."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "This should be conducted under exam conditions."
+    },
+    {
+      "order": 104,
+      "lessonTemplateRef": "AUTO_TBD_104",
+      "label": "Mock AVU Test Review and Feedback",
+      "lesson_type": "revision",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "AVU Preparation",
+        "block_index": "1.5",
+        "prerequisites": [
+          "Mock AVU Test: Non-Calculator Paper",
+          "Mock AVU Test: Calculator Paper"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Go over the mock papers, highlighting common errors and good practice."
+      },
+      "engagement_tags": [
+        "feedback",
+        "exam_technique"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [
+        "review",
+        "guided_practice"
+      ],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "notes": "Use this session to build confidence and address any remaining gaps in knowledge."
+    },
+    {
+      "order": 105,
+      "lessonTemplateRef": "AUTO_TBD_105",
+      "label": "Added Value Unit Test",
+      "lesson_type": "summative_assessment",
+      "coherence": {
+        "unit": "Added Value Unit",
+        "block_name": "Unit Assessment",
+        "block_index": "2.0",
+        "prerequisites": [
+          "Mock AVU Test Review and Feedback"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "The official SQA Added Value Unit Test (H22L 74), consisting of a non-calculator and a calculator paper."
+      },
+      "engagement_tags": [
+        "formal_assessment"
+      ],
+      "outcomeRefs": [],
+      "assessmentStandardRefs": [],
+      "pedagogical_blocks": [],
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 100,
+      "notes": "This assessment must be conducted under controlled conditions as specified by SQA."
+    }
+  ]
+}

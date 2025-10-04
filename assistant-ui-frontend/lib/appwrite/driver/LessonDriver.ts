@@ -85,31 +85,46 @@ export class LessonDriver extends BaseDriver {
   }
 
   /**
-   * Create new lesson session
+   * Create new lesson session - Phase 3.3 MVP2.5 enhanced with pedagogy fields
    */
   async createSession(
-    studentId: string, 
-    courseId: string, 
+    studentId: string,
+    courseId: string,
     lessonTemplateId: string
   ): Promise<Session> {
     try {
       const user = await this.getCurrentUser();
-      
+
       // Get lesson template to create snapshot
       const lessonTemplate = await this.getLessonTemplate(lessonTemplateId);
-      
-      // Create lesson snapshot - handle both seeded JSON strings and already parsed objects
+
+      // Parse outcomeRefs - may contain assessmentStandards in Phase 3 format
+      const parsedOutcomeRefs = this._parseJSON(lessonTemplate.outcomeRefs);
+      const outcomeRefs = Array.isArray(parsedOutcomeRefs)
+        ? parsedOutcomeRefs
+        : parsedOutcomeRefs?.outcomes || parsedOutcomeRefs;
+      const assessmentStandardRefs = parsedOutcomeRefs?.assessmentStandards;
+
+      // Parse policy - contains calculator_section, assessment_notes, accessibility
+      const policy = this._parseJSON(lessonTemplate.policy);
+
+      // Create enhanced lesson snapshot with Phase 3 pedagogy fields
       const lessonSnapshot: LessonSnapshot = {
         title: lessonTemplate.title,
-        outcomeRefs: typeof lessonTemplate.outcomeRefs === 'string'
-          ? JSON.parse(lessonTemplate.outcomeRefs)
-          : lessonTemplate.outcomeRefs,
-        cards: typeof lessonTemplate.cards === 'string'
-          ? JSON.parse(lessonTemplate.cards)
-          : lessonTemplate.cards,
-        templateVersion: lessonTemplate.version
+        outcomeRefs: outcomeRefs,
+        assessmentStandardRefs: assessmentStandardRefs,
+        cards: this._parseJSON(lessonTemplate.cards),
+        templateVersion: lessonTemplate.version,
+        courseId: courseId, // Add for teaching context
+        lessonTemplateId: lessonTemplateId, // Add for teaching context
+
+        // NEW FIELDS - Phase 3 MVP2.5
+        lesson_type: lessonTemplate.lesson_type,
+        estMinutes: lessonTemplate.estMinutes,
+        engagement_tags: this._parseJSON(lessonTemplate.engagement_tags),
+        policy: policy
       };
-      
+
       const sessionData: CreateSessionData = {
         studentId,
         courseId,
@@ -117,12 +132,26 @@ export class LessonDriver extends BaseDriver {
         stage: 'design',
         lessonSnapshot: JSON.stringify(lessonSnapshot)
       };
-      
+
       const permissions = this.createUserPermissions(user.$id);
       return await this.create<Session>('sessions', sessionData, permissions);
-      
+
     } catch (error) {
       throw this.handleError(error, 'create session');
+    }
+  }
+
+  /**
+   * Helper to safely parse JSON strings - Phase 3.3 MVP2.5
+   */
+  private _parseJSON(data: string | undefined | null): any {
+    if (!data) return undefined;
+    if (typeof data !== 'string') return data; // Already parsed
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.warn('[LessonDriver] Failed to parse JSON:', data);
+      return undefined;
     }
   }
 

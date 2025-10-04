@@ -1,0 +1,272 @@
+
+{
+  "courseId": "course_c84774",
+  "title": "Teach: Selecting Appropriate Numerical Notation and Units",
+  "outcomeRefs": [
+    "1"
+  ],
+  "assessmentStandardRefs": [
+    "1.1"
+  ],
+  "accessibility_profile": {
+    "dyslexia_friendly": true,
+    "plain_language_level": "CEFR_B1",
+    "extra_time": false
+  },
+  "cards": [
+    {
+      "id": "c1_starter",
+      "title": "Starter: What's the Unit?",
+      "explainer": "Welcome! Today, we're learning how to write numbers, prices, and measurements correctly. This is a skill you'll use every day, especially when shopping or cooking. Let's start with a quick question to warm up our brains. Choose the best unit for the item listed.",
+      "explainer_plain": "Hi. Today we will learn about numbers and units.\nYou use these every day.\nLet's start with a warm-up question.\nChoose the best unit for the item.",
+      "cfu": {
+        "type": "mcq",
+        "id": "q1_units_diagnostic",
+        "stem": "You are weighing a bag of potatoes (tatties) at the supermarket. Which unit would you use?",
+        "options": [
+          {
+            "label": "millilitres (ml)",
+            "value": "ml"
+          },
+          {
+            "label": "kilograms (kg)",
+            "value": "kg"
+          },
+          {
+            "label": "centimetres (cm)",
+            "value": "cm"
+          },
+          {
+            "label": "pounds (£)",
+            "value": "pounds"
+          }
+        ],
+        "answerIndex": 1
+      },
+      "rubric": {
+        "total_points": 1,
+        "criteria": [
+          {
+            "description": "Correctly identifies 'kilograms' as the unit for weight.",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_UNITS_1",
+          "misconception": "Confusing units of volume (ml) with units of weight (kg). A student might think about the size of the bag rather than its mass.",
+          "clarification": "Remind students that kilograms (kg) and grams (g) are for measuring how heavy something is (its mass). Millilitres (ml) and litres (l) are for measuring liquids (their volume)."
+        },
+        {
+          "id": "MISC_MATH_UNITS_2",
+          "misconception": "Choosing pounds (£) because they associate potatoes with a price.",
+          "clarification": "Explain that the question asks for the unit of *weight*, not the unit of *cost*. We weigh the tatties in kilograms (kg) and then find out the price in pounds (£)."
+        }
+      ],
+      "context_hooks": [
+        "Use images of common Scottish supermarket items like a bag of tatties, a bottle of Irn-Bru, or a block of Scottish cheddar to make the context relatable."
+      ]
+    },
+    {
+      "id": "c2_modelling",
+      "title": "I Do: Shopping at Lidl",
+      "explainer": "When we work with money and measurements, we need to write them in a standard way so everyone understands. Let's look at a shopping trip to Lidl.\n\n**Money:**\nPrices can be in pounds (£) or pence (p). \n- If it's less than a pound, we usually use 'p'. For example, a banana costs **9p**.\n- If it's a pound or more, we use the '£' sign and a decimal point. A loaf of bread is **£1.45**. Always use two numbers after the decimal point for money. So, we write £1.50, not £1.5.\n\n**Measurements:**\nWe use different units for different things.\n- For weight, we use grams (g) and kilograms (kg). A small bag of crisps is **30g**, but a large bag of flour is **1.5kg**.\n- For volume (liquids), we use millilitres (ml) and litres (l). A can of juice is **330ml**, but a large bottle of milk is **2l**.\n\nLook at my example: I bought a bottle of milk. The label says '2 litres'. I write this as **2l**. It cost 'one pound twenty pence'. I write this as **£1.20**.",
+      "explainer_plain": "We need to write money and measurements correctly.\nLet's look at shopping at Lidl.\n\n**Money**\nUse pounds (£) or pence (p).\n- For less than £1, use 'p'. A banana is 9p.\n- For £1 or more, use '£' and a decimal point. Bread is £1.45.\n- Always use two numbers after the point. For example: £1.50.\n\n**Measurements**\n- Use grams (g) or kilograms (kg) for how heavy things are. Crisps are 30g. Flour is 1.5kg.\n- Use millilitres (ml) or litres (l) for liquids. A can of juice is 330ml. Milk is 2l.\n\n**Example**\nI buy milk.\n- The label says 2 litres. I write 2l.\n- It costs one pound twenty pence. I write £1.20.",
+      "cfu": {
+        "type": "short",
+        "id": "q2_notation_practice",
+        "stem": "A bottle of Irn-Bru at Tesco costs one pound and ninety-nine pence. Its volume is two litres. How would you write the price and the volume using the correct notation?",
+        "expected": "Price: £1.99, Volume: 2l"
+      },
+      "rubric": {
+        "total_points": 2,
+        "criteria": [
+          {
+            "description": "Correctly writes the price using the £ symbol and two decimal places (£1.99).",
+            "points": 1
+          },
+          {
+            "description": "Correctly writes the volume using the number and the unit 'l' (2l).",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_MONEY_1",
+          "misconception": "Writing prices like £1.99 as '1.99p' or '£1.99p', mixing notations.",
+          "clarification": "Show that the '£' sign at the start means the number is in pounds. The 'p' is only used for amounts less than a pound, and it goes at the end (e.g., 99p)."
+        },
+        {
+          "id": "MISC_MATH_DECIMAL_1",
+          "misconception": "Omitting the final zero for prices like £1.50, writing it as £1.5.",
+          "clarification": "Explain that money always needs two decimal places to show the pence properly. Show examples: £1.5 means one pound and five pence if we're not careful, but £1.50 is one pound and fifty pence."
+        }
+      ],
+      "context_hooks": [
+        "Use logos of Scottish or UK-wide supermarkets like Lidl, Tesco, Aldi, or Co-op to increase engagement."
+      ]
+    },
+    {
+      "id": "c3_guided_practice",
+      "title": "We Do: Price Check",
+      "explainer": "Work with a partner for this task. Imagine you are at an Aldi in Glasgow. You are trying to decide which bag of apples to buy.\n\n- **Bag A** is a 1.5 kilogram bag of Red Apples. It costs £2.05.\n- **Bag B** is a 900 gram bag of Green Apples. It costs £1.80.\n\nWith your partner, discuss and write down the weight and price for each bag using the correct units and notation.",
+      "explainer_plain": "Work with a partner.\nYou are in Aldi in Glasgow.\nYou want to buy apples.\n\n- Bag A has Red Apples. Weight is 1.5 kilograms. Price is £2.05.\n- Bag B has Green Apples. Weight is 900 grams. Price is £1.80.\n\nTalk to your partner.\nWrite the weight and price for each bag.\nUse the correct units and signs.",
+      "cfu": {
+        "type": "structured",
+        "id": "q3_price_check",
+        "stem": "Write down the correct notation for the weight and price of each bag of apples.",
+        "parts": [
+          {
+            "id": "q3a",
+            "stem": "Weight of Bag A:",
+            "type": "short",
+            "expected": "1.5kg"
+          },
+          {
+            "id": "q3b",
+            "stem": "Price of Bag A:",
+            "type": "short",
+            "expected": "£2.05"
+          },
+          {
+            "id": "q3c",
+            "stem": "Weight of Bag B:",
+            "type": "short",
+            "expected": "900g"
+          },
+          {
+            "id": "q3d",
+            "stem": "Price of Bag B:",
+            "type": "short",
+            "expected": "£1.80"
+          }
+        ]
+      },
+      "rubric": {
+        "total_points": 4,
+        "criteria": [
+          {
+            "description": "Correct notation for weight of Bag A (1.5kg).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for price of Bag A (£2.05).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for weight of Bag B (900g).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for price of Bag B (£1.80).",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_UNITS_3",
+          "misconception": "Writing 1.5 kilograms as '1kg 500g' or '1.5g'.",
+          "clarification": "Reinforce that the decimal point in '1.5kg' means 'one and a half kilograms'. Show the equivalence: 1.5kg = 1500g. For this task, sticking to the unit given is key."
+        },
+        {
+          "id": "MISC_MATH_DECIMAL_2",
+          "misconception": "Writing £2.05 as £2.5 or £2.50 because they misread the '05' part.",
+          "clarification": "Emphasise the importance of the zero as a placeholder. '05' means five pence, while '50' means fifty pence. Use a place value grid (Pounds . Tens pence, Units pence) to illustrate."
+        }
+      ],
+      "context_hooks": [
+        "Relate to budgeting and getting the best value, a key theme in the 'Managing Finance' part of the course. Ask an extension question: 'Which is better value?' to prompt discussion."
+      ]
+    },
+    {
+      "id": "c4_independent_practice",
+      "title": "You Do: My Shopping List",
+      "explainer": "Now it's your turn to work on your own. Read the shopping list below. It's written in words. Your task is to rewrite each item's measurement or price using the correct mathematical notation and units that you have learned today.",
+      "explainer_plain": "Now you work on your own.\nRead the shopping list.\nIt is written in words.\nRewrite each item.\nUse the correct numbers, signs and units.",
+      "cfu": {
+        "type": "structured",
+        "id": "q4_shopping_list",
+        "stem": "Rewrite the shopping list using correct numerical notation and units.",
+        "parts": [
+          {
+            "id": "q4a",
+            "stem": "A bag of carrots, one kilogram.",
+            "type": "short",
+            "expected": "1kg"
+          },
+          {
+            "id": "q4b",
+            "stem": "A carton of orange juice, seven hundred and fifty millilitres.",
+            "type": "short",
+            "expected": "750ml"
+          },
+          {
+            "id": "q4c",
+            "stem": "A box of cereal, costing three pounds and five pence.",
+            "type": "short",
+            "expected": "£3.05"
+          },
+          {
+            "id": "q4d",
+            "stem": "A chocolate bar, costing seventy-two pence.",
+            "type": "short",
+            "expected": "72p"
+          }
+        ]
+      },
+      "rubric": {
+        "total_points": 4,
+        "criteria": [
+          {
+            "description": "Correct notation for carrots (1kg).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for orange juice (750ml).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for cereal price (£3.05).",
+            "points": 1
+          },
+          {
+            "description": "Correct notation for chocolate bar price (72p).",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_NOTATION_1",
+          "misconception": "Writing 'seven hundred and fifty millilitres' as 700.50ml, confusing the number words.",
+          "clarification": "Break down the number: 'seven hundred' is 700, 'and fifty' is 50. So, it's 750. Practice reading numbers aloud and writing them down."
+        },
+        {
+          "id": "MISC_MATH_MONEY_2",
+          "misconception": "Choosing to write 72p as £0.72. While not strictly incorrect, the common convention is to use 'p' for values under £1.",
+          "clarification": "Explain that while £0.72 is the same value, it's more common to see '72p' on a price tag for a single, small item. Both are acceptable, but '72p' is the simpler, more direct notation in this context."
+        }
+      ],
+      "context_hooks": [
+        "This task can be extended by asking students to create their own short shopping list for a partner to solve, promoting peer assessment."
+      ]
+    }
+  ],
+  "createdBy": "lesson_author_agent",
+  "lesson_type": "teach",
+  "estMinutes": 50,
+  "version": 1,
+  "status": "draft",
+  "engagement_tags": [
+    "scottish_currency",
+    "metric_measurement",
+    "budgeting_with_scottish_living_wage"
+  ],
+  "policy": {
+    "calculator_allowed": false,
+    "assessment_notes": "Focus on understanding and selecting correct units (eg, £, p, cm, m, kg, g, ml, l) and notation (eg, decimal places for money)."
+  }
+}

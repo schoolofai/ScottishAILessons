@@ -1,0 +1,3 @@
+output/logs/*.log
+output/reports/*.json
+output/course_outcomes_imports/*.json

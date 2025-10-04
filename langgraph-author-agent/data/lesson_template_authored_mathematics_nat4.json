@@ -1,0 +1,246 @@
+{
+  "courseId": "course_c84774",
+  "title": "Selecting Appropriate Numerical Notation and Units",
+  "outcomeRefs": [
+    "1",
+    "1.1"
+  ],
+  "lesson_type": "teach",
+  "estMinutes": 50,
+  "sow_order": 1,
+  "createdBy": "lesson_author_agent",
+  "version": 1,
+  "status": "draft",
+  "engagement_tags": [
+    "finance",
+    "shopping",
+    "food",
+    "daily_life"
+  ],
+  "policy": {
+    "calculator_allowed": false
+  },
+  "cards": [
+    {
+      "id": "c1_starter",
+      "title": "Starter: Everyday Units",
+      "explainer": "Welcome! Today we're learning about the units we use for measuring and counting things in everyday life. Let's start by matching some common items to the units we use to measure them. This helps us understand why choosing the *right* unit is important.",
+      "explainer_plain": "We use units to measure things every day. Let's match items to their units. It is important to choose the right unit.",
+      "cfu": {
+        "type": "structured",
+        "id": "q1_starter_match",
+        "stem": "Match the item on the left with the most appropriate unit from the list on the right. Write the correct unit next to each item.",
+        "parts": [
+          {
+            "id": "q1_part1",
+            "stem": "1. A bag of sugar from Aldi",
+            "type": "short",
+            "expected": "kg"
+          },
+          {
+            "id": "q1_part2",
+            "stem": "2. A bottle of Irn-Bru",
+            "type": "short",
+            "expected": "ml"
+          },
+          {
+            "id": "q1_part3",
+            "stem": "3. The distance from Glasgow to Edinburgh",
+            "type": "short",
+            "expected": "miles"
+          },
+          {
+            "id": "q1_part4",
+            "stem": "4. The cost of a bus ticket",
+            "type": "short",
+            "expected": "£"
+          }
+        ],
+        "context": "List of units: miles, kg, £, ml"
+      },
+      "rubric": {
+        "total_points": 4,
+        "criteria": [
+          {
+            "description": "Correctly matches 'bag of sugar' with 'kg'",
+            "points": 1
+          },
+          {
+            "description": "Correctly matches 'bottle of Irn-Bru' with 'ml'",
+            "points": 1
+          },
+          {
+            "description": "Correctly matches 'distance' with 'miles'",
+            "points": 1
+          },
+          {
+            "description": "Correctly matches 'bus ticket' with '£'",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_UNITS_SCALE",
+          "misconception": "Choosing a unit that is the wrong size or scale for the item, for example, measuring the distance to Edinburgh in metres.",
+          "clarification": "Think about the size of the number you would get. If the number is huge or tiny, your unit might be the wrong scale. We choose units to make numbers easy to understand."
+        }
+      ],
+      "context_hooks": [
+        "Use local bus fares (e.g., Lothian Buses, First Bus Glasgow)",
+        "Reference common Scottish products and journeys."
+      ]
+    },
+    {
+      "id": "c2_modelling",
+      "title": "I Do: Reading a Supermarket Receipt",
+      "explainer": "Let's look at how shops write prices and weights. Here is a sample receipt from a Scottish supermarket.\\n\\n**Tesco Metro, Sauchiehall Street**\\n- Milk (1 litre): £1.65\\n- Bread (800g): £1.40\\n- Apples (1kg): £2.00\\n- Crisps: £0.95\\n\\n**Key things to notice:**\\n1.  **Money:** We use the pound sign (£) at the start and a decimal point to separate pounds from pence. £1.65 is 'one pound and sixty-five pence'. We don't write £1.65p.\\n2.  **Pence:** For items under a pound, like the crisps, we write £0.95. You can also write this as 95p. Both are correct, but you never mix them.\\n3.  **Weight:** We use 'g' for grams (for lighter things like bread) and 'kg' for kilograms (for heavier things like apples). Remember, 1 kg = 1000 g.\\n4.  **Volume:** We use 'ml' for millilitres and 'l' for litres to measure liquids. 1 l = 1000 ml.",
+      "explainer_plain": "Let's look at a shop receipt.\\nMoney uses a pound sign £ and a dot. For example, £1.65.\\nFor less than a pound, we write £0.95 or 95p.\\nWeight is in grams (g) or kilograms (kg).\\nDrinks are in millilitres (ml) or litres (l).",
+      "cfu": {
+        "type": "mcq",
+        "id": "q2_money_notation",
+        "stem": "A can of soup costs seventy-five pence. What is the correct way to write this using a pound sign (£)?",
+        "options": [
+          "£75p",
+          "£7.50",
+          "£0.75",
+          "£75.00"
+        ],
+        "answerIndex": 2
+      },
+      "rubric": {
+        "total_points": 1,
+        "criteria": [
+          {
+            "description": "Selects the correct notation £0.75",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_MONEY_NOTATION",
+          "misconception": "Mixing up pound and pence notation, for example writing £2.50p or £0.50p.",
+          "clarification": "Remember the rule: Use the '£' sign with a decimal point OR use the 'p' sign on its own. Never use both together."
+        },
+        {
+          "id": "MISC_MATH_METRIC_PREFIX",
+          "misconception": "Forgetting that 'kilo' means 1000. For example, thinking 1kg is 100g.",
+          "clarification": "Think 'kilo' = 1000. A kilogram is 1000 grams. A kilometre is 1000 metres. This prefix is very common."
+        }
+      ],
+      "context_hooks": [
+        "Use a real (or realistic) receipt from a local Scottish supermarket like Tesco, Aldi, Lidl, or Morrisons."
+      ]
+    },
+    {
+      "id": "c3_guided_practice",
+      "title": "We Do: Fixing a Recipe",
+      "explainer": "Let's work together on this. Here is a recipe for making Scottish shortbread, but some of the units are wrong, making the amounts ridiculous! Let's read it and decide on the correct, sensible unit for each ingredient.",
+      "explainer_plain": "Let's work together. This recipe has wrong units. We will choose the right unit for each thing.",
+      "cfu": {
+        "type": "structured",
+        "id": "q3_recipe_fix",
+        "stem": "This shortbread recipe has mistakes in the units. For each ingredient, state if the unit is CORRECT or WRONG. If it's wrong, write down the correct unit.",
+        "parts": [
+          {
+            "id": "q3_part1",
+            "stem": "1. Plain Flour: 250 kg",
+            "type": "short",
+            "expected": "Wrong, g"
+          },
+          {
+            "id": "q3_part2",
+            "stem": "2. Butter: 0.125 kg",
+            "type": "short",
+            "expected": "Correct"
+          },
+          {
+            "id": "q3_part3",
+            "stem": "3. Caster Sugar: 60 g",
+            "type": "short",
+            "expected": "Correct"
+          },
+          {
+            "id": "q3_part4",
+            "stem": "4. Milk for binding: 1 litre",
+            "type": "short",
+            "expected": "Wrong, ml"
+          }
+        ]
+      },
+      "rubric": {
+        "total_points": 4,
+        "criteria": [
+          {
+            "description": "Identifies flour unit as wrong and suggests 'g'",
+            "points": 1
+          },
+          {
+            "description": "Identifies butter unit as correct",
+            "points": 1
+          },
+          {
+            "description": "Identifies sugar unit as correct",
+            "points": 1
+          },
+          {
+            "description": "Identifies milk unit as wrong and suggests 'ml'",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_UNITS_CONTEXT",
+          "misconception": "Choosing a technically correct but contextually wrong unit. For example, stating the flour as 0.25kg is correct, but 'g' is more common in recipes.",
+          "clarification": "Think about where you would see this information. On a recipe card, grams (g) are most common for baking ingredients. The context helps us choose the *best* unit."
+        }
+      ],
+      "context_hooks": [
+        "Use a simple, well-known Scottish recipe like shortbread, tablet, or cranachan."
+      ]
+    },
+    {
+      "id": "c4_independent_practice",
+      "title": "You Do: Your Turn",
+      "explainer": "Now it's your turn to apply what you've learned. Read the following statements and choose the most sensible unit or notation from the options provided. Think carefully about the context of each statement.",
+      "explainer_plain": "Now you try. Read the sentence. Pick the best unit or number.",
+      "cfu": {
+        "type": "mcq",
+        "id": "q4_final_check",
+        "stem": "The new Scottish Living Wage is £12.00 per hour. An employee works for one hour and pays 55p for a snack from the vending machine. How much money do they have left?",
+        "options": [
+          "£11.45",
+          "£11.55",
+          "£12.55",
+          "£11.45p"
+        ],
+        "answerIndex": 0
+      },
+      "rubric": {
+        "total_points": 2,
+        "criteria": [
+          {
+            "description": "Correctly subtracts 55p from £12.00",
+            "points": 1
+          },
+          {
+            "description": "Selects the answer with the correct money notation (£11.45)",
+            "points": 1
+          }
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_SUBTRACT_PENCE",
+          "misconception": "Making an error when subtracting pence from a whole pound amount, or choosing an answer with incorrect notation like '£11.45p'.",
+          "clarification": "When working with money, it's easiest to think in pence (£12.00 is 1200p) or to line up the decimal points carefully. Always double-check that your final answer is written in a correct format."
+        }
+      ],
+      "context_hooks": [
+        "Use current, relevant financial information like the Scottish Living Wage."
+      ]
+    }
+  ]
+}

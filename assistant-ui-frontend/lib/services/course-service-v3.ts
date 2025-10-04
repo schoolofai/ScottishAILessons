@@ -5,6 +5,7 @@ import { StudentDriver } from '../appwrite/driver/StudentDriver';
 import { Query } from 'appwrite';
 import { NextResponse } from 'next/server';
 import { createApiHeaders } from '../middleware/auth';
+import { CourseOutcome } from '../types/course-outcomes';
 
 /**
  * CourseServiceV3 - Uses course_outcome document IDs as references
@@ -189,26 +190,28 @@ export class CourseServiceV3 extends BaseDriver {
 
   /**
    * Get all course outcomes for a course (source of truth)
+   * Returns outcomes in SQA-aligned structure with outcomeId and outcomeTitle
    */
-  private async getCourseOutcomes(courseId: string) {
+  private async getCourseOutcomes(courseId: string): Promise<CourseOutcome[]> {
     try {
       console.log('[CourseServiceV3] Getting course outcomes for:', courseId);
 
       const outcomes = await this.list('course_outcomes', [
         Query.equal('courseId', courseId),
-        Query.orderAsc('outcomeRef')
+        Query.orderAsc('outcomeId')  // ✅ Sort by outcomeId (O1, O2, O3...)
       ]);
 
       console.log('[CourseServiceV3] Found course outcomes:', {
         count: outcomes.length,
         sampleOutcomes: outcomes.slice(0, 3).map(o => ({
           id: o.$id,
-          outcomeRef: o.outcomeRef,
-          title: o.title
+          outcomeId: o.outcomeId,        // ✅ NEW: e.g., "O1"
+          outcomeTitle: o.outcomeTitle,  // ✅ NEW: Full title
+          unitCode: o.unitCode            // ✅ NEW: e.g., "HV7Y 73"
         }))
       });
 
-      return outcomes;
+      return outcomes as CourseOutcome[];
 
     } catch (error) {
       console.error('[CourseServiceV3] Error getting course outcomes:', error);

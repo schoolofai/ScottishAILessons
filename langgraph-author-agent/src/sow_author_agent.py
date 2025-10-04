@@ -5,6 +5,12 @@ import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from deepagents import async_create_deep_agent
 
+# Dual-import pattern for custom state schema
+try:
+    from src.sow_author_state import SowAuthorState
+except ImportError:
+    from sow_author_state import SowAuthorState
+
 # Dual-import pattern for prompts
 try:
     from src.sow_author_prompts import (
@@ -133,6 +139,7 @@ sow_authenticity_scotland = {
 # =============================================================================
 
 # Create the SoW Author DeepAgent with all 8 subagents
+# Uses custom state schema with todos reducer to prevent InvalidUpdateError
 agent = async_create_deep_agent(
     model=gemini,
     tools=all_tools,  # Tavily + Appwrite for full orchestration capability
@@ -147,4 +154,5 @@ agent = async_create_deep_agent(
         sow_accessibility_engage,
         sow_authenticity_scotland
     ],
+    context_schema=SowAuthorState,  # Custom state with todos reducer (prevents InvalidUpdateError on concurrent critic updates)
 ).with_config({"recursion_limit": 1000})

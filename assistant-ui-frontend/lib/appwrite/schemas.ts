@@ -70,6 +70,9 @@ export const LessonTemplateSchema = z.object({
   courseId: z.string(), // Allow spaces in course ID like "C844 73"
   title: createSecureStringSchema(1, 200, 'Lesson title'),
 
+  // SOW order for deterministic template identification (courseId + sow_order = unique)
+  sow_order: z.number().int().min(1).max(1000).optional(),
+
   // Handle JSON string that needs parsing (Appwrite stores as string)
   outcomeRefs: z.union([
     z.array(z.any()), // Already parsed array
