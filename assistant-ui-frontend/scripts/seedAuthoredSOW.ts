@@ -132,6 +132,80 @@ function generateTeacherGuidance(assessmentStandards: any[]): string {
 }
 
 /**
+ * Parse subject and level from SOW filename
+ *
+ * Filename format: <subject>_<level>.json
+ * Example: "application-of-mathematics_national-4.json"
+ *
+ * Returns subject and level with hyphens preserved as-is (no transformation)
+ *
+ * @param fileName - SOW filename (e.g., "application-of-mathematics_national-4.json")
+ * @returns Object with subject and level fields
+ * @throws Error if filename doesn't match expected pattern
+ */
+function parseSubjectLevel(fileName: string): { subject: string; level: string } {
+  // Remove .json extension
+  const baseName = fileName.replace('.json', '');
+
+  // Split by underscore - first part is subject, rest is level
+  const underscoreIndex = baseName.indexOf('_');
+  if (underscoreIndex === -1) {
+    throw new Error(`Invalid filename format: ${fileName} (expected <subject>_<level>.json)`);
+  }
+
+  const subject = baseName.substring(0, underscoreIndex);
+  const level = baseName.substring(underscoreIndex + 1);
+
+  return { subject, level };
+}
+
+/**
+ * Ensure course document exists before creating child data
+ *
+ * This function prevents orphaned foreign key references by creating the parent
+ * course document if it doesn't exist. Appwrite's NoSQL database doesn't enforce
+ * referential integrity, so this acts as an application-level FK constraint.
+ *
+ * @param databases - Appwrite Databases instance
+ * @param courseId - Course ID (format: course_<code>)
+ * @param subject - Subject identifier with hyphens (e.g., "application-of-mathematics")
+ * @param level - Level identifier with hyphens (e.g., "national-4")
+ */
+async function ensureCourseExists(
+  databases: Databases,
+  courseId: string,
+  subject: string,
+  level: string
+): Promise<void> {
+  // Check if course already exists
+  const existing = await databases.listDocuments(
+    'default',
+    'courses',
+    [Query.equal('courseId', courseId)]
+  );
+
+  if (existing.documents.length > 0) {
+    console.log(`  ✅ Course exists: ${courseId}`);
+    return;
+  }
+
+  // Create course with simplified schema v2
+  console.log(`  🔨 Creating missing course: ${courseId}`);
+  await databases.createDocument(
+    'default',
+    'courses',
+    'unique()',
+    {
+      courseId,
+      subject,
+      level,
+      schema_version: 2
+    }
+  );
+  console.log(`  ✅ Created course: ${courseId} (${subject} - ${level})`);
+}
+
+/**
  * PHASE -2: Extract outcomes from SQA collection (Auto-Skip if Import File Exists)
  */
 async function extractOutcomesFromSQA(
@@ -873,11 +947,14 @@ async function seedSingleSOW(sowFilePath: string): Promise<void> {
   console.log(`   Status: ${sowData.status}`);
   console.log(`   Entries: ${sowData.entries.length} lessons\n`);
 
-  // Parse subject/level from filename (e.g., "mathematics_national-4.json")
+  // Parse subject/level from filename using new helper function
+  // Filename format: <subject>_<level>.json (e.g., "application-of-mathematics_national-4.json")
   const fileName = path.basename(sowFilePath, '.json');
-  const parts = fileName.split('_');
-  const subject = parts[0].replace(/-/g, '_'); // Convert hyphens to underscores for SQA query
-  const level = parts.slice(1).join('_').replace(/-/g, '_'); // Also convert level hyphens
+  const { subject: subjectRaw, level: levelRaw } = parseSubjectLevel(fileName + '.json');
+
+  // For SQA queries, we need underscored versions (SQA collection uses underscores)
+  const subject = subjectRaw.replace(/-/g, '_');
+  const level = levelRaw.replace(/-/g, '_');
 
   // Derive output directory (assumes Seeding_Data structure)
   // sowFilePath is like: .../Seeding_Data/input/sows/mathematics_national-4.json
@@ -885,8 +962,16 @@ async function seedSingleSOW(sowFilePath: string): Promise<void> {
   const seedingDataDir = path.dirname(path.dirname(sowFilePath));
   const outputDir = path.join(seedingDataDir, 'output');
 
-  console.log(`📋 Detected: subject="${subject}", level="${level}"`);
+  console.log(`📋 Detected: subject="${subjectRaw}", level="${levelRaw}"`);
+  console.log(`   SQA query will use: subject="${subject}", level="${level}"`);
   console.log(`📁 Output directory: ${outputDir}\n`);
+
+  // ============================================================
+  // PHASE -3: Ensure Course Document Exists
+  // ============================================================
+  console.log('📦 PHASE -3: Ensure Course Document Exists');
+  await ensureCourseExists(databases, sowData.courseId, subjectRaw, levelRaw);
+  console.log('');
 
   // ============================================================
   // PHASE -2: Extract Outcomes from SQA
