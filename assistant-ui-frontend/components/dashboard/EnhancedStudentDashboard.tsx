@@ -127,51 +127,53 @@ export function EnhancedStudentDashboard() {
     }
   };
 
-  // Load courses using client-side Appwrite SDK
+  // Load courses using client-side Appwrite SDK - MVP2 Phase 1: Enrollment Filtering
   const loadCoursesClientSide = async (databases: any, student: any) => {
     try {
       setCoursesLoading(true);
       setCoursesError(null);
 
-      const coursesResult = await databases.listDocuments('default', 'courses');
-
-      // Check enrollment and auto-enroll if needed
       const { Query } = await import('appwrite');
+
+      // 1. Get student's enrollments
       const enrollmentsResult = await databases.listDocuments(
         'default',
         'enrollments',
-        [
-          Query.equal('studentId', student.$id),
-          Query.equal('courseId', 'C844 73')
-        ]
+        [Query.equal('studentId', student.$id)]
       );
 
+      // 2. Check if student has any enrollments
       if (enrollmentsResult.documents.length === 0) {
-        const { ID } = await import('appwrite');
-        // Auto-enroll in National 3 course
-        await databases.createDocument(
-          'default',
-          'enrollments',
-          ID.unique(),
-          {
-            studentId: student.$id,
-            courseId: 'C844 73',
-            role: 'student'
-          },
-          [`read("user:${student.userId}")`, `write("user:${student.userId}")`]
-        );
+        // NO ENROLLMENTS - Redirect to course catalog
+        console.log('[Dashboard] No enrollments found, redirecting to catalog');
+        // TODO: router.push('/courses/catalog') when catalog page exists
+        setCoursesError('No enrollments found. Please enroll in a course to get started.');
+        return;
       }
+
+      // 3. Get enrolled course IDs
+      const enrolledCourseIds = enrollmentsResult.documents.map((e: any) => e.courseId);
+
+      // 4. Fetch only enrolled courses
+      const coursesResult = await databases.listDocuments(
+        'default',
+        'courses',
+        [Query.equal('courseId', enrolledCourseIds)]
+      );
 
       const coursesData = coursesResult.documents;
       setCourses(coursesData);
 
-      // Transform courses for navigation tabs using utility function
+      // 5. Transform courses for navigation tabs using utility function
       const transformedCourses = transformCoursesForNavigation(coursesData);
       setCourseData(transformedCourses);
 
-      debugLog('Courses loaded and transformed', { count: transformedCourses.length });
+      console.log('[Dashboard] Loaded enrolled courses:', {
+        enrollmentCount: enrollmentsResult.documents.length,
+        courseCount: transformedCourses.length
+      });
 
-      // Set initial active course
+      // 6. Set initial active course
       if (transformedCourses.length > 0 && !activeCourse) {
         const firstCourse = transformedCourses[0];
         setActiveCourse(firstCourse.id);
@@ -179,7 +181,7 @@ export function EnhancedStudentDashboard() {
         await loadRecommendations(firstCourse.id, student);
       }
     } catch (err) {
-      console.error("Failed to load courses:", err);
+      console.error('[Dashboard] Failed to load courses:', err);
       setCoursesError(formatErrorMessage(err));
     } finally {
       setCoursesLoading(false);

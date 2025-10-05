@@ -47,9 +47,28 @@ interface AuthoredSOWEntry {
   cards?: any[];
 }
 
+/**
+ * SOW Context Metadata - course-level metadata from Authored_SOW
+ */
+interface SOWContextMetadata {
+  coherence: {
+    policy_notes: string[];
+    sequencing_notes: string[];
+  };
+  accessibility_notes: string[];
+  engagement_notes: string[];
+  weeks: number;
+  periods_per_week: number;
+}
+
 interface AuthoredSOW {
   courseId: string;
   entries: AuthoredSOWEntry[];
+  coherence?: string | { policy_notes?: string[]; sequencing_notes?: string[] };
+  accessibility_notes?: string | string[];
+  engagement_notes?: string | string[];
+  weeks?: number;
+  periods_per_week?: number;
   [key: string]: any;
 }
 
@@ -91,21 +110,39 @@ async function main() {
     console.log(`✅ Loaded resource pack (version ${resourcePack.research_pack_version || 'N/A'})`);
     console.log('');
 
-    // Step 2: Get Authored SOW entry
-    console.log('📚 Fetching Authored SOW entry...');
-    const sowEntry = await getAuthoredSOWEntry(databases, courseId, order);
+    // Step 2: Get Authored SOW document (full document with metadata)
+    console.log('📚 Fetching Authored SOW document...');
+    const authoredSOW = await getAuthoredSOW(databases, courseId);
+    console.log(`✅ Found Authored SOW for course: ${courseId}`);
+    console.log(`   Total entries: ${authoredSOW.entries.length}`);
+    console.log('');
+
+    // Step 3: Extract SOW entry for the specified order
+    console.log(`🔍 Extracting entry at order ${order}...`);
+    const sowEntry = await getSOWEntryByOrder(authoredSOW, order);
     console.log(`✅ Found entry: "${sowEntry.label}"`);
     console.log(`   Type: ${sowEntry.lesson_type}`);
     console.log(`   Duration: ${sowEntry.estMinutes} minutes`);
     console.log('');
 
-    // Step 3: Create dual JSON input
-    console.log('🔧 Creating dual JSON input...');
-    const dualInput = createDualInput(sowEntry, resourcePack);
-    console.log(`✅ Created input (${dualInput.length} characters)`);
+    // Step 4: Parse SOW metadata
+    console.log('📋 Parsing SOW context metadata...');
+    const sowMetadata = parseSOWMetadata(authoredSOW);
+    console.log(`✅ Extracted metadata:`);
+    console.log(`   Policy notes: ${sowMetadata.coherence.policy_notes.length}`);
+    console.log(`   Sequencing notes: ${sowMetadata.coherence.sequencing_notes.length}`);
+    console.log(`   Accessibility notes: ${sowMetadata.accessibility_notes.length}`);
+    console.log(`   Engagement notes: ${sowMetadata.engagement_notes.length}`);
+    console.log(`   Duration: ${sowMetadata.weeks} weeks × ${sowMetadata.periods_per_week} periods/week`);
     console.log('');
 
-    // Step 4: Run lesson author agent with retry logic
+    // Step 5: Create triple JSON input
+    console.log('🔧 Creating triple JSON input...');
+    const tripleInput = createTripleInput(sowEntry, resourcePack, sowMetadata);
+    console.log(`✅ Created input (${tripleInput.length} characters)`);
+    console.log('');
+
+    // Step 6: Run lesson author agent with retry logic
     console.log('🤖 Invoking lesson_author agent with error recovery...');
     console.log(`   URL: ${LANGGRAPH_URL}`);
 
@@ -120,7 +157,7 @@ async function main() {
     console.log(`   Log file: ${logFile}`);
     console.log('');
 
-    const lessonTemplate = await runLessonAuthorAgent(dualInput, LANGGRAPH_URL, logFile);
+    const lessonTemplate = await runLessonAuthorAgent(tripleInput, LANGGRAPH_URL, logFile);
     console.log('✅ Lesson template generated');
     console.log(`   Title: ${lessonTemplate.title || 'N/A'}`);
     console.log(`   Type: ${lessonTemplate.lesson_type || 'N/A'}`);
@@ -128,7 +165,7 @@ async function main() {
     console.log(`   Cards: ${lessonTemplate.cards?.length || 0}`);
     console.log('');
 
-    // Step 5: Upsert to lesson_templates
+    // Step 7: Upsert to lesson_templates
     console.log('💾 Upserting to lesson_templates...');
     const result = await upsertLessonTemplate(databases, lessonTemplate, courseId, order);
     console.log(`✅ ${result.action} lesson template`);
@@ -162,13 +199,12 @@ async function loadResourcePack(filePath: string): Promise<any> {
 }
 
 /**
- * Get Authored SOW entry by courseId and order
+ * Get full Authored SOW document by courseId
  */
-async function getAuthoredSOWEntry(
+async function getAuthoredSOW(
   databases: Databases,
-  courseId: string,
-  order: number
-): Promise<AuthoredSOWEntry> {
+  courseId: string
+): Promise<AuthoredSOW> {
   // Query for Authored_SOW document with matching courseId
   const response = await databases.listDocuments(
     DATABASE_ID,
@@ -183,28 +219,100 @@ async function getAuthoredSOWEntry(
   const sowDoc = response.documents[0] as unknown as AuthoredSOW;
 
   // Parse entries if stored as JSON string
-  let entries = sowDoc.entries;
-  if (typeof entries === 'string') {
-    entries = JSON.parse(entries);
+  if (typeof sowDoc.entries === 'string') {
+    sowDoc.entries = JSON.parse(sowDoc.entries);
   }
 
-  if (!Array.isArray(entries)) {
+  if (!Array.isArray(sowDoc.entries)) {
     throw new Error('entries field is not an array');
   }
 
-  if (order < 0 || order >= entries.length) {
-    throw new Error(`Order ${order} out of range (0-${entries.length - 1})`);
-  }
-
-  return entries[order];
+  return sowDoc;
 }
 
 /**
- * Create dual JSON input for lesson_author agent
- * Format: <sow_entry_json>,\n<resource_pack_json>
+ * Extract SOW entry by order from AuthoredSOW document
  */
-function createDualInput(sowEntry: AuthoredSOWEntry, resourcePack: any): string {
-  return JSON.stringify(sowEntry) + ',\n' + JSON.stringify(resourcePack);
+async function getSOWEntryByOrder(
+  authoredSOW: AuthoredSOW,
+  order: number
+): Promise<AuthoredSOWEntry> {
+  if (order < 0 || order >= authoredSOW.entries.length) {
+    throw new Error(`Order ${order} out of range (0-${authoredSOW.entries.length - 1})`);
+  }
+
+  return authoredSOW.entries[order];
+}
+
+/**
+ * Parse SOW metadata from AuthoredSOW document
+ * Extracts course-level context for lesson authoring
+ */
+function parseSOWMetadata(authoredSOW: AuthoredSOW): SOWContextMetadata {
+  // Parse coherence field if it's a JSON string
+  let coherence: { policy_notes?: string[]; sequencing_notes?: string[] } = {};
+  if (typeof authoredSOW.coherence === 'string') {
+    try {
+      coherence = JSON.parse(authoredSOW.coherence);
+    } catch (error) {
+      console.warn('⚠️  Failed to parse coherence field, using empty object');
+    }
+  } else if (authoredSOW.coherence) {
+    coherence = authoredSOW.coherence;
+  }
+
+  // Parse accessibility_notes if it's a JSON string
+  let accessibility_notes: string[] = [];
+  if (typeof authoredSOW.accessibility_notes === 'string') {
+    try {
+      accessibility_notes = JSON.parse(authoredSOW.accessibility_notes);
+    } catch (error) {
+      // If parsing fails, treat as a single note
+      accessibility_notes = [authoredSOW.accessibility_notes];
+    }
+  } else if (Array.isArray(authoredSOW.accessibility_notes)) {
+    accessibility_notes = authoredSOW.accessibility_notes;
+  }
+
+  // Parse engagement_notes if it's a JSON string
+  let engagement_notes: string[] = [];
+  if (typeof authoredSOW.engagement_notes === 'string') {
+    try {
+      engagement_notes = JSON.parse(authoredSOW.engagement_notes);
+    } catch (error) {
+      // If parsing fails, treat as a single note
+      engagement_notes = [authoredSOW.engagement_notes];
+    }
+  } else if (Array.isArray(authoredSOW.engagement_notes)) {
+    engagement_notes = authoredSOW.engagement_notes;
+  }
+
+  return {
+    coherence: {
+      policy_notes: coherence.policy_notes || [],
+      sequencing_notes: coherence.sequencing_notes || []
+    },
+    accessibility_notes: accessibility_notes,
+    engagement_notes: engagement_notes,
+    weeks: authoredSOW.weeks || 0,
+    periods_per_week: authoredSOW.periods_per_week || 0
+  };
+}
+
+/**
+ * Create triple JSON input for lesson_author agent
+ * Format: <sow_entry_json>,\n<resource_pack_json>,\n<sow_metadata_json>
+ */
+function createTripleInput(
+  sowEntry: AuthoredSOWEntry,
+  resourcePack: any,
+  sowMetadata: SOWContextMetadata
+): string {
+  return (
+    JSON.stringify(sowEntry) + ',\n' +
+    JSON.stringify(resourcePack) + ',\n' +
+    JSON.stringify(sowMetadata)
+  );
 }
 
 /**
@@ -222,7 +330,7 @@ function createDualInput(sowEntry: AuthoredSOWEntry, resourcePack: any): string 
  * - Exponential backoff between retries
  */
 async function runLessonAuthorAgent(
-  dualInput: string,
+  tripleInput: string,
   langgraphUrl: string,
   logFilePath: string
 ): Promise<any> {
@@ -245,10 +353,10 @@ async function runLessonAuthorAgent(
     console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
 
     try {
-      // First attempt: send dual input
+      // First attempt: send triple input (SOW entry, resource pack, SOW metadata)
       // Subsequent attempts: send "continue" to resume
       const input = attempt === 1
-        ? { messages: [{ role: 'user', content: dualInput }] }
+        ? { messages: [{ role: 'user', content: tripleInput }] }
         : { messages: [{ role: 'user', content: 'continue' }] };
 
       // Stream agent execution

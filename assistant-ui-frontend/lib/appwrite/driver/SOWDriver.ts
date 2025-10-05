@@ -1,26 +1,32 @@
-import { Query } from 'appwrite';
+import { Query, ID } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
-import type { AuthoredSOWData } from '../types';
+import type { AuthoredSOWData, AuthoredSOWEntry, AuthoredSOWMetadata } from '../types';
 
-export interface SOWEntry {
-  order: number;
-  lessonTemplateId: string;
-  plannedAt?: string;
-  _metadata?: {
-    label?: string;
-    lesson_type?: string;
-    estMinutes?: number;
+// REMOVED: SOWEntry interface - entries now come from Authored_SOW via dereference
+
+export interface StudentCustomizations {
+  entries?: {
+    [order: number]: {
+      plannedAt?: string;
+      skipped?: boolean;
+      notes?: string;
+      custom_lesson_id?: string;
+      added_manually?: boolean;
+    };
   };
+  preferences?: any;
 }
 
 export interface SOWData {
   studentId: string;
   courseId: string;
-  entries: SOWEntry[];
+  entries: AuthoredSOWEntry[];  // From dereferenced Authored_SOW
+  metadata: AuthoredSOWMetadata;  // From dereferenced Authored_SOW
+  accessibility_notes?: string;  // From dereferenced Authored_SOW
   createdAt: string;
-  source_sow_id?: string; // NEW - Phase 2: tracks Authored_SOW source
-  source_version?: string; // NEW - Phase 2: tracks version copied
-  customizations?: any; // NEW - Phase 2: student-specific modifications
+  source_sow_id: string;  // Required - Authored_SOW document ID
+  source_version: string;  // Required - version identifier
+  customizations?: StudentCustomizations;
 }
 
 /**
@@ -29,13 +35,13 @@ export interface SOWData {
 export class SOWDriver extends BaseDriver {
   /**
    * Get SOW for specific enrollment (studentId + courseId)
-   * Falls back to consolidating legacy scheme_of_work entries if SOWV2 not found
+   * Uses reference-based architecture: dereferences to Authored_SOW for curriculum data
    */
   async getSOWForEnrollment(studentId: string, courseId: string): Promise<SOWData | null> {
     try {
       console.log('[SOWDriver Debug] Starting getSOWForEnrollment with:', { studentId, courseId });
 
-      // Try to get from SOWV2 first
+      // Step 1: Get SOWV2 reference record
       const queries = [
         Query.equal('studentId', studentId),
         Query.equal('courseId', courseId),
@@ -46,136 +52,118 @@ export class SOWDriver extends BaseDriver {
       const records = await this.list('SOWV2', queries);
       console.log('[SOWDriver Debug] SOWV2 query result:', { recordCount: records.length, records });
 
-      if (records.length > 0) {
-        const record = records[0];
-        return {
-          studentId: record.studentId,
-          courseId: record.courseId,
-          entries: JSON.parse(record.entries || '[]'),
-          createdAt: record.createdAt
-        };
+      if (records.length === 0) {
+        console.log('[SOWDriver Debug] No SOWV2 records found');
+        return null;
       }
 
-      // Fallback: consolidate legacy scheme_of_work entries
-      console.log('[SOWDriver Debug] No SOWV2 records found, falling back to legacy SOW consolidation');
-      return await this.consolidateLegacySOW(studentId, courseId);
+      const sowRecord = records[0];
+
+      // Step 2: Dereference to Authored_SOW
+      if (!sowRecord.source_authored_sow_id) {
+        throw new Error(
+          `SOWV2 record for ${studentId}/${courseId} missing source_authored_sow_id. ` +
+          `This record may need migration. Run: npm run migrate-sowv2`
+        );
+      }
+
+      console.log('[SOWDriver Debug] Dereferencing to Authored_SOW:', sowRecord.source_authored_sow_id);
+
+      const authoredSOW = await this.get('Authored_SOW', sowRecord.source_authored_sow_id);
+
+      if (!authoredSOW) {
+        throw new Error(
+          `Authored_SOW document ${sowRecord.source_authored_sow_id} not found ` +
+          `(referenced by SOWV2 for ${studentId}/${courseId})`
+        );
+      }
+
+      // Step 3: Parse Authored_SOW data
+      const authoredEntries: AuthoredSOWEntry[] = JSON.parse(authoredSOW.entries || '[]');
+      const authoredMetadata: AuthoredSOWMetadata = JSON.parse(authoredSOW.metadata || '{}');
+
+      console.log('[SOWDriver Debug] Dereferenced curriculum:', {
+        entries: authoredEntries.length,
+        version: sowRecord.source_version
+      });
+
+      // Step 4: Parse customizations
+      const customizations: StudentCustomizations = sowRecord.customizations
+        ? JSON.parse(sowRecord.customizations)
+        : {};
+
+      // Step 5: Return combined data
+      return {
+        studentId: sowRecord.studentId,
+        courseId: sowRecord.courseId,
+        entries: authoredEntries,  // From Authored_SOW
+        metadata: authoredMetadata,  // From Authored_SOW
+        accessibility_notes: authoredSOW.accessibility_notes,  // From Authored_SOW
+        createdAt: sowRecord.createdAt,
+        source_sow_id: sowRecord.source_authored_sow_id,
+        source_version: sowRecord.source_version || 'unknown',
+        customizations
+      };
     } catch (error) {
       throw this.handleError(error, 'get SOW for enrollment');
     }
   }
 
   /**
-   * Consolidate legacy sow entries into SOWV2 format
-   * and optionally cache the result
+   * @deprecated Legacy consolidation removed in reference architecture
+   * Use Authored_SOW as the source of curriculum data
    */
   private async consolidateLegacySOW(studentId: string, courseId: string, cacheResult: boolean = true): Promise<SOWData | null> {
-    try {
-      // Query legacy sow entries - note: sow is course-level, not student-specific
-      const legacyEntries = await this.list('sow', [
-        Query.equal('courseId', courseId),
-        Query.orderAsc('weekNumber')
-      ]);
-
-      if (legacyEntries.length === 0) {
-        return null;
-      }
-
-      // Convert sow structure to SOWV2 format
-      // sow has: courseId, weekNumber, lessonIds (JSON string array)
-      // SOWV2 needs: studentId, courseId, entries (with order, lessonTemplateId)
-      const entries: SOWEntry[] = [];
-      let order = 1;
-
-      for (const entry of legacyEntries) {
-        try {
-          const lessonIds = JSON.parse(entry.lessonIds || '[]');
-          for (const lessonId of lessonIds) {
-            entries.push({
-              order: order++,
-              lessonTemplateId: lessonId,
-              plannedAt: undefined // sow doesn't have specific planning dates
-            });
-          }
-        } catch (parseError) {
-          console.warn(`Failed to parse lessonIds for sow entry ${entry.$id}:`, parseError);
-        }
-      }
-
-      if (entries.length === 0) {
-        return null;
-      }
-
-      const sowData: SOWData = {
-        studentId,
-        courseId,
-        entries,
-        createdAt: legacyEntries[0]?.$createdAt || new Date().toISOString()
-      };
-
-      // Optionally cache in SOWV2 for future lookups
-      if (cacheResult) {
-        try {
-          await this.upsertSOW(sowData);
-          console.log(`Consolidated legacy SOW for ${studentId}/${courseId} into SOWV2`);
-        } catch (cacheError) {
-          // Don't fail if caching fails, just log
-          console.warn('Failed to cache consolidated SOW:', cacheError);
-        }
-      }
-
-      return sowData;
-    } catch (error) {
-      throw this.handleError(error, 'consolidate legacy SOW');
-    }
+    throw new Error(
+      'consolidateLegacySOW is deprecated. Reference architecture requires Authored_SOW. ' +
+      'Ensure an Authored_SOW exists for this course and create SOWV2 reference via copyFromAuthoredSOW().'
+    );
   }
 
   /**
-   * Create or update SOW for enrollment
+   * Create or update SOWV2 reference (reference architecture)
+   * NOTE: Does NOT store entries - they are dereferenced from Authored_SOW
    */
   async upsertSOW(sowData: SOWData): Promise<any> {
     try {
-      // Skip user/permissions for Databases-only initialization (planner service usage)
+      // Validate required reference fields
+      if (!sowData.source_sow_id) {
+        throw new Error('source_sow_id is required for SOWV2 records (reference architecture)');
+      }
+
+      // Skip user/permissions for Databases-only initialization
       let permissions: string[] = [];
       try {
         const user = await this.getCurrentUser();
         permissions = this.createUserPermissions(user.$id);
       } catch (error) {
-        // For Databases-only drivers, use empty permissions (server-side operations)
-        console.warn('SOWDriver: Using empty permissions - initialized with Databases instance only');
+        console.warn('[SOWDriver] Using empty permissions - Databases-only instance');
       }
 
       // Check if record exists
-      const existing = await this.getSOWForEnrollment(sowData.studentId, sowData.courseId);
+      const existingRecords = await this.list('SOWV2', [
+        Query.equal('studentId', sowData.studentId),
+        Query.equal('courseId', sowData.courseId),
+        Query.limit(1)
+      ]);
 
       const docData: any = {
         studentId: sowData.studentId,
         courseId: sowData.courseId,
-        entries: JSON.stringify(sowData.entries),
+        source_authored_sow_id: sowData.source_sow_id,  // Required reference
+        source_version: sowData.source_version || 'unknown',
         createdAt: sowData.createdAt
+        // NOTE: entries NOT stored in SOWV2 - dereferenced from Authored_SOW
       };
 
-      // Add Phase 2 fields if present
-      if (sowData.source_sow_id !== undefined) {
-        docData.source_sow_id = sowData.source_sow_id;
-      }
-      if (sowData.source_version !== undefined) {
-        docData.source_version = sowData.source_version;
-      }
+      // Add customizations if present
       if (sowData.customizations !== undefined) {
         docData.customizations = JSON.stringify(sowData.customizations);
       }
 
-      if (existing) {
-        // Update existing record - find by querying since we need the document ID
-        const existingRecords = await this.list('SOWV2', [
-          Query.equal('studentId', sowData.studentId),
-          Query.equal('courseId', sowData.courseId),
-          Query.limit(1)
-        ]);
-
-        if (existingRecords.length > 0) {
-          return await this.update('SOWV2', existingRecords[0].$id, docData);
-        }
+      if (existingRecords.length > 0) {
+        // Update existing record
+        return await this.update('SOWV2', existingRecords[0].$id, docData);
       }
 
       // Create new record
@@ -186,110 +174,86 @@ export class SOWDriver extends BaseDriver {
   }
 
   /**
-   * Initialize SOW for new enrollment with template sequence
+   * @deprecated Use copyFromAuthoredSOW() instead
+   * Reference architecture creates SOWV2 from Authored_SOW, not lesson IDs
    */
   async createSOW(studentId: string, courseId: string, lessonTemplateIds: string[]): Promise<any> {
-    try {
-      const entries: SOWEntry[] = lessonTemplateIds.map((templateId, index) => ({
-        order: index + 1,
-        lessonTemplateId: templateId
-      }));
-
-      const sowData: SOWData = {
-        studentId,
-        courseId,
-        entries,
-        createdAt: new Date().toISOString()
-      };
-
-      return await this.upsertSOW(sowData);
-    } catch (error) {
-      throw this.handleError(error, 'create SOW');
-    }
+    throw new Error(
+      'createSOW is deprecated. Use copyFromAuthoredSOW() to create SOWV2 reference from Authored_SOW template.'
+    );
   }
 
   /**
-   * Update SOW entries (reorder, add, remove lessons)
+   * @deprecated Curriculum entries come from Authored_SOW (read-only via dereference)
+   * Use updateCustomizations() to modify student-specific settings
    */
-  async updateSOWEntries(studentId: string, courseId: string, newEntries: SOWEntry[]): Promise<any> {
-    try {
-      const existing = await this.getSOWForEnrollment(studentId, courseId);
-
-      if (!existing) {
-        throw new Error('SOW not found for enrollment');
-      }
-
-      // Ensure entries are properly ordered
-      const sortedEntries = newEntries
-        .map((entry, index) => ({ ...entry, order: index + 1 }))
-        .sort((a, b) => a.order - b.order);
-
-      const sowData: SOWData = {
-        ...existing,
-        entries: sortedEntries
-      };
-
-      return await this.upsertSOW(sowData);
-    } catch (error) {
-      throw this.handleError(error, 'update SOW entries');
-    }
+  async updateSOWEntries(studentId: string, courseId: string, newEntries: AuthoredSOWEntry[]): Promise<any> {
+    throw new Error(
+      'updateSOWEntries is deprecated. Curriculum entries come from Authored_SOW and cannot be modified. ' +
+      'Use updateCustomizations() to mark lessons as skipped or add custom lessons.'
+    );
   }
 
   /**
-   * Add lesson to SOW at specific position
+   * Add custom lesson to SOW via customizations
+   * Stores custom lesson in customizations.entries[order]
    */
-  async addLessonToSOW(studentId: string, courseId: string, lessonTemplateId: string, position?: number): Promise<any> {
+  async addLessonToSOW(studentId: string, courseId: string, lessonTemplateId: string, order?: number): Promise<any> {
     try {
-      const existing = await this.getSOWForEnrollment(studentId, courseId);
-
-      if (!existing) {
-        // Create new SOW with single lesson
-        return await this.createSOW(studentId, courseId, [lessonTemplateId]);
+      const sowData = await this.getSOWForEnrollment(studentId, courseId);
+      if (!sowData) {
+        throw new Error(`No SOW found for student ${studentId}, course ${courseId}`);
       }
 
-      const entries = [...existing.entries];
-      const newEntry: SOWEntry = {
-        order: position || entries.length + 1,
-        lessonTemplateId: lessonTemplateId
+      const customizations = sowData.customizations || { entries: {} };
+      const targetOrder = order || sowData.entries.length + 1;
+
+      // Mark as custom addition in customizations
+      customizations.entries = customizations.entries || {};
+      customizations.entries[targetOrder] = {
+        ...customizations.entries[targetOrder],
+        custom_lesson_id: lessonTemplateId,
+        added_manually: true
       };
 
-      if (position && position <= entries.length) {
-        // Insert at specific position
-        entries.splice(position - 1, 0, newEntry);
-      } else {
-        // Add at end
-        entries.push(newEntry);
-      }
+      console.log(`[SOWDriver] Adding custom lesson ${lessonTemplateId} at order ${targetOrder} for ${studentId}/${courseId}`);
 
-      return await this.updateSOWEntries(studentId, courseId, entries);
+      return await this.updateCustomizations(studentId, courseId, customizations);
     } catch (error) {
       throw this.handleError(error, 'add lesson to SOW');
     }
   }
 
   /**
-   * Remove lesson from SOW
+   * Mark lesson as skipped via customizations
+   * Does not actually remove from curriculum (entries come from Authored_SOW)
    */
-  async removeLessonFromSOW(studentId: string, courseId: string, lessonTemplateId: string): Promise<any> {
+  async removeLessonFromSOW(studentId: string, courseId: string, order: number): Promise<any> {
     try {
-      const existing = await this.getSOWForEnrollment(studentId, courseId);
-
-      if (!existing) {
-        throw new Error('SOW not found for enrollment');
+      const sowData = await this.getSOWForEnrollment(studentId, courseId);
+      if (!sowData) {
+        throw new Error(`No SOW found for student ${studentId}, course ${courseId}`);
       }
 
-      const updatedEntries = existing.entries.filter(entry => entry.lessonTemplateId !== lessonTemplateId);
+      const customizations = sowData.customizations || { entries: {} };
+      customizations.entries = customizations.entries || {};
+      customizations.entries[order] = {
+        ...customizations.entries[order],
+        skipped: true
+      };
 
-      return await this.updateSOWEntries(studentId, courseId, updatedEntries);
+      console.log(`[SOWDriver] Marking lesson at order ${order} as skipped for ${studentId}/${courseId}`);
+
+      return await this.updateCustomizations(studentId, courseId, customizations);
     } catch (error) {
       throw this.handleError(error, 'remove lesson from SOW');
     }
   }
 
   /**
-   * Get next lesson in sequence
+   * Get next lesson in sequence (from Authored_SOW entries)
    */
-  async getNextLesson(studentId: string, courseId: string, completedLessonIds: string[] = []): Promise<SOWEntry | null> {
+  async getNextLesson(studentId: string, courseId: string, completedLessonIds: string[] = []): Promise<AuthoredSOWEntry | null> {
     try {
       const sow = await this.getSOWForEnrollment(studentId, courseId);
 
@@ -297,10 +261,18 @@ export class SOWDriver extends BaseDriver {
         return null;
       }
 
-      // Find first lesson not in completed list
+      // Find first lesson not in completed list (using lessonTemplateRef from AuthoredSOWEntry)
       const nextLesson = sow.entries
         .sort((a, b) => a.order - b.order)
-        .find(entry => !completedLessonIds.includes(entry.lessonTemplateId));
+        .find(entry => {
+          // Check customizations to see if lesson is skipped
+          const customization = sow.customizations?.entries?.[entry.order];
+          if (customization?.skipped) {
+            return false;
+          }
+          // Check if lesson is completed
+          return !completedLessonIds.includes(entry.lessonTemplateRef);
+        });
 
       return nextLesson || null;
     } catch (error) {
@@ -309,9 +281,9 @@ export class SOWDriver extends BaseDriver {
   }
 
   /**
-   * Get lessons by week (if plannedAt is used)
+   * Get lessons by week (uses customizations.entries[order].plannedAt)
    */
-  async getLessonsByWeek(studentId: string, courseId: string, weekNumber: number): Promise<SOWEntry[]> {
+  async getLessonsByWeek(studentId: string, courseId: string, weekNumber: number): Promise<AuthoredSOWEntry[]> {
     try {
       const sow = await this.getSOWForEnrollment(studentId, courseId);
 
@@ -319,12 +291,15 @@ export class SOWDriver extends BaseDriver {
         return [];
       }
 
-      // Filter by week if plannedAt contains week information
+      // Filter by week using plannedAt from customizations
       return sow.entries.filter(entry => {
-        if (!entry.plannedAt) return false;
+        const customization = sow.customizations?.entries?.[entry.order];
+        const plannedAt = customization?.plannedAt;
+
+        if (!plannedAt) return false;
 
         // Extract week from plannedAt (assuming ISO date format)
-        const plannedDate = new Date(entry.plannedAt);
+        const plannedDate = new Date(plannedAt);
         const startOfYear = new Date(plannedDate.getFullYear(), 0, 1);
         const weekOfYear = Math.ceil(((plannedDate.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
 
@@ -336,37 +311,39 @@ export class SOWDriver extends BaseDriver {
   }
 
   /**
-   * Schedule lesson for specific date
+   * Schedule lesson for specific date via customizations
+   * Stores plannedAt in customizations.entries[order].plannedAt
    */
-  async scheduleLessonForDate(studentId: string, courseId: string, lessonTemplateId: string, plannedAt: string): Promise<any> {
+  async scheduleLessonForDate(studentId: string, courseId: string, order: number, plannedAt: string): Promise<any> {
     try {
-      const existing = await this.getSOWForEnrollment(studentId, courseId);
-
-      if (!existing) {
-        throw new Error('SOW not found for enrollment');
+      const sowData = await this.getSOWForEnrollment(studentId, courseId);
+      if (!sowData) {
+        throw new Error(`No SOW found for student ${studentId}, course ${courseId}`);
       }
 
-      const updatedEntries = existing.entries.map(entry => {
-        if (entry.lessonTemplateId === lessonTemplateId) {
-          return { ...entry, plannedAt };
-        }
-        return entry;
-      });
+      const customizations = sowData.customizations || { entries: {} };
+      customizations.entries = customizations.entries || {};
+      customizations.entries[order] = {
+        ...customizations.entries[order],
+        plannedAt: plannedAt
+      };
 
-      return await this.updateSOWEntries(studentId, courseId, updatedEntries);
+      console.log(`[SOWDriver] Scheduling lesson at order ${order} for ${plannedAt} (${studentId}/${courseId})`);
+
+      return await this.updateCustomizations(studentId, courseId, customizations);
     } catch (error) {
       throw this.handleError(error, 'schedule lesson for date');
     }
   }
 
   /**
-   * Get SOW progress statistics
+   * Get SOW progress statistics (uses AuthoredSOWEntry)
    */
   async getSOWProgress(studentId: string, courseId: string, completedLessonIds: string[] = []): Promise<{
     totalLessons: number;
     completedLessons: number;
     progressPercentage: number;
-    nextLesson?: SOWEntry;
+    nextLesson?: AuthoredSOWEntry;
   }> {
     try {
       const sow = await this.getSOWForEnrollment(studentId, courseId);
@@ -379,9 +356,15 @@ export class SOWDriver extends BaseDriver {
         };
       }
 
-      const totalLessons = sow.entries.length;
-      const completedLessons = sow.entries.filter(entry =>
-        completedLessonIds.includes(entry.lessonTemplateId)
+      // Count non-skipped lessons only
+      const nonSkippedEntries = sow.entries.filter(entry => {
+        const customization = sow.customizations?.entries?.[entry.order];
+        return !customization?.skipped;
+      });
+
+      const totalLessons = nonSkippedEntries.length;
+      const completedLessons = nonSkippedEntries.filter(entry =>
+        completedLessonIds.includes(entry.lessonTemplateRef)
       ).length;
 
       const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
@@ -400,28 +383,18 @@ export class SOWDriver extends BaseDriver {
   }
 
   /**
-   * Copy SOW from template for new enrollment
+   * @deprecated Use copyFromAuthoredSOW() instead
+   * Reference architecture requires Authored_SOW as template source
    */
-  async copySOWFromTemplate(studentId: string, courseId: string, templateSOW: SOWEntry[]): Promise<any> {
-    try {
-      const sowData: SOWData = {
-        studentId,
-        courseId,
-        entries: templateSOW.map((entry, index) => ({
-          ...entry,
-          order: index + 1
-        })),
-        createdAt: new Date().toISOString()
-      };
-
-      return await this.upsertSOW(sowData);
-    } catch (error) {
-      throw this.handleError(error, 'copy SOW from template');
-    }
+  async copySOWFromTemplate(studentId: string, courseId: string, templateSOW: AuthoredSOWEntry[]): Promise<any> {
+    throw new Error(
+      'copySOWFromTemplate is deprecated. Use copyFromAuthoredSOW() to create SOWV2 reference from Authored_SOW.'
+    );
   }
 
   /**
-   * Copy Authored SOW to student enrollment - Phase 2.2 MVP2.5
+   * Create SOWV2 reference to Authored SOW for student enrollment
+   * Reference architecture: creates lightweight pointer, NOT a data copy
    * Called when student enrolls in a course
    */
   async copyFromAuthoredSOW(
@@ -430,39 +403,36 @@ export class SOWDriver extends BaseDriver {
     authoredSOW: AuthoredSOWData
   ): Promise<any> {
     try {
-      if (!authoredSOW || !authoredSOW.entries) {
-        throw new Error(`Invalid Authored SOW data for course ${courseId}`);
+      if (!authoredSOW || !authoredSOW.$id) {
+        throw new Error(`Invalid Authored SOW data for course ${courseId} - missing document ID`);
       }
 
-      // Convert AuthoredSOWEntry[] to SOWEntry[] format
-      const entries: SOWEntry[] = authoredSOW.entries.map((entry) => ({
-        order: entry.order,
-        lessonTemplateId: entry.lessonTemplateRef,
-        plannedAt: undefined,
-        // Store original metadata for reference
-        _metadata: {
-          label: entry.label,
-          lesson_type: entry.lesson_type,
-          estMinutes: entry.estMinutes
-        }
-      }));
+      // Skip user/permissions for Databases-only initialization
+      let permissions: string[] = [];
+      try {
+        const user = await this.getCurrentUser();
+        permissions = this.createUserPermissions(user.$id);
+      } catch (error) {
+        console.warn('[SOWDriver] Using empty permissions - Databases-only instance');
+      }
 
-      const sowData: SOWData = {
+      // Create reference-only record (NO data duplication)
+      const sowReferenceRecord = {
         studentId,
         courseId,
-        entries,
-        createdAt: new Date().toISOString(),
-        source_sow_id: courseId, // Track source (courseId from Authored_SOW)
+        source_authored_sow_id: authoredSOW.$id,  // Store document ID pointer
         source_version: authoredSOW.version,
-        customizations: {} // Empty initially
+        customizations: '{}',  // Empty customizations initially
+        createdAt: new Date().toISOString()
       };
 
-      console.log(`[SOWDriver] Copying Authored SOW v${authoredSOW.version} for ${studentId}/${courseId}`);
-      console.log(`[SOWDriver] ${entries.length} lessons copied`);
+      console.log(`[SOWDriver] Creating SOWV2 reference to Authored SOW v${authoredSOW.version} for ${studentId}/${courseId}`);
+      console.log(`[SOWDriver] Reference: ${authoredSOW.$id} (NO data copied)`);
 
-      return await this.upsertSOW(sowData);
+      // Insert into SOWV2
+      return await this.create('SOWV2', sowReferenceRecord, permissions);
     } catch (error) {
-      throw this.handleError(error, `copy Authored SOW for student ${studentId} course ${courseId}`);
+      throw this.handleError(error, `create SOWV2 reference for student ${studentId} course ${courseId}`);
     }
   }
 

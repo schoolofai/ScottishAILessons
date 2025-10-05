@@ -443,7 +443,7 @@ export class CoursePlannerService {
         sow: {
           entries: sowEntries.map(entry => ({
             order: entry.order,
-            lessonTemplateId: entry.lessonTemplateId,
+            lessonTemplateId: entry.lessonTemplateRef,  // AuthoredSOWEntry uses lessonTemplateRef
             plannedAt: entry.plannedAt
           }))
         },

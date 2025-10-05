@@ -8,7 +8,7 @@ module.exports = {
     '/__tests__/'
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(@assistant-ui|@langchain|nanoid)/)',
+    'node_modules/(?!(@assistant-ui|@langchain|nanoid|node-fetch-native-with-agent|node-appwrite)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1'

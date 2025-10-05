@@ -27,7 +27,7 @@ This documentation focuses on the **default** database which contains the active
 | `evidence` | Student response data | Collection-level | Links to sessions |
 | `mastery` / `MasteryV2` | Learning progress tracking | Collection/Public | Links to students, outcomes |
 | `course_outcomes` | Learning objective definitions | Public write | Referenced by lessons, mastery, SOW |
-| `sow` / `SOWV2` | Scheme of work planning | Collection/User-scoped | Course curriculum structure |
+| `sow` / `SOWV2` | Scheme of work planning | Collection/User-scoped | References Authored_SOW, stores customizations |
 | `routine` | Spaced repetition scheduling | User-scoped | Student learning routines |
 | `planner_threads` | Course manager state | User-scoped | LangGraph execution tracking |
 
@@ -111,18 +111,28 @@ This documentation focuses on the **default** database which contains the active
 │                      (User-Scoped - Private to Student)                           │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
-    ┌─────────────────────┐          ┌──────────────────────────┐
-    │   enrollments       │          │       SOWV2              │
-    │  • studentId (FK)   │  creates │  • studentId (FK)        │
-    │  • courseId (FK)    │─────────►│  • courseId (FK)         │
-    │  • role             │          │  • entries[] (personalized)│
-    │  • enrolledAt       │          │  • source_authored_sow_id│
-    └─────────────────────┘          │  • source_version        │
-                                     │  • customizations        │
-                                     │                          │
-                                     │  Created from: Authored_SOW│
-                                     │  Service: enrollment-service.ts│
-                                     └───────────┬──────────────┘
+    ┌─────────────────────┐          ┌──────────────────────────────┐
+    │   enrollments       │          │       SOWV2                  │
+    │  • studentId (FK)   │  creates │  • studentId (FK)            │
+    │  • courseId (FK)    │─────────►│  • courseId (FK)             │
+    │  • role             │          │  • source_authored_sow_id ───┼──┐
+    │  • enrolledAt       │          │  • source_version            │  │
+    └─────────────────────┘          │  • customizations            │  │
+                                     │                              │  │
+                                     │  References: Authored_SOW    │  │
+                                     │  Service: enrollment-service │  │
+                                     └──────────────────────────────┘  │
+                                                                        │
+                                     ┌──────────────────────────────────┘
+                                     │  dereferences
+                                     ▼
+                                     ┌──────────────────────────────┐
+                                     │       Authored_SOW           │
+                                     │  • courseId                  │
+                                     │  • version                   │
+                                     │  • entries[] (curriculum)    │
+                                     │  • metadata                  │
+                                     └───────────┬──────────────────┘
                                                  │
                                                  │ schedules
                                                  ▼
@@ -204,8 +214,10 @@ This documentation focuses on the **default** database which contains the active
   MasteryV2 + routine + SOWV2 → planner_threads → sessions
 
   Template vs Instance:
-  Authored_SOW (template, public) → SOWV2 (instance, user-scoped)
-  lesson_templates (template, public) → sessions.lessonSnapshot (instance, user-scoped)
+  Authored_SOW (template, public) ←─references── SOWV2 (pointer + customizations, user-scoped)
+  lesson_templates (template, public) → sessions.lessonSnapshot (frozen snapshot, user-scoped)
+
+  Note: SOWV2 uses reference architecture (dereferences to Authored_SOW), sessions use snapshot architecture
 ```
 
 ## Detailed Collection Schemas
@@ -583,38 +595,94 @@ interface AssessmentStandard {
 
 **Purpose**: Manages curriculum planning and lesson sequencing.
 
-#### SOWV2 Collection (Current)
+#### SOWV2 Collection (Reference Architecture)
 
 **Security**: `documentSecurity: false` - Collection-level permissions.
+
+**Purpose**: Version tracking and student customizations for curriculum.
+
+SOWV2 uses a **reference-based architecture** where curriculum data is NOT duplicated. Instead, SOWV2 stores a reference to the authoritative Authored_SOW document and overlays student-specific customizations.
+
+**Architecture Pattern**:
+```
+SOWV2 (lightweight pointer) ──references──> Authored_SOW (curriculum data)
+   │
+   └─> customizations (student-specific overrides)
+```
 
 **Schema**:
 ```typescript
 interface SOWV2 {
-  $id: string;                  // Appwrite document ID
-  studentId: string;            // Reference to student (required, max 50 chars)
-  courseId: string;             // Reference to course (required, max 50 chars)
-  entries: string;              // JSON array of curriculum entries (max 10000 chars, default: "[]")
-  createdAt: string;            // Creation timestamp (required, ISO datetime)
+  $id: string;                      // Appwrite document ID
+  studentId: string;                // Reference to student (required, max 50 chars)
+  courseId: string;                 // Reference to course (required, max 50 chars)
+  source_authored_sow_id: string;   // Document ID of Authored_SOW (required, max 50 chars)
+  source_version: string;           // Version identifier for debugging/logging (required, max 20 chars)
+  customizations: string;           // Student-specific modifications (max 10000 chars, default: "{}")
+  createdAt: string;                // Enrollment timestamp (required, ISO datetime)
 
-  // Source Tracking (links to Authored_SOW template)
-  source_authored_sow_id: string; // Reference to Authored_SOW document (max 50 chars)
-  source_version: string;       // Version of Authored_SOW used (max 20 chars)
-  customizations: string;       // JSON object tracking student-specific changes (max 5000 chars, default: "{}")
+  // REMOVED FIELDS (no longer stored in SOWV2):
+  // entries: NO LONGER EXISTS - dereferenced from Authored_SOW
 }
 ```
 
 **Indexes**:
 - `unique_student_course` - Unique compound index on (studentId, courseId)
 
-**Customizations Structure**:
+**Customizations Schema**:
 ```typescript
-interface SOWCustomizations {
-  modified_entries?: number[];   // Indices of entries modified from template
-  added_entries?: number[];      // Indices of entries added beyond template
-  removed_entries?: number[];    // Indices of template entries removed
-  personalization_notes?: string; // Reasons for customizations
+interface StudentCustomizations {
+  entries?: {
+    [order: number]: {              // Key = lesson order number from Authored_SOW
+      plannedAt?: string;           // Scheduled date (ISO datetime)
+      skipped?: boolean;            // Lesson skipped by student
+      notes?: string;               // Student notes for lesson
+      custom_lesson_id?: string;    // Manually added lesson (not in template)
+      added_manually?: boolean;     // Flag for custom additions
+    };
+  };
+  preferences?: any;                // Future: student learning preferences
 }
 ```
+
+**Data Access Pattern**:
+
+When reading SOW data via `SOWDriver.getSOWForEnrollment()`:
+1. **Query SOWV2** by studentId + courseId (1 query)
+2. **Dereference to Authored_SOW** using source_authored_sow_id (1 query)
+3. **Parse curriculum data** from Authored_SOW (entries, metadata, accessibility_notes)
+4. **Overlay customizations** on top of curriculum data
+5. **Return unified SOWData** interface to caller
+
+**Example Flow**:
+```typescript
+// Student enrollment creates lightweight reference
+SOWV2 = {
+  studentId: "student-123",
+  courseId: "course_c84473",
+  source_authored_sow_id: "authored_sow_abc",  // ← Pointer to curriculum
+  source_version: "v1.0",
+  customizations: "{}"  // Empty initially
+}
+
+// Reading SOW performs dereference
+const sow = await getSOWForEnrollment("student-123", "course_c84473");
+// Returns: { entries: [...], metadata: {...}, customizations: {...} }
+// ← entries/metadata from Authored_SOW, customizations from SOWV2
+```
+
+**Benefits**:
+- ✅ **Single Source of Truth**: Authored_SOW is authoritative curriculum data
+- ✅ **No Data Duplication**: Eliminates sync issues between collections
+- ✅ **No Size Limits**: SOWV2 becomes lightweight (only 4 fields)
+- ✅ **Easy Version Upgrades**: Change source_authored_sow_id to upgrade student to new curriculum
+- ✅ **Student Customizations Preserved**: Stored separately, survives curriculum updates
+- ✅ **Better Architecture**: Clear separation of concerns (curriculum vs student state)
+
+**Migration from Legacy Schema**:
+- Old SOWV2 records had `entries` field (duplicated curriculum)
+- New SOWV2 records use `source_authored_sow_id` (reference to curriculum)
+- Migration script: `scripts/migrate-sowv2-to-references.ts`
 
 #### Legacy SOW Collection
 
@@ -743,11 +811,15 @@ Student (profile)
   ↓
 Enrollment (course access)
   ↓
+SOWV2 (curriculum reference) ─references─> Authored_SOW (curriculum template)
+  ↓
 Session (learning instance)
   ↓
 Evidence (assessment data)
   ↓
 MasteryV2 (progress tracking)
+
+Note: SOWV2 dereferences to Authored_SOW for curriculum data. Student-specific customizations stored in SOWV2.customizations field.
 ```
 
 ### Curriculum Management
@@ -758,9 +830,12 @@ Course Outcomes (learning objectives)
   ↓
 Authored_SOW (AI-generated curriculum template)
   ├─→ Lesson Templates (generated content)
-  └─→ SOWV2 (student-specific instance)
-       ↓
-     Routine (spaced repetition)
+  └─→ SOWV2 (student reference + customizations) ←┐
+       ↓                                           │
+     Routine (spaced repetition)                   │
+                                                   │
+  Note: SOWV2 stores pointer to Authored_SOW ──────┘
+        Curriculum data accessed via dereference
 ```
 
 ### Course Manager Flow
@@ -812,11 +887,28 @@ The system uses AI agents to generate complete course curricula:
    - Requires: `langgraph dev --allow-blocking` flag
    - Features: Error recovery with thread persistence (max 10 retries)
 
-3. **Enrollment Flow**
+3. **Enrollment Flow (Reference Architecture)**
    - Student enrolls in course
-   - Enrollment service creates personalized SOWV2 from Authored_SOW template
-   - SOWV2 tracks source template via `source_authored_sow_id` and `source_version`
-   - Customizations stored for student-specific adaptations
+   - Enrollment service creates lightweight SOWV2 reference record (NOT a copy)
+   - SOWV2 stores document ID pointer via `source_authored_sow_id` (required field)
+   - Version tracked via `source_version` for debugging/logging
+   - Empty customizations initialized: `{}`
+   - **No curriculum data duplicated** - accessed via dereference to Authored_SOW
+   - Student-specific modifications stored in `customizations` field as they occur
+
+**Data Flow**:
+```
+Student enrolls
+  ↓
+enrollment-service.ts calls SOWDriver.copyFromAuthoredSOW()
+  ↓
+Creates SOWV2 with:
+  - source_authored_sow_id = authoredSOW.$id  (pointer, not copy)
+  - source_version = authoredSOW.version
+  - customizations = "{}"
+  ↓
+SOWDriver.getSOWForEnrollment() dereferences to Authored_SOW for curriculum data
+```
 
 ### Agent Permissions
 
