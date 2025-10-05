@@ -371,6 +371,91 @@ if (event === "values") {
 
 This architectural difference allows Aegra to maintain predictable streaming behavior while Official LangGraph provides more flexible response handling. Both approaches are valid and serve different deployment needs.
 
+## 🎨 Interactive Diagram Prototyping Environment
+
+A separate Next.js application for prototyping **JSON-driven interactive diagrams** before integrating into the main lesson delivery system.
+
+### Purpose
+- ✅ Validate **declarative JSON approach** for AI-generated diagrams
+- ✅ Test JSXGraph performance and UX patterns
+- ✅ Build component library for LessonCardPresentationTool integration
+- ✅ Compare diagram tools (JSXGraph, GeoGebra, Asymptote, Manim)
+- ✅ Isolated environment - no production code pollution
+
+### Key Innovation: AI-Friendly JSON Format
+
+Instead of generating JavaScript code, the AI backend generates structured JSON:
+
+```json
+{
+  "board": { "boundingbox": [-5, 5, 5, -5], "axis": true },
+  "elements": [
+    { "type": "point", "args": [0, 0], "attributes": { "name": "A" } },
+    { "type": "circle", "args": ["A", 3], "attributes": { "fillColor": "#ccf" } }
+  ]
+}
+```
+
+This maps directly to JSXGraph's `board.create(type, args, attributes)` API.
+
+### Quick Start
+
+```bash
+cd diagram-prototypes
+./start-prototypes.sh
+# Opens http://localhost:3005
+```
+
+### Current Examples
+
+✅ **Pythagorean Theorem** - Interactive right triangle with dynamic calculations
+✅ **Interactive Circles** - Draggable radius with live area/circumference
+✅ **Function Graphs** - Quadratic, trigonometric, and custom functions
+🔜 **General Geometry** - Polygons, transformations, constructions
+
+### Architecture
+
+```
+diagram-prototypes/
+├── components/tools/JSXGraphTool.tsx    # Main rendering component
+├── lib/diagram-schemas.ts               # TypeScript JSON schemas
+├── lib/example-diagrams.ts              # Predefined examples
+└── app/examples/                        # Live demonstrations
+```
+
+### Integration Roadmap
+
+1. **Phase 1** (Current): Prototype JSON-driven diagrams in isolation
+2. **Phase 2**: Extract stable JSXGraphTool component
+3. **Phase 3**: Add tool call support to backend (LangGraph)
+4. **Phase 4**: Integrate into LessonCardPresentationTool
+5. **Phase 5**: Evaluate alternative tools (GeoGebra, etc.)
+
+### Backend Tool Call Example
+
+```python
+# LangGraph backend generates JSON tool call
+tool_call = ToolCall(
+    name="jsxgraph_plot",
+    args={
+        "title": "Pythagorean Theorem",
+        "board": {"boundingbox": [-1, 6, 7, -1], "axis": True},
+        "elements": [
+            {"type": "point", "args": [0, 0], "attributes": {"name": "A"}},
+            {"type": "point", "args": [3, 0], "attributes": {"name": "B"}},
+            {"type": "polygon", "args": [["A", "B", "C"]]}
+        ]
+    }
+)
+```
+
+### Performance Targets
+
+- ✅ Render time: <100ms for 10-element diagrams
+- ✅ Interactive latency: <16ms (60fps)
+- ✅ Bundle size: <150KB (JSXGraph + component)
+- ✅ Mobile support: Full touch interaction
+
 ## 🛠️ Project Structure
 
 ```
@@ -382,6 +467,12 @@ ScottishAILessons/
 │   ├── components/                  # React components
 │   ├── app/                         # Next.js app structure
 │   └── package.json                 # Frontend dependencies
+├── diagram-prototypes/              # 🎨 Interactive Diagram Prototyping Lab
+│   ├── components/tools/            # JSXGraph rendering components
+│   ├── lib/                         # TypeScript schemas & examples
+│   ├── app/                         # Example pages & API routes
+│   ├── start-prototypes.sh         # Startup script (port 3005)
+│   └── README.md                   # Prototyping documentation
 ├── agents/                          # 🔗 Shared Agent Logic
 │   ├── shared_chat_logic.py        # Core business logic (shared)
 │   ├── langgraph_agent.py          # LangGraph wrapper (add_messages reducer)
@@ -396,6 +487,8 @@ ScottishAILessons/
 │   ├── docker-compose.yml         # PostgreSQL config
 │   ├── aegra.json                 # Points to ../agents/aegra_agent.py
 │   └── .env                       # Backend environment config
+├── tasks/                          # 📋 Project Specifications & Tasks
+│   └── DIAGRAM_PROTOTYPING_JSXGRAPH_SPEC.md  # Diagram prototyping spec
 └── README.md                      # This documentation
 ```
 

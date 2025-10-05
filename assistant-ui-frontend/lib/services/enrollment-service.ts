@@ -57,10 +57,36 @@ export class EnrollmentError extends Error {
   constructor(
     public code: 'DUPLICATE_ENROLLMENT' | 'NO_AUTHORED_SOW' | 'DATABASE_ERROR' | 'INVALID_COURSE',
     message: string,
-    public details?: any
+    public details?: any,
+    public userMessage?: string  // User-friendly message override
   ) {
     super(message);
     this.name = 'EnrollmentError';
+  }
+
+  /**
+   * Returns a user-friendly error message suitable for display in the UI.
+   * Technical details are logged but not shown to end users.
+   */
+  toUserMessage(): string {
+    // Use custom user message if provided
+    if (this.userMessage) {
+      return this.userMessage;
+    }
+
+    // Generate user-friendly message based on error code
+    switch (this.code) {
+      case 'DUPLICATE_ENROLLMENT':
+        return 'You are already enrolled in this course. Visit your dashboard to continue learning.';
+      case 'NO_AUTHORED_SOW':
+        return 'This course curriculum is still being prepared. Please check back later or contact support.';
+      case 'INVALID_COURSE':
+        return 'This course is not available for enrollment at this time. Please contact support if you believe this is an error.';
+      case 'DATABASE_ERROR':
+        return 'We encountered a technical issue while processing your enrollment. Please try again in a few moments.';
+      default:
+        return 'An unexpected error occurred during enrollment. Please contact support if this persists.';
+    }
   }
 }
 

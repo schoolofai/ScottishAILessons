@@ -31,10 +31,34 @@ export class ProgressError extends Error {
   constructor(
     public code: 'NO_SOWV2' | 'NO_AUTHORED_SOW' | 'DATABASE_ERROR',
     message: string,
-    public details?: any
+    public details?: any,
+    public userMessage?: string  // User-friendly message override
   ) {
     super(message);
     this.name = 'ProgressError';
+  }
+
+  /**
+   * Returns a user-friendly error message suitable for display in the UI.
+   * Technical details are logged but not shown to end users.
+   */
+  toUserMessage(): string {
+    // Use custom user message if provided
+    if (this.userMessage) {
+      return this.userMessage;
+    }
+
+    // Generate user-friendly message based on error code
+    switch (this.code) {
+      case 'NO_SOWV2':
+        return 'Your course data is incomplete. Try re-enrolling in the course or contact support for assistance.';
+      case 'NO_AUTHORED_SOW':
+        return 'This course curriculum is not available yet. Please contact support or try again later.';
+      case 'DATABASE_ERROR':
+        return 'We encountered a technical issue while loading your progress. Please try again in a few moments.';
+      default:
+        return 'Unable to load progress information. Please refresh the page or contact support if this persists.';
+    }
   }
 }
 
@@ -90,8 +114,19 @@ export async function getCourseProgress(
 
     console.log('[Progress Service] Total lessons from Authored_SOW:', totalLessons);
 
-    // 3. Get course metadata
-    const course = await databases.getDocument('default', 'courses', courseId);
+    // 3. Get course metadata - query by courseId field, not document ID
+    const courseResult = await databases.listDocuments('default', 'courses',
+      [Query.equal('courseId', courseId)]
+    );
+
+    if (courseResult.documents.length === 0) {
+      throw new ProgressError(
+        'DATABASE_ERROR',
+        `Course not found with courseId: ${courseId}`
+      );
+    }
+
+    const course = courseResult.documents[0];
 
     // 4. Count completed sessions
     const completedSessions = await getCompletedSessions(studentId, courseId, databases);
@@ -256,4 +291,102 @@ export async function isLessonCompleted(
   );
 
   return result.documents.length > 0;
+}
+
+// ============================================================================
+// Phase 3: UI Helper Functions
+// ============================================================================
+
+/**
+ * Converts mastery score to human-readable label.
+ */
+export function getMasteryLabel(mastery: number): string {
+  if (mastery < 0.3) return 'Beginner';
+  if (mastery < 0.5) return 'Developing';
+  if (mastery < 0.7) return 'Good';
+  if (mastery < 0.9) return 'Strong';
+  return 'Mastered';
+}
+
+/**
+ * Gets color code for mastery visualization.
+ */
+export function getMasteryColor(mastery: number): string {
+  if (mastery < 0.3) return '#EF4444'; // red
+  if (mastery < 0.5) return '#F97316'; // orange
+  if (mastery < 0.7) return '#EAB308'; // yellow
+  if (mastery < 0.9) return '#84CC16'; // light green
+  return '#22C55E'; // dark green
+}
+
+/**
+ * Gets mastery breakdown by learning outcome.
+ */
+export async function getOutcomeMasteryBreakdown(
+  studentId: string,
+  courseId: string,
+  databases: Databases
+): Promise<Array<{ outcomeRef: string; outcomeTitle: string; mastery: number }>> {
+  // Get MasteryV2 record
+  const masteryResult = await databases.listDocuments('default', 'MasteryV2',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId)
+    ]
+  );
+
+  if (masteryResult.documents.length === 0) {
+    return [];
+  }
+
+  const masteryRecord = masteryResult.documents[0];
+  const emaByOutcomeId = JSON.parse(masteryRecord.emaByOutcomeId || '{}');
+
+  // Get course outcomes
+  const outcomesResult = await databases.listDocuments('default', 'course_outcomes',
+    [Query.equal('courseId', courseId)]
+  );
+
+  return outcomesResult.documents.map((outcome: any) => ({
+    outcomeRef: outcome.outcomeRef,
+    outcomeTitle: outcome.description || outcome.outcomeRef,
+    mastery: emaByOutcomeId[outcome.$id] || 0
+  }));
+}
+
+/**
+ * Gets session history for a course.
+ */
+export async function getSessionHistory(
+  studentId: string,
+  courseId: string,
+  databases: Databases
+): Promise<Array<{
+  sessionId: string;
+  lessonTitle: string;
+  completedAt: string;
+  duration: number; // minutes
+}>> {
+  const sessions = await databases.listDocuments('default', 'sessions',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId),
+      Query.equal('stage', 'done'),
+      Query.orderDesc('startedAt'),
+      Query.limit(20) // Last 20 sessions
+    ]
+  );
+
+  return sessions.documents.map((session: any) => {
+    const started = new Date(session.startedAt);
+    const ended = new Date(session.endedAt || new Date());
+    const duration = Math.round((ended.getTime() - started.getTime()) / 60000); // ms to minutes
+
+    return {
+      sessionId: session.$id,
+      lessonTitle: session.lessonTemplateRef || session.lessonTemplateId,
+      completedAt: session.endedAt || session.startedAt,
+      duration: Math.max(duration, 1) // At least 1 minute
+    };
+  });
 }

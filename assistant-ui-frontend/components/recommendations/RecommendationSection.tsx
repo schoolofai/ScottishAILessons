@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Alert, AlertDescription } from '../ui/alert';
@@ -40,9 +40,10 @@ export interface RecommendationSectionProps {
   onRetry?: () => void;
   className?: string;
   courseName?: string;
+  startingLessonId?: string | null; // Track which lesson is currently being started
 }
 
-export function RecommendationSection({
+export const RecommendationSection = memo(function RecommendationSection({
   courseId,
   recommendations,
   loading = false,
@@ -50,7 +51,8 @@ export function RecommendationSection({
   onStartLesson,
   onRetry,
   className,
-  courseName
+  courseName,
+  startingLessonId = null
 }: RecommendationSectionProps) {
   // Loading state
   if (loading) {
@@ -126,18 +128,23 @@ export function RecommendationSection({
   const otherCandidates = recommendations.candidates.slice(1);
 
   return (
-    <div className={cn("bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-8", className)} data-testid="recommendations-section">
+    <div
+      className={cn("bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-8", className)}
+      data-testid="recommendations-section"
+      role="region"
+      aria-labelledby="recommendations-heading"
+    >
       {/* Header with Sparkle Icon */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-          <Sparkles className="w-4 h-4 text-white" />
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0" aria-hidden="true">
+          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
         </div>
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="min-w-0">
+          <h2 id="recommendations-heading" className="text-base sm:text-lg font-semibold text-gray-900 truncate">
             Recommended for {courseName || 'Your Course'}
           </h2>
-          <p className="text-sm text-gray-600">
-            AI-powered suggestions based on your progress and spaced repetition
+          <p className="text-xs sm:text-sm text-gray-600">
+            AI-powered suggestions based on your progress
           </p>
         </div>
       </div>
@@ -147,7 +154,7 @@ export function RecommendationSection({
         className="bg-white rounded-lg border-2 border-blue-300 p-4 mb-4"
         data-testid="top-pick-card"
       >
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
             {/* Top Pick Badge and Score */}
             <div className="flex items-center gap-2 mb-2">
@@ -158,7 +165,7 @@ export function RecommendationSection({
                 TOP PICK
               </span>
               <span
-                className="text-sm font-medium text-gray-900"
+                className="text-xs sm:text-sm font-medium text-gray-900"
                 data-testid="priority-score"
               >
                 Score: {(topPick.priorityScore || 0).toFixed(2)}
@@ -167,7 +174,7 @@ export function RecommendationSection({
 
             {/* Top Pick Title */}
             <h3
-              className="font-semibold text-gray-900 mb-1"
+              className="text-base sm:text-lg font-semibold text-gray-900 mb-1"
               data-testid="top-pick-title"
             >
               {topPick.title}
@@ -183,7 +190,7 @@ export function RecommendationSection({
               </div>
             )}
 
-            <p className="text-sm text-gray-600">
+            <p className="text-xs sm:text-sm text-gray-600">
               Estimated time: 30 minutes
             </p>
           </div>
@@ -191,10 +198,23 @@ export function RecommendationSection({
           {/* Start Lesson Button */}
           <Button
             onClick={() => onStartLesson?.(topPick.lessonTemplateId)}
-            className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={startingLessonId === topPick.lessonTemplateId}
+            className="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             data-testid="top-pick-start-button"
+            aria-label={
+              startingLessonId === topPick.lessonTemplateId
+                ? `Starting lesson: ${topPick.title}`
+                : `Start lesson: ${topPick.title}`
+            }
           >
-            Start Now →
+            {startingLessonId === topPick.lessonTemplateId ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
+                Starting...
+              </>
+            ) : (
+              'Start Now →'
+            )}
           </Button>
         </div>
       </div>
@@ -205,18 +225,18 @@ export function RecommendationSection({
           {otherCandidates.slice(0, 4).map((candidate, index) => (
             <div
               key={candidate.lessonTemplateId}
-              className="bg-white rounded-lg border p-3 hover:border-blue-200 transition-colors"
+              className="bg-white rounded-lg border p-3 sm:p-4 hover:border-blue-200 transition-colors"
               data-testid={`candidate-card-${index + 1}`}
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-sm font-medium text-gray-600">#{index + 2}</span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-xs sm:text-sm font-medium text-gray-600">#{index + 2}</span>
+                    <span className="text-xs sm:text-sm text-gray-500">
                       Score: {(candidate.priorityScore || 0).toFixed(2)}
                     </span>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-1">{candidate.title}</h4>
+                  <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-1">{candidate.title}</h4>
                   {candidate.reasons && candidate.reasons.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       <ReasonBadgeList
@@ -230,9 +250,22 @@ export function RecommendationSection({
                 <Button
                   variant="outline"
                   onClick={() => onStartLesson?.(candidate.lessonTemplateId)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                  disabled={startingLessonId === candidate.lessonTemplateId}
+                  className="w-full sm:w-auto px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
+                  aria-label={
+                    startingLessonId === candidate.lessonTemplateId
+                      ? `Starting lesson: ${candidate.title}`
+                      : `Start lesson: ${candidate.title}`
+                  }
                 >
-                  Start
+                  {startingLessonId === candidate.lessonTemplateId ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" aria-hidden="true" />
+                      Starting...
+                    </>
+                  ) : (
+                    'Start'
+                  )}
                 </Button>
               </div>
             </div>
@@ -242,13 +275,13 @@ export function RecommendationSection({
 
       {/* Recommendation Explanation */}
       <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
+        <p className="text-xs sm:text-sm text-blue-800 break-words">
           <strong>How we recommend:</strong> {recommendations.metadata?.rubric || 'Overdue > Low Mastery > Early Order | -Recent -Too Long'}
         </p>
       </div>
 
     </div>
   );
-}
+});
 
 export default RecommendationSection;

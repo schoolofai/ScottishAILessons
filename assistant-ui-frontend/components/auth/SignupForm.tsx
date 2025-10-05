@@ -45,19 +45,47 @@ export function SignupForm() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+      // CLIENT-SIDE SIGNUP - Aligns with login flow pattern
+      // This fixes the session bug by storing session in localStorage
+      const { Client, Account, ID } = await import('appwrite');
+
+      // Initialize Appwrite client
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+      const account = new Account(client);
+
+      // Create account + session (Appwrite handles localStorage automatically)
+      const user = await account.create(ID.unique(), email, password, name);
+      const session = await account.createEmailPasswordSession(email, password);
+
+      console.log('[Signup] Client-side session created:', {
+        sessionId: session.$id,
+        userId: user.$id,
+        hasLocalStorage: !!localStorage.getItem('cookieFallback')
       });
 
-      const data = await response.json();
+      // Sync to students collection via new API endpoint (non-blocking)
+      try {
+        const syncResponse = await fetch('/api/auth/sync-student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.$id, name }),
+        });
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Signup failed');
+        if (!syncResponse.ok) {
+          console.warn('[Signup] Student sync failed, but user can still login');
+        } else {
+          console.log('[Signup] Student record synced successfully');
+        }
+      } catch (syncError) {
+        // Non-blocking - user can still proceed
+        console.warn('[Signup] Student sync error:', syncError);
       }
 
-      router.push('/dashboard');
+      // Redirect new users to onboarding flow
+      router.push('/onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

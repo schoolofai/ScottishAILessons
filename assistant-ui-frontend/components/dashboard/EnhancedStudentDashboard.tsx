@@ -4,10 +4,13 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigationTabs";
 import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
+import { CourseProgressCard } from "../progress/CourseProgressCard";
+import { getCourseProgress } from "@/lib/services/progress-service";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap } from "lucide-react";
+import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import {
   type Course,
   type Session,
@@ -21,6 +24,7 @@ import {
 } from "../../lib/dashboard/utils";
 import { MasteryV2Driver } from "../../lib/appwrite/driver/MasteryV2Driver";
 import { Client, Databases, Account, Query, ID } from "appwrite";
+import { cache, createCacheKey } from "../../lib/cache";
 
 // Type imports are handled by the utils file
 
@@ -38,10 +42,20 @@ export function EnhancedStudentDashboard() {
   const [error, setError] = useState("");
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  const [courseProgress, setCourseProgress] = useState<any>(null);
+  const [progressLoading, setProgressLoading] = useState(false);
+  const [startingLessonId, setStartingLessonId] = useState<string | null>(null);
 
   useEffect(() => {
     initializeStudent();
   }, []);
+
+  // Load course progress when active course changes
+  useEffect(() => {
+    if (activeCourse && student) {
+      loadCourseProgress();
+    }
+  }, [activeCourse, student]);
 
   // Initialize student using client-side Appwrite SDK
   const initializeStudent = async () => {
@@ -194,18 +208,29 @@ export function EnhancedStudentDashboard() {
       setRecommendationsLoading(true);
       setRecommendationsError(null);
 
-      // Initialize Appwrite client
+      // 1. Get student data first (use parameter or state)
+      const currentStudent = studentData || student;
+      if (!currentStudent) {
+        throw new Error('Student data not available');
+      }
+
+      // 2. Check cache first (5 minute TTL for recommendations)
+      const cacheKey = createCacheKey('recommendations', currentStudent.$id, courseId);
+      const cachedRecommendations = cache.get<RecommendationsData>(cacheKey);
+
+      if (cachedRecommendations) {
+        console.log('[Cache] Using cached recommendations for:', { courseId, cacheKey });
+        setRecommendations(cachedRecommendations);
+        setRecommendationsLoading(false);
+        return;
+      }
+
+      // 3. Initialize Appwrite client
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
 
       const databases = new Databases(client);
-
-      // 1. Get student data (use parameter or state)
-      const currentStudent = studentData || student;
-      if (!currentStudent) {
-        throw new Error('Student data not available');
-      }
 
       // 2. Get course data - query by courseId field instead of using it as document ID
       const courseQueryResult = await databases.listDocuments(
@@ -442,6 +467,10 @@ export function EnhancedStudentDashboard() {
         transformedRecommendations: transformedRecommendations
       });
 
+      // Cache the recommendations (5 minute TTL) - reuse cacheKey from earlier
+      cache.set(cacheKey, transformedRecommendations, 5 * 60 * 1000);
+      console.log('[Cache] Cached recommendations for:', { courseId, cacheKey });
+
       setRecommendations(transformedRecommendations);
     } catch (err) {
       console.error("Failed to load recommendations from LangGraph:", err);
@@ -457,6 +486,28 @@ export function EnhancedStudentDashboard() {
     }
   };
 
+  // Load course progress for the active course
+  const loadCourseProgress = async () => {
+    try {
+      setProgressLoading(true);
+
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+      const databases = new Databases(client);
+
+      const progressData = await getCourseProgress(student.$id, activeCourse, databases);
+      setCourseProgress(progressData);
+    } catch (err) {
+      console.error('[Progress] Failed to load course progress:', err);
+      // Don't show error in UI - progress card will handle gracefully
+      setCourseProgress(null);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
   // Handle course change
   const handleCourseChange = useCallback(async (courseId: string) => {
     setActiveCourse(courseId);
@@ -466,6 +517,9 @@ export function EnhancedStudentDashboard() {
   // Handle lesson start
   const handleStartLesson = async (lessonTemplateId: string) => {
     try {
+      // Set loading state for this specific lesson
+      setStartingLessonId(lessonTemplateId);
+
       // Validate lesson start context
       const validation = validateLessonStartContext(
         lessonTemplateId,
@@ -495,17 +549,36 @@ export function EnhancedStudentDashboard() {
 
       debugLog('Session created, navigating', { sessionId: newSession.$id });
 
+      // Invalidate recommendations cache since starting a lesson changes the context
+      const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
+      cache.invalidate(cacheKey);
+      console.log('[Cache] Invalidated cache after starting lesson:', { cacheKey });
+
       // Navigate to session page - let AutoStartTrigger handle the rest!
       router.push(`/session/${newSession.$id}`);
     } catch (err) {
       console.error("Failed to start lesson:", err);
       setError(formatErrorMessage(err));
+      // Clear loading state on error
+      setStartingLessonId(null);
     }
   };
+
+  // Handle view detailed progress
+  const handleViewProgress = useCallback(() => {
+    if (activeCourse) {
+      router.push(`/dashboard/progress/${activeCourse}`);
+    }
+  }, [activeCourse, router]);
 
   // Handle recommendations retry
   const handleRecommendationsRetry = useCallback(() => {
     if (activeCourse && student) {
+      // Invalidate cache before retrying to force fresh data
+      const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
+      cache.invalidate(cacheKey);
+      console.log('[Cache] Invalidated cache for retry:', { cacheKey });
+
       loadRecommendations(activeCourse, student);
     }
   }, [activeCourse, student]);
@@ -525,14 +598,7 @@ export function EnhancedStudentDashboard() {
   }, [loading, error, courseData.length]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen" data-testid="dashboard-loading">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -548,6 +614,27 @@ export function EnhancedStudentDashboard() {
         >
           Retry
         </Button>
+      </div>
+    );
+  }
+
+  // Empty state: No enrollments
+  if (courseData.length === 0 && !coursesLoading) {
+    return (
+      <div className="container mx-auto p-6" data-testid="dashboard-empty">
+        <div className="text-center py-12 bg-white rounded-lg shadow-md">
+          <BookOpen className="h-16 w-16 mx-auto mb-4 text-blue-600" />
+          <h2 className="text-2xl font-bold mb-4">Welcome to Scottish AI Lessons!</h2>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            You haven't enrolled in any courses yet. Browse our course catalog to get started with your learning journey.
+          </p>
+          <Button
+            onClick={() => router.push('/courses/catalog')}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            Browse Courses
+          </Button>
+        </div>
       </div>
     );
   }
@@ -579,10 +666,20 @@ export function EnhancedStudentDashboard() {
 
       {/* Course Navigation */}
       <div data-testid="course-navigation-section" className="mb-8">
-        <h2 className="text-xl font-semibold mb-4 flex items-center">
-          <BookOpen className="h-5 w-5 mr-2" />
-          Your Courses
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+          <h2 className="text-xl font-semibold flex items-center">
+            <BookOpen className="h-5 w-5 mr-2" />
+            Your Courses
+          </h2>
+          <Button
+            variant="outline"
+            onClick={() => router.push('/courses/catalog')}
+            className="gap-2 w-full sm:w-auto"
+          >
+            <GraduationCap className="h-4 w-4" />
+            Browse More Courses
+          </Button>
+        </div>
         <CourseNavigationTabs
           courses={courseData}
           activeCourse={activeCourse}
@@ -591,6 +688,16 @@ export function EnhancedStudentDashboard() {
           error={coursesError}
         />
       </div>
+
+      {/* Course Progress Card */}
+      {hasActiveCourse && courseProgress && !progressLoading && (
+        <div data-testid="course-progress-section" className="mb-8">
+          <CourseProgressCard
+            progress={courseProgress}
+            onViewDetails={handleViewProgress}
+          />
+        </div>
+      )}
 
       {/* Recommendations Section */}
       {hasActiveCourse && (
@@ -603,6 +710,7 @@ export function EnhancedStudentDashboard() {
             onStartLesson={handleStartLesson}
             onRetry={handleRecommendationsRetry}
             courseName={courseData.find(c => c.id === activeCourse)?.subject}
+            startingLessonId={startingLessonId}
           />
         </div>
       )}

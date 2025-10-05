@@ -1177,4 +1177,329 @@ Phase 2 (Onboarding) depends on:
 
 ---
 
+## Bug Fix: Signup Session Establishment
+
+### Issue Discovered During Testing
+
+**Bug**: After signup, users are redirected to dashboard but receive "No active session found. Please log in." error.
+
+**Test Evidence**:
+- Test User: mvp2phase1test@scottishailessons.com (User ID: 68e2b4b20029891a4ba0)
+- Symptom: Signup succeeds, user record created, but dashboard cannot access session
+- Workaround: Manual login after signup works correctly
+- Impact: Low (users can login immediately), but poor UX
+
+### Root Cause Analysis
+
+**Session Storage Mismatch**:
+
+```
+Signup Flow (Current - BROKEN):
+  SignupForm → /api/auth/signup → Admin Client → Session → httpOnly Cookie ✅
+  Redirect → Dashboard → Client SDK → Checks localStorage ❌ (empty!)
+
+Login Flow (Working - REFERENCE):
+  LoginForm → Client SDK → Session → localStorage ✅
+  Redirect → Dashboard → Client SDK → Checks localStorage ✅
+```
+
+**The Problem**:
+1. **Signup** uses **server-side API** → creates session in **httpOnly cookie** (not accessible to JavaScript)
+2. **Dashboard** uses **client-side SDK** → expects session in **localStorage** (`cookieFallback`)
+3. The two session stores don't communicate, causing authentication failure
+
+**File Evidence**:
+- `app/api/auth/signup/route.ts:27-29` - Creates session with admin client, stores in cookie
+- `components/dashboard/EnhancedStudentDashboard.tsx:62-76` - Checks localStorage for session, throws error if not found
+
+### Solution: Client-Side Signup (Align with Login Flow)
+
+**Approach**: Migrate signup to client-side Appwrite SDK (matching login pattern)
+
+**Benefits**:
+- Session automatically stored in localStorage by Appwrite SDK
+- Consistent auth flow between login and signup
+- No intermediate session handoff needed
+- Simpler code (less server-side logic)
+
+### Implementation Plan
+
+#### 1. Update SignupForm Component
+
+**File**: `components/auth/SignupForm.tsx`
+
+**Changes**: Lines 47-60 (replace API call with client-side SDK)
+
+```typescript
+// BEFORE (Current - Server-Side):
+const response = await fetch('/api/auth/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ name, email, password }),
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  throw new Error(data.error || 'Signup failed');
+}
+
+router.push('/dashboard');
+
+// AFTER (Proposed - Client-Side):
+// Import Appwrite SDK
+const { Client, Account, ID } = await import('appwrite');
+
+// Initialize client
+const client = new Client()
+  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+const account = new Account(client);
+
+// Create account + session (Appwrite handles localStorage automatically)
+const user = await account.create(ID.unique(), email, password, name);
+const session = await account.createEmailPasswordSession(email, password);
+
+console.log('Client-side session created:', {
+  sessionId: session.$id,
+  userId: user.$id,
+  hasLocalStorage: !!localStorage.getItem('cookieFallback')
+});
+
+// Sync to students collection via new API endpoint
+const syncResponse = await fetch('/api/auth/sync-student', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ userId: user.$id, name }),
+});
+
+if (!syncResponse.ok) {
+  console.warn('Student sync failed, but user can still login');
+}
+
+router.push('/dashboard');
+```
+
+#### 2. Create Student Sync Endpoint
+
+**File**: `app/api/auth/sync-student/route.ts` (NEW)
+
+**Purpose**: Server-side endpoint for syncing user to students collection
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { createAdminClient } from '@/lib/appwrite/client';
+import { syncUserToStudentsCollection } from '@/lib/appwrite/server';
+
+/**
+ * Syncs a user account to the students collection.
+ * Called after client-side signup creates the auth account.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const { userId, name } = await request.json();
+
+    if (!userId || !name) {
+      return NextResponse.json(
+        { error: 'User ID and name are required' },
+        { status: 400 }
+      );
+    }
+
+    // Sync user to students collection (idempotent - checks for existing record)
+    await syncUserToStudentsCollection(userId, name, 'student');
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Student sync error:', error);
+    // Non-blocking error - user can still use the app
+    return NextResponse.json(
+      { error: 'Student sync failed', details: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
+  }
+}
+```
+
+#### 3. Remove Old Signup Endpoint
+
+**File**: `app/api/auth/signup/route.ts` (DELETE or ARCHIVE)
+
+**Reason**: No longer needed - signup handled client-side
+
+**Alternative**: Keep as backup during migration, delete after testing passes
+
+### Testing Strategy
+
+#### Unit Tests
+
+**File**: `components/auth/__tests__/SignupForm.test.tsx` (NEW)
+
+```typescript
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { SignupForm } from '../SignupForm';
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn()
+  })
+}));
+
+describe('SignupForm', () => {
+  it('should create client-side session on signup', async () => {
+    const mockCreate = jest.fn().mockResolvedValue({ $id: 'user-123' });
+    const mockCreateSession = jest.fn().mockResolvedValue({ $id: 'session-123' });
+
+    // Mock Appwrite SDK
+    jest.mock('appwrite', () => ({
+      Client: jest.fn(() => ({
+        setEndpoint: jest.fn().mockReturnThis(),
+        setProject: jest.fn().mockReturnThis()
+      })),
+      Account: jest.fn(() => ({
+        create: mockCreate,
+        createEmailPasswordSession: mockCreateSession
+      })),
+      ID: { unique: () => 'unique-id' }
+    }));
+
+    render(<SignupForm />);
+
+    // Fill form
+    fireEvent.change(screen.getByLabelText('Full Name'), { target: { value: 'Test User' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.change(screen.getByLabelText('Confirm Password'), { target: { value: 'password123' } });
+
+    // Submit
+    fireEvent.click(screen.getByText('Sign Up'));
+
+    await waitFor(() => {
+      expect(mockCreate).toHaveBeenCalled();
+      expect(mockCreateSession).toHaveBeenCalled();
+    });
+  });
+});
+```
+
+#### Integration Tests
+
+**Manual Test Scenarios** (Playwright MCP):
+
+1. **Happy Path - New User Signup**:
+   ```
+   □ Navigate to /signup
+   □ Fill form: name, email, password
+   □ Click "Sign Up"
+   □ Verify redirect to /dashboard
+   □ Verify dashboard loads (no "No active session" error)
+   □ Check localStorage contains cookieFallback
+   □ Verify student record exists in database
+   □ Refresh page → verify session persists
+   ```
+
+2. **Error Handling - Student Sync Failure**:
+   ```
+   □ Mock API /api/auth/sync-student to fail
+   □ Complete signup flow
+   □ Verify user can still access dashboard (non-blocking error)
+   □ Check console for warning message
+   □ Verify manual student record creation works
+   ```
+
+3. **Duplicate Email**:
+   ```
+   □ Attempt signup with existing email
+   □ Verify Appwrite error displayed
+   □ Verify no session created
+   □ Verify no redirect
+   ```
+
+#### E2E Test
+
+**File**: `e2e/signup-flow.spec.ts` (NEW)
+
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('signup creates client-side session and redirects to dashboard', async ({ page }) => {
+  // Navigate to signup
+  await page.goto('http://localhost:3000/signup');
+
+  // Fill signup form
+  await page.fill('[name="name"]', 'E2E Test User');
+  await page.fill('[name="email"]', `e2e-${Date.now()}@test.com`);
+  await page.fill('[name="password"]', 'TestPass123!');
+  await page.fill('[name="confirmPassword"]', 'TestPass123!');
+
+  // Submit
+  await page.click('button[type="submit"]');
+
+  // Wait for redirect
+  await page.waitForURL('**/dashboard');
+
+  // Verify dashboard loads without error
+  await expect(page.locator('text=No active session found')).not.toBeVisible();
+  await expect(page.locator('text=Welcome back')).toBeVisible();
+
+  // Verify localStorage has session
+  const cookieFallback = await page.evaluate(() => localStorage.getItem('cookieFallback'));
+  expect(cookieFallback).toBeTruthy();
+  expect(cookieFallback).toContain('a_session_');
+});
+```
+
+### Acceptance Criteria
+
+**Must Have**:
+- [ ] Signup creates client-side session in localStorage (visible in DevTools)
+- [ ] Dashboard loads immediately after signup (no "No active session" error)
+- [ ] Student record synced to database within 2 seconds
+- [ ] Login and signup flows both use client-side SDK consistently
+- [ ] Session persists across page refreshes
+- [ ] E2E test passes for signup flow
+
+**Should Have**:
+- [ ] Error handling for duplicate email (Appwrite error displayed)
+- [ ] Console logging for debugging (session creation, sync status)
+- [ ] Student sync failure is non-blocking (user can still access dashboard)
+
+**Could Have**:
+- [ ] Loading states during signup and sync
+- [ ] Email verification flow (future enhancement)
+
+### Migration Plan
+
+#### Pre-Deployment
+
+1. **Test Current Workaround**: Verify manual login after signup works
+2. **Backup**: Git commit current state
+3. **Environment**: Test in local dev first
+
+#### Deployment Steps
+
+1. **Create new endpoint**: `/api/auth/sync-student`
+2. **Update SignupForm**: Migrate to client-side SDK
+3. **Test manually**: Complete signup flow 3x with new users
+4. **Run E2E tests**: Verify automated test passes
+5. **Archive old endpoint**: Keep `/api/auth/signup` for 1 week, then delete
+
+#### Rollback Plan
+
+If critical issues:
+1. Revert SignupForm to API call pattern
+2. Re-enable `/api/auth/signup` endpoint
+3. Add TODO comment: "Fix session handoff"
+4. Schedule fix for next sprint
+
+### Estimated Effort
+
+- Code changes: 1 hour
+- Testing: 2 hours
+- Documentation: 30 minutes
+- **Total**: 3.5 hours
+
+---
+
 *End of Phase 1 Specification*
