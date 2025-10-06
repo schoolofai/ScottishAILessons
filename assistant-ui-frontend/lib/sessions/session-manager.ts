@@ -6,6 +6,7 @@
  */
 
 import { ID, Databases, Account, Client } from 'appwrite';
+import { decompressCards } from '../appwrite/utils/compression';
 
 export interface StartLessonParams {
   lessonTemplateId: string;
@@ -82,7 +83,7 @@ export async function createLessonSession(params: StartLessonParams): Promise<Le
       courseId,
       title: lessonTemplate.title,
       outcomeRefs: JSON.parse(lessonTemplate.outcomeRefs || '[]'),  // Parse JSON string
-      cards: JSON.parse(lessonTemplate.cards || '[]'),              // Parse JSON string - CRITICAL!
+      cards: decompressCards(lessonTemplate.cards),                 // Decompress cards (handles both compressed and uncompressed)
       templateVersion: lessonTemplate.version || 1,
       estMinutes: lessonTemplate.estMinutes || 30,
       startedAt: new Date().toISOString()

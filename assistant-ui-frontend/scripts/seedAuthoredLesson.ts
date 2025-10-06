@@ -22,6 +22,7 @@ import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { compressCards, getCompressionStats } from '../lib/appwrite/utils/compression';
 
 dotenv.config({ path: '.env.local' });
 
@@ -29,7 +30,7 @@ dotenv.config({ path: '.env.local' });
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
 const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY!;
-const LANGGRAPH_URL = process.env.LANGGRAPH_LESSON_AUTHOR_URL || 'http://localhost:2024';
+const LANGGRAPH_URL = process.env.LANGGRAPH_LESSON_AUTHOR_URL || 'http://localhost:2027';
 
 const DATABASE_ID = 'default';
 const AUTHORED_SOW_COLLECTION = 'Authored_SOW';
@@ -460,7 +461,20 @@ async function upsertLessonTemplate(
     ]
   );
 
-  // Prepare document data with correct schema
+  // Prepare document data with correct schema and compression
+  const cards = lessonTemplate.cards || [];
+
+  // Compress cards using gzip + base64
+  const compressedCards = compressCards(cards);
+  const stats = getCompressionStats(cards);
+
+  console.log('📦 Compression stats:', {
+    original: stats.original + ' chars',
+    compressed: stats.compressed + ' chars',
+    ratio: stats.ratio,
+    savings: stats.savings
+  });
+
   const docData = {
     courseId,
     sow_order: sowOrder,
@@ -473,7 +487,7 @@ async function upsertLessonTemplate(
     outcomeRefs: JSON.stringify(lessonTemplate.outcomeRefs || []),
     engagement_tags: JSON.stringify(lessonTemplate.engagement_tags || []),
     policy: JSON.stringify(lessonTemplate.policy || {}),
-    cards: JSON.stringify(lessonTemplate.cards || [])
+    cards: compressedCards  // Compressed instead of JSON.stringify
   };
 
   if (existingDocs.documents.length > 0) {

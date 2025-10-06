@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  diagram-screenshot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: diagram-screenshot:latest
+    container_name: diagram-screenshot-dev
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - API_KEY=dev-api-key-change-in-production
+      - MAX_CONCURRENT_RENDERS=5
+      - DEFAULT_TIMEOUT_MS=10000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G

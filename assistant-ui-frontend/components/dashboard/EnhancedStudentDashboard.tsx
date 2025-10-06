@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigationTabs";
 import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
 import { CourseProgressCard } from "../progress/CourseProgressCard";
+import { CourseCurriculum } from "../curriculum/CourseCurriculum";
 import { getCourseProgress } from "@/lib/services/progress-service";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -689,9 +690,9 @@ export function EnhancedStudentDashboard() {
         />
       </div>
 
-      {/* Course Progress Card */}
+      {/* Hero Section - Course Progress */}
       {hasActiveCourse && courseProgress && !progressLoading && (
-        <div data-testid="course-progress-section" className="mb-8">
+        <div data-testid="course-progress-section" className="mb-6">
           <CourseProgressCard
             progress={courseProgress}
             onViewDetails={handleViewProgress}
@@ -699,19 +700,33 @@ export function EnhancedStudentDashboard() {
         </div>
       )}
 
-      {/* Recommendations Section */}
+      {/* Main Content Area - Two Column Layout */}
       {hasActiveCourse && (
-        <div>
-          <RecommendationSection
-            courseId={activeCourse}
-            recommendations={recommendations}
-            loading={recommendationsLoading}
-            error={recommendationsError}
-            onStartLesson={handleStartLesson}
-            onRetry={handleRecommendationsRetry}
-            courseName={courseData.find(c => c.id === activeCourse)?.subject}
-            startingLessonId={startingLessonId}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
+          {/* Main Area - Course Curriculum (2/3 width on large screens) */}
+          <div className="lg:col-span-2">
+            <CourseCurriculum
+              courseId={activeCourse}
+              studentId={student?.$id}
+              onStartLesson={handleStartLesson}
+              startingLessonId={startingLessonId}
+            />
+          </div>
+
+          {/* Sidebar - Recommendations (1/3 width on large screens) */}
+          <div className="lg:col-span-1">
+            <RecommendationSection
+              courseId={activeCourse}
+              recommendations={recommendations}
+              loading={recommendationsLoading}
+              error={recommendationsError}
+              onStartLesson={handleStartLesson}
+              onRetry={handleRecommendationsRetry}
+              courseName={courseData.find(c => c.id === activeCourse)?.subject}
+              startingLessonId={startingLessonId}
+              variant="sidebar"
+            />
+          </div>
         </div>
       )}
     </div>

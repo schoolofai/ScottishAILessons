@@ -1,6 +1,7 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import { EvidenceDriver } from './EvidenceDriver';
+import { decompressCards } from '../utils/compression';
 import type {
   LessonTemplate,
   Session,
@@ -113,7 +114,7 @@ export class LessonDriver extends BaseDriver {
         title: lessonTemplate.title,
         outcomeRefs: outcomeRefs,
         assessmentStandardRefs: assessmentStandardRefs,
-        cards: this._parseJSON(lessonTemplate.cards),
+        cards: decompressCards(lessonTemplate.cards),  // Decompress cards with fallback
         templateVersion: lessonTemplate.version,
         courseId: courseId, // Add for teaching context
         lessonTemplateId: lessonTemplateId, // Add for teaching context

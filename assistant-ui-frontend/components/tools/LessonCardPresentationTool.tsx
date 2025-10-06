@@ -65,10 +65,16 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
     // Update CurrentCardContext with card data for context-aware chat
     useEffect(() => {
+      // Only update if we have valid card_data
+      if (!args.card_data || !args.card_data.cfu) {
+        console.error('❌ LessonCardTool useEffect - Missing card_data or cfu');
+        return;
+      }
+
       console.log('🎯 LessonCardTool - Updating CurrentCardContext with:', {
         card_index: args.card_index,
         card_id: args.card_data.id,
-        lesson_title: args.lesson_context.lesson_title
+        lesson_title: args.lesson_context?.lesson_title
       });
 
       setCurrentCard({
@@ -87,13 +93,29 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           interaction_state: "completed"
         } : null);
       };
-    }, [args.card_data.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
+    }, [args.card_data?.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
 
     // CHECK: Only render if there's an interrupt
     if (!interrupt) return null;
-    
+
     // DATA: Get from tool call args (NOT from interrupt.value)
     const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;
+
+    // VALIDATION: Ensure card_data and cfu exist before rendering
+    if (!card_data || !card_data.cfu) {
+      console.error('❌ LessonCardTool - Missing required card_data or cfu:', {
+        hasCardData: !!card_data,
+        hasCfu: card_data ? !!card_data.cfu : false,
+        args
+      });
+      return (
+        <Card className="w-full max-w-4xl mx-auto">
+          <CardContent className="p-6 text-center">
+            <p className="text-red-600">Error: Invalid lesson card data. Please try again.</p>
+          </CardContent>
+        </Card>
+      );
+    }
 
     // Calculate progress
     const progress = ((card_index + 1) / total_cards) * 100;
@@ -133,9 +155,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
     const handleSkipCard = () => {
       if (confirm("Are you sure you want to skip this card? This will mark it as incomplete.")) {
-        // Clear the active tool UI state before sending command
-        setHasActiveToolUI(false);
-
         sendCommand({
           resume: JSON.stringify({
             action: "skip_card",

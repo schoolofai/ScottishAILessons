@@ -41,6 +41,7 @@ export interface RecommendationSectionProps {
   className?: string;
   courseName?: string;
   startingLessonId?: string | null; // Track which lesson is currently being started
+  variant?: 'default' | 'sidebar'; // Layout variant
 }
 
 export const RecommendationSection = memo(function RecommendationSection({
@@ -52,7 +53,8 @@ export const RecommendationSection = memo(function RecommendationSection({
   onRetry,
   className,
   courseName,
-  startingLessonId = null
+  startingLessonId = null,
+  variant = 'default'
 }: RecommendationSectionProps) {
   // Loading state
   if (loading) {
@@ -127,24 +129,38 @@ export const RecommendationSection = memo(function RecommendationSection({
   const topPick = recommendations.candidates[0];
   const otherCandidates = recommendations.candidates.slice(1);
 
+  const isSidebar = variant === 'sidebar';
+
   return (
     <div
-      className={cn("bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 p-6 mb-8", className)}
+      className={cn(
+        "rounded-xl border p-4",
+        isSidebar
+          ? "bg-white border-gray-200 shadow-sm"
+          : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 p-6 mb-8",
+        className
+      )}
       data-testid="recommendations-section"
       role="region"
       aria-labelledby="recommendations-heading"
     >
       {/* Header with Sparkle Icon */}
-      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0" aria-hidden="true">
-          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+      <div className={cn("flex items-center gap-2 mb-4", isSidebar ? "mb-3" : "sm:gap-3 sm:mb-6")}>
+        <div className={cn(
+          "bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0",
+          isSidebar ? "w-6 h-6" : "w-7 h-7 sm:w-8 sm:h-8"
+        )} aria-hidden="true">
+          <Sparkles className={cn("text-white", isSidebar ? "w-3 h-3" : "w-3.5 h-3.5 sm:w-4 sm:h-4")} />
         </div>
         <div className="min-w-0">
-          <h2 id="recommendations-heading" className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-            Recommended for {courseName || 'Your Course'}
+          <h2 id="recommendations-heading" className={cn(
+            "font-semibold text-gray-900 truncate",
+            isSidebar ? "text-sm" : "text-base sm:text-lg"
+          )}>
+            {isSidebar ? 'AI Recommendations' : `Recommended for ${courseName || 'Your Course'}`}
           </h2>
-          <p className="text-xs sm:text-sm text-gray-600">
-            AI-powered suggestions based on your progress
+          <p className={cn("text-gray-600", isSidebar ? "text-xs" : "text-xs sm:text-sm")}>
+            {isSidebar ? 'Based on your progress' : 'AI-powered suggestions based on your progress'}
           </p>
         </div>
       </div>
