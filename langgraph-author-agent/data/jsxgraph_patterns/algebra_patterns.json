@@ -1,0 +1,258 @@
+{
+  "patterns": [
+    {
+      "id": "linear_function_basic",
+      "name": "Linear Function - Basic",
+      "description": "Standard linear function y = mx + c with labeled intercepts",
+      "tags": ["algebra", "function", "linear"],
+      "cfe_outcomes": ["MTH 3-15a", "MTH 4-15a"],
+      "bounding_box": [-5, 10, 10, -5],
+      "diagram": {
+        "board": {
+          "boundingbox": [-5, 10, 10, -5],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "keepAspectRatio": true,
+          "defaultAxes": {
+            "x": {
+              "name": "x",
+              "withLabel": true,
+              "label": {
+                "position": "rt",
+                "offset": [-15, 15]
+              },
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1
+              }
+            },
+            "y": {
+              "name": "y",
+              "withLabel": true,
+              "label": {
+                "position": "rt",
+                "offset": [15, -10]
+              },
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "functiongraph",
+            "args": ["2*x + 3", -5, 5],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "point",
+            "args": [[0, 3]],
+            "attributes": {
+              "name": "y-intercept",
+              "size": 3,
+              "fillColor": "#28a745",
+              "strokeColor": "#28a745",
+              "label": {"offset": [10, 0]}
+            }
+          },
+          {
+            "type": "text",
+            "args": [3, 9, "y = 2x + 3"],
+            "attributes": {
+              "fontSize": 16,
+              "color": "#0066CC"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change slope (m) and intercept (c)",
+        "Add grid for better visualization",
+        "Mark x-intercept as well",
+        "Show multiple functions for comparison"
+      ]
+    },
+    {
+      "id": "quadratic_function_basic",
+      "name": "Quadratic Function - Basic",
+      "description": "Parabola y = ax² + bx + c with vertex and roots",
+      "tags": ["algebra", "function", "quadratic", "parabola"],
+      "cfe_outcomes": ["MTH 4-15b"],
+      "bounding_box": [-5, 10, 5, -5],
+      "diagram": {
+        "board": {
+          "boundingbox": [-5, 10, 5, -5],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "keepAspectRatio": true,
+          "defaultAxes": {
+            "x": {
+              "name": "x",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            },
+            "y": {
+              "name": "y",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "functiongraph",
+            "args": ["x^2 - 2*x - 3", -3, 5],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "point",
+            "args": [[-1, 0]],
+            "attributes": {
+              "name": "root 1",
+              "size": 3,
+              "fillColor": "#DC3545",
+              "strokeColor": "#DC3545",
+              "label": {"offset": [-10, -10]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[3, 0]],
+            "attributes": {
+              "name": "root 2",
+              "size": 3,
+              "fillColor": "#DC3545",
+              "strokeColor": "#DC3545",
+              "label": {"offset": [10, -10]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[1, -4]],
+            "attributes": {
+              "name": "vertex",
+              "size": 3,
+              "fillColor": "#28a745",
+              "strokeColor": "#28a745",
+              "label": {"offset": [10, 10]}
+            }
+          },
+          {
+            "type": "text",
+            "args": [2, 8, "y = x² - 2x - 3"],
+            "attributes": {
+              "fontSize": 16,
+              "color": "#0066CC"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change coefficients a, b, c",
+        "Add axis of symmetry (dashed line)",
+        "Show table of values",
+        "Highlight turning point"
+      ]
+    },
+    {
+      "id": "coordinate_plane_basic",
+      "name": "Coordinate Plane - Basic",
+      "description": "Standard coordinate plane with gridlines and quadrants labeled",
+      "tags": ["algebra", "coordinates", "graphing"],
+      "cfe_outcomes": ["MTH 3-16a", "MTH 4-16a"],
+      "bounding_box": [-5, 5, 5, -5],
+      "diagram": {
+        "board": {
+          "boundingbox": [-5, 5, 5, -5],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "keepAspectRatio": true,
+          "grid": true,
+          "defaultAxes": {
+            "x": {
+              "name": "x",
+              "withLabel": true,
+              "label": {
+                "position": "rt",
+                "offset": [-15, 15]
+              },
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1,
+                "drawLabels": true
+              }
+            },
+            "y": {
+              "name": "y",
+              "withLabel": true,
+              "label": {
+                "position": "rt",
+                "offset": [15, -10]
+              },
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1,
+                "drawLabels": true
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "text",
+            "args": [3, 3, "Quadrant I"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#6c757d"
+            }
+          },
+          {
+            "type": "text",
+            "args": [-3, 3, "Quadrant II"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#6c757d"
+            }
+          },
+          {
+            "type": "text",
+            "args": [-3, -3, "Quadrant III"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#6c757d"
+            }
+          },
+          {
+            "type": "text",
+            "args": [3, -3, "Quadrant IV"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#6c757d"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Plot specific points",
+        "Add distance/midpoint examples",
+        "Show transformation examples",
+        "Highlight specific quadrants"
+      ]
+    }
+  ]
+}

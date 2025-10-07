@@ -160,10 +160,12 @@ async function main() {
 
     const lessonTemplate = await runLessonAuthorAgent(tripleInput, LANGGRAPH_URL, logFile);
     console.log('✅ Lesson template generated');
-    console.log(`   Title: ${lessonTemplate.title || 'N/A'}`);
-    console.log(`   Type: ${lessonTemplate.lesson_type || 'N/A'}`);
-    console.log(`   Duration: ${lessonTemplate.estMinutes || 'N/A'} minutes`);
-    console.log(`   Cards: ${lessonTemplate.cards?.length || 0}`);
+    // Handle both flat and nested structures
+    const template = lessonTemplate.content || lessonTemplate;
+    console.log(`   Title: ${template.title || 'N/A'}`);
+    console.log(`   Type: ${template.lesson_type || 'N/A'}`);
+    console.log(`   Duration: ${template.estMinutes || 'N/A'} minutes`);
+    console.log(`   Cards: ${template.cards?.length || 0}`);
     console.log('');
 
     // Step 7: Upsert to lesson_templates
@@ -462,7 +464,8 @@ async function upsertLessonTemplate(
   );
 
   // Prepare document data with correct schema and compression
-  const cards = lessonTemplate.cards || [];
+  // Handle both flat structure (lessonTemplate.cards) and nested structure (lessonTemplate.content.cards)
+  const cards = lessonTemplate.content?.cards || lessonTemplate.cards || [];
 
   // Compress cards using gzip + base64
   const compressedCards = compressCards(cards);
@@ -475,18 +478,21 @@ async function upsertLessonTemplate(
     savings: stats.savings
   });
 
+  // Extract template content (handle both flat and nested structures)
+  const template = lessonTemplate.content || lessonTemplate;
+
   const docData = {
     courseId,
     sow_order: sowOrder,
-    title: lessonTemplate.title,
+    title: template.title,
     createdBy: 'lesson_author_agent',
     version: 1,
     status: 'draft',
-    lesson_type: lessonTemplate.lesson_type || 'teach',
-    estMinutes: lessonTemplate.estMinutes || 50,
-    outcomeRefs: JSON.stringify(lessonTemplate.outcomeRefs || []),
-    engagement_tags: JSON.stringify(lessonTemplate.engagement_tags || []),
-    policy: JSON.stringify(lessonTemplate.policy || {}),
+    lesson_type: template.lesson_type || 'teach',
+    estMinutes: template.estMinutes || 50,
+    outcomeRefs: JSON.stringify(template.outcomeRefs || []),
+    engagement_tags: JSON.stringify(template.engagement_tags || []),
+    policy: JSON.stringify(template.policy || {}),
     cards: compressedCards  // Compressed instead of JSON.stringify
   };
 

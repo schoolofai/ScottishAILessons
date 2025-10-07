@@ -2773,3 +2773,808 @@ healthRouter.get('/live', (req: Request, res: Response) => {
 5. **Base64 Default Format**: While binary is more efficient, base64 JSON responses are simpler for LangGraph agents to handle (no multipart parsing needed)
 
 **─────────────────────────────────────────────────**
+
+---
+
+## 15. Frontend Seeding Script Integration
+
+### 15.1 Overview
+
+The **Diagram Seeding Script** (`assistant-ui-frontend/scripts/seedDiagrams.ts`) acts as the integration layer between the LangGraph diagram author agent and the Appwrite database. Following the established pattern from `seedAuthoredLesson.ts`, this script orchestrates the end-to-end diagram generation workflow with robust error handling and retry logic.
+
+**Architectural Role**:
+```
+┌────────────────────────────────────────────────────────────────┐
+│  Frontend Seeding Script (assistant-ui-frontend/scripts/)      │
+│  • Fetches lesson_template from Appwrite                       │
+│  • Calls LangGraph diagram_author agent via HTTP               │
+│  • Waits for agent completion with retry logic                 │
+│  • Persists diagrams.json output to Appwrite                   │
+│  • Implements storage strategy (inline vs cloud)               │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### 15.2 Script Specification
+
+#### CLI Interface
+
+```bash
+npm run seed:diagrams -- <courseId> <sow_order>
+```
+
+**Parameters**:
+- `courseId` (string, required): Appwrite course document ID (e.g., `"course_c84774"`)
+- `sow_order` (number, required): Lesson sequence number within course (0-indexed)
+
+**Example**:
+```bash
+npm run seed:diagrams -- "course_c84774" 5
+```
+
+#### Configuration
+
+**Environment Variables** (from `.env.local`):
+```bash
+NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
+NEXT_PUBLIC_APPWRITE_PROJECT_ID=<project-id>
+APPWRITE_API_KEY=<server-api-key>
+LANGGRAPH_DIAGRAM_AUTHOR_URL=http://localhost:2028
+```
+
+**Constants**:
+```typescript
+const DATABASE_ID = 'default';
+const LESSON_TEMPLATES_COLLECTION = 'lesson_templates';
+const LESSON_DIAGRAMS_COLLECTION = 'lesson_diagrams';
+const STORAGE_BUCKET_ID = 'diagrams';
+const MAX_INLINE_SIZE = 50000;  // 50KB threshold for inline storage
+const MAX_RETRIES = 10;          // Error recovery attempts
+```
+
+### 15.3 Data Flow
+
+#### Step 1: Input Extraction
+```typescript
+// Query Appwrite for lesson_template by courseId + sow_order
+const lessonTemplate = await databases.listDocuments(
+  DATABASE_ID,
+  LESSON_TEMPLATES_COLLECTION,
+  [
+    Query.equal('courseId', courseId),
+    Query.equal('sow_order', sowOrder)
+  ]
+);
+
+if (lessonTemplate.documents.length === 0) {
+  throw new Error(`No lesson template found for courseId=${courseId}, sow_order=${sowOrder}`);
+}
+
+const template = lessonTemplate.documents[0];
+```
+
+#### Step 2: Agent Invocation
+```typescript
+// POST lesson_template to LangGraph diagram_author agent
+const client = new LangGraphClient({ apiUrl: LANGGRAPH_DIAGRAM_AUTHOR_URL });
+
+// Create thread once - reuse across retries
+const thread = await client.threads.create();
+const threadId = thread.thread_id;
+
+// Send lesson template as HumanMessage
+const input = {
+  messages: [
+    {
+      role: 'user',
+      content: JSON.stringify(template)
+    }
+  ]
+};
+
+const stream = client.runs.stream(
+  threadId,
+  'diagram_author',
+  { input, stream_mode: 'values' }
+);
+```
+
+#### Step 3: Output Parsing
+```typescript
+// Wait for completion
+for await (const chunk of stream) {
+  // Progress indicators
+  if (chunk.event === 'messages/partial') {
+    process.stdout.write('.');
+  }
+}
+
+// Get final state
+const state = await client.threads.getState(threadId);
+const files = state.values.files || {};
+
+// Extract diagrams array from agent output
+if (!files['diagrams.json']) {
+  throw new Error('Agent completed but produced no diagrams.json');
+}
+
+const { diagrams } = JSON.parse(files['diagrams.json']);
+```
+
+#### Step 4: Storage Strategy
+```typescript
+async function determineStorageStrategy(
+  imageBase64: string
+): Promise<{ inline: boolean; size: number }> {
+  const buffer = Buffer.from(imageBase64, 'base64');
+  const size = buffer.length;
+
+  return {
+    inline: size < MAX_INLINE_SIZE,
+    size
+  };
+}
+
+async function uploadToStorage(
+  storage: Storage,
+  imageBase64: string
+): Promise<string> {
+  const buffer = Buffer.from(imageBase64, 'base64');
+
+  const file = await storage.createFile(
+    STORAGE_BUCKET_ID,
+    ID.unique(),
+    new File([buffer], 'diagram.png', { type: 'image/png' })
+  );
+
+  return file.$id;
+}
+```
+
+#### Step 5: Appwrite Persistence
+```typescript
+for (const diagram of diagrams) {
+  // Determine storage strategy
+  const strategy = await determineStorageStrategy(diagram.image_base64);
+
+  console.log(`📦 Card ${diagram.cardId}: ${strategy.size} bytes (${strategy.inline ? 'INLINE' : 'STORAGE'})`);
+
+  // Prepare document data
+  const docData: any = {
+    lessonTemplateId: template.$id,
+    cardId: diagram.cardId,
+    jsxgraph_json: diagram.jsxgraph_json,
+    diagram_type: diagram.diagram_type || 'other',
+    visual_critique_score: diagram.visual_critique_score || 0.0,
+    critique_iterations: diagram.critique_iterations || 0,
+    critique_feedback: JSON.stringify(diagram.critique_feedback || []),
+    status: 'approved',
+    version: 1,
+    createdBy: 'diagram_author_agent'
+  };
+
+  if (strategy.inline) {
+    // Inline storage
+    docData.image_base64 = diagram.image_base64;
+    docData.image_url = '';
+  } else {
+    // Cloud storage
+    const fileId = await uploadToStorage(storage, diagram.image_base64);
+    docData.image_base64 = '';
+    docData.image_url = fileId;
+  }
+
+  // Upsert to lesson_diagrams collection
+  await upsertDiagram(databases, docData);
+}
+```
+
+### 15.4 Error Handling Strategy
+
+Following the pattern from `seedAuthoredLesson.ts`:
+
+#### Retry Logic with Thread Persistence
+
+```typescript
+async function runDiagramAuthorAgent(
+  lessonTemplate: any,
+  langgraphUrl: string,
+  logFilePath: string
+): Promise<any> {
+  const client = new LangGraphClient({ apiUrl: langgraphUrl });
+  const MAX_RETRIES = 10;
+
+  // Create thread once - reuse across retries
+  const thread = await client.threads.create();
+  const threadId = thread.thread_id;
+
+  logToFile(logFilePath, `Thread created: ${threadId}`);
+  console.log(`   Thread ID: ${threadId}`);
+
+  let attempt = 0;
+  let lastError: Error | null = null;
+
+  while (attempt < MAX_RETRIES) {
+    attempt++;
+    logToFile(logFilePath, `\n=== Attempt ${attempt}/${MAX_RETRIES} ===`);
+    console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
+
+    try {
+      // First attempt: send lesson template
+      // Subsequent attempts: send "continue" to resume from checkpoint
+      const input = attempt === 1
+        ? { messages: [{ role: 'user', content: JSON.stringify(lessonTemplate) }] }
+        : { messages: [{ role: 'user', content: 'continue' }] };
+
+      // Stream agent execution
+      const stream = client.runs.stream(
+        threadId,
+        'diagram_author',
+        { input, stream_mode: 'values' }
+      );
+
+      let messageCount = 0;
+      for await (const chunk of stream) {
+        if (chunk.event === 'messages/partial') {
+          messageCount++;
+          if (messageCount % 10 === 0) {
+            process.stdout.write('.');
+          }
+        }
+      }
+      console.log('');
+
+      // Get final state
+      const state = await client.threads.getState(threadId);
+      const files = state.values.files || {};
+
+      // Check for successful completion
+      if (files['diagrams.json']) {
+        logToFile(logFilePath, `✅ Success on attempt ${attempt}`);
+        console.log(`✅ Diagrams generated successfully on attempt ${attempt}`);
+        return JSON.parse(files['diagrams.json']);
+      }
+
+      // Check for outstanding TODOs
+      if (files['diagram_todos.json']) {
+        const todos = JSON.parse(files['diagram_todos.json']);
+        const errorMsg = `⚠️  Agent has ${todos.length} outstanding TODOs`;
+        logToFile(logFilePath, errorMsg);
+        logToFile(logFilePath, JSON.stringify(todos, null, 2));
+
+        console.log(`   ${errorMsg}`);
+        todos.slice(0, 3).forEach((todo: any) => {
+          console.log(`      - ${todo.critic}: ${todo.issue}`);
+        });
+
+        // Continue to retry with "continue" message
+        lastError = new Error(`Outstanding TODOs: ${todos.length}`);
+        continue;
+      }
+
+      // No diagrams and no TODOs - unknown state
+      throw new Error('Agent completed but produced no diagrams.json or diagram_todos.json');
+
+    } catch (error: any) {
+      lastError = error;
+      const errorMsg = `❌ Attempt ${attempt} failed: ${error.message}`;
+      logToFile(logFilePath, errorMsg);
+      logToFile(logFilePath, error.stack || '');
+      console.log(`   ${errorMsg}`);
+
+      // Wait before retry (exponential backoff)
+      if (attempt < MAX_RETRIES) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`   Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // All retries exhausted
+  const finalError = `Failed after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`;
+  logToFile(logFilePath, `\n❌ FINAL FAILURE: ${finalError}`);
+  throw new Error(finalError);
+}
+```
+
+#### Exponential Backoff
+
+```typescript
+// Retry delays: 1s, 2s, 4s, 8s, 10s (capped), 10s, 10s, 10s, 10s, 10s
+const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+```
+
+#### Comprehensive Logging
+
+```typescript
+// Create log file path
+const logDir = path.join(__dirname, '../logs/diagram-seeding');
+fs.mkdirSync(logDir, { recursive: true });
+
+const logFile = path.join(
+  logDir,
+  `diagram_${courseId}_order${sowOrder}_${Date.now()}.log`
+);
+
+function logToFile(filePath: string, message: string): void {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(filePath, logEntry, 'utf-8');
+}
+```
+
+### 15.5 Complete TypeScript Implementation
+
+**File**: `assistant-ui-frontend/scripts/seedDiagrams.ts`
+
+```typescript
+#!/usr/bin/env tsx
+
+/**
+ * Seed Diagrams - Generate diagram images using LangGraph diagram_author agent
+ *
+ * Features:
+ * - Error recovery with automatic retry (max 10 attempts)
+ * - Thread persistence for human-in-the-loop intervention
+ * - Comprehensive logging to files
+ * - Exponential backoff between retries
+ * - Storage strategy: inline (<50KB) vs cloud (≥50KB)
+ *
+ * Usage:
+ *   npm run seed:diagrams -- <courseId> <sow_order>
+ *
+ * Example:
+ *   npm run seed:diagrams -- "course_c84774" 5
+ */
+
+import { Client as AppwriteClient, Databases, Storage, Query, ID } from 'node-appwrite';
+import { Client as LangGraphClient } from '@langchain/langgraph-sdk';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+dotenv.config({ path: '.env.local' });
+
+// Configuration
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY!;
+const LANGGRAPH_URL = process.env.LANGGRAPH_DIAGRAM_AUTHOR_URL || 'http://localhost:2028';
+
+const DATABASE_ID = 'default';
+const LESSON_TEMPLATES_COLLECTION = 'lesson_templates';
+const LESSON_DIAGRAMS_COLLECTION = 'lesson_diagrams';
+const STORAGE_BUCKET_ID = 'diagrams';
+const MAX_INLINE_SIZE = 50000; // 50KB threshold
+
+interface DiagramOutput {
+  lessonTemplateId: string;
+  cardId: string;
+  jsxgraph_json: string;
+  image_base64: string;
+  diagram_type: string;
+  visual_critique_score: number;
+  critique_iterations: number;
+  critique_feedback: any[];
+}
+
+async function main() {
+  // Parse command line arguments
+  const [courseId, sowOrderStr] = process.argv.slice(2);
+
+  if (!courseId || !sowOrderStr) {
+    console.error('Usage: npm run seed:diagrams -- <courseId> <sow_order>');
+    console.error('Example: npm run seed:diagrams -- "course_c84774" 5');
+    process.exit(1);
+  }
+
+  const sowOrder = parseInt(sowOrderStr, 10);
+  if (isNaN(sowOrder)) {
+    console.error('Error: sow_order must be a valid number');
+    process.exit(1);
+  }
+
+  console.log('🚀 Starting Diagram Seeding Pipeline');
+  console.log('====================================');
+  console.log(`Course ID: ${courseId}`);
+  console.log(`SOW Order: ${sowOrder}`);
+  console.log('');
+
+  // Initialize Appwrite clients
+  const appwrite = new AppwriteClient()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID)
+    .setKey(APPWRITE_API_KEY);
+
+  const databases = new Databases(appwrite);
+  const storage = new Storage(appwrite);
+
+  try {
+    // Step 1: Fetch lesson template
+    console.log('📚 Fetching lesson template...');
+    const lessonTemplate = await getLessonTemplate(databases, courseId, sowOrder);
+    console.log(`✅ Found lesson template: "${lessonTemplate.title}"`);
+    console.log(`   Cards: ${lessonTemplate.cards?.length || 0}`);
+    console.log('');
+
+    // Step 2: Run diagram author agent with retry logic
+    console.log('🤖 Invoking diagram_author agent with error recovery...');
+    console.log(`   URL: ${LANGGRAPH_URL}`);
+
+    // Create log file path
+    const logDir = path.join(__dirname, '../logs/diagram-seeding');
+    fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(
+      logDir,
+      `diagram_${courseId}_order${sowOrder}_${Date.now()}.log`
+    );
+
+    console.log(`   Log file: ${logFile}`);
+    console.log('');
+
+    const diagramsOutput = await runDiagramAuthorAgent(lessonTemplate, LANGGRAPH_URL, logFile);
+    console.log('✅ Diagrams generated');
+    console.log(`   Total diagrams: ${diagramsOutput.diagrams?.length || 0}`);
+    console.log('');
+
+    // Step 3: Persist diagrams to Appwrite
+    console.log('💾 Persisting diagrams to Appwrite...');
+    const results = await persistDiagrams(
+      databases,
+      storage,
+      diagramsOutput.diagrams,
+      lessonTemplate.$id
+    );
+
+    console.log(`✅ Persisted ${results.created} diagrams (${results.inline} inline, ${results.storage} cloud)`);
+    console.log('');
+
+    console.log('====================================');
+    console.log('🎉 SUCCESS! Diagrams seeded');
+    console.log('====================================');
+
+  } catch (error) {
+    console.error('');
+    console.error('====================================');
+    console.error('❌ ERROR: Diagram seeding failed');
+    console.error('====================================');
+    console.error(error);
+    process.exit(1);
+  }
+}
+
+/**
+ * Fetch lesson template by courseId + sow_order
+ */
+async function getLessonTemplate(
+  databases: Databases,
+  courseId: string,
+  sowOrder: number
+): Promise<any> {
+  const response = await databases.listDocuments(
+    DATABASE_ID,
+    LESSON_TEMPLATES_COLLECTION,
+    [
+      Query.equal('courseId', courseId),
+      Query.equal('sow_order', sowOrder)
+    ]
+  );
+
+  if (response.documents.length === 0) {
+    throw new Error(`No lesson template found for courseId=${courseId}, sow_order=${sowOrder}`);
+  }
+
+  return response.documents[0];
+}
+
+/**
+ * Run diagram author agent with error recovery and retry logic
+ */
+async function runDiagramAuthorAgent(
+  lessonTemplate: any,
+  langgraphUrl: string,
+  logFilePath: string
+): Promise<any> {
+  const client = new LangGraphClient({ apiUrl: langgraphUrl });
+  const MAX_RETRIES = 10;
+
+  // Create thread once - reuse across retries
+  const thread = await client.threads.create();
+  const threadId = thread.thread_id;
+
+  logToFile(logFilePath, `Thread created: ${threadId}`);
+  console.log(`   Thread ID: ${threadId}`);
+
+  let attempt = 0;
+  let lastError: Error | null = null;
+
+  while (attempt < MAX_RETRIES) {
+    attempt++;
+    logToFile(logFilePath, `\n=== Attempt ${attempt}/${MAX_RETRIES} ===`);
+    console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
+
+    try {
+      // First attempt: send lesson template
+      // Subsequent attempts: send "continue" to resume
+      const input = attempt === 1
+        ? { messages: [{ role: 'user', content: JSON.stringify(lessonTemplate) }] }
+        : { messages: [{ role: 'user', content: 'continue' }] };
+
+      // Stream agent execution
+      const stream = client.runs.stream(
+        threadId,
+        'diagram_author',
+        { input, stream_mode: 'values' }
+      );
+
+      let messageCount = 0;
+      for await (const chunk of stream) {
+        if (chunk.event === 'messages/partial') {
+          messageCount++;
+          if (messageCount % 10 === 0) {
+            process.stdout.write('.');
+          }
+        }
+      }
+      console.log('');
+
+      // Get final state
+      const state = await client.threads.getState(threadId);
+      const files = state.values.files || {};
+
+      // Check for successful completion
+      if (files['diagrams.json']) {
+        logToFile(logFilePath, `✅ Success on attempt ${attempt}`);
+        console.log(`✅ Diagrams generated successfully on attempt ${attempt}`);
+        return JSON.parse(files['diagrams.json']);
+      }
+
+      // Check for outstanding TODOs
+      if (files['diagram_todos.json']) {
+        const todos = JSON.parse(files['diagram_todos.json']);
+        const errorMsg = `⚠️  Agent has ${todos.length} outstanding TODOs`;
+        logToFile(logFilePath, errorMsg);
+        logToFile(logFilePath, JSON.stringify(todos, null, 2));
+
+        console.log(`   ${errorMsg}`);
+        todos.slice(0, 3).forEach((todo: any) => {
+          console.log(`      - ${todo.critic}: ${todo.issue}`);
+        });
+
+        // Continue to retry with "continue" message
+        lastError = new Error(`Outstanding TODOs: ${todos.length}`);
+        continue;
+      }
+
+      // No diagrams and no TODOs - unknown state
+      throw new Error('Agent completed but produced no diagrams.json or diagram_todos.json');
+
+    } catch (error: any) {
+      lastError = error;
+      const errorMsg = `❌ Attempt ${attempt} failed: ${error.message}`;
+      logToFile(logFilePath, errorMsg);
+      logToFile(logFilePath, error.stack || '');
+      console.log(`   ${errorMsg}`);
+
+      // Wait before retry (exponential backoff)
+      if (attempt < MAX_RETRIES) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`   Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // All retries exhausted
+  const finalError = `Failed after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`;
+  logToFile(logFilePath, `\n❌ FINAL FAILURE: ${finalError}`);
+  throw new Error(finalError);
+}
+
+/**
+ * Persist diagrams to Appwrite with storage strategy
+ */
+async function persistDiagrams(
+  databases: Databases,
+  storage: Storage,
+  diagrams: DiagramOutput[],
+  lessonTemplateId: string
+): Promise<{ created: number; inline: number; storage: number }> {
+  let created = 0;
+  let inlineCount = 0;
+  let storageCount = 0;
+
+  for (const diagram of diagrams) {
+    // Determine storage strategy
+    const buffer = Buffer.from(diagram.image_base64, 'base64');
+    const size = buffer.length;
+    const useInline = size < MAX_INLINE_SIZE;
+
+    console.log(`📦 Card ${diagram.cardId}: ${size} bytes (${useInline ? 'INLINE' : 'STORAGE'})`);
+
+    // Prepare document data
+    const docData: any = {
+      lessonTemplateId: lessonTemplateId,
+      cardId: diagram.cardId,
+      jsxgraph_json: diagram.jsxgraph_json,
+      diagram_type: diagram.diagram_type || 'other',
+      visual_critique_score: diagram.visual_critique_score || 0.0,
+      critique_iterations: diagram.critique_iterations || 0,
+      critique_feedback: JSON.stringify(diagram.critique_feedback || []),
+      status: 'approved',
+      version: 1,
+      createdBy: 'diagram_author_agent'
+    };
+
+    if (useInline) {
+      // Inline storage
+      docData.image_base64 = diagram.image_base64;
+      docData.image_url = '';
+      inlineCount++;
+    } else {
+      // Cloud storage
+      const file = await storage.createFile(
+        STORAGE_BUCKET_ID,
+        ID.unique(),
+        new File([buffer], 'diagram.png', { type: 'image/png' })
+      );
+      docData.image_base64 = '';
+      docData.image_url = file.$id;
+      storageCount++;
+    }
+
+    // Upsert to lesson_diagrams collection
+    await upsertDiagram(databases, docData);
+    created++;
+  }
+
+  return { created, inline: inlineCount, storage: storageCount };
+}
+
+/**
+ * Upsert diagram to lesson_diagrams collection
+ */
+async function upsertDiagram(
+  databases: Databases,
+  docData: any
+): Promise<void> {
+  // Query for existing diagram
+  const existingDocs = await databases.listDocuments(
+    DATABASE_ID,
+    LESSON_DIAGRAMS_COLLECTION,
+    [
+      Query.equal('lessonTemplateId', docData.lessonTemplateId),
+      Query.equal('cardId', docData.cardId)
+    ]
+  );
+
+  if (existingDocs.documents.length > 0) {
+    // Update existing
+    const docId = existingDocs.documents[0].$id;
+    await databases.updateDocument(
+      DATABASE_ID,
+      LESSON_DIAGRAMS_COLLECTION,
+      docId,
+      docData
+    );
+  } else {
+    // Create new
+    await databases.createDocument(
+      DATABASE_ID,
+      LESSON_DIAGRAMS_COLLECTION,
+      ID.unique(),
+      docData
+    );
+  }
+}
+
+/**
+ * Append log entry to file with timestamp
+ */
+function logToFile(filePath: string, message: string): void {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(filePath, logEntry, 'utf-8');
+}
+
+// Run the script
+main();
+```
+
+### 15.6 NPM Script Configuration
+
+**File**: `assistant-ui-frontend/package.json`
+
+Add the following script to the `"scripts"` section:
+
+```json
+{
+  "scripts": {
+    "seed:diagrams": "tsx scripts/seedDiagrams.ts"
+  }
+}
+```
+
+### 15.7 Usage Examples
+
+#### Basic Usage
+```bash
+# Seed diagrams for lesson at order 5 in course c84774
+npm run seed:diagrams -- "course_c84774" 5
+
+# Output:
+# 🚀 Starting Diagram Seeding Pipeline
+# ====================================
+# Course ID: course_c84774
+# SOW Order: 5
+#
+# 📚 Fetching lesson template...
+# ✅ Found lesson template: "Pythagorean Theorem Applications"
+#    Cards: 12
+#
+# 🤖 Invoking diagram_author agent with error recovery...
+#    URL: http://localhost:2028
+#    Thread ID: abc123-def456
+#    Log file: logs/diagram-seeding/diagram_course_c84774_order5_1733456789.log
+#
+# 🔄 Attempt 1/10...
+# ..........
+# ✅ Diagrams generated successfully on attempt 1
+# ✅ Diagrams generated
+#    Total diagrams: 8
+#
+# 💾 Persisting diagrams to Appwrite...
+# 📦 Card card_1: 28456 bytes (INLINE)
+# 📦 Card card_3: 45231 bytes (INLINE)
+# 📦 Card card_5: 67890 bytes (STORAGE)
+# ...
+# ✅ Persisted 8 diagrams (6 inline, 2 cloud)
+#
+# ====================================
+# 🎉 SUCCESS! Diagrams seeded
+# ====================================
+```
+
+#### Error Recovery Example
+```bash
+npm run seed:diagrams -- "course_c84774" 0
+
+# Output shows retry logic:
+# 🔄 Attempt 1/10...
+# ❌ Attempt 1 failed: LLM timeout
+#    Waiting 1000ms before retry...
+#
+# 🔄 Attempt 2/10...
+# ⚠️  Agent has 3 outstanding TODOs
+#    - visual_critic: Low clarity score for card_2 diagram
+#    Waiting 2000ms before retry...
+#
+# 🔄 Attempt 3/10...
+# ..........
+# ✅ Diagrams generated successfully on attempt 3
+```
+
+### 15.8 Integration Checklist
+
+- [ ] Create `assistant-ui-frontend/scripts/seedDiagrams.ts` with complete implementation
+- [ ] Add `"seed:diagrams": "tsx scripts/seedDiagrams.ts"` to package.json
+- [ ] Create `logs/diagram-seeding/` directory for log files
+- [ ] Set `LANGGRAPH_DIAGRAM_AUTHOR_URL` in `.env.local`
+- [ ] Create `diagrams` Storage bucket in Appwrite
+- [ ] Test with sample lesson template (courseId + sow_order)
+- [ ] Verify storage strategy (inline vs cloud) based on image size
+- [ ] Validate FK relationships (lessonTemplateId, cardId)
+- [ ] Test error recovery with intentional failures
+- [ ] Document in project README
+
+---
+
+**★ Insight ─────────────────────────────────────**
+
+**1. Thread Persistence Pattern**: By creating the LangGraph thread once and reusing it across retries, we enable the agent to resume from its last checkpoint rather than starting from scratch. This is critical for long-running diagram generation tasks that may hit LLM timeouts or rate limits.
+
+**2. Storage Strategy Decision Boundary**: The 50KB threshold for inline vs cloud storage is chosen based on Appwrite's document size limits (1MB total per document). With multiple diagrams per lesson, inline storage for small images keeps queries fast while large images go to Storage to prevent document bloat.
+
+**3. Error Recovery Philosophy**: Following the `seedAuthoredLesson.ts` pattern, the script treats agent failures as expected rather than exceptional. The "continue" message pattern allows human-in-the-loop intervention where a human can inspect logs, fix issues in the agent, and let the script resume automatically.
+
+**─────────────────────────────────────────────────**

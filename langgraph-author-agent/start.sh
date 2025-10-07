@@ -52,7 +52,7 @@ echo ""
 echo -e "${YELLOW}Note: Using --allow-blocking flag for Gemini compatibility${NC}"
 echo ""
 
-langgraph dev --allow-blocking --port 2025
+langgraph dev --allow-blocking --port 2027
 
 echo ""
 echo -e "${GREEN}================================================${NC}"

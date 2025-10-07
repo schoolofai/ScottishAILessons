@@ -1,0 +1,283 @@
+{
+  "patterns": [
+    {
+      "id": "right_triangle_basic",
+      "name": "Right Triangle - Basic",
+      "description": "Standard right triangle with labeled sides and right angle marker",
+      "tags": ["geometry", "triangle", "pythagorean"],
+      "cfe_outcomes": ["MTH 3-17a", "MTH 4-17a"],
+      "bounding_box": [-1, 6, 8, -1],
+      "diagram": {
+        "board": {
+          "boundingbox": [-1, 6, 8, -1],
+          "axis": false,
+          "showNavigation": false,
+          "showCopyright": false,
+          "keepAspectRatio": true
+        },
+        "elements": [
+          {
+            "type": "point",
+            "args": [[0, 0]],
+            "attributes": {
+              "name": "A",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [-10, -10]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[6, 0]],
+            "attributes": {
+              "name": "B",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [10, -10]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[6, 4]],
+            "attributes": {
+              "name": "C",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [10, 10]}
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["A"], ["B"]],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["B"], ["C"]],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["C"], ["A"]],
+            "attributes": {
+              "strokeColor": "#DC3545",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "text",
+            "args": [3, -0.5, "base"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [6.5, 2, "height"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [2.5, 2.5, "hypotenuse"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#DC3545"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Adjust point coordinates for different triangle sizes",
+        "Change side labels to a, b, c or specific measurements",
+        "Add grid for measurement reference",
+        "Include angle measurements"
+      ]
+    },
+    {
+      "id": "circle_basic",
+      "name": "Circle - Basic",
+      "description": "Circle with center point and radius",
+      "tags": ["geometry", "circle", "radius"],
+      "cfe_outcomes": ["MTH 3-11a", "MTH 4-11a"],
+      "bounding_box": [-5, 5, 5, -5],
+      "diagram": {
+        "board": {
+          "boundingbox": [-5, 5, 5, -5],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "keepAspectRatio": true,
+          "defaultAxes": {
+            "x": {
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1
+              }
+            },
+            "y": {
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "point",
+            "args": [[0, 0]],
+            "attributes": {
+              "name": "O",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [-10, -10]}
+            }
+          },
+          {
+            "type": "circle",
+            "args": [["O"], 3],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2,
+              "fillOpacity": 0.1,
+              "fillColor": "#0066CC"
+            }
+          },
+          {
+            "type": "point",
+            "args": [[3, 0]],
+            "attributes": {
+              "name": "P",
+              "size": 3,
+              "fillColor": "#28a745",
+              "strokeColor": "#28a745",
+              "label": {"offset": [10, -10]}
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["O"], ["P"]],
+            "attributes": {
+              "strokeColor": "#DC3545",
+              "strokeWidth": 2,
+              "dash": 2
+            }
+          },
+          {
+            "type": "text",
+            "args": [1.5, 0.3, "r = 3"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#DC3545"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change radius value",
+        "Add multiple circles for comparison",
+        "Show diameter as full line",
+        "Add chord or tangent"
+      ]
+    },
+    {
+      "id": "angle_basic",
+      "name": "Angle - Basic",
+      "description": "Angle with vertex and two rays",
+      "tags": ["geometry", "angle", "measurement"],
+      "cfe_outcomes": ["MTH 3-17b", "MTH 4-17b"],
+      "bounding_box": [-1, 5, 7, -1],
+      "diagram": {
+        "board": {
+          "boundingbox": [-1, 5, 7, -1],
+          "axis": false,
+          "showNavigation": false,
+          "showCopyright": false
+        },
+        "elements": [
+          {
+            "type": "point",
+            "args": [[2, 2]],
+            "attributes": {
+              "name": "B",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [-10, -10]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[0, 2]],
+            "attributes": {
+              "name": "A",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [-10, 0]}
+            }
+          },
+          {
+            "type": "point",
+            "args": [[2, 4]],
+            "attributes": {
+              "name": "C",
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "label": {"offset": [10, 10]}
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["B"], ["A"]],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2,
+              "straightFirst": false,
+              "straightLast": false
+            }
+          },
+          {
+            "type": "segment",
+            "args": [["B"], ["C"]],
+            "attributes": {
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2,
+              "straightFirst": false,
+              "straightLast": false
+            }
+          },
+          {
+            "type": "text",
+            "args": [2.5, 2.5, "60°"],
+            "attributes": {
+              "fontSize": 16,
+              "color": "#DC3545"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change angle measurement",
+        "Add arc to show angle",
+        "Show multiple angles for comparison",
+        "Add angle bisector"
+      ]
+    }
+  ]
+}

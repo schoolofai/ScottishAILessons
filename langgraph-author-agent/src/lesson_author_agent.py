@@ -57,8 +57,16 @@ except ImportError:
         APPWRITE_AVAILABLE
     )
 
-# Initialize Gemini model
+# Initialize Gemini models
+# Flash-lite for main agent and most subagents (fast, cost-effective)
 gemini = ChatGoogleGenerativeAI(
+    model="models/gemini-flash-lite-latest",
+    api_key=os.environ["GOOGLE_API_KEY"],
+    temperature=0.7,
+)
+
+# Pro model for course outcome subagent (better at complex Appwrite MCP operations)
+gemini_pro = ChatGoogleGenerativeAI(
     model="gemini-2.5-pro",
     api_key=os.environ["GOOGLE_API_KEY"],
     temperature=0.7,
@@ -78,11 +86,13 @@ research_subagent = {
 }
 
 # 2. Course Outcome Subagent - Fetches SQA data and proposes coherent structure (REUSED)
+# Uses Pro model for reliable Appwrite MCP tool operations
 course_outcome_subagent = {
     "name": "course_outcome_subagent",
     "description": "Fetch official SQA course data from Appwrite, write to Course_data.txt. MUST be called to establish grounding data for lesson authoring.",
     "prompt": COURSE_OUTCOME_SUBAGENT_PROMPT,
-    "tools": appwrite_only_tools  # Database access for course structures
+    "tools": appwrite_only_tools,  # Database access for course structures
+    "model": gemini_pro  # Pro model for complex database operations
 }
 
 # 3. Lesson Author Subagent - Drafts and revises the LessonTemplate JSON document

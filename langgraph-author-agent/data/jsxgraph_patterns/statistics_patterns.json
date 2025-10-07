@@ -1,0 +1,374 @@
+{
+  "patterns": [
+    {
+      "id": "bar_chart_basic",
+      "name": "Bar Chart - Basic",
+      "description": "Simple bar chart with labeled categories and values",
+      "tags": ["statistics", "data", "bar-chart"],
+      "cfe_outcomes": ["MTH 3-21a", "MTH 4-21a"],
+      "bounding_box": [-1, 10, 6, -1],
+      "diagram": {
+        "board": {
+          "boundingbox": [-1, 10, 6, -1],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "defaultAxes": {
+            "x": {
+              "name": "Category",
+              "withLabel": true,
+              "ticks": {
+                "visible": false
+              }
+            },
+            "y": {
+              "name": "Value",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d",
+                "strokeWidth": 1
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "polygon",
+            "args": [[[0.5, 0], [1.5, 0], [1.5, 5], [0.5, 5]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[2, 0], [3, 0], [3, 7], [2, 7]]],
+            "attributes": {
+              "fillColor": "#28a745",
+              "fillOpacity": 0.5,
+              "strokeColor": "#28a745",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[3.5, 0], [4.5, 0], [4.5, 4], [3.5, 4]]],
+            "attributes": {
+              "fillColor": "#FFA500",
+              "fillOpacity": 0.5,
+              "strokeColor": "#FFA500",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "text",
+            "args": [1, -0.5, "A"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [2.5, -0.5, "B"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [4, -0.5, "C"],
+            "attributes": {
+              "fontSize": 14,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [1, 5.5, "5"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#0066CC"
+            }
+          },
+          {
+            "type": "text",
+            "args": [2.5, 7.5, "7"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#28a745"
+            }
+          },
+          {
+            "type": "text",
+            "args": [4, 4.5, "4"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#FFA500"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change number of bars",
+        "Adjust bar heights (values)",
+        "Modify category labels",
+        "Add title and axis labels"
+      ]
+    },
+    {
+      "id": "scatter_plot_basic",
+      "name": "Scatter Plot - Basic",
+      "description": "Scatter plot showing correlation between two variables",
+      "tags": ["statistics", "data", "scatter", "correlation"],
+      "cfe_outcomes": ["MTH 3-21b", "MTH 4-21b"],
+      "bounding_box": [-1, 11, 11, -1],
+      "diagram": {
+        "board": {
+          "boundingbox": [-1, 11, 11, -1],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "grid": true,
+          "defaultAxes": {
+            "x": {
+              "name": "Variable X",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            },
+            "y": {
+              "name": "Variable Y",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "point",
+            "args": [[1, 2]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[2, 3]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[3, 4]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[4, 5]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[5, 6]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[6, 7]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[7, 9]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          },
+          {
+            "type": "point",
+            "args": [[8, 8]],
+            "attributes": {
+              "size": 3,
+              "fillColor": "#0066CC",
+              "strokeColor": "#0066CC",
+              "name": ""
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change data points",
+        "Add line of best fit",
+        "Show different correlation patterns",
+        "Color-code by categories"
+      ]
+    },
+    {
+      "id": "histogram_basic",
+      "name": "Histogram - Basic",
+      "description": "Frequency histogram with class intervals",
+      "tags": ["statistics", "data", "histogram", "frequency"],
+      "cfe_outcomes": ["MTH 3-21a", "MTH 4-21a"],
+      "bounding_box": [-1, 8, 11, -1],
+      "diagram": {
+        "board": {
+          "boundingbox": [-1, 8, 11, -1],
+          "axis": true,
+          "showNavigation": false,
+          "showCopyright": false,
+          "defaultAxes": {
+            "x": {
+              "name": "Value",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            },
+            "y": {
+              "name": "Frequency",
+              "withLabel": true,
+              "ticks": {
+                "strokeColor": "#6c757d"
+              }
+            }
+          }
+        },
+        "elements": [
+          {
+            "type": "polygon",
+            "args": [[[0, 0], [2, 0], [2, 3], [0, 3]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[2, 0], [4, 0], [4, 5], [2, 5]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[4, 0], [6, 0], [6, 7], [4, 7]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[6, 0], [8, 0], [8, 4], [6, 4]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "polygon",
+            "args": [[[8, 0], [10, 0], [10, 2], [8, 2]]],
+            "attributes": {
+              "fillColor": "#0066CC",
+              "fillOpacity": 0.5,
+              "strokeColor": "#0066CC",
+              "strokeWidth": 2
+            }
+          },
+          {
+            "type": "text",
+            "args": [1, -0.5, "0-2"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [3, -0.5, "2-4"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [5, -0.5, "4-6"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [7, -0.5, "6-8"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#000000"
+            }
+          },
+          {
+            "type": "text",
+            "args": [9, -0.5, "8-10"],
+            "attributes": {
+              "fontSize": 12,
+              "color": "#000000"
+            }
+          }
+        ]
+      },
+      "customization_points": [
+        "Change class intervals",
+        "Adjust frequencies",
+        "Add more bars for continuous data",
+        "Show modal class"
+      ]
+    }
+  ]
+}
