@@ -9,17 +9,19 @@ This document provides comprehensive documentation for the Scottish AI Lessons A
 ### Databases Available
 
 1. **default** (`Scottish AI Lessons`) - Main production database
-2. **sqa_education** (`SQA Education Database`) - Legacy database
+2. **sqa_education** (`SQA Education Database`) - Official SQA curriculum data
 3. **sqa_education_test** (`SQA Education Database - Testing`) - Test database
 
-This documentation focuses on the **default** database which contains the active data model.
+This documentation covers both the **default** database (active data model) and the **sqa_education** database (SQA curriculum source data).
 
 ## Collections Overview
+
+### Default Database Collections
 
 | Collection | Purpose | Security | Key Relationships |
 |------------|---------|----------|------------------|
 | `students` | Student profile management | User-scoped | Links to users, enrollments |
-| `courses` | Course catalog definition | Read-only public | Referenced by enrollments, lessons |
+| `courses` | Course catalog definition | Public read/write | Referenced by enrollments, lessons, links to sqa_education |
 | `enrollments` | Student-course relationships | User-scoped | Links students to courses |
 | `lesson_templates` | Lesson content definitions | Public write | Referenced by sessions, Authored_SOW |
 | `Authored_SOW` | AI-generated curriculum templates | Public write | Template for SOWV2 instances |
@@ -30,6 +32,13 @@ This documentation focuses on the **default** database which contains the active
 | `sow` / `SOWV2` | Scheme of work planning | Collection/User-scoped | References Authored_SOW, stores customizations |
 | `routine` | Spaced repetition scheduling | User-scoped | Student learning routines |
 | `planner_threads` | Course manager state | User-scoped | LangGraph execution tracking |
+
+### SQA Education Database Collections
+
+| Collection | Purpose | Security | Key Relationships |
+|------------|---------|----------|------------------|
+| `sqa_current` | Official SQA course structures | Read-only public | Referenced by courses (subject+level mapping) |
+| `sqa_universal_archive` | Historical SQA curriculum versions | No public access | Archival storage |
 
 ## Data Model Diagram
 
@@ -268,23 +277,31 @@ interface Course {
                          // Example: "course_c84474"
   subject: string;       // Subject identifier with hyphens (required, max 128 chars)
                          // Example: "application-of-mathematics", "mathematics"
+                         // Note: Maps to sqa_current with transformation (hyphens → underscores, singular → plural)
   level: string;         // Qualification level with hyphens (required, max 50 chars)
                          // Example: "national-3", "national-4", "national-5"
-  schema_version: number; // Data schema version (default: 2)
+                         // Note: Maps to sqa_current with transformation (hyphens → underscores)
+  schema_version: number; // Data schema version (default: 1)
 
-  // DEPRECATED FIELDS (no longer used in schema version 2):
-  // phase: string;      // Removed - redundant (derivable from level)
-  // sqaCode: string;    // Removed - redundant (embedded in courseId)
+  // ORPHANED FIELDS (kept for legacy compatibility, not used in new records):
+  phase: string;         // Optional field (max 50 chars, default: '') - Legacy courses only
+  sqaCode: string;       // Optional field (max 20 chars) - Legacy courses only
 }
 ```
 
 **Example Data**:
-- `C844 73` - Applications of Mathematics, Senior Phase, Nat3 (legacy format)
+- `C844 73` - Applications of Mathematics, Senior Phase, Nat3 (legacy format with phase/sqaCode)
 - `nat5-maths-2024` - Mathematics, National 5 (legacy format)
 - `C843 73` - Physics, Senior Phase, Nat3 (legacy format)
-- `course_c84473` - application-of-mathematics, national-3 (new format)
-- `course_c84474` - application-of-mathematics, national-4 (new format)
-- `course_c84774` - mathematics, national-4 (new format)
+- `course_c84473` - application-of-mathematics, national-3 (new format, maps to sqa_current)
+- `course_c84474` - application-of-mathematics, national-4 (new format, maps to sqa_current)
+- `course_c84774` - mathematics, national-4 (new format, maps to sqa_current)
+
+**SQA Education Mapping**:
+The seeding script (`seedAuthoredLesson.ts`) queries `default.courses` by `courseId`, then uses `subject` and `level` to fetch official course data from `sqa_education.sqa_current` with normalization:
+- Hyphens → underscores: "application-of-mathematics" → "application_of_mathematics"
+- Singular → plural: "application_of_mathematics" → "applications_of_mathematics"
+- Level transformation: "national-4" → "national_4"
 
 **Usage in Frontend**:
 - Course selection in dashboards
@@ -335,15 +352,15 @@ interface LessonTemplate {
   $id: string;           // Appwrite document ID
   courseId: string;      // Reference to course (required, max 50 chars)
   title: string;         // Lesson title (required, max 255 chars)
-  outcomeRefs: string;   // JSON array of learning outcome IDs (required, max 4000 chars)
-  cards: string;         // JSON array of lesson cards (required, max 8000 chars)
+  outcomeRefs: string;   // JSON array of learning outcome IDs (required, max 500 chars)
+  cards: string;         // JSON array of lesson cards (required, max 11000 chars) - Compressed with LZString
   version: number;       // Template version (default: 1)
   status: 'draft' | 'published'; // Publication status (default: "draft")
   createdBy: string;     // Creator user ID or agent name (required, max 50 chars)
   estMinutes: number;    // Estimated duration (min: 5, max: 120, default: 30)
   lesson_type: string;   // Type of lesson: teach, independent_practice, etc. (max 50 chars)
   engagement_tags: string; // JSON array of engagement tags (max 1000 chars, default: "[]")
-  policy: string;        // JSON object for lesson policies (max 2000 chars, default: "{}")
+  policy: string;        // JSON object for lesson policies (max 1000 chars, default: "{}")
   sow_order: number;     // Position in Authored SOW sequence (min: 1, max: 1000)
 }
 ```
@@ -616,13 +633,14 @@ interface SOWV2 {
   $id: string;                      // Appwrite document ID
   studentId: string;                // Reference to student (required, max 50 chars)
   courseId: string;                 // Reference to course (required, max 50 chars)
-  source_authored_sow_id: string;   // Document ID of Authored_SOW (required, max 50 chars)
-  source_version: string;           // Version identifier for debugging/logging (required, max 20 chars)
-  customizations: string;           // Student-specific modifications (max 10000 chars, default: "{}")
+  source_authored_sow_id: string;   // Document ID of Authored_SOW (optional, max 50 chars)
+  source_version: string;           // Version identifier for debugging/logging (optional, max 20 chars)
+  customizations: string;           // Student-specific modifications (max 5000 chars, default: "{}")
   createdAt: string;                // Enrollment timestamp (required, ISO datetime)
 
-  // REMOVED FIELDS (no longer stored in SOWV2):
-  // entries: NO LONGER EXISTS - dereferenced from Authored_SOW
+  // ORPHANED FIELD (migration in progress - exists for backward compatibility):
+  entries: string;                  // Legacy curriculum data (max 10000 chars, default: "[]")
+                                    // New records use source_authored_sow_id reference instead
 }
 ```
 
@@ -702,6 +720,137 @@ interface SOW {
 - Course planning and sequencing
 - Lesson recommendation ordering
 - Curriculum progress tracking
+
+## SQA Education Database Collections
+
+### SQA Current Collection
+
+**Purpose**: Stores official Scottish Qualifications Authority (SQA) course structures and curriculum data. This is the authoritative source for SQA-aligned course content, including units, outcomes, and assessment standards.
+
+**Security**: `documentSecurity: false` - Read-only public access for curriculum data consumption.
+
+**Permissions**:
+- `read("any")` - Public read access for agents and applications
+
+**Schema**:
+```typescript
+interface SQACurrent {
+  $id: string;              // Appwrite document ID
+  subject: string;          // Subject identifier with underscores (required, max 255 chars)
+                            // Example: "applications_of_mathematics", "mathematics"
+  level: string;            // Qualification level with underscores (required, max 100 chars)
+                            // Example: "national_3", "national_4", "national_5"
+  catalog_version: string;  // SQA catalog version (required, max 10 chars)
+  last_modified: string;    // Last update timestamp (required, ISO datetime)
+  archived_versions: string[]; // Array of previous versions (optional, max 255 chars per item)
+  data: string;             // Full course structure as JSON (required, max 1,000,000 chars - 1MB)
+  metadata: string;         // Course metadata as JSON (required, max 10,000 chars)
+  course_code: string;      // Official SQA course code (optional, max 20 chars)
+}
+```
+
+**Data Structure** (stored in `data` field):
+```typescript
+interface SQACourseData {
+  course_title: string;     // Full course name
+  course_code: string;      // SQA code (e.g., "C844 74")
+  level: string;            // Qualification level
+  scqf_level: number;       // Scottish Credit and Qualifications Framework level
+  scqf_points: number;      // SCQF credit points
+  course_structure: {
+    units: Array<{
+      unit_code: string;    // Unit identifier
+      unit_title: string;   // Unit name
+      scqf_credit_points: number;
+      outcomes: Array<{
+        outcome_number: string;  // e.g., "1", "2", "3"
+        outcome_title: string;   // Full outcome description
+        assessment_standards: Array<{
+          standard_number: string; // e.g., "1.1", "1.2"
+          description: string;
+          exemplification?: string;
+        }>;
+      }>;
+    }>;
+  };
+  assessment_information?: any;  // Additional assessment details
+  notes?: string;                 // Course-specific notes
+}
+```
+
+**Indexes**:
+- `subject_idx` - Key index on subject field (ASC)
+- `level_idx` - Key index on level field (ASC)
+- `subject_level_idx` - Compound key index on (subject, level) for efficient queries (ASC, ASC)
+- `version_idx` - Key index on catalog_version (DESC) for latest-first ordering
+
+**Naming Convention Mapping**:
+
+The `default.courses` collection uses hyphens while `sqa_current` uses underscores. The seeding script handles transformation:
+
+| default.courses | sqa_current |
+|----------------|-------------|
+| `application-of-mathematics` | `applications_of_mathematics` (plural!) |
+| `mathematics` | `mathematics` |
+| `national-4` | `national_4` |
+| `national-5` | `national_5` |
+
+**Usage in Lesson Authoring Pipeline**:
+1. `seedAuthoredLesson.ts` queries `default.courses` by `courseId`
+2. Extracts `subject` and `level` fields
+3. Normalizes values (hyphens→underscores, singular→plural where needed)
+4. Queries `sqa_education.sqa_current` using normalized values
+5. Passes full SQA course structure to Lesson Author agent as 4th JSON input
+6. Agent uses official outcomes, assessment standards, and terminology
+
+**Example Document**:
+```json
+{
+  "$id": "60168a1b2c3d4e5f6a7b8c9d",
+  "subject": "applications_of_mathematics",
+  "level": "national_4",
+  "catalog_version": "2024",
+  "last_modified": "2024-08-15T10:30:00.000Z",
+  "course_code": "C844 74",
+  "data": "{\"course_title\":\"Applications of Mathematics (National 4)\",\"course_structure\":{\"units\":[...]}}",
+  "metadata": "{\"total_units\":3,\"total_scqf_points\":18}"
+}
+```
+
+### SQA Universal Archive Collection
+
+**Purpose**: Historical archive for all SQA curriculum versions. Stores previous versions of course documents for reference and rollback capabilities.
+
+**Security**: `documentSecurity: false` - No public access (internal archival only).
+
+**Permissions**: None (restricted access)
+
+**Schema**:
+```typescript
+interface SQAUniversalArchive {
+  $id: string;              // Appwrite document ID
+  archive_id: string;       // Archive identifier (required, max 36 chars - UUID format)
+  source_table: string;     // Origin collection name (required, max 255 chars)
+                            // Example: "sqa_current"
+  document_id: string;      // Original document ID (required, max 255 chars)
+  version: string;          // Version identifier (required, max 50 chars)
+  archived_at: string;      // Archival timestamp (required, ISO datetime)
+  document_data: string;    // Complete document snapshot as JSON (required, max 16,777,216 chars - 16MB)
+  metadata: string;         // Archival metadata (optional, max 65,535 chars, default: "{}")
+}
+```
+
+**Indexes**:
+- `version_idx` - Key index on version field
+- `source_table_idx` - Key index on source_table field
+- `document_id_idx` - Key index on document_id field
+- `archived_at_idx` - Key index on archived_at field for temporal queries
+
+**Usage**:
+- Automatic archival when SQA course documents are updated
+- Version history tracking for curriculum changes
+- Rollback capability for curriculum errors
+- Compliance and audit trail
 
 ### Routine Collection
 
@@ -881,11 +1030,13 @@ The system uses AI agents to generate complete course curricula:
    - Script: `seedAuthoredSOW.ts`
 
 2. **Lesson Authoring Agent** (`lesson_author_agent.py`)
-   - Inputs: SOW entry, resource pack
+   - Inputs: SOW entry, resource pack, SOW context metadata, **SQA course data** (quadruple input)
+   - SQA Data Source: Pre-fetched from `sqa_education.sqa_current` using course subject+level
    - Outputs: Lesson template with cards, assessments, rubrics
    - Script: `seedAuthoredLesson.ts`
-   - Requires: `langgraph dev --allow-blocking` flag
+   - Requires: `langgraph dev` running on port 2027
    - Features: Error recovery with thread persistence (max 10 retries)
+   - Cost Optimization: Eliminates expensive Pro model subagent by pre-fetching SQA data
 
 3. **Enrollment Flow (Reference Architecture)**
    - Student enrolls in course
