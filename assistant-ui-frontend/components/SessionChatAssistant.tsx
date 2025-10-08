@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { MyAssistant, SessionContext } from "./MyAssistant";
 import { useAppwrite, SessionDriver } from "@/lib/appwrite";
+import { CourseDriver } from "@/lib/appwrite/driver/CourseDriver";
 import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
 import { Client } from "@langchain/langgraph-sdk";
@@ -30,7 +31,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     const loadSessionContext = async () => {
       try {
         const sessionDriver = createDriver(SessionDriver);
-        
+        const courseDriver = createDriver(CourseDriver);
+
         // Load session with thread information including context chat thread
         const sessionWithThread = await sessionDriver.getSessionWithContextChat(sessionId);
         const sessionStateData = await sessionDriver.getSessionState(sessionId);
@@ -61,10 +63,28 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           console.log('SessionChatAssistant - No existing context chat thread ID found, will create new one if needed');
         }
 
+        // Extract courseId from lesson_snapshot and fetch course metadata
+        const courseId = parsedSnapshot.courseId;
+        let courseCurriculumMetadata = {};
+
+        if (courseId) {
+          try {
+            console.log('SessionChatAssistant - Fetching course metadata for courseId:', courseId);
+            courseCurriculumMetadata = await courseDriver.getCourseCurriculumMetadata(courseId);
+            console.log('SessionChatAssistant - Course metadata fetched:', courseCurriculumMetadata);
+          } catch (courseError) {
+            console.error('SessionChatAssistant - Failed to fetch course metadata:', courseError);
+            // Continue without course metadata - backend will use fallback values
+          }
+        } else {
+          console.warn('SessionChatAssistant - No courseId found in lesson_snapshot');
+        }
+
         const context: SessionContext = {
           session_id: session.$id,
           student_id: session.studentId,
           lesson_snapshot: parsedSnapshot,
+          ...courseCurriculumMetadata, // Add course_subject, course_level, sqa_course_code, course_title
         };
 
         console.log('SessionChatAssistant - Loading context:', context);
@@ -73,7 +93,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           hasExistingConversation: sessionWithThread.hasExistingConversation,
           lastMessageAt: sessionWithThread.lastMessageAt
         });
-        
+
         setSessionContext(context);
       } catch (err) {
         console.error("Failed to load session context:", err);

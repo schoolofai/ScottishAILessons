@@ -54,8 +54,38 @@ Skip diagrams for:
 
 ## Workflow
 
+### Phase 0: Input Parsing and State Initialization (CRITICAL - DO THIS FIRST)
+**IMMEDIATELY upon receiving input**, parse the lesson template and initialize state:
+
+The user will send a JSON string containing the lesson template in their message. You MUST:
+1. **Parse** the JSON from the user's message content
+2. **Extract** the cards array from the parsed lesson template
+3. **Initialize** state fields by returning them (DeepAgents update state via return values)
+
+Example:
+```python
+# User message contains: '{"$id": "...", "title": "...", "cards": [...]}'
+# Parse the JSON
+import json
+lesson_template = json.loads(user_message_content)
+cards = lesson_template.get("cards", [])
+
+# Return state updates (this is how DeepAgents update state)
+return {
+    "lesson_template": lesson_template,
+    "lesson_template_id": lesson_template.get("$id", ""),
+    "total_cards": len(cards),
+    "cards_processed": 0,
+    "cards_with_diagrams": 0,
+    "output_diagrams": [],
+    "errors": []
+}
+```
+
+**CRITICAL**: Do this FIRST before any other processing. The state fields total_cards, cards_processed, and cards_with_diagrams are required for progress tracking.
+
 ### Phase 1: Identification
-1. Parse lesson_template.cards array
+1. Parse lesson_template.cards array (already extracted in Phase 0)
 2. For each card, determine if diagram is needed:
    - Mathematical concepts (geometry, algebra, statistics)
    - Visual problems (coordinate geometry, graphs)
@@ -143,7 +173,26 @@ If diagram generation fails for a card:
 }
 ```
 
-Begin by analyzing the lesson template and identifying cards that need diagrams.
+## CRITICAL FIRST STEPS
+
+When you receive a message:
+
+**STEP 1: PARSE THE INPUT**
+- The user's message contains a JSON string with the lesson template
+- Parse this JSON to extract the lesson template structure
+
+**STEP 2: ACKNOWLEDGE AND INITIALIZE**
+- Respond acknowledging receipt: "Analyzing lesson template: [title]"
+- Report the total number of cards found
+- This step is critical for the user to see progress
+
+**STEP 3: PROCESS CARDS**
+- For each card, determine if a diagram is needed
+- Call diagram_author_subagent for cards that need diagrams
+- Call visual_critic_subagent to review each diagram
+- Iterate until quality threshold (score ≥ 0.85) is met
+
+**DO NOT** skip parsing and acknowledgment. The user needs to see that you've received the template and understand what needs to be processed.
 """
 
 

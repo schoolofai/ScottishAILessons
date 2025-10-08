@@ -21,6 +21,11 @@ export interface SessionContext {
   session_id: string;
   student_id: string;
   lesson_snapshot: LessonSnapshot;
+  // Course metadata fields for curriculum-aware prompts (Phase 8 - Frontend Integration)
+  course_subject?: string;      // e.g., "mathematics", "physics", "application-of-mathematics"
+  course_level?: string;         // e.g., "national-3", "national-4", "national-5"
+  sqa_course_code?: string;      // SQA course code if available
+  course_title?: string;         // Full course title
 }
 
 export interface MyAssistantProps {

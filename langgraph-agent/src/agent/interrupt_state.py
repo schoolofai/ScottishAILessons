@@ -31,3 +31,23 @@ class InterruptUnifiedState(UnifiedState, total=False):
     interrupt_count: int  # Number of interrupts in current session
     cards_presented_via_ui: List[str]  # Card IDs presented through interrupts
     feedback_interactions_count: int  # Number of feedback presentations
+
+    # Curriculum metadata fields (from courses collection via courseId lookup)
+    course_subject: Optional[str]  # "mathematics", "application-of-mathematics", "physics"
+    course_level: Optional[str]  # "national-3", "national-4", "national-5"
+    sqa_course_code: Optional[str]  # "C844 73" (if available)
+    course_title: Optional[str]  # Full course title from SQA data
+
+    # Lesson template metadata (from lesson_templates/lesson_snapshot)
+    lesson_type: Optional[str]  # "teach", "independent_practice", "assessment"
+    engagement_tags: Optional[List[str]]  # ["real_world_context", "scaffolding", "visual_aids"]
+    lesson_policy: Optional[Dict[str, Any]]  # {"calculator_allowed": true}
+    sow_order: Optional[int]  # Position in Authored SOW sequence (1-based)
+
+    # Enriched outcome data (from course_outcomes via outcomeRefs)
+    enriched_outcomes: Optional[List[Dict[str, Any]]]  # Full outcome objects with assessment standards
+
+    # Display-friendly formatted strings for prompts (generated from raw fields)
+    course_subject_display: Optional[str]  # "Mathematics" (Title Case)
+    course_level_display: Optional[str]  # "National 3" (Title Case)
+    lesson_type_display: Optional[str]  # "Teaching Lesson" (Title Case)

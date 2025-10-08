@@ -30,6 +30,124 @@ def parse_outcome_refs(outcome_refs_data):
     return []
 
 
+def format_course_context_for_prompt(
+    course_subject_display: Optional[str],
+    course_level_display: Optional[str],
+    lesson_type_display: Optional[str],
+    engagement_tags: Optional[List[str]],
+    lesson_policy: Optional[Dict],
+    enriched_outcomes: Optional[List[Dict]]
+) -> Dict[str, str]:
+    """Generate human-readable course context strings for LLM prompts.
+
+    Args:
+        course_subject_display: Title-cased subject name
+        course_level_display: Title-cased level name
+        lesson_type_display: Title-cased lesson type
+        engagement_tags: List of engagement strategy tags
+        lesson_policy: Lesson policy dictionary
+        enriched_outcomes: List of full outcome objects with SQA data
+
+    Returns:
+        Dictionary with formatted prompt strings:
+        - tutor_role_description: "friendly, encouraging Physics tutor for Scottish National 4 students"
+        - course_context_block: Multi-line course context for system prompts
+        - engagement_guidance: Teaching strategies based on tags
+        - policy_reminders: Lesson policy statements
+        - sqa_alignment_summary: Brief SQA outcome alignment info
+    """
+    # Build tutor role description
+    subject_str = course_subject_display or "learning"
+    level_str = course_level_display or "students"
+    tutor_role = f"friendly, encouraging {subject_str} tutor for Scottish {level_str} students"
+
+    # Build course context block
+    course_context_lines = []
+    if course_subject_display and course_level_display:
+        course_context_lines.append(f"Subject: {course_subject_display}")
+        course_context_lines.append(f"Level: {course_level_display}")
+    if lesson_type_display:
+        course_context_lines.append(f"Lesson Type: {lesson_type_display}")
+
+    course_context_block = "\n".join(course_context_lines) if course_context_lines else ""
+
+    # Build engagement guidance from tags
+    engagement_strategies = {
+        "real_world_context": "Use everyday contexts (shopping, money, sports, real-world scenarios)",
+        "scaffolding": "Break down complex concepts into smaller, manageable steps",
+        "visual_aids": "Use diagrams, charts, and visual representations when explaining",
+        "worked_examples": "Provide step-by-step worked examples before asking questions",
+        "collaborative": "Encourage discussion and collaborative problem-solving",
+        "technology": "Suggest using technology tools (calculators, apps) where appropriate"
+    }
+
+    guidance_lines = []
+    if engagement_tags:
+        guidance_lines.append("Teaching Strategies for This Lesson:")
+        for tag in engagement_tags:
+            if tag in engagement_strategies:
+                guidance_lines.append(f"- {engagement_strategies[tag]}")
+
+    engagement_guidance = "\n".join(guidance_lines) if guidance_lines else ""
+
+    # Build policy reminders
+    policy_lines = []
+    if lesson_policy:
+        if lesson_policy.get("calculator_allowed"):
+            policy_lines.append("- Calculator use is permitted for this lesson")
+        if lesson_policy.get("formula_sheet_allowed"):
+            policy_lines.append("- Students may refer to formula sheets")
+        # Add more policy checks as needed
+
+    policy_reminders = "\n".join(policy_lines) if policy_lines else ""
+
+    # Build SQA alignment summary
+    sqa_lines = []
+    if enriched_outcomes:
+        sqa_lines.append("SQA Learning Outcomes Covered:")
+        for outcome in enriched_outcomes[:3]:  # Limit to first 3 for brevity
+            outcome_ref = outcome.get("outcomeRef", "")
+            outcome_title = outcome.get("outcomeTitle", "")
+            assessment_standards = outcome.get("assessmentStandards", [])
+
+            if outcome_ref and outcome_title:
+                sqa_lines.append(f"- {outcome_ref}: {outcome_title[:60]}...")
+                if assessment_standards:
+                    sqa_lines.append(f"  ({len(assessment_standards)} assessment standards)")
+
+    sqa_alignment_summary = "\n".join(sqa_lines) if sqa_lines else ""
+
+    return {
+        "tutor_role_description": tutor_role,
+        "course_context_block": course_context_block,
+        "engagement_guidance": engagement_guidance,
+        "policy_reminders": policy_reminders,
+        "sqa_alignment_summary": sqa_alignment_summary
+    }
+
+
+def extract_curriculum_context_from_state(state: Dict) -> Dict[str, str]:
+    """Extract curriculum metadata from state and format for prompts.
+
+    This is a convenience wrapper that pulls curriculum fields from state
+    and formats them using format_course_context_for_prompt.
+
+    Args:
+        state: InterruptUnifiedState or similar state dict
+
+    Returns:
+        Formatted prompt strings dictionary
+    """
+    return format_course_context_for_prompt(
+        course_subject_display=state.get("course_subject_display"),
+        course_level_display=state.get("course_level_display"),
+        lesson_type_display=state.get("lesson_type_display"),
+        engagement_tags=state.get("engagement_tags", []),
+        lesson_policy=state.get("lesson_policy", {}),
+        enriched_outcomes=state.get("enriched_outcomes", [])
+    )
+
+
 class EvaluationResponse(BaseModel):
     """Structured response for LLM-based evaluation."""
     is_correct: bool = Field(description="Whether the student response is correct")
@@ -52,38 +170,59 @@ class LLMTeacher:
         
         # Teaching prompt templates
         self.lesson_greeting_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+            ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
-Be warm, supportive, and use everyday contexts. Keep it conversational and engaging.
+
+{course_context_block}
+
+{sqa_alignment_summary}
+
+{engagement_guidance}
+
+{policy_reminders}
+
+Be warm, supportive, and keep it conversational and engaging.
 Student name: {student_name}"""),
             ("human", "Start the lesson")
         ])
         
         self.card_presentation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Present this math concept conversationally to a National 3 student.
+            ("system", """Present this {subject_area} concept conversationally to a {level_description} student.
+
+{course_context_block}
+
 Context: {card_context}
 Explainer: {explainer}
 Examples: {examples}
 Question: {question}
 
-Make it feel like friendly tutoring. Use real-world contexts (shopping, money, etc).
+{engagement_guidance}
+
+{policy_reminders}
+
+Make it feel like friendly tutoring.
 End with the question naturally in the conversation. Make sure to include the question for the student to answer.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
 - Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
 Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Present this card: {card_title}")
         ])
         
         self.feedback_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're evaluating a National 3 math student's response.
+            ("system", """You're evaluating a {level_description} {subject_area} student's response.
+
+{course_context_block}
+
 Question: {question}
 Expected Answer: {expected}
 Student Answer: {student_response}
 Attempt Number: {attempt}
 Is Correct: {is_correct}
+
+{engagement_guidance}
 
 Provide encouraging, specific feedback. If incorrect, give a helpful hint for attempt 2,
 more guidance for attempt 3. Always be positive and constructive."""),
@@ -91,7 +230,9 @@ more guidance for attempt 3. Always be positive and constructive."""),
         ])
         
         self.structured_evaluation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are evaluating a National 3 math student's response with structured output.
+            ("system", """You are evaluating a {level_description} {subject_area} student's response with structured output.
+
+{course_context_block}
 
 Context:
 - Question Type: {question_type}
@@ -129,7 +270,10 @@ Return your evaluation as structured output."""),
         ])
         
         self.transition_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're transitioning between lesson concepts for a National 3 student.
+            ("system", """You're transitioning between lesson concepts for a {level_description} {subject_area} student.
+
+{course_context_block}
+
 Just completed: {completed_card}
 Next up: {next_card}
 Student progress: {progress_context}
@@ -139,7 +283,10 @@ Create a smooth, encouraging transition that connects the concepts."""),
         ])
         
         self.completion_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're completing a National 3 math lesson.
+            ("system", """You're completing a {level_description} {subject_area} lesson.
+
+{course_context_block}
+
 Lesson: {lesson_title}
 Cards completed: {completed_cards}
 Student performance: {progress_summary}
@@ -149,7 +296,9 @@ Provide an encouraging summary and congratulate the student on their progress.""
         ])
         
         self.correct_answer_explanation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're explaining the correct answer to a National 3 student who has struggled with a question.
+            ("system", """You're explaining the correct answer to a {level_description} {subject_area} student who has struggled with a question.
+
+{course_context_block}
 
 Card Context: {card_context}
 Question: {question}
@@ -175,7 +324,11 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         ])
         
         self.lesson_summary_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are analyzing a completed Scottish National 3 math lesson to provide comprehensive feedback and guidance.
+            ("system", """You are analyzing a completed Scottish {level_description} {subject_area} lesson to provide comprehensive feedback and guidance.
+
+{course_context_block}
+
+{sqa_alignment_summary}
 
 Lesson Details:
 - Title: {lesson_title}
@@ -209,8 +362,16 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         ])
         
         self.greeting_with_first_card_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+            ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+
+{course_context_block}
+
+{sqa_alignment_summary}
+
+{engagement_guidance}
+
+{policy_reminders}
 
 Create a cohesive greeting that:
 1. Welcomes the student warmly
@@ -236,8 +397,16 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         ])
         
         self.greeting_with_first_mcq_card_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a friendly, encouraging math tutor for Scottish National 3 students.
+            ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+
+{course_context_block}
+
+{sqa_alignment_summary}
+
+{engagement_guidance}
+
+{policy_reminders}
 
 Create a cohesive greeting that:
 1. Welcomes the student warmly
@@ -274,7 +443,12 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         ])
         
         self.mcq_card_presentation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Present this multiple choice question conversationally to a National 3 student.
+            ("system", """Present this multiple choice question conversationally to a {level_description} {subject_area} student.
+
+{course_context_block}
+
+{engagement_guidance}
+
 Context: {card_context}
 Explainer: {explainer}
 Examples: {examples}
@@ -600,21 +774,45 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ) from e
 
     def transition_to_next_sync_full(
-        self, 
-        completed_card: Dict, 
+        self,
+        completed_card: Dict,
         next_card: Optional[Dict],
-        progress_context: Dict
+        progress_context: Dict,
+        state: Optional[Dict] = None
     ):
-        """Generate transition between lesson cards (sync version) - returns full response object."""
+        """Generate transition between lesson cards (sync version) - returns full response object.
+
+        Args:
+            completed_card: Completed card data
+            next_card: Next card data (None if lesson complete)
+            progress_context: Progress summary dict
+            state: Optional full state dict with curriculum metadata
+        """
         if not next_card:
-            return self.complete_lesson_sync_full(completed_card, progress_context)
-            
+            return self.complete_lesson_sync_full(completed_card, progress_context, state)
+
         try:
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                curriculum_context = {
+                    "course_context_block": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.transition_prompt.format_messages(
                     completed_card=completed_card.get("title", "previous topic"),
                     next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context)
+                    progress_context=str(progress_context),
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response
@@ -655,14 +853,36 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson completion message: {str(e)}"
             ) from e
 
-    def complete_lesson_sync_full(self, lesson_snapshot: Dict, progress_context: Dict):
-        """Generate lesson completion message (sync version) - returns full response object."""
+    def complete_lesson_sync_full(self, lesson_snapshot: Dict, progress_context: Dict, state: Optional[Dict] = None):
+        """Generate lesson completion message (sync version) - returns full response object.
+
+        Args:
+            lesson_snapshot: Lesson snapshot data
+            progress_context: Progress summary dict
+            state: Optional full state dict with curriculum metadata
+        """
         try:
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                curriculum_context = {
+                    "course_context_block": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.completion_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "the lesson"),
                     completed_cards=progress_context.get("cards_completed", 0),
-                    progress_summary=str(progress_context)
+                    progress_summary=str(progress_context),
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response
@@ -679,18 +899,44 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson completion message: {str(e)}"
             ) from e
 
-    def present_card_sync_full(self, card: Dict[str, Any]):
-        """Present lesson card conversationally (sync version) - returns full response object."""
+    def present_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None):
+        """Present lesson card conversationally (sync version) - returns full response object.
+
+        Args:
+            card: Card data
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             examples = "\n".join(card.get("example", []))
             question = card.get("cfu", {}).get("stem", "What do you think?")
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                # Also extract subject_area and level_description for card presentation
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                # Fallback to default values if no state
+                curriculum_context = {
+                    "course_context_block": "",
+                    "engagement_guidance": "",
+                    "policy_reminders": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
                     explainer=card.get("explainer", ""),
                     examples=examples,
                     question=question,
-                    card_title=card.get("title", "")
+                    card_title=card.get("title", ""),
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response
@@ -738,18 +984,40 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate greeting with first lesson card: {str(e)}"
             ) from e
 
-    def greet_with_first_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any]):
-        """Generate cohesive greeting with first card (sync version) - returns full response object."""
+    def greet_with_first_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any], state: Optional[Dict] = None):
+        """Generate cohesive greeting with first card (sync version) - returns full response object.
+
+        Args:
+            lesson_snapshot: Lesson snapshot data
+            first_card: First card data
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             examples = "\n".join(first_card.get("example", []))
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+            else:
+                # Fallback to default values if no state
+                curriculum_context = {
+                    "tutor_role_description": "friendly, encouraging tutor",
+                    "course_context_block": "",
+                    "engagement_guidance": "",
+                    "policy_reminders": "",
+                    "sqa_alignment_summary": ""
+                }
+
             response = self.llm.invoke(
                 self.greeting_with_first_card_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+                    lesson_title=lesson_snapshot.get("title", "Lesson"),
                     outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
-                    card_question=first_card.get("cfu", {}).get("stem", "")
+                    card_question=first_card.get("cfu", {}).get("stem", ""),
+                    **curriculum_context  # Unpack all formatted strings
                 )
             )
             return response
@@ -773,25 +1041,46 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             formatted_options.append(f"{i}. {option}")
         return "\n".join(formatted_options)
 
-    def greet_with_first_mcq_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any]):
-        """Generate cohesive greeting with first MCQ card (sync version) - returns full response object."""
+    def greet_with_first_mcq_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any], state: Optional[Dict] = None):
+        """Generate cohesive greeting with first MCQ card (sync version) - returns full response object.
+
+        Args:
+            lesson_snapshot: Lesson snapshot data
+            first_card: First MCQ card data
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             cfu = first_card.get("cfu", {})
             options = cfu.get("options", [])
             question = cfu.get("stem", "") or cfu.get("question", "")
-            
+
             examples = "\n".join(first_card.get("example", []))
             formatted_options = self._format_mcq_options(options)
-            
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+            else:
+                # Fallback to default values if no state
+                curriculum_context = {
+                    "tutor_role_description": "friendly, encouraging tutor",
+                    "course_context_block": "",
+                    "engagement_guidance": "",
+                    "policy_reminders": "",
+                    "sqa_alignment_summary": ""
+                }
+
             response = self.llm.invoke(
                 self.greeting_with_first_mcq_card_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
+                    lesson_title=lesson_snapshot.get("title", "Lesson"),
                     outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
                     mcq_question=question,
-                    mcq_options=formatted_options
+                    mcq_options=formatted_options,
+                    **curriculum_context  # Unpack all formatted strings
                 )
             )
             return response
@@ -810,16 +1099,37 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate MCQ greeting with first lesson card: {str(e)}"
             ) from e
 
-    def present_mcq_card_sync_full(self, card: Dict[str, Any]):
-        """Present MCQ card with structured format (sync version) - returns full response object."""
+    def present_mcq_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None):
+        """Present MCQ card with structured format (sync version) - returns full response object.
+
+        Args:
+            card: MCQ card data
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             cfu = card.get("cfu", {})
             options = cfu.get("options", [])
             question = cfu.get("stem", "") or cfu.get("question", "")
-            
+
             examples = "\n".join(card.get("example", []))
             formatted_options = self._format_mcq_options(options)
-            
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                # Also extract subject_area and level_description
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                # Fallback to default values if no state
+                curriculum_context = {
+                    "course_context_block": "",
+                    "engagement_guidance": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.mcq_card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
@@ -827,7 +1137,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
-                    card_title=card.get("title", "")
+                    card_title=card.get("title", ""),
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response
@@ -853,23 +1166,43 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         expected_answer: Any,
         card_context: Dict,
         attempt_number: int,
-        max_attempts: int = 3
+        max_attempts: int = 3,
+        state: Optional[Dict] = None
     ) -> EvaluationResponse:
-        """Generate structured evaluation with LLM reasoning (sync version)."""
+        """Generate structured evaluation with LLM reasoning (sync version).
+
+        Args:
+            student_response: Student's response string
+            expected_answer: Expected answer
+            card_context: Card context dict
+            attempt_number: Current attempt number
+            max_attempts: Maximum allowed attempts
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             # Set up structured output with the Pydantic model
             structured_llm = self.llm.with_structured_output(EvaluationResponse)
-            
+
             # Extract question details
             cfu = card_context.get("cfu", {})
             question_type = cfu.get("type", "unknown")
             question_text = cfu.get("stem", "") or cfu.get("question", "")
-            
+
             # Format card context for the prompt
             context_summary = f"Title: {card_context.get('title', 'Unknown')}"
             if card_context.get("explainer"):
                 context_summary += f", Explainer: {card_context['explainer'][:100]}..."
-            
+
+            # Extract curriculum context if state provided
+            if state:
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+                curriculum_context = extract_curriculum_context_from_state(state)
+            else:
+                subject_area = "learning"
+                level_description = ""
+                curriculum_context = {"course_context_block": ""}
+
             print(f"[DEBUG] About to invoke structured LLM with tags")
             response = structured_llm.invoke(
                 self.structured_evaluation_prompt.format_messages(
@@ -879,7 +1212,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     student_response=student_response,
                     attempt_number=attempt_number,
                     max_attempts=max_attempts,
-                    card_context=context_summary
+                    card_context=context_summary,
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 ),
                 config={"tags": ["json"], "run_name": "structured_evaluation"}
             )
@@ -901,18 +1237,40 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate structured evaluation: {str(e)}"
             ) from e
     
-    def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str]):
-        """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object."""
+    def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str], state: Optional[Dict] = None):
+        """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object.
+
+        Args:
+            current_card: Current card data
+            student_attempts: List of student attempt strings
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             cfu = current_card.get("cfu", {})
             card_context = f"Title: {current_card.get('title', '')}, Explainer: {current_card.get('explainer', '')[:100]}..."
-            
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                curriculum_context = {
+                    "course_context_block": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.correct_answer_explanation_prompt.format_messages(
                     card_context=card_context,
                     question=cfu.get("stem", ""),
                     expected_answer=str(cfu.get("expected", "")),
-                    student_attempts=", ".join(student_attempts) if student_attempts else "No attempts recorded"
+                    student_attempts=", ".join(student_attempts) if student_attempts else "No attempts recorded",
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response
@@ -930,22 +1288,43 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate correct answer explanation: {str(e)}"
             ) from e
 
-    def summarize_completed_lesson_sync_full(self, lesson_snapshot: Dict, evidence: List[Dict], performance_analysis: Dict):
-        """Generate comprehensive lesson summary with LLM analysis (sync version) - returns full response object."""
+    def summarize_completed_lesson_sync_full(self, lesson_snapshot: Dict, evidence: List[Dict], performance_analysis: Dict, state: Optional[Dict] = None):
+        """Generate comprehensive lesson summary with LLM analysis (sync version) - returns full response object.
+
+        Args:
+            lesson_snapshot: Lesson snapshot data
+            evidence: List of evidence dicts
+            performance_analysis: Performance analysis dict
+            state: Optional full state dict with curriculum metadata
+        """
         try:
             # Format lesson details
-            lesson_title = lesson_snapshot.get("title", "Math Lesson")
+            lesson_title = lesson_snapshot.get("title", "Lesson")
             outcome_refs = ", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", [])))
             cards = lesson_snapshot.get("cards", [])
             total_cards = len(cards)
             cards_completed = len([card for card in cards])
-            
+
             # Format performance analysis
             performance_text = self._format_performance_analysis(performance_analysis)
-            
+
             # Format evidence summary
             evidence_text = self._format_evidence_summary(evidence)
-            
+
+            # Extract curriculum context if state provided
+            curriculum_context = {}
+            if state:
+                curriculum_context = extract_curriculum_context_from_state(state)
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+            else:
+                curriculum_context = {
+                    "course_context_block": "",
+                    "sqa_alignment_summary": ""
+                }
+                subject_area = "learning"
+                level_description = ""
+
             response = self.llm.invoke(
                 self.lesson_summary_prompt.format_messages(
                     lesson_title=lesson_title,
@@ -953,7 +1332,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     total_cards=total_cards,
                     cards_completed=cards_completed,
                     performance_analysis=performance_text,
-                    evidence_summary=evidence_text
+                    evidence_summary=evidence_text,
+                    subject_area=subject_area,
+                    level_description=level_description,
+                    **curriculum_context
                 )
             )
             return response

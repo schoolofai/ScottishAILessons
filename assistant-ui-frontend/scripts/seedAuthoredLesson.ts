@@ -111,23 +111,6 @@ async function main() {
     console.log(`✅ Loaded resource pack (version ${resourcePack.research_pack_version || 'N/A'})`);
     console.log('');
 
-    // Step 1.5: Get course metadata from default.courses
-    console.log('📋 Fetching course metadata...');
-    const { subject, level, courseDoc } = await getCourseMetadata(databases, courseId);
-    console.log(`✅ Found course: ${courseId}`);
-    console.log(`   Subject: ${subject}`);
-    console.log(`   Level: ${level}`);
-    console.log('');
-
-    // Step 1.6: Fetch official SQA course data using subject and level
-    console.log('🎓 Fetching official SQA course data from Appwrite...');
-    const courseData = await fetchSQACourseData(databases, subject, level);
-    const courseTitle = courseData.course_title || courseData.title || 'N/A';
-    const units = courseData.course_structure?.units || courseData.units || [];
-    console.log(`✅ Matched SQA course: ${courseTitle}`);
-    console.log(`   Units: ${units.length}`);
-    console.log('');
-
     // Step 2: Get Authored SOW document (full document with metadata)
     console.log('📚 Fetching Authored SOW document...');
     const authoredSOW = await getAuthoredSOW(databases, courseId);
@@ -154,10 +137,10 @@ async function main() {
     console.log(`   Duration: ${sowMetadata.weeks} weeks × ${sowMetadata.periods_per_week} periods/week`);
     console.log('');
 
-    // Step 5: Create quadruple JSON input
-    console.log('🔧 Creating quadruple JSON input...');
-    const quadrupleInput = createQuadrupleInput(sowEntry, resourcePack, sowMetadata, courseData);
-    console.log(`✅ Created input (${quadrupleInput.length} characters)`);
+    // Step 5: Create triple JSON input
+    console.log('🔧 Creating triple JSON input...');
+    const tripleInput = createTripleInput(sowEntry, resourcePack, sowMetadata);
+    console.log(`✅ Created input (${tripleInput.length} characters)`);
     console.log('');
 
     // Step 6: Run lesson author agent with retry logic
@@ -175,7 +158,7 @@ async function main() {
     console.log(`   Log file: ${logFile}`);
     console.log('');
 
-    const lessonTemplate = await runLessonAuthorAgent(quadrupleInput, LANGGRAPH_URL, logFile);
+    const lessonTemplate = await runLessonAuthorAgent(tripleInput, LANGGRAPH_URL, logFile);
     console.log('✅ Lesson template generated');
     // Handle both flat and nested structures
     const template = lessonTemplate.content || lessonTemplate;
@@ -219,83 +202,6 @@ async function loadResourcePack(filePath: string): Promise<any> {
 }
 
 /**
- * Fetch course document from default.courses to get subject and level
- */
-async function getCourseMetadata(
-  databases: Databases,
-  courseId: string
-): Promise<{ subject: string; level: string; courseDoc: any }> {
-  // Query courses collection by courseId attribute
-  const response = await databases.listDocuments(
-    'default',
-    'courses',
-    [Query.equal('courseId', courseId)]
-  );
-
-  if (response.documents.length === 0) {
-    throw new Error(
-      `No course found with courseId="${courseId}" in default.courses collection. ` +
-      `Run createMissingCourses.ts first.`
-    );
-  }
-
-  const courseDoc = response.documents[0] as any;
-
-  return {
-    subject: courseDoc.subject,
-    level: courseDoc.level,
-    courseDoc
-  };
-}
-
-/**
- * Fetch SQA course data from sqa_education.sqa_current using subject and level
- * This replaces the course_outcome_subagent's Appwrite query
- */
-async function fetchSQACourseData(
-  databases: Databases,
-  subject: string,
-  level: string
-): Promise<any> {
-  // Normalize: courses collection uses hyphens, sqa_current uses underscores
-  let normalizedSubject = subject.replace(/-/g, '_');
-  const normalizedLevel = level.replace(/-/g, '_');
-
-  // Handle singular -> plural for "application" -> "applications"
-  if (normalizedSubject === 'application_of_mathematics') {
-    normalizedSubject = 'applications_of_mathematics';
-  }
-
-  console.log(`   Querying sqa_current: subject="${normalizedSubject}", level="${normalizedLevel}"`);
-
-  // Direct equality query (matches sqa_current indexed attributes)
-  const response = await databases.listDocuments(
-    'sqa_education',
-    'sqa_current',
-    [
-      Query.equal('subject', normalizedSubject),
-      Query.equal('level', normalizedLevel),
-      Query.limit(1)
-    ]
-  );
-
-  if (response.documents.length === 0) {
-    throw new Error(
-      `No SQA course found for subject="${normalizedSubject}" level="${normalizedLevel}". ` +
-      `Original values: subject="${subject}" level="${level}". ` +
-      `Verify these values exist in sqa_education.sqa_current collection.`
-    );
-  }
-
-  const courseDoc = response.documents[0] as any;
-
-  // Parse the data field (contains official SQA course structure)
-  const courseData = JSON.parse(courseDoc.data);
-
-  return courseData;
-}
-
-/**
  * Get full Authored SOW document by courseId
  */
 async function getAuthoredSOW(
@@ -334,11 +240,18 @@ async function getSOWEntryByOrder(
   authoredSOW: AuthoredSOW,
   order: number
 ): Promise<AuthoredSOWEntry> {
-  if (order < 0 || order >= authoredSOW.entries.length) {
-    throw new Error(`Order ${order} out of range (0-${authoredSOW.entries.length - 1})`);
+  // Find entry by its order field, not array index
+  const entry = authoredSOW.entries.find(e => e.order === order);
+
+  if (!entry) {
+    const availableOrders = authoredSOW.entries.map(e => e.order).sort((a, b) => a - b);
+    throw new Error(
+      `No entry found with order ${order}. ` +
+      `Available orders: ${availableOrders.join(', ')}`
+    );
   }
 
-  return authoredSOW.entries[order];
+  return entry;
 }
 
 /**
@@ -397,20 +310,18 @@ function parseSOWMetadata(authoredSOW: AuthoredSOW): SOWContextMetadata {
 }
 
 /**
- * Create quadruple JSON input for lesson_author agent
- * Format: <sow_entry>,\n<resource_pack>,\n<sow_metadata>,\n<course_data>
+ * Create triple JSON input for lesson_author agent
+ * Format: <sow_entry_json>,\n<resource_pack_json>,\n<sow_metadata_json>
  */
-function createQuadrupleInput(
+function createTripleInput(
   sowEntry: AuthoredSOWEntry,
   resourcePack: any,
-  sowMetadata: SOWContextMetadata,
-  courseData: any
+  sowMetadata: SOWContextMetadata
 ): string {
   return (
     JSON.stringify(sowEntry) + ',\n' +
     JSON.stringify(resourcePack) + ',\n' +
-    JSON.stringify(sowMetadata) + ',\n' +
-    JSON.stringify(courseData)
+    JSON.stringify(sowMetadata)
   );
 }
 

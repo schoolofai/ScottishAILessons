@@ -60,20 +60,29 @@ def _get_current_card_info(state: InterruptUnifiedState) -> tuple[dict, int, str
 
 
 
-def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, current_index: int, cfu_type: str):
-    """Generate appropriate message based on card position and type."""
+def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, current_index: int, cfu_type: str, state: dict):
+    """Generate appropriate message based on card position and type.
+
+    Args:
+        teacher: LLMTeacher instance
+        lesson_snapshot: Lesson snapshot data
+        current_card: Current card data
+        current_index: Card index
+        cfu_type: CFU type (mcq, numeric, etc.)
+        state: Full InterruptUnifiedState with curriculum metadata
+    """
     if current_index == 0:
-        # First card with greeting
+        # First card with greeting - pass state for curriculum context
         if cfu_type == "mcq":
-            return teacher.greet_with_first_mcq_card_sync_full(lesson_snapshot, current_card)
+            return teacher.greet_with_first_mcq_card_sync_full(lesson_snapshot, current_card, state)
         else:
-            return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card)
+            return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card, state)
     else:
-        # Subsequent cards
+        # Subsequent cards - pass state for curriculum context
         if cfu_type == "mcq":
-            return teacher.present_mcq_card_sync_full(current_card)
+            return teacher.present_mcq_card_sync_full(current_card, state)
         else:
-            return teacher.present_card_sync_full(current_card)
+            return teacher.present_card_sync_full(current_card, state)
 
 
 
@@ -153,7 +162,8 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         summary_message = teacher.summarize_completed_lesson_sync_full(
             lesson_snapshot=lesson_snapshot,
             evidence=evidence,
-            performance_analysis=performance_analysis
+            performance_analysis=performance_analysis,
+            state=state  # Pass full state for curriculum context
         )
 
         # Create tool call for lesson completion UI
@@ -224,9 +234,9 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     print(f"🚨 DESIGN DEBUG - Falling through to create new tool call - no interrupt_response or student_response found")
     teacher = LLMTeacher()
     current_card, current_index, cfu_type = _get_current_card_info(state)
-    
+
     message_obj = _generate_card_message(
-        teacher, state["lesson_snapshot"], current_card, current_index, cfu_type
+        teacher, state["lesson_snapshot"], current_card, current_index, cfu_type, state  # Pass full state
     )
     
     # Create tool call for lesson card presentation
@@ -355,7 +365,8 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         expected_answer=cfu.get("expected") if cfu.get("type") != "mcq" else cfu.get("options", [])[cfu.get("answerIndex", 0)],
         card_context=current_card,
         attempt_number=attempts,
-        max_attempts=max_attempts
+        max_attempts=max_attempts,
+        state=state  # Pass full state for curriculum context
     )
     
     # Record evidence using shared utility
@@ -376,7 +387,8 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         previous_attempts = _get_previous_attempts(evidence, cfu["id"])
         explanation_obj = teacher.explain_correct_answer_sync_full(
             current_card=current_card,
-            student_attempts=previous_attempts
+            student_attempts=previous_attempts,
+            state=state  # Pass full state for curriculum context
         )
         explanation_message = explanation_obj.content if hasattr(explanation_obj, 'content') else str(explanation_obj)
         print(f"🚨 MARK DEBUG - Generated explanation: {explanation_message[:100] if explanation_message else 'None'}...")
@@ -603,7 +615,8 @@ def progress_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "cards_completed": len(cards_completed),
             "total_cards": len(cards),
             "current_performance": state.get("is_correct", False)
-        }
+        },
+        state=state  # Pass full state for curriculum context
     )
     
     print(f"🚨 PROGRESS DEBUG - Moving from card {current_card_index} to {next_card_index}")

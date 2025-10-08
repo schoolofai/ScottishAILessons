@@ -20,6 +20,10 @@ DIAGRAM_SCREENSHOT_URL = os.environ.get(
     "DIAGRAM_SCREENSHOT_URL",
     "http://localhost:3001"
 )
+DIAGRAM_SCREENSHOT_API_KEY = os.environ.get(
+    "DIAGRAM_SCREENSHOT_API_KEY",
+    "dev-api-key-change-in-production"  # Default for local development
+)
 RENDER_ENDPOINT = f"{DIAGRAM_SCREENSHOT_URL}/api/v1/render"
 HEALTH_ENDPOINT = f"{DIAGRAM_SCREENSHOT_URL}/health"
 RENDER_TIMEOUT = 30  # seconds
@@ -120,10 +124,14 @@ def render_diagram_tool(jsxgraph_json: str) -> Dict[str, Any]:
 
         # Make HTTP POST request to DiagramScreenshot service
         try:
+            headers = {
+                "Content-Type": "application/json",
+                "X-API-Key": DIAGRAM_SCREENSHOT_API_KEY
+            }
             response = requests.post(
                 RENDER_ENDPOINT,
                 json=diagram_data,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=RENDER_TIMEOUT
             )
 

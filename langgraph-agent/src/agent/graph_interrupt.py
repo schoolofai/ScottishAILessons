@@ -121,6 +121,66 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
         logger.info(f"Teaching student_id: {session_context.get('student_id', '')}")
         logger.info(f"Teaching course_id: {course_id}")
 
+        # ═══════════════════════════════════════════════════════════════
+        # Extract curriculum metadata from lesson snapshot and session context
+        # ═══════════════════════════════════════════════════════════════
+
+        # Extract lesson template metadata (already in lesson_snapshot)
+        lesson_type = lesson_snapshot.get("lesson_type", "teach") if lesson_snapshot else "teach"
+
+        engagement_tags_str = lesson_snapshot.get("engagement_tags", "[]") if lesson_snapshot else "[]"
+        try:
+            engagement_tags = json.loads(engagement_tags_str) if isinstance(engagement_tags_str, str) else engagement_tags_str
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse engagement_tags: {engagement_tags_str}")
+            engagement_tags = []
+
+        policy_str = lesson_snapshot.get("policy", "{}") if lesson_snapshot else "{}"
+        try:
+            lesson_policy = json.loads(policy_str) if isinstance(policy_str, str) else policy_str
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse policy: {policy_str}")
+            lesson_policy = {}
+
+        sow_order = lesson_snapshot.get("sow_order", 0) if lesson_snapshot else 0
+
+        # Extract course metadata from session_context if frontend provides it
+        # Frontend should fetch this using CourseDriver and pass it in session_context
+        course_subject = session_context.get("course_subject")
+        course_level = session_context.get("course_level")
+        sqa_course_code = session_context.get("sqa_course_code")
+        course_title = session_context.get("course_title")
+
+        logger.info(f"Course metadata: subject={course_subject}, level={course_level}")
+
+        # Extract enriched outcomes from session_context if frontend provides it
+        # Frontend should pre-fetch outcome details using CourseOutcomesDriver
+        enriched_outcomes = session_context.get("enriched_outcomes", [])
+        logger.info(f"Enriched outcomes: {len(enriched_outcomes)} outcomes loaded")
+
+        # Generate display-friendly strings for prompts
+        course_subject_display = None
+        course_level_display = None
+        lesson_type_display = None
+
+        if course_subject:
+            # Convert "application-of-mathematics" -> "Application Of Mathematics"
+            course_subject_display = course_subject.replace("-", " ").replace("_", " ").title()
+
+        if course_level:
+            # Convert "national-3" -> "National 3"
+            course_level_display = course_level.replace("-", " ").title()
+
+        if lesson_type:
+            # Convert "independent_practice" -> "Independent Practice"
+            lesson_type_display = lesson_type.replace("_", " ").title()
+
+        logger.info(f"Display strings: {course_subject_display} ({course_level_display}), {lesson_type_display}")
+
+        # ═══════════════════════════════════════════════════════════════
+        # END curriculum metadata extraction
+        # ═══════════════════════════════════════════════════════════════
+
         return {
             "session_context": session_context,  # Keep for frontend compatibility
             "mode": mode,
@@ -132,7 +192,20 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
             "lesson_snapshot": lesson_snapshot,
             "student_response": student_input,
             **interrupt_init,  # Interrupt fields
-            **teaching_init    # Teaching progression fields
+            **teaching_init,   # Teaching progression fields
+            # Curriculum metadata fields
+            "course_subject": course_subject,
+            "course_level": course_level,
+            "sqa_course_code": sqa_course_code,
+            "course_title": course_title,
+            "lesson_type": lesson_type,
+            "engagement_tags": engagement_tags,
+            "lesson_policy": lesson_policy,
+            "sow_order": sow_order,
+            "enriched_outcomes": enriched_outcomes,
+            "course_subject_display": course_subject_display,
+            "course_level_display": course_level_display,
+            "lesson_type_display": lesson_type_display
         }
     else:
         logger.info("💬 CHAT MODE DETECTED (default)")
