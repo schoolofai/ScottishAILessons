@@ -1,4 +1,4 @@
-"""Lesson Author DeepAgent - Orchestrates 8 subagents to produce LessonTemplate JSON documents for Scottish secondary education."""
+"""Lesson Author DeepAgent - Orchestrates 2 subagents to produce LessonTemplate JSON documents for Scottish secondary education."""
 
 import os
 from langchain.chat_models import init_chat_model
@@ -8,7 +8,6 @@ from deepagents import create_deep_agent
 try:
     from src.lesson_author_prompts import (
         LESSON_AGENT_PROMPT,
-        LESSON_AUTHOR_SUBAGENT_PROMPT,
         COMBINED_LESSON_CRITIC_PROMPT
     )
     from src.research_agent_prompts import SUB_RESEARCH_PROMPT
@@ -16,7 +15,6 @@ try:
 except ImportError:
     from lesson_author_prompts import (
         LESSON_AGENT_PROMPT,
-        LESSON_AUTHOR_SUBAGENT_PROMPT,
         COMBINED_LESSON_CRITIC_PROMPT
     )
     from research_agent_prompts import SUB_RESEARCH_PROMPT
@@ -59,15 +57,7 @@ research_subagent = {
     "tools": internet_only_tools  # Internet search only
 }
 
-# 2. Lesson Author Subagent - Drafts and revises the LessonTemplate JSON document
-lesson_author_subagent = {
-    "name": "lesson_author_subagent",
-    "description": "Draft/edit the LessonTemplate according to the schema and write to lesson_template.json. Has internet access for URL lookups and missing information.",
-    "prompt": LESSON_AUTHOR_SUBAGENT_PROMPT,
-    "tools": internet_only_tools  # Internet search for URL lookups
-}
-
-# 3. Combined Lesson Critic - Evaluates all quality dimensions
+# 2. Combined Lesson Critic - Evaluates all quality dimensions
 combined_lesson_critic = {
     "name": "combined_lesson_critic",
     "description": "Evaluates lesson template across 5 dimensions: pedagogical design (I-We-You, scaffolding), assessment design (CFU variety, rubrics, misconceptions), accessibility (plain language, dyslexia-friendly), Scottish context (£ currency, SQA terminology, local examples), and coherence (outcome mapping, timing, policy alignment). Uses weighted scoring (ped: 0.20, assess: 0.25, access: 0.20, scottish: 0.20, coherence: 0.15) with threshold ≥0.88 overall and all dimensional thresholds met.",
@@ -80,15 +70,14 @@ combined_lesson_critic = {
 # MAIN LESSON AUTHOR DEEPAGENT
 # =============================================================================
 
-# Create the Lesson Author DeepAgent with 3 subagents (Course_data.txt pre-fetched by seeding script)
-# Uses base DeepAgentState automatically (no custom reducer needed with single critic - no concurrent updates)
+# Create the Lesson Author DeepAgent with 2 subagents (Course_data.txt pre-fetched by seeding script)
+# Main agent now directly authors lessons, with targeted subagents for research and critique
 agent = create_deep_agent(
     model=gemini,
     tools=internet_only_tools,  # Internet search for orchestration
     instructions=LESSON_AGENT_PROMPT,
     subagents=[
         research_subagent,
-        lesson_author_subagent,
         combined_lesson_critic
     ]
 ).with_config({"recursion_limit": 1000})
