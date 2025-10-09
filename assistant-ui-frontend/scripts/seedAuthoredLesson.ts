@@ -509,25 +509,27 @@ async function runLessonAuthorAgent(
         return JSON.parse(files['lesson_template.json']);
       }
 
-      // Check for outstanding TODOs
-      if (files['lesson_todos.json']) {
-        const todos = JSON.parse(files['lesson_todos.json']);
-        const errorMsg = `⚠️  Agent has ${todos.length} outstanding TODOs`;
-        logToFile(logFilePath, errorMsg);
-        logToFile(logFilePath, JSON.stringify(todos, null, 2));
+      // Check for critic failures
+      if (files['critic_result.json']) {
+        const criticResult = JSON.parse(files['critic_result.json']);
+        if (criticResult.pass === false) {
+          const errorMsg = `⚠️  Critic failed with ${criticResult.issues?.length || 0} issues (score: ${criticResult.overall_score})`;
+          logToFile(logFilePath, errorMsg);
+          logToFile(logFilePath, JSON.stringify(criticResult, null, 2));
 
-        console.log(`   ${errorMsg}`);
-        todos.slice(0, 3).forEach((todo: any) => {
-          console.log(`      - ${todo.critic}: ${todo.issue}`);
-        });
+          console.log(`   ${errorMsg}`);
+          criticResult.issues?.slice(0, 3).forEach((issue: string) => {
+            console.log(`      - ${issue}`);
+          });
 
-        // Continue to retry with "continue" message
-        lastError = new Error(`Outstanding TODOs: ${todos.length}`);
-        continue;
+          // Continue to retry with "continue" message
+          lastError = new Error(`Critic failed: ${criticResult.issues?.length || 0} issues`);
+          continue;
+        }
       }
 
-      // No template and no TODOs - unknown state
-      throw new Error('Agent completed but produced no lesson_template.json or lesson_todos.json');
+      // No template - unknown state
+      throw new Error('Agent completed but produced no lesson_template.json');
 
     } catch (error: any) {
       lastError = error;

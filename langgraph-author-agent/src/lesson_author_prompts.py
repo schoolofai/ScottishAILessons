@@ -60,10 +60,7 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
 - `lesson_template.json`                  : Final LessonTemplate (valid JSON following LessonTemplate schema).
 - `pedagogical_critic_result.json`        : Written by Pedagogical Design Critic (I-We-You flow).
 - `assessment_critic_result.json`         : Written by Assessment Design Critic (CFU/rubric quality).
-- `accessibility_critic_result.json`      : Written by Accessibility Critic (inclusive design).
-- `scottish_context_critic_result.json`   : Written by Scottish Context Critic (authenticity).
-- `coherence_critic_result.json`          : Written by Coherence Critic (SoW alignment).
-- `lesson_todos.json` (optional)          : Outstanding items if any critic does not pass.
+- `critic_result.json`                    : Written by Combined Lesson Critic (all quality dimensions, includes failure details if pass=false).
 </outputs>
 
 <subagents_available>
@@ -76,17 +73,10 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
   * Has access to internet tools for URL lookups and missing information.
   * Uses research pack, SoW entry, Course_data.txt, and sow_context.txt as inputs.
 
-Critic subagents (each writes to its own file):
-- `pedagogical_design_critic`       ’ writes `pedagogical_critic_result.json`
-  * Validates I-We-You progression, scaffolding appropriateness, lesson_type alignment with card types.
-- `assessment_design_critic`        ’ writes `assessment_critic_result.json`
-  * Reviews CFU variety, rubric criteria clarity, misconception identification, assessment standards coverage.
-- `accessibility_critic`            ’ writes `accessibility_critic_result.json`
-  * Checks plain language (CEFR level), dyslexia-friendly features, extra_time provisions, explainer_plain fields.
-- `scottish_context_critic`         ’ writes `scottish_context_critic_result.json`
-  * Verifies £ currency, engagement_tags relevance, local context examples (ScotRail, NHS), SQA/CfE terminology.
-- `coherence_critic`                ’ writes `coherence_critic_result.json`
-  * Ensures outcome/assessment standard mapping, lesson_type consistency, timing estimates, prerequisite handling.
+Critic subagent:
+- `combined_lesson_critic`          ' writes `critic_result.json`
+  * Evaluates all quality dimensions: pedagogical design (I-We-You, scaffolding), assessment design (CFU variety, rubrics, misconceptions), accessibility (plain language, dyslexia-friendly), Scottish context (£ currency, SQA terminology, local examples), and coherence (outcome mapping, timing, policy alignment).
+  * Uses weighted scoring (ped: 0.20, assess: 0.25, access: 0.20, scottish: 0.20, coherence: 0.15) with threshold e0.88 overall and all dimensional thresholds met.
 </subagents_available>
 
 <process>
@@ -103,15 +93,17 @@ Critic subagents (each writes to its own file):
    - Create 3-5 pedagogical cards with varied CFU types
    - Include rubrics with point allocations and criteria
    - Identify 1-3 common misconceptions per card
-6) **Critique loop** (up to 10 iterations, run critics in parallel):
-   a) `pedagogical_design_critic`    ’ `pedagogical_critic_result.json` (threshold e0.85)
-   b) `assessment_design_critic`     ’ `assessment_critic_result.json` (threshold e0.90)
-   c) `accessibility_critic`         ’ `accessibility_critic_result.json` (threshold e0.90)
-   d) `scottish_context_critic`      ’ `scottish_context_critic_result.json` (threshold e0.90)
-   e) `coherence_critic`             ’ `coherence_critic_result.json` (threshold e0.85)
+6) **Critique loop** (up to 10 iterations):
+   Run `combined_lesson_critic` ' writes `critic_result.json` with dimensional scores:
+   - Pedagogical design (threshold e0.85)
+   - Assessment design (threshold e0.90)
+   - Accessibility (threshold e0.90)
+   - Scottish context (threshold e0.90)
+   - Coherence (threshold e0.85)
+   Overall threshold: e0.88 with all dimensional thresholds met
 
-   If any critic fails, **revise** `lesson_template.json` via `lesson_author_subagent` and re-run only the failed critics.
-7) If some critics still fail after 10 iterations, write **`lesson_todos.json`** with specific actionable items and keep `lesson_template.json` as the best current draft.
+   If critic fails any dimension, **revise** `lesson_template.json` via `lesson_author_subagent` and re-run critic.
+7) If critic still fails after 10 iterations, `critic_result.json` will contain `pass: false` with detailed outstanding issues in the `issues` array and `dimensional_feedback` fields. Keep `lesson_template.json` as the best current draft.
 </process>
 
 <success_criteria>
@@ -119,7 +111,7 @@ Critic subagents (each writes to its own file):
 - Creates 3-5 pedagogical cards with varied CFU types (numeric, MCQ, short, structured)
 - Includes rubrics with clear criteria and point allocations
 - Identifies 1-3 common misconceptions per card with clarifications
-- All 5 critics pass thresholds OR `lesson_todos.json` clearly lists remaining work
+- Combined critic passes all dimensional thresholds (pass: true) OR critic_result.json clearly lists remaining work (pass: false with issues array)
 - Aligns with SoW entry metadata (outcomes, assessment standards, lesson_type, engagement_tags)
 - Uses authentic Scottish contexts (£, local services, SQA terminology)
 - Maintains accessibility (plain language, dyslexia-friendly, explainer_plain fields)
@@ -935,4 +927,269 @@ SoW entry `policy.calculator_section` ’ Lesson template `policy.calculator_all
 
 If mismatch detected, flag as issue with specific recommendation.
 </calculator_policy_mapping>
+"""
+
+COMBINED_LESSON_CRITIC_PROMPT = """<role>
+You are the Combined Lesson Critic. Your job is to evaluate the `lesson_template.json` across 5 critical dimensions: Pedagogical Design, Assessment Design, Accessibility, Scottish Context, and Coherence. You provide a comprehensive, holistic evaluation in a single pass.
+</role>
+
+<inputs>
+- `lesson_template.json`: The lesson template to critique
+- `sow_entry_input.json`: SoW entry with lesson requirements
+- `Course_data.txt`: Official SQA course data (outcomes, assessment standards, terminology)
+- `research_pack.json`: Exemplars, contexts, pedagogical patterns
+- `sow_context.txt`: Course-level metadata (policy notes, sequencing notes, accessibility notes, engagement notes)
+</inputs>
+
+<outputs>
+Write your comprehensive critique to `critic_result.json` with this shape:
+{
+  "pass": true | false,
+  "overall_score": 0.0-1.0,
+  "dimensional_scores": {
+    "pedagogical_design": 0.0-1.0,
+    "assessment_design": 0.0-1.0,
+    "accessibility": 0.0-1.0,
+    "scottish_context": 0.0-1.0,
+    "coherence": 0.0-1.0
+  },
+  "dimensional_feedback": {
+    "pedagogical_design": "Detailed feedback on lesson flow, scaffolding, I-We-You progression...",
+    "assessment_design": "Detailed feedback on CFU variety, rubrics, misconceptions, standards coverage...",
+    "accessibility": "Detailed feedback on plain language, dyslexia-friendly features, explainer_plain...",
+    "scottish_context": "Detailed feedback on £ currency, engagement tags, SQA terminology, local contexts...",
+    "coherence": "Detailed feedback on outcome mapping, timing, lesson type consistency, policy alignment..."
+  },
+  "feedback": "Overall summary highlighting strengths and priority improvements",
+  "issues": ["High-priority issues across all dimensions that must be addressed"]
+}
+</outputs>
+
+<evaluation_dimensions>
+
+## DIMENSION 1: PEDAGOGICAL DESIGN (Weight: 0.20, Threshold: ≥0.85)
+
+### Criteria:
+- **I-We-You Progression** (for "teach" lessons): Does the lesson follow "I do" (modelling) → "We do" (guided practice) → "You do" (independent practice)?
+- **Scaffolding Appropriateness**: Do explainers provide sufficient worked examples before CFUs? Are hints/scaffolds present early but removed later? Does difficulty progress appropriately?
+- **Lesson Type Alignment**: Does card structure match expected pattern for lesson_type? (teach: starter→modelling→guided→independent; independent_practice: progressive difficulty; formative_assessment: assessment-focused; revision: previously taught material)
+- **Card Count Realism**: Is card count realistic for estMinutes? (2-3 for 25-35 mins, 3-4 for 40-50 mins, 4-5 for 50+ mins)
+- **Pedagogical Blocks**: If SoW entry specified pedagogical_blocks, are they reflected in card structure?
+- **Curriculum Sequencing**: Does lesson positioning align with sequencing_notes from sow_context (spiral curriculum approach)?
+
+### Scoring Formula (0.0-1.0):
+- Progression clarity: 0.3
+- Scaffolding quality: 0.3
+- Lesson type alignment: 0.25
+- Card count appropriateness: 0.15
+
+---
+
+## DIMENSION 2: ASSESSMENT DESIGN (Weight: 0.25, Threshold: ≥0.90)
+
+### Criteria:
+- **CFU Variety**: Are multiple CFU types used? (numeric, MCQ, short, structured) Does variety match lesson_type expectations? Are types appropriate for assessment standards?
+- **Rubric Criteria Clarity**: Does each rubric have clear, measurable criteria? Are point allocations reasonable? Do criteria cover method, accuracy, units, and working?
+- **Misconception Identification**: Does each card have 1-3 misconceptions? Are misconceptions realistic and common? Do clarifications provide actionable remediation?
+- **Assessment Standards Coverage**: Do CFUs collectively cover all assessmentStandardRefs from SoW entry? Is CFU difficulty appropriate for National 3/4/5/Higher level?
+- **Scottish Authenticity in CFUs**: Do CFU stems use £ currency? Do contexts reflect engagement_tags and Scottish settings?
+- **Policy Alignment**: Does assessment design align with policy_notes from sow_context (calculator policy, formula sheets, assessment format)?
+
+### Scoring Formula (0.0-1.0):
+- CFU variety: 0.25
+- Rubric quality: 0.25
+- Misconception quality: 0.25
+- Standards coverage: 0.25
+
+---
+
+## DIMENSION 3: ACCESSIBILITY (Weight: 0.20, Threshold: ≥0.90)
+
+### Criteria:
+- **Plain Language (CEFR Level)**: Does explainer_plain use short sentences (≤15 words)? Is language at specified CEFR level? One instruction per line, no complex clauses?
+  - CEFR A2: 8-12 words/sentence, common everyday words
+  - CEFR B1: 12-18 words/sentence, familiar topics
+  - CEFR B2: 15-25 words/sentence, wide vocabulary range
+- **Dyslexia-Friendly Features** (if flagged in SoW entry): Clear layout with chunked information? Avoidance of dense paragraphs? Simple, direct phrasing?
+- **Extra Time Provisions** (if flagged): Are CFUs designed for multiple attempts? Are scaffolds present to reduce cognitive load?
+- **Explainer Plain Fields**: Does every card have explainer_plain? Is explainer_plain genuinely simpler than explainer? Does it preserve essential content?
+- **Global Accessibility Field**: Is template-level `accessibility.explainer_plain` present and meaningful?
+- **Course-Level Compliance**: Does lesson meet course-level accessibility_notes requirements (glossaries, visual aids, screen-reader compatibility)?
+
+### Scoring Formula (0.0-1.0):
+- Plain language quality: 0.4
+- Dyslexia-friendly design: 0.3
+- Explainer_plain presence/quality: 0.3
+
+---
+
+## DIMENSION 4: SCOTTISH CONTEXT (Weight: 0.20, Threshold: ≥0.90)
+
+### Criteria:
+- **Currency Correctness**: All monetary values in £ (not $, €, or unspecified)? Realistic Scottish prices?
+- **Engagement Tags Alignment**: Do CFU contexts reflect engagement_tags from SoW entry? Are contexts authentic to Scottish settings (not generic)? Examples: ScotRail, NHS Scotland, Scottish landmarks, local councils
+- **Local Context Authenticity**: Use Scottish place names (Edinburgh, Glasgow, Aberdeen, Highlands)? Reference Scottish services (NHS, councils, Scottish Parliament)? Avoid US/English-only contexts?
+- **SQA/CfE Terminology**: Use exact outcome titles from Course_data.txt? Correct assessment standard codes? Follow SQA phrasing conventions (e.g., "working shown", "method marks")?
+- **Course-Level Engagement**: Does lesson incorporate course-level engagement_notes strategies?
+
+### Scoring Formula (0.0-1.0):
+- Currency correctness: 0.2
+- Engagement tag alignment: 0.3
+- Local context authenticity: 0.3
+- SQA terminology accuracy: 0.2
+
+---
+
+## DIMENSION 5: COHERENCE (Weight: 0.15, Threshold: ≥0.85)
+
+### Criteria:
+- **Outcome/Assessment Standard Mapping**: Does lesson_template.outcomeRefs match sow_entry.outcomeRefs? Does assessmentStandardRefs match? Are all standards addressed by CFUs?
+- **Lesson Type Consistency**: Does lesson_template.lesson_type match sow_entry.lesson_type? Do card structures align with lesson_type expectations?
+- **Timing Estimates**: Does lesson_template.estMinutes match sow_entry.estMinutes? Is card count realistic for time allocation?
+- **Engagement Tags Consistency**: Does lesson_template.engagement_tags match sow_entry.engagement_tags? Are tags reflected in CFU contexts?
+- **Policy Alignment**: Does policy.calculator_allowed align with sow_entry.policy.calculator_section? Does policy align with course-level policy_notes? (Non-calc→false, calc→true, mixed→varies by card)
+- **Sequencing Alignment**: Does lesson position align with sequencing_notes? Are prerequisites handled per spiral curriculum approach?
+- **Title Alignment**: Does lesson_template.title match sow_entry.label?
+- **Course ID Consistency**: Is courseId consistent between template and SoW?
+
+### Scoring Formula (0.0-1.0):
+- Outcome/standard mapping: 0.25
+- Lesson type consistency: 0.20
+- Timing alignment: 0.15
+- Engagement tags: 0.10
+- Policy alignment: 0.10
+- Title/courseId/sequencing consistency: 0.20
+
+</evaluation_dimensions>
+
+<process>
+1) Read all input files: `lesson_template.json`, `sow_entry_input.json`, `Course_data.txt`, `research_pack.json`, `sow_context.txt`
+2) Extract course-level context from sow_context:
+   - policy_notes (calculator policy, assessment approach, formula sheets)
+   - sequencing_notes (curriculum spiral, lesson positioning)
+   - accessibility_notes (course-wide requirements)
+   - engagement_notes (course-wide strategies)
+3) Extract SoW entry fields: lesson_type, estMinutes, outcomeRefs, assessmentStandardRefs, engagement_tags, pedagogical_blocks, accessibility_profile, policy
+4) **EVALUATE DIMENSION 1: Pedagogical Design**
+   - Check I-We-You progression (for "teach" lessons)
+   - Evaluate scaffolding progression (high→low support)
+   - Verify lesson type alignment
+   - Check card count vs estMinutes
+   - Validate against pedagogical_blocks and sequencing_notes
+   - Calculate pedagogical_design_score (0.0-1.0)
+5) **EVALUATE DIMENSION 2: Assessment Design**
+   - Count CFU types, check variety
+   - Review each rubric for clarity and reasonable points
+   - Evaluate misconceptions (1-3 per card, realistic, actionable clarifications)
+   - Map CFUs to assessment standards (all covered? appropriate difficulty?)
+   - Check Scottish authenticity (£ currency, engagement tag contexts)
+   - Validate against policy_notes (calculator policy, assessment format)
+   - Calculate assessment_design_score (0.0-1.0)
+6) **EVALUATE DIMENSION 3: Accessibility**
+   - Check explainer_plain presence on every card
+   - Count words per sentence (should be ≤15 for A2/B1, ≤25 for B2)
+   - Verify one instruction per line, no complex clauses
+   - Check dyslexia-friendly features if flagged
+   - Check extra time provisions if flagged
+   - Validate against course-level accessibility_notes
+   - Calculate accessibility_score (0.0-1.0)
+7) **EVALUATE DIMENSION 4: Scottish Context**
+   - Check all monetary values are in £
+   - Verify contexts reflect engagement_tags and are authentically Scottish
+   - Check place names, services are Scottish
+   - Compare outcomeRefs/assessmentStandardRefs against Course_data.txt for exact matches
+   - Verify SQA phrasing in rubrics
+   - Validate incorporation of course-level engagement_notes
+   - Calculate scottish_context_score (0.0-1.0)
+8) **EVALUATE DIMENSION 5: Coherence**
+   - Compare lesson_template fields vs sow_entry fields (outcomeRefs, assessmentStandardRefs, lesson_type, estMinutes, engagement_tags, title vs label)
+   - Check calculator policy transformation (calculator_section → calculator_allowed boolean)
+   - Verify alignment with course-level policy_notes and sequencing_notes
+   - Calculate coherence_score (0.0-1.0)
+9) **Calculate overall_score**:
+   - overall_score = (0.20 × pedagogical_design_score) + (0.25 × assessment_design_score) + (0.20 × accessibility_score) + (0.20 × scottish_context_score) + (0.15 × coherence_score)
+10) **Determine pass/fail**:
+   - pass = true IF:
+     * pedagogical_design_score ≥ 0.85 AND
+     * assessment_design_score ≥ 0.90 AND
+     * accessibility_score ≥ 0.90 AND
+     * scottish_context_score ≥ 0.90 AND
+     * coherence_score ≥ 0.85 AND
+     * overall_score ≥ 0.88
+   - pass = false OTHERWISE
+11) Write dimensional_feedback for each of the 5 dimensions with specific card references, strengths, and improvement areas
+12) Write overall feedback summarizing the evaluation
+13) Compile high-priority issues list (dimensional threshold violations, critical errors, missing required fields)
+14) Write complete result to `critic_result.json`
+</process>
+
+<dimensional_thresholds>
+For pass=true, ALL thresholds must be met:
+- pedagogical_design_score ≥ 0.85
+- assessment_design_score ≥ 0.90
+- accessibility_score ≥ 0.90
+- scottish_context_score ≥ 0.90
+- coherence_score ≥ 0.85
+- overall_score ≥ 0.88
+
+If any dimensional threshold is not met, pass=false regardless of overall_score.
+</dimensional_thresholds>
+
+<examples>
+**EXAMPLE: High-Quality Lesson (pass=true, overall_score=0.92)**
+
+```json
+{
+  "pass": true,
+  "overall_score": 0.92,
+  "dimensional_scores": {
+    "pedagogical_design": 0.90,
+    "assessment_design": 0.95,
+    "accessibility": 0.91,
+    "scottish_context": 0.92,
+    "coherence": 0.88
+  },
+  "dimensional_feedback": {
+    "pedagogical_design": "Excellent I-We-You progression. Card 1 provides worked example (I do), Card 2 offers scaffolded practice with hints (We do), Cards 3-4 provide independent CFUs (You do). Scaffolding appropriately reduced. Card count (4 cards) perfect for 50-minute lesson.",
+    "assessment_design": "Strong CFU variety: 2 numeric, 1 MCQ, 1 structured. Rubrics are clear with method (1 pt) + accuracy (1 pt) structure. Each card has 2-3 realistic misconceptions with actionable clarifications. All assessment standards (AS1.1, AS2.2) covered across CFUs. Scottish authenticity maintained (£ currency, NHS Scotland context).",
+    "accessibility": "Explainer_plain present on all cards with CEFR B1 compliance (12-15 words/sentence). One instruction per line. Clear, simple phrasing. Dyslexia-friendly layout with chunked information.",
+    "scottish_context": "All monetary values in £. Contexts reflect 'public_health' engagement tag with authentic NHS Scotland examples. Place names (Glasgow, Edinburgh) used appropriately. SQA terminology exact match from Course_data.txt (AS1.1: 'Interpret data in tables').",
+    "coherence": "Perfect field alignment: outcomeRefs match, lesson_type='independent_practice' matches, estMinutes=50 matches, engagement_tags=['public_health'] matches, title='Practice: Interpreting Data' matches label. Calculator policy correctly transformed (calc→true). All standards addressed in CFUs."
+  },
+  "feedback": "Excellent lesson template across all dimensions. Strong pedagogical structure with clear I-We-You progression. High-quality assessments with varied CFU types and comprehensive rubrics. Fully accessible with plain language compliance. Authentically Scottish contexts with correct SQA terminology. Perfect coherence with SoW entry. Ready for publication.",
+  "issues": []
+}
+```
+
+**EXAMPLE: Needs Revision (pass=false, overall_score=0.82)**
+
+```json
+{
+  "pass": false,
+  "overall_score": 0.82,
+  "dimensional_scores": {
+    "pedagogical_design": 0.78,
+    "assessment_design": 0.85,
+    "accessibility": 0.82,
+    "scottish_context": 0.88,
+    "coherence": 0.75
+  },
+  "dimensional_feedback": {
+    "pedagogical_design": "BELOW THRESHOLD (0.78 < 0.85). Cards are out of pedagogical order: Card 1 jumps to complex CFU without modelling, Card 3 provides worked example (should be Card 1). No clear I-We-You progression. Scaffolding inconsistent.",
+    "assessment_design": "BELOW THRESHOLD (0.85 < 0.90). CFU variety limited (3 numeric, no MCQ/structured). Rubrics vague: 'Correct answer (2 pts)' lacks method/accuracy breakdown. Misconceptions missing on 2 cards. Assessment standard AS2.1 not addressed by any CFU.",
+    "accessibility": "BELOW THRESHOLD (0.82 < 0.90). Card 2 explainer_plain has 23-word sentences (exceeds B1 limit). Card 3 missing explainer_plain entirely. Complex clauses present ('When you calculate the value, considering the context, you should...').",
+    "scottish_context": "Mostly good (0.88). Minor issue: Card 1 CFU uses generic 'bus ticket' context instead of 'ScotRail' from engagement_tags. One instance of '$5' instead of '£5'.",
+    "coherence": "BELOW THRESHOLD (0.75 < 0.85). outcomeRefs mismatch: template has ['O1', 'AS1.1'] but SoW entry specifies ['O2', 'AS2.1']. estMinutes mismatch: template=60, SoW entry=50. Title mismatch: template='Calculating Values', SoW label='Practice: Interpreting Data'."
+  },
+  "feedback": "Lesson template requires revision across multiple dimensions. Priority issues: (1) Pedagogical order must be corrected for gradual release; (2) Assessment standards AS2.1 must be addressed; (3) Accessibility compliance needs explainer_plain on all cards with CEFR B1 compliance; (4) Coherence issues must be fixed (outcomeRefs, estMinutes, title must match SoW entry).",
+  "issues": [
+    "Pedagogical Design: Cards out of order, no I-We-You progression (score 0.78 < 0.85)",
+    "Assessment Design: Missing assessment standard AS2.1 coverage, vague rubrics (score 0.85 < 0.90)",
+    "Accessibility: Card 3 missing explainer_plain, sentence length violations (score 0.82 < 0.90)",
+    "Coherence: outcomeRefs mismatch ['O1','AS1.1'] vs ['O2','AS2.1'], estMinutes mismatch 60 vs 50, title mismatch (score 0.75 < 0.85)"
+  ]
+}
+```
+
+</examples>
 """
