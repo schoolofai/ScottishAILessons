@@ -118,6 +118,22 @@ async function main() {
     console.log(`   Total entries: ${authoredSOW.entries.length}`);
     console.log('');
 
+    // Step 2.5: Fetch course metadata
+    console.log('🎓 Fetching course metadata...');
+    const courseMetadata = await getCourseMetadata(databases, courseId);
+    console.log(`✅ Course: ${courseMetadata.subject} ${courseMetadata.level}`);
+    console.log('');
+
+    // Step 2.6: Fetch SQA course data
+    console.log('📚 Fetching SQA course data from sqa_education database...');
+    const courseData = await fetchSQACourseData(
+      databases,
+      courseMetadata.subject,
+      courseMetadata.level
+    );
+    console.log(`✅ Fetched SQA data (${courseData.length} characters)`);
+    console.log('');
+
     // Step 3: Extract SOW entry for the specified order
     console.log(`🔍 Extracting entry at order ${order}...`);
     const sowEntry = await getSOWEntryByOrder(authoredSOW, order);
@@ -158,7 +174,7 @@ async function main() {
     console.log(`   Log file: ${logFile}`);
     console.log('');
 
-    const lessonTemplate = await runLessonAuthorAgent(tripleInput, LANGGRAPH_URL, logFile);
+    const lessonTemplate = await runLessonAuthorAgent(tripleInput, courseData, LANGGRAPH_URL, logFile);
     console.log('✅ Lesson template generated');
     // Handle both flat and nested structures
     const template = lessonTemplate.content || lessonTemplate;
@@ -255,6 +271,90 @@ async function getSOWEntryByOrder(
 }
 
 /**
+ * Fetch course metadata from courses collection
+ */
+async function getCourseMetadata(
+  databases: Databases,
+  courseId: string
+): Promise<{ subject: string; level: string }> {
+  // Query by courseId field, not document ID
+  const response = await databases.listDocuments(
+    DATABASE_ID,
+    'courses',
+    [Query.equal('courseId', courseId)]
+  );
+
+  if (response.documents.length === 0) {
+    throw new Error(`No course found with courseId: ${courseId}`);
+  }
+
+  const course = response.documents[0];
+
+  if (!course.subject || !course.level) {
+    throw new Error(`Course ${courseId} missing subject or level fields`);
+  }
+
+  return {
+    subject: course.subject,
+    level: course.level
+  };
+}
+
+/**
+ * Normalize subject and level from courses collection format to sqa_current collection format
+ * - Converts hyphens to underscores
+ * - Handles special case: "application-of-mathematics" → "applications_of_mathematics"
+ */
+function normalizeSQAQueryValues(subject: string, level: string): { subject: string; level: string } {
+  // Convert hyphens to underscores
+  let normalizedSubject = subject.replace(/-/g, '_');
+  let normalizedLevel = level.replace(/-/g, '_');
+
+  // Special case: "application_of_mathematics" → "applications_of_mathematics" (plural)
+  if (normalizedSubject === 'application_of_mathematics') {
+    normalizedSubject = 'applications_of_mathematics';
+  }
+
+  return {
+    subject: normalizedSubject,
+    level: normalizedLevel
+  };
+}
+
+/**
+ * Fetch SQA course data from sqa_current collection in sqa_education database
+ */
+async function fetchSQACourseData(
+  databases: Databases,
+  subject: string,
+  level: string
+): Promise<string> {
+  // Normalize subject and level for sqa_current collection query
+  const normalized = normalizeSQAQueryValues(subject, level);
+
+  console.log(`   Normalized: "${subject}" → "${normalized.subject}", "${level}" → "${normalized.level}"`);
+
+  const response = await databases.listDocuments(
+    'sqa_education',
+    'sqa_current',
+    [
+      Query.equal('subject', normalized.subject),
+      Query.equal('level', normalized.level)
+    ]
+  );
+
+  if (response.documents.length === 0) {
+    throw new Error(`No SQA data found for subject="${normalized.subject}" level="${normalized.level}" (original: subject="${subject}" level="${level}")`);
+  }
+
+  const sqaDoc = response.documents[0];
+  const data = sqaDoc.data;
+
+  // Return as string (data field contains JSON string or object)
+  return typeof data === 'string' ? data : JSON.stringify(data);
+}
+
+/**
  * Parse SOW metadata from AuthoredSOW document
  * Extracts course-level context for lesson authoring
  */
@@ -334,6 +434,7 @@ function createTripleInput(
  *
  * Strategy:
  * - Maintain the same threadId across retries for state continuity
+ * - Pre-inject Course_data.txt into thread state before first run
  * - Send "continue" or "proceed" message to resume from last checkpoint
  * - Log all attempts and errors for debugging
  * - Maximum 10 retry attempts before failing
@@ -341,6 +442,7 @@ function createTripleInput(
  */
 async function runLessonAuthorAgent(
   tripleInput: string,
+  courseData: string,
   langgraphUrl: string,
   logFilePath: string
 ): Promise<any> {
@@ -353,6 +455,7 @@ async function runLessonAuthorAgent(
 
   logToFile(logFilePath, `Thread created: ${threadId}`);
   console.log(`   Thread ID: ${threadId}`);
+  console.log(`   Course_data.txt ready for injection (${courseData.length} chars)`);
 
   let attempt = 0;
   let lastError: Error | null = null;
@@ -363,11 +466,19 @@ async function runLessonAuthorAgent(
     console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
 
     try {
-      // First attempt: send triple input (SOW entry, resource pack, SOW metadata)
+      // First attempt: send triple input + inject Course_data.txt in files
       // Subsequent attempts: send "continue" to resume
       const input = attempt === 1
-        ? { messages: [{ role: 'user', content: tripleInput }] }
+        ? {
+            messages: [{ role: 'user', content: tripleInput }],
+            files: { 'Course_data.txt': courseData }  // Inject Course_data.txt in first run
+          }
         : { messages: [{ role: 'user', content: 'continue' }] };
+
+      if (attempt === 1) {
+        logToFile(logFilePath, `Injecting Course_data.txt in first run (${courseData.length} chars)`);
+        console.log(`   ✅ Injecting Course_data.txt in first run`);
+      }
 
       // Stream agent execution
       const stream = client.runs.stream(

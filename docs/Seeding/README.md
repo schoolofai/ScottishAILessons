@@ -29,11 +29,18 @@ The SOW Seeding Infrastructure is a TypeScript-based system for populating the A
 
 ```
 Data Flow:
-  1. SQA Education Data → course_outcomes (via migrateCourseOutcomes.ts)
+  1. SQA Education Data (sqa_education.sqa_current collection)
+       ↓
   2. SOW Author Agent → sow_authored_*.json
-  3. seedAuthoredSOW.ts → Authored_SOW + lesson_templates
-  4. (Future) seedAuthoredLesson.ts → Lesson Author Agent → lesson_templates (populated)
+       ↓
+  3. seedAuthoredSOW.ts → AUTO-POPULATES → course_outcomes
+       ↓
+  4. seedAuthoredSOW.ts → Authored_SOW + lesson_templates (placeholders)
+       ↓
+  5. seedAuthoredLesson.ts (PRODUCTION READY) → Lesson Author Agent → lesson_templates (populated)
 ```
+
+**Note**: Steps 1, 3, and 4 now happen automatically within seedAuthoredSOW.ts using preparatory phases.
 
 ## Quick Start
 
@@ -92,19 +99,22 @@ APPWRITE_API_KEY=your_admin_api_key  # Required for seeding
 
 ⚠️ **IMPORTANT**: `APPWRITE_API_KEY` must be an admin API key with full database permissions.
 
-### 2. Course Outcomes Population
+### 2. SQA Course Data (Required)
 
-Before seeding SOW data, ensure `course_outcomes` collection is populated:
+**NEW**: The `course_outcomes` collection is now **automatically populated** by seedAuthoredSOW.ts.
 
+You only need to ensure SQA course data exists in the `sqa_education.sqa_current` collection.
+
+**Manual migration (optional)**:
 ```bash
-# Step 1: Extract outcomes from SQA education database
-npm run extract:sqa-outcomes
-
-# Step 2: Migrate to course_outcomes collection
+# Only needed if you want to manually pre-populate outcomes
 tsx scripts/migrateCourseOutcomes.ts course_c84473
 ```
 
-See: `../OUTCOME_MIGRATION_GUIDE.md` for details.
+The seeding script will:
+- **PHASE -2**: Auto-extract outcomes from SQA if not already extracted
+- **PHASE -1**: Auto-populate course_outcomes if not already populated
+- Skip these phases if data already exists (idempotent)
 
 ### 3. SOW Data File
 
@@ -236,17 +246,46 @@ Performs 3-tier validation on the seeded data.
 
 ## Common Use Cases
 
-### 1. First-Time Setup
+### 1. First-Time Setup (Single Course)
 
 ```bash
-# 1. Migrate outcomes (one-time)
-tsx scripts/migrateCourseOutcomes.ts course_c84473
-
-# 2. Seed SOW
+# Just run seeding - auto-populates everything!
 npm run seed:authored-sow
+
+# The script automatically:
+# - Creates course document if missing
+# - Extracts outcomes from SQA database
+# - Populates course_outcomes collection
+# - Creates lesson template placeholders
+# - Seeds Authored_SOW
 ```
 
-### 2. Update Existing SOW
+### 2. Batch Processing (Multiple Courses)
+
+```bash
+# Process all SOW files in Seeding_Data/input/sows/
+tsx scripts/seedAuthoredSOW.ts --batch --input-dir /path/to/Seeding_Data
+
+# Validation-only mode (dry run)
+tsx scripts/seedAuthoredSOW.ts --batch --validate --input-dir /path/to/Seeding_Data
+
+# Generates report: Seeding_Data/output/reports/batch-report-{timestamp}.json
+```
+
+**Directory Structure**:
+```
+Seeding_Data/
+├── input/sows/
+│   ├── mathematics_national-4.json
+│   ├── application-of-mathematics_national-3.json
+│   └── ... (other SOW files)
+└── output/
+    ├── course_outcomes_imports/  (auto-generated)
+    ├── logs/                      (auto-generated)
+    └── reports/                   (auto-generated)
+```
+
+### 3. Update Existing SOW
 
 ```bash
 # Just re-run seeding (upsert handles updates)
@@ -257,22 +296,27 @@ The script will:
 - Update existing lesson templates (matched by `sow_order`)
 - Update Authored_SOW document (matched by `courseId` + `version`)
 
-### 3. Seed New Course
+### 4. Generate Lesson Content (Production Ready)
 
 ```bash
-# 1. Generate SOW data with sow_author_agent
-cd langgraph-author-agent
-python3 run_sow_author.py <course_id>
-
-# 2. Update script to point to new data file
-# Edit: scripts/seedAuthoredSOW.ts line 409
-const jsonFilePath = path.join(__dirname, '../../langgraph-author-agent/data/sow_authored_<new_course>.json');
-
-# 3. Run seeding
+# Step 1: Create SOW structure
 npm run seed:authored-sow
+
+# Step 2: Generate AI lesson content for specific entry
+npm run seed:authored-lesson course_c84774 0 ../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt
+
+# Step 3: Repeat for all entries (or use batch script)
+npm run seed:authored-lesson course_c84774 1 ../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt
 ```
 
-### 4. Validate Data Integrity
+**Features**:
+- ✅ Automatic error recovery (max 10 retries)
+- ✅ Thread persistence for human-in-the-loop
+- ✅ Triple JSON input (SOW entry + resource pack + metadata)
+- ✅ Card compression (60-80% size reduction)
+- ✅ Comprehensive logging
+
+### 5. Validate Data Integrity
 
 ```bash
 # Re-run seeding with verbose output
@@ -280,18 +324,6 @@ npm run seed:authored-sow 2>&1 | tee seeding-output.log
 
 # Check for validation warnings/errors
 grep "❌\|⚠️" seeding-output.log
-```
-
-### 5. Integrate Lesson Authoring (Future)
-
-```bash
-# After seedAuthoredLesson.ts is implemented:
-npm run seed:authored-lesson course_c84473 0 ../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt
-
-# This will:
-# 1. Read Authored_SOW entry #0
-# 2. Invoke lesson_author agent
-# 3. Populate lesson_templates.cards with generated content
 ```
 
 ## Key Concepts
