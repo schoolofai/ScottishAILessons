@@ -82,7 +82,7 @@ research_subagent = {
     "name": "research_subagent",
     "description": "Answer clarification questions with Scotland-specific information (policy notes, pedagogical patterns, URL lookups). No file writes unless explicitly asked.",
     "prompt": SUB_RESEARCH_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite
+    "tools": internet_only_tools  # Internet search only
 }
 
 # 2. Lesson Author Subagent - Drafts and revises the LessonTemplate JSON document
@@ -90,7 +90,7 @@ lesson_author_subagent = {
     "name": "lesson_author_subagent",
     "description": "Draft/edit the LessonTemplate according to the schema and write to lesson_template.json. Has internet access for URL lookups and missing information.",
     "prompt": LESSON_AUTHOR_SUBAGENT_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for comprehensive authoring
+    "tools": internet_only_tools  # Internet search for URL lookups
 }
 
 # 3. Pedagogical Design Critic - Evaluates lesson flow and scaffolding
@@ -98,7 +98,7 @@ pedagogical_design_critic = {
     "name": "pedagogical_design_critic",
     "description": "Validates I-We-You progression, scaffolding appropriateness, and lesson_type alignment with card types (≥0.85 threshold).",
     "prompt": PEDAGOGICAL_DESIGN_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for validation
+    "tools": internet_only_tools  # Internet search for research
 }
 
 # 4. Assessment Design Critic - Reviews CFU quality and rubrics
@@ -106,7 +106,7 @@ assessment_design_critic = {
     "name": "assessment_design_critic",
     "description": "Reviews CFU variety, rubric criteria clarity, misconception identification, and assessment standards coverage (≥0.90 threshold).",
     "prompt": ASSESSMENT_DESIGN_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for validation
+    "tools": internet_only_tools  # Internet search for best practices
 }
 
 # 5. Accessibility Critic - Checks inclusive design
@@ -122,7 +122,7 @@ scottish_context_critic = {
     "name": "scottish_context_critic",
     "description": "Verifies £ currency, engagement_tags relevance, local context examples (ScotRail, NHS), and SQA/CfE terminology (≥0.90 threshold).",
     "prompt": SCOTTISH_CONTEXT_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for Scottish context validation
+    "tools": internet_only_tools  # Internet search for Scottish contexts
 }
 
 # 7. Coherence Critic - Ensures SoW alignment
@@ -130,7 +130,7 @@ coherence_critic = {
     "name": "coherence_critic",
     "description": "Ensures outcome/assessment standard mapping, lesson_type consistency, timing estimates, and prerequisite handling (≥0.85 threshold).",
     "prompt": COHERENCE_CRITIC_PROMPT,
-    "tools": appwrite_only_tools  # Database access for SoW alignment checks
+    "tools": internet_only_tools  # Internet search for CfE/SQA refs
 }
 
 
@@ -142,7 +142,7 @@ coherence_critic = {
 # Uses custom state schema with todos reducer to prevent InvalidUpdateError
 agent = async_create_deep_agent(
     model=gemini,
-    tools=all_tools,  # Tavily + Appwrite for full orchestration capability
+    tools=internet_only_tools,  # Internet search for orchestration
     instructions=LESSON_AGENT_PROMPT,
     subagents=[
         research_subagent,
