@@ -2,6 +2,7 @@ langgraph-cli[inmem]
 tavily-python
 deepagents
 langchain-google-genai
+langchain-ollama>=0.2.0
 langchain-mcp-adapters
 langchain-anthropic
 python-dotenv

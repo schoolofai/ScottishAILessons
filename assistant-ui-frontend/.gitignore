@@ -44,3 +44,4 @@ playwright-report/
 
 # lesson authoring logs
 /logs/lesson-authoring/*.log
+reports

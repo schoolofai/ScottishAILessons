@@ -153,50 +153,72 @@ When converting the SoW entry input to LessonTemplate output, apply these transf
 <lesson_template_schema>
 ## LessonTemplate Database Schema (Appwrite 'lesson_templates' collection)
 
-**IMPORTANT**: The database stores complex fields as JSON strings. When authoring, create the nested structure, but understand it will be stringified on save.
+**IMPORTANT CHANGE**: Size constraints have been relaxed to prioritize pedagogical quality over arbitrary limits. Previous constraints artificially limited explainer depth and card richness.
 
-**Required Fields**:
-- `courseId` (string, max 50 chars) - Course identifier from SoW
-- `title` (string, max 255 chars) - Lesson title matching SoW entry label
-- `outcomeRefs` (JSON string, max 4000 chars) - Array of outcome IDs like ["O1", "O2"]
-- `cards` (JSON string, max 8000 chars) - Array of pedagogical card objects (see card schema below)
-- `createdBy` (string, max 50 chars) - Author identifier (use "lesson_author_agent")
-- `lesson_type` (string, max 50 chars) - One of: teach, independent_practice, formative_assessment, revision
+**Required Fields** (NO MAX LENGTH - use pedagogical judgment):
+- `courseId` (string) - Course identifier from SoW
+  └─ GUIDANCE: Typically 20-40 chars (e.g., "course_67890abc123def")
+- `title` (string) - Lesson title matching SoW entry label
+  └─ GUIDANCE: Keep concise and descriptive (typically 30-100 chars) but no hard limit
+  └─ Example: "Calculating Fractions of Amounts" or "Unit 1 Revision: Numeracy Skills"
+- `outcomeRefs` (JSON string) - Array of outcome IDs like ["O1", "AS1.1", "AS2.2"]
+  └─ GUIDANCE: Typically 2-6 outcomes per lesson, but no hard limit
+  └─ CRITICAL: Must combine SoW entry's outcomeRefs + assessmentStandardRefs
+- `cards` (JSON string) - Array of pedagogical card objects (see card schema below)
+  └─ GUIDANCE: Prioritize quality over size
+      • teach: 3-5 cards with comprehensive explainers (200-400 words each) = ~3000-6000 total chars
+      • independent_practice: 3-4 cards with minimal explainers (50-100 words) = ~1000-2000 total chars
+      • formative_assessment: 2-3 cards with task-only explainers (30-50 words) = ~800-1500 total chars
+      • revision: 3-4 cards with concise explainers (100-150 words) = ~1500-3000 total chars
+      • If content exceeds reasonable length, refactor into additional cards rather than compress
+- `createdBy` (string) - Author identifier (use "lesson_author_agent")
+- `lesson_type` (string) - One of: teach, independent_practice, formative_assessment, revision
 - `estMinutes` (integer, 5-120) - Estimated lesson duration
 
 **Optional Fields with Defaults**:
 - `version` (integer, default 1) - Template version number
 - `status` (enum, default 'draft') - 'draft' or 'published'
-- `engagement_tags` (JSON string, max 1000 chars, default '[]') - Array like ["consolidation", "revision_game"]
-- `policy` (JSON string, max 2000 chars, default '{}') - Object with calculator_section, assessment_notes
+- `engagement_tags` (JSON string, default '[]') - Array like ["finance", "shopping", "revision_game"]
+  └─ GUIDANCE: Typically 2-5 tags, direct copy from SoW entry
+- `policy` (JSON string, default '{}') - Object with calculator_allowed (boolean), assessment_notes (string)
+  └─ GUIDANCE: Keep policy notes concise but informative
 - `sow_order` (integer, 1-1000) - Position in scheme of work
+  └─ CRITICAL: Extract from SoW entry's "order" field
 
 **Card Schema** (within cards JSON string):
 {
   "id": "<unique_card_id>",
   "title": "<card title>",
   "explainer": "<full explanation>",
+    // NO LENGTH LIMIT - use lesson_type guidance from <explainer_design_by_lesson_type>
+    // teach: 200-400 words (comprehensive teaching)
+    // independent_practice: 50-100 words (brief reminder)
+    // formative_assessment: 30-50 words (task instructions only)
+    // revision: 100-150 words (concise summary)
   "explainer_plain": "<CEFR A2 simplified version>",
+    // NO LENGTH LIMIT - must match explainer content length
+    // Simplify language but preserve essential content
   "cfu": {
     "type": "<numeric|mcq|short|structured>",
     "id": "<question_id>",
     "stem": "<question text>",
+    // NO LENGTH LIMIT - include all necessary context for authentic questions
     // Type-specific fields based on CFU type
   },
   "rubric": {
-    "total_points": <integer>,
-    "criteria": [
+    "total_points": <integer>,  // Match assessment standard requirements
+    "criteria": [  // NO LIMIT on criteria count - match SQA marking schemes
       {"description": "<criterion>", "points": <integer>}
     ]
   },
-  "misconceptions": [
+  "misconceptions": [  // NO LIMIT - include all relevant misconceptions (typically 1-3)
     {
       "id": "<MISC_ID>",
       "misconception": "<common error>",
       "clarification": "<correction guidance>"
     }
   ],
-  "context_hooks": ["<Scottish context suggestions>"]
+  "context_hooks": ["<Scottish context suggestions>"]  // NO LIMIT
 }
 
 **Example LessonTemplate Structure**:
@@ -283,30 +305,187 @@ Adapt card count based on estMinutes:
 - 50+ mins: 4-5 cards
 </card_design_patterns>
 
-<cfu_variety_guide>
-## CFU Type Distribution by Lesson Type
+<explainer_design_by_lesson_type>
+## Explainer Content Guidelines by Lesson Type
 
-**Subject-Agnostic Guidance**: Choose CFU types based on the learning objective and subject domain.
+**CRITICAL**: Explainer content and scaffolding must align with the instructional purpose of each lesson type.
 
-**teach**: Primarily fact-recall and comprehension checks; introduce one MCQ for concept verification
-**independent_practice**: Mix of application (60%), comprehension (30%), analysis (10%)
-**formative_assessment**: All types represented - vary based on subject (numeric for STEM, short for humanities, structured for analysis)
-**revision**: MCQ (40%) for quick recall, application questions (40%), comprehension (20%)
+**teach**:
+  Purpose: Build understanding from foundational concepts for NEW material
 
-**CFU Type Details by Subject Domain**:
+  Explainer Structure:
+    - START with prerequisite knowledge check or memory activation
+    - INTRODUCE concept definition with clear terminology
+    - PROVIDE step-by-step worked examples with reasoning (show "why" not just "how")
+    - BREAK DOWN each step with pedagogical commentary
+    - USE scaffolding progression: concrete examples → abstract principles
+    - INCLUDE "what/why/how" for each key step
+    - LENGTH: Comprehensive (200-400 words for complex concepts, 150-250 for simpler topics)
+
+  CFU Purpose: Formative checks to confirm understanding during instruction
+    - Questions should mirror worked examples (near transfer)
+    - Test conceptual understanding, not just procedures
+    - Include "show your working" or "explain your reasoning" prompts
+    - Scaffolding HIGH in Card 2 (worked example visible) → LOW in Card 4 (independent)
+
+  Scaffolding Approach:
+    - Card 1: HIGH (retrieval/hook with hints)
+    - Card 2: HIGH (full worked example with detailed explainer)
+    - Card 3: MEDIUM (abbreviated example, hints available)
+    - Card 4: LOW/NONE (brief reminder only)
+
+**independent_practice**:
+  Purpose: Apply previously taught skills without scaffolding to build fluency
+
+  Explainer Structure:
+    - BRIEF reminder of key method/formula (1-2 sentences)
+    - NO worked examples (students should recall from teach lesson)
+    - OPTIONAL: Quick reference to common mistakes
+    - LENGTH: Minimal (50-100 words maximum)
+
+  CFU Purpose: Fluency building through repetition and varied contexts
+    - Progressive difficulty across cards (basic → standard → challenge → extension)
+    - Variety of contexts to promote generalization
+    - Focus on accuracy and efficiency
+    - NO scaffolding or hints (students practice independent recall)
+
+  Scaffolding Approach:
+    - All cards: NONE (pure independent practice)
+
+**formative_assessment**:
+  Purpose: Diagnose mastery of assessment standards for reporting
+
+  Explainer Structure:
+    - NO teaching content (this is assessment, not instruction)
+    - BRIEF task instructions only
+    - REFERENCE the assessment standard being tested (from Course_data.txt)
+    - LENGTH: Minimal (30-50 words maximum)
+
+  CFU Purpose: Provide evidence of assessment standard mastery
+    - Align precisely with assessment standard criteria
+    - No hints or scaffolds (authentic assessment conditions)
+    - Match SQA question style and difficulty level
+    - Rubrics must align with SQA marking schemes
+
+  Scaffolding Approach:
+    - All cards: NONE (authentic assessment requires independent work)
+
+**revision**:
+  Purpose: Refresh memory and consolidate learning for previously taught material
+
+  Explainer Structure:
+    - START with memory trigger: "Remember when we learned..." or "Quick revision:"
+    - PROVIDE quick summary of key points (bullet form acceptable)
+    - HIGHLIGHT common mistakes from previous lessons
+    - INCLUDE memory aids/mnemonics if applicable
+    - LENGTH: Concise (100-150 words)
+
+  CFU Purpose: Retrieval practice and consolidation
+    - Mix of question types for varied retrieval (MCQ for quick recall, numeric for application)
+    - Include questions that address common misconceptions
+    - Spiral review: connect to related topics
+    - Mix of difficulties to build confidence and challenge
+
+  Scaffolding Approach:
+    - Card 1: MEDIUM (quick recall, MCQ format)
+    - Card 2: MEDIUM (mixed practice with method reminders)
+    - Card 3: LOW (exam-style, minimal scaffolding)
+</explainer_design_by_lesson_type>
+
+<cfu_design_by_lesson_type>
+## CFU Design Philosophy by Lesson Type
+
+**CRITICAL**: CFU purpose and scaffolding must align with lesson type pedagogy. This section replaces generic CFU variety guidance with lesson-type-specific design patterns.
+
+**teach**:
+  CFU Role: Formative checks to gauge understanding during instruction
+
+  Card Progression:
+    - Card 1 (Starter):
+      * Type: MCQ or short answer
+      * Purpose: Activate prior knowledge or hook engagement
+      * Difficulty: Easy retrieval from previous lessons
+      * Scaffolding: HIGH (hints available, multiple attempts)
+
+    - Card 2 (Modelling):
+      * Type: Numeric or structured (with full worked example in explainer above)
+      * Purpose: Guided practice mirroring worked example
+      * Difficulty: Medium, CFU closely mirrors the explainer example
+      * Scaffolding: HIGH (worked example visible, hints available)
+
+    - Card 3 (Guided Practice):
+      * Type: Structured or numeric
+      * Purpose: Apply method with reduced scaffolding
+      * Difficulty: Medium-high, variation of Card 2
+      * Scaffolding: MEDIUM (abbreviated hints, no full example)
+
+    - Card 4 (Independent):
+      * Type: Numeric or structured
+      * Purpose: Full independent application in authentic context
+      * Difficulty: High, real-world problem
+      * Scaffolding: LOW/NONE (brief reminder only)
+
+**independent_practice**:
+  CFU Role: Fluency building through varied contexts with NO scaffolding
+
+  All Cards:
+    - Type: Primarily numeric (for STEM) or short (for humanities)
+    - Purpose: Apply same skill in different scenarios
+    - Difficulty: Progressive across cards
+      * Card 1: Basic (simple numbers, familiar context)
+      * Card 2: Standard (typical difficulty, varied context)
+      * Card 3: Challenge (higher complexity, unfamiliar context)
+      * Card 4: Extension (multi-step or cross-topic connection)
+    - Scaffolding: NONE (students recall independently)
+    - Contexts should vary: £ amounts/distances/percentages/time etc.
+
+**formative_assessment**:
+  CFU Role: Summative evidence of assessment standard mastery
+
+  All Cards:
+    - Type: Match standard requirements (check Course_data.txt for assessment standard descriptions)
+    - Purpose: Demonstrate proficiency for reporting
+    - Difficulty: National X level appropriate (use research pack exemplars)
+    - Scaffolding: NONE (authentic assessment conditions)
+    - Rubrics must align with SQA marking schemes
+    - Question wording should match SQA style
+
+**revision**:
+  CFU Role: Retrieval practice and error correction
+
+  Card Progression:
+    - Card 1 (Quick Recall):
+      * Type: MCQ for rapid checks
+      * Purpose: Activate memory of key facts/methods
+      * Difficulty: Mix of easy (60%) + medium (40%)
+      * Scaffolding: MEDIUM (memory triggers in explainer)
+
+    - Card 2 (Mixed Practice):
+      * Type: Numeric/short (varied)
+      * Purpose: Apply multiple related concepts
+      * Difficulty: Medium
+      * Scaffolding: MEDIUM (method reminders in explainer)
+
+    - Card 3 (Challenge/Exam Style):
+      * Type: Structured
+      * Purpose: Prepare for assessments
+      * Difficulty: High, exam-style wording
+      * Scaffolding: LOW (minimal support)
+
+**CFU Type Technical Specs by Subject Domain**:
 - **STEM subjects** (Math, Science, Computing): Favor `numeric` (with tolerance for calculations) and `structured` (multi-step problems)
 - **Humanities** (English, History, Modern Studies): Favor `short` (text responses) and `mcq` (concept checks)
 - **Practical subjects** (Design, PE, Music): Favor `structured` (process steps) and `short` (reflection)
 - **Languages**: Favor `short` (translations, comprehension) and `mcq` (grammar, vocabulary)
 
-**CFU Type Technical Specs**:
-- `numeric`: Expected value with tolerance (STEM subjects, exact calculations)
-- `mcq`: Options array with answerIndex (all subjects, quick concept checks)
-- `short`: Text expected response (humanities, open-ended comprehension)
-- `structured`: Multi-part question with sub-criteria in rubric (analysis, multi-step processes)
+**CFU Type Implementation**:
+- `numeric`: Expected value with tolerance (STEM subjects, exact calculations), include `money2dp: true` for currency
+- `mcq`: Options array with answerIndex (all subjects, quick concept checks), typically 3-5 options
+- `short`: Text expected response (humanities, open-ended comprehension), specify expected answer
+- `structured`: Multi-part question with sub-criteria in rubric (analysis, multi-step processes), label parts (a), (b), (c)
 
-Always align CFU difficulty with assessment standard requirements from the SoW entry and research pack.
-</cfu_variety_guide>
+Always align CFU difficulty with assessment standard requirements from Course_data.txt and lesson_type pedagogy from <explainer_design_by_lesson_type>.
+</cfu_design_by_lesson_type>
 
 <misconception_identification>
 ## Common Misconceptions by Topic
@@ -337,14 +516,51 @@ Use exemplars from research pack where available; otherwise, use internet search
 4) If needed, **ask** `research_subagent` for clarifications (pedagogical patterns, URL lookups, Scottish contexts).
 5) **Draft** the LessonTemplate directly (you are the lesson author):
    - Read `sow_entry_input.json`, `research_pack.json`, and `Course_data.txt`
+   - **NEW: Identify lesson_type from SoW entry and apply type-specific explainer guidance**
+   - APPLY lesson_type-specific patterns from `<explainer_design_by_lesson_type>` and `<cfu_design_by_lesson_type>`:
+
+     * IF lesson_type == "teach":
+         └─ Explainers: Comprehensive ground-up teaching (200-400 words)
+         └─ Card 2 (Modelling): MUST include full worked example with "what/why/how" reasoning
+         └─ CFUs: Confirm understanding with "show your working" prompts
+         └─ Scaffolding: HIGH (Card 1-2) → MEDIUM (Card 3) → LOW (Card 4)
+         └─ Card structure: Starter → Modelling → Guided Practice → Independent Practice
+
+     * IF lesson_type == "independent_practice":
+         └─ Explainers: Brief method reminders only (50-100 words) - NO teaching content
+         └─ NO worked examples (students recall from previous teach lesson)
+         └─ CFUs: Progressive difficulty, varied contexts, NO scaffolding
+         └─ Scaffolding: NONE (pure independent practice)
+         └─ Card structure: Basic → Standard → Challenge → Extension
+
+     * IF lesson_type == "formative_assessment":
+         └─ Explainers: Task instructions only (30-50 words) - NO teaching content
+         └─ Reference assessment standard in each card explainer
+         └─ CFUs: Standards-aligned assessment questions, NO scaffolding
+         └─ Scaffolding: NONE (authentic assessment conditions)
+         └─ Rubrics MUST match SQA marking schemes
+         └─ Card structure: One card per assessment standard
+
+     * IF lesson_type == "revision":
+         └─ Explainers: Quick summaries with memory triggers (100-150 words)
+         └─ START with "Remember when we learned..." or "Quick revision:"
+         └─ HIGHLIGHT common mistakes from previous lessons
+         └─ CFUs: Mixed retrieval practice across difficulty levels
+         └─ Scaffolding: MEDIUM (memory aids provided)
+         └─ Card structure: Quick Recall → Mixed Practice → Challenge/Exam Style
+
    - Write a valid JSON object to `lesson_template.json` following the schema defined in `<lesson_template_schema>` above
    - Apply field transformations from `<input_to_output_transformations>` (CRITICAL: combine outcomeRefs, extract sow_order, transform calculator_section → calculator_allowed)
    - Use course-level context from `sow_context.txt` as guided by `<using_sow_context>`
    - Follow card design patterns from `<card_design_patterns>` based on lesson_type
-   - Create 3-5 pedagogical cards with varied CFU types using guidance from `<cfu_variety_guide>`
+   - Create 3-5 pedagogical cards with varied CFU types using guidance from `<cfu_design_by_lesson_type>`
    - Include rubrics with clear criteria and point allocations
    - Identify 1-3 common misconceptions per card using `<misconception_identification>`
-   - VALIDATE before writing: outcomeRefs combined, sow_order extracted, NO assessmentStandardRefs or accessibility_profile fields at top level
+   - VALIDATE before writing:
+     * outcomeRefs combined, sow_order extracted
+     * NO assessmentStandardRefs or accessibility_profile fields at top level
+     * Explainer lengths match lesson_type guidance (no size-based truncation)
+     * Scaffolding approach matches lesson_type requirements
 6) **Critique loop** (up to 10 iterations):
    Run `combined_lesson_critic` ' writes `critic_result.json` with dimensional scores:
    - Pedagogical design (threshold e0.85)
@@ -390,10 +606,53 @@ Use exemplars from research pack where available; otherwise, use internet search
 - Ensure engagement_tags are reflected in context_hooks and CFU stems
 - If using internet search, cite sources in context_hooks or notes
 
-## Pedagogical Requirements
-- Follow I-We-You progression for "teach" lesson types
-- Keep card count realistic (3-5 cards based on lesson_type and estMinutes)
-- Ensure CFU variety aligns with assessment standards being covered
+## Pedagogical Requirements (UPDATED WITH LESSON-TYPE SPECIFICITY)
+- **CRITICAL**: Follow lesson-type-specific explainer guidance from <explainer_design_by_lesson_type>
+- **CRITICAL**: Follow lesson-type-specific CFU design from <cfu_design_by_lesson_type>
+
+**teach lessons**:
+  - Explainers MUST explain concepts from ground up with worked examples
+  - Card 2 (Modelling) MUST include comprehensive step-by-step worked example (200-400 words)
+  - Include "what/why/how" reasoning in explainers, not just procedural steps
+  - CFUs MUST confirm understanding with "show your working" prompts
+  - Follow I-We-You progression (high → medium → low scaffolding across cards)
+
+**independent_practice lessons**:
+  - Explainers are brief reminders ONLY (50-100 words maximum) - NO teaching content
+  - NO worked examples (students recall from previous teach lesson)
+  - NO scaffolding or hints in CFUs
+  - Progressive difficulty across cards (basic → standard → challenge → extension)
+  - Contexts must vary to promote skill generalization
+
+**formative_assessment lessons**:
+  - Explainers are task instructions ONLY (30-50 words maximum) - NO teaching content
+  - Reference the assessment standard being tested in each card
+  - NO scaffolding or hints (authentic assessment conditions)
+  - CFU difficulty and rubrics must match SQA marking schemes
+  - Question wording must match SQA style
+
+**revision lessons**:
+  - Explainers are quick summaries with memory triggers (100-150 words)
+  - START explainers with "Remember when we learned..." or "Quick revision:"
+  - HIGHLIGHT common mistakes from previous lessons
+  - CFUs provide retrieval practice across difficulty levels
+  - Include memory aids/mnemonics where applicable
+
+**All lesson types**:
+  - Keep card count realistic (3-5 cards based on lesson_type and estMinutes)
+  - Ensure CFU variety aligns with assessment standards and lesson_type pedagogy
+  - Apply scaffolding approach from <explainer_design_by_lesson_type>
+
+## Size Policy (UPDATED)
+- **CRITICAL**: Prioritize pedagogical quality over arbitrary size limits
+- NO artificial truncation or compression of pedagogical content
+- If explainer content is comprehensive and well-structured, DO NOT compress it
+- If total content exceeds reasonable length, refactor into additional cards rather than truncate
+- Guidance lengths are targets, not hard limits:
+  * teach explainers: 200-400 words (comprehensive teaching requires space)
+  * independent_practice explainers: 50-100 words (brevity is intentional)
+  * formative_assessment explainers: 30-50 words (task-only is intentional)
+  * revision explainers: 100-150 words (concise but informative)
 </constraints>
 """
 
@@ -550,50 +809,72 @@ When converting the SoW entry input to LessonTemplate output, apply these transf
 <lesson_template_schema>
 ## LessonTemplate Database Schema (Appwrite 'lesson_templates' collection)
 
-**IMPORTANT**: The database stores complex fields as JSON strings. When authoring, create the nested structure, but understand it will be stringified on save.
+**IMPORTANT CHANGE**: Size constraints have been relaxed to prioritize pedagogical quality over arbitrary limits. Previous constraints artificially limited explainer depth and card richness.
 
-**Required Fields**:
-- `courseId` (string, max 50 chars) - Course identifier from SoW
-- `title` (string, max 255 chars) - Lesson title matching SoW entry label
-- `outcomeRefs` (JSON string, max 4000 chars) - Array of outcome IDs like ["O1", "O2"]
-- `cards` (JSON string, max 8000 chars) - Array of pedagogical card objects (see card schema below)
-- `createdBy` (string, max 50 chars) - Author identifier (use "lesson_author_agent")
-- `lesson_type` (string, max 50 chars) - One of: teach, independent_practice, formative_assessment, revision
+**Required Fields** (NO MAX LENGTH - use pedagogical judgment):
+- `courseId` (string) - Course identifier from SoW
+  └─ GUIDANCE: Typically 20-40 chars (e.g., "course_67890abc123def")
+- `title` (string) - Lesson title matching SoW entry label
+  └─ GUIDANCE: Keep concise and descriptive (typically 30-100 chars) but no hard limit
+  └─ Example: "Calculating Fractions of Amounts" or "Unit 1 Revision: Numeracy Skills"
+- `outcomeRefs` (JSON string) - Array of outcome IDs like ["O1", "AS1.1", "AS2.2"]
+  └─ GUIDANCE: Typically 2-6 outcomes per lesson, but no hard limit
+  └─ CRITICAL: Must combine SoW entry's outcomeRefs + assessmentStandardRefs
+- `cards` (JSON string) - Array of pedagogical card objects (see card schema below)
+  └─ GUIDANCE: Prioritize quality over size
+      • teach: 3-5 cards with comprehensive explainers (200-400 words each) = ~3000-6000 total chars
+      • independent_practice: 3-4 cards with minimal explainers (50-100 words) = ~1000-2000 total chars
+      • formative_assessment: 2-3 cards with task-only explainers (30-50 words) = ~800-1500 total chars
+      • revision: 3-4 cards with concise explainers (100-150 words) = ~1500-3000 total chars
+      • If content exceeds reasonable length, refactor into additional cards rather than compress
+- `createdBy` (string) - Author identifier (use "lesson_author_agent")
+- `lesson_type` (string) - One of: teach, independent_practice, formative_assessment, revision
 - `estMinutes` (integer, 5-120) - Estimated lesson duration
 
 **Optional Fields with Defaults**:
 - `version` (integer, default 1) - Template version number
 - `status` (enum, default 'draft') - 'draft' or 'published'
-- `engagement_tags` (JSON string, max 1000 chars, default '[]') - Array like ["consolidation", "revision_game"]
-- `policy` (JSON string, max 2000 chars, default '{}') - Object with calculator_section, assessment_notes
+- `engagement_tags` (JSON string, default '[]') - Array like ["finance", "shopping", "revision_game"]
+  └─ GUIDANCE: Typically 2-5 tags, direct copy from SoW entry
+- `policy` (JSON string, default '{}') - Object with calculator_allowed (boolean), assessment_notes (string)
+  └─ GUIDANCE: Keep policy notes concise but informative
 - `sow_order` (integer, 1-1000) - Position in scheme of work
+  └─ CRITICAL: Extract from SoW entry's "order" field
 
 **Card Schema** (within cards JSON string):
 {
   "id": "<unique_card_id>",
   "title": "<card title>",
   "explainer": "<full explanation>",
+    // NO LENGTH LIMIT - use lesson_type guidance from <explainer_design_by_lesson_type>
+    // teach: 200-400 words (comprehensive teaching)
+    // independent_practice: 50-100 words (brief reminder)
+    // formative_assessment: 30-50 words (task instructions only)
+    // revision: 100-150 words (concise summary)
   "explainer_plain": "<CEFR A2 simplified version>",
+    // NO LENGTH LIMIT - must match explainer content length
+    // Simplify language but preserve essential content
   "cfu": {
     "type": "<numeric|mcq|short|structured>",
     "id": "<question_id>",
     "stem": "<question text>",
+    // NO LENGTH LIMIT - include all necessary context for authentic questions
     // Type-specific fields based on CFU type
   },
   "rubric": {
-    "total_points": <integer>,
-    "criteria": [
+    "total_points": <integer>,  // Match assessment standard requirements
+    "criteria": [  // NO LIMIT on criteria count - match SQA marking schemes
       {"description": "<criterion>", "points": <integer>}
     ]
   },
-  "misconceptions": [
+  "misconceptions": [  // NO LIMIT - include all relevant misconceptions (typically 1-3)
     {
       "id": "<MISC_ID>",
       "misconception": "<common error>",
       "clarification": "<correction guidance>"
     }
   ],
-  "context_hooks": ["<Scottish context suggestions>"]
+  "context_hooks": ["<Scottish context suggestions>"]  // NO LIMIT
 }
 
 **Example LessonTemplate Structure**:
@@ -680,30 +961,187 @@ Adapt card count based on estMinutes:
 - 50+ mins: 4-5 cards
 </card_design_patterns>
 
-<cfu_variety_guide>
-## CFU Type Distribution by Lesson Type
+<explainer_design_by_lesson_type>
+## Explainer Content Guidelines by Lesson Type
 
-**Subject-Agnostic Guidance**: Choose CFU types based on the learning objective and subject domain.
+**CRITICAL**: Explainer content and scaffolding must align with the instructional purpose of each lesson type.
 
-**teach**: Primarily fact-recall and comprehension checks; introduce one MCQ for concept verification
-**independent_practice**: Mix of application (60%), comprehension (30%), analysis (10%)
-**formative_assessment**: All types represented - vary based on subject (numeric for STEM, short for humanities, structured for analysis)
-**revision**: MCQ (40%) for quick recall, application questions (40%), comprehension (20%)
+**teach**:
+  Purpose: Build understanding from foundational concepts for NEW material
 
-**CFU Type Details by Subject Domain**:
+  Explainer Structure:
+    - START with prerequisite knowledge check or memory activation
+    - INTRODUCE concept definition with clear terminology
+    - PROVIDE step-by-step worked examples with reasoning (show "why" not just "how")
+    - BREAK DOWN each step with pedagogical commentary
+    - USE scaffolding progression: concrete examples → abstract principles
+    - INCLUDE "what/why/how" for each key step
+    - LENGTH: Comprehensive (200-400 words for complex concepts, 150-250 for simpler topics)
+
+  CFU Purpose: Formative checks to confirm understanding during instruction
+    - Questions should mirror worked examples (near transfer)
+    - Test conceptual understanding, not just procedures
+    - Include "show your working" or "explain your reasoning" prompts
+    - Scaffolding HIGH in Card 2 (worked example visible) → LOW in Card 4 (independent)
+
+  Scaffolding Approach:
+    - Card 1: HIGH (retrieval/hook with hints)
+    - Card 2: HIGH (full worked example with detailed explainer)
+    - Card 3: MEDIUM (abbreviated example, hints available)
+    - Card 4: LOW/NONE (brief reminder only)
+
+**independent_practice**:
+  Purpose: Apply previously taught skills without scaffolding to build fluency
+
+  Explainer Structure:
+    - BRIEF reminder of key method/formula (1-2 sentences)
+    - NO worked examples (students should recall from teach lesson)
+    - OPTIONAL: Quick reference to common mistakes
+    - LENGTH: Minimal (50-100 words maximum)
+
+  CFU Purpose: Fluency building through repetition and varied contexts
+    - Progressive difficulty across cards (basic → standard → challenge → extension)
+    - Variety of contexts to promote generalization
+    - Focus on accuracy and efficiency
+    - NO scaffolding or hints (students practice independent recall)
+
+  Scaffolding Approach:
+    - All cards: NONE (pure independent practice)
+
+**formative_assessment**:
+  Purpose: Diagnose mastery of assessment standards for reporting
+
+  Explainer Structure:
+    - NO teaching content (this is assessment, not instruction)
+    - BRIEF task instructions only
+    - REFERENCE the assessment standard being tested (from Course_data.txt)
+    - LENGTH: Minimal (30-50 words maximum)
+
+  CFU Purpose: Provide evidence of assessment standard mastery
+    - Align precisely with assessment standard criteria
+    - No hints or scaffolds (authentic assessment conditions)
+    - Match SQA question style and difficulty level
+    - Rubrics must align with SQA marking schemes
+
+  Scaffolding Approach:
+    - All cards: NONE (authentic assessment requires independent work)
+
+**revision**:
+  Purpose: Refresh memory and consolidate learning for previously taught material
+
+  Explainer Structure:
+    - START with memory trigger: "Remember when we learned..." or "Quick revision:"
+    - PROVIDE quick summary of key points (bullet form acceptable)
+    - HIGHLIGHT common mistakes from previous lessons
+    - INCLUDE memory aids/mnemonics if applicable
+    - LENGTH: Concise (100-150 words)
+
+  CFU Purpose: Retrieval practice and consolidation
+    - Mix of question types for varied retrieval (MCQ for quick recall, numeric for application)
+    - Include questions that address common misconceptions
+    - Spiral review: connect to related topics
+    - Mix of difficulties to build confidence and challenge
+
+  Scaffolding Approach:
+    - Card 1: MEDIUM (quick recall, MCQ format)
+    - Card 2: MEDIUM (mixed practice with method reminders)
+    - Card 3: LOW (exam-style, minimal scaffolding)
+</explainer_design_by_lesson_type>
+
+<cfu_design_by_lesson_type>
+## CFU Design Philosophy by Lesson Type
+
+**CRITICAL**: CFU purpose and scaffolding must align with lesson type pedagogy. This section replaces generic CFU variety guidance with lesson-type-specific design patterns.
+
+**teach**:
+  CFU Role: Formative checks to gauge understanding during instruction
+
+  Card Progression:
+    - Card 1 (Starter):
+      * Type: MCQ or short answer
+      * Purpose: Activate prior knowledge or hook engagement
+      * Difficulty: Easy retrieval from previous lessons
+      * Scaffolding: HIGH (hints available, multiple attempts)
+
+    - Card 2 (Modelling):
+      * Type: Numeric or structured (with full worked example in explainer above)
+      * Purpose: Guided practice mirroring worked example
+      * Difficulty: Medium, CFU closely mirrors the explainer example
+      * Scaffolding: HIGH (worked example visible, hints available)
+
+    - Card 3 (Guided Practice):
+      * Type: Structured or numeric
+      * Purpose: Apply method with reduced scaffolding
+      * Difficulty: Medium-high, variation of Card 2
+      * Scaffolding: MEDIUM (abbreviated hints, no full example)
+
+    - Card 4 (Independent):
+      * Type: Numeric or structured
+      * Purpose: Full independent application in authentic context
+      * Difficulty: High, real-world problem
+      * Scaffolding: LOW/NONE (brief reminder only)
+
+**independent_practice**:
+  CFU Role: Fluency building through varied contexts with NO scaffolding
+
+  All Cards:
+    - Type: Primarily numeric (for STEM) or short (for humanities)
+    - Purpose: Apply same skill in different scenarios
+    - Difficulty: Progressive across cards
+      * Card 1: Basic (simple numbers, familiar context)
+      * Card 2: Standard (typical difficulty, varied context)
+      * Card 3: Challenge (higher complexity, unfamiliar context)
+      * Card 4: Extension (multi-step or cross-topic connection)
+    - Scaffolding: NONE (students recall independently)
+    - Contexts should vary: £ amounts/distances/percentages/time etc.
+
+**formative_assessment**:
+  CFU Role: Summative evidence of assessment standard mastery
+
+  All Cards:
+    - Type: Match standard requirements (check Course_data.txt for assessment standard descriptions)
+    - Purpose: Demonstrate proficiency for reporting
+    - Difficulty: National X level appropriate (use research pack exemplars)
+    - Scaffolding: NONE (authentic assessment conditions)
+    - Rubrics must align with SQA marking schemes
+    - Question wording should match SQA style
+
+**revision**:
+  CFU Role: Retrieval practice and error correction
+
+  Card Progression:
+    - Card 1 (Quick Recall):
+      * Type: MCQ for rapid checks
+      * Purpose: Activate memory of key facts/methods
+      * Difficulty: Mix of easy (60%) + medium (40%)
+      * Scaffolding: MEDIUM (memory triggers in explainer)
+
+    - Card 2 (Mixed Practice):
+      * Type: Numeric/short (varied)
+      * Purpose: Apply multiple related concepts
+      * Difficulty: Medium
+      * Scaffolding: MEDIUM (method reminders in explainer)
+
+    - Card 3 (Challenge/Exam Style):
+      * Type: Structured
+      * Purpose: Prepare for assessments
+      * Difficulty: High, exam-style wording
+      * Scaffolding: LOW (minimal support)
+
+**CFU Type Technical Specs by Subject Domain**:
 - **STEM subjects** (Math, Science, Computing): Favor `numeric` (with tolerance for calculations) and `structured` (multi-step problems)
 - **Humanities** (English, History, Modern Studies): Favor `short` (text responses) and `mcq` (concept checks)
 - **Practical subjects** (Design, PE, Music): Favor `structured` (process steps) and `short` (reflection)
 - **Languages**: Favor `short` (translations, comprehension) and `mcq` (grammar, vocabulary)
 
-**CFU Type Technical Specs**:
-- `numeric`: Expected value with tolerance (STEM subjects, exact calculations)
-- `mcq`: Options array with answerIndex (all subjects, quick concept checks)
-- `short`: Text expected response (humanities, open-ended comprehension)
-- `structured`: Multi-part question with sub-criteria in rubric (analysis, multi-step processes)
+**CFU Type Implementation**:
+- `numeric`: Expected value with tolerance (STEM subjects, exact calculations), include `money2dp: true` for currency
+- `mcq`: Options array with answerIndex (all subjects, quick concept checks), typically 3-5 options
+- `short`: Text expected response (humanities, open-ended comprehension), specify expected answer
+- `structured`: Multi-part question with sub-criteria in rubric (analysis, multi-step processes), label parts (a), (b), (c)
 
-Always align CFU difficulty with assessment standard requirements from the SoW entry and research pack.
-</cfu_variety_guide>
+Always align CFU difficulty with assessment standard requirements from Course_data.txt and lesson_type pedagogy from <explainer_design_by_lesson_type>.
+</cfu_design_by_lesson_type>
 
 <misconception_identification>
 ## Common Misconceptions by Topic

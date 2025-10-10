@@ -1,30 +1,43 @@
 #!/usr/bin/env ts-node
 
 /**
- * Enhanced Seed script for Authored_SOW collection with Lesson Template Placeholder Creation
+ * Authored SOW Seeding Script (Phase 2 Refactored)
  *
- * This script:
- * 0. Validates all outcome references exist in course_outcomes collection
- * 1. Reads SOW data from langgraph-author-agent/data/sow_authored_AOM_nat3.json
- * 2. Maps outcome IDs (e.g., "O1") to real course_outcomes document IDs
- * 3. Creates/updates lesson_templates placeholders with real outcome references
- * 4. Updates Authored_SOW entries with real template IDs
- * 5. Seeds Authored_SOW collection with linked entries
- * 6. Validates all references (uniqueness, existence, title matching)
+ * Seeds Authored_SOW collection with lesson template placeholders and validates
+ * all prerequisites exist before processing. Uses fail-fast validation approach.
+ *
+ * Workflow:
+ * 0. Validates prerequisites (course document & course_outcomes exist)
+ * 1. Validates outcome references from SOW entries
+ * 2. Creates/updates lesson_templates with real outcome references
+ * 3. Updates Authored_SOW entries with real template IDs
+ * 4. Upserts Authored_SOW document
+ * 5. Validates all template references
  *
  * Usage:
- *   npm run seed:authored-sow
- *   or
- *   tsx scripts/seedAuthoredSOW.ts
+ *   # Single file mode
+ *   tsx scripts/seedAuthoredSOW.ts --sow path/to/sow.json
  *
- * Prerequisites:
- *   - Run extractSQAOutcomes.ts to generate course_outcomes_import.json
- *   - Run migrateCourseOutcomes.ts to populate course_outcomes collection
+ *   # Named mode (looks in input/sows directory)
+ *   tsx scripts/seedAuthoredSOW.ts --name coursename
  *
- * Requirements:
- *   - NEXT_PUBLIC_APPWRITE_ENDPOINT environment variable
- *   - NEXT_PUBLIC_APPWRITE_PROJECT_ID environment variable
- *   - APPWRITE_API_KEY environment variable (admin API key)
+ *   # Batch mode (processes all files in input/sows)
+ *   tsx scripts/seedAuthoredSOW.ts --batch
+ *
+ *   # With courseId override (for courses with ID length issues)
+ *   tsx scripts/seedAuthoredSOW.ts --sow path/to/sow.json --course-id course_c85077
+ *
+ * Prerequisites (REQUIRED):
+ *   ⚠️  Course and outcomes must exist before running this script!
+ *   Run bulk course seeding first:
+ *     $ npm run seed:courses
+ *     or
+ *     $ tsx scripts/bulkSeedAllCourses.ts
+ *
+ * Environment Variables:
+ *   - NEXT_PUBLIC_APPWRITE_ENDPOINT (Appwrite API endpoint)
+ *   - NEXT_PUBLIC_APPWRITE_PROJECT_ID (Appwrite project ID)
+ *   - APPWRITE_API_KEY (Admin API key for server-side operations)
  */
 
 import * as fs from 'fs';
@@ -54,6 +67,7 @@ interface CLIArgs {
   name?: string;
   inputDir?: string;
   validate?: boolean;
+  courseId?: string;
 }
 
 interface SOWFile {
@@ -75,289 +89,6 @@ interface BatchResult {
   error?: string;
 }
 
-interface CourseOutcomeImport {
-  courseId: string;
-  courseSqaCode: string;
-  unitCode: string;
-  unitTitle: string;
-  scqfCredits: number;
-  outcomeId: string;
-  outcomeTitle: string;
-  assessmentStandards: string; // JSON string
-  teacherGuidance: string;
-  keywords: string[];
-}
-
-/**
- * Extract keywords from outcome title and assessment standards
- */
-function extractKeywords(outcomeTitle: string, assessmentStandards: any[]): string[] {
-  const keywords = new Set<string>();
-
-  // Extract from title
-  const titleWords = outcomeTitle
-    .toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .split(/\s+/)
-    .filter(word => word.length > 3);
-  titleWords.forEach(word => keywords.add(word));
-
-  // Extract from assessment standards
-  assessmentStandards.forEach(as => {
-    const descWords = as.desc
-      .toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(/\s+/)
-      .filter(word => word.length > 4);
-    descWords.slice(0, 3).forEach(word => keywords.add(word));
-  });
-
-  return Array.from(keywords);
-}
-
-/**
- * Generate teacher guidance from assessment standards
- */
-function generateTeacherGuidance(assessmentStandards: any[]): string {
-  const guidance: string[] = [];
-
-  assessmentStandards.forEach(as => {
-    let asGuidance = `**${as.code}**: ${as.desc}`;
-    if (as.marking_guidance) asGuidance += `\n  Marking: ${as.marking_guidance}`;
-    if (as.skills_list?.length > 0) asGuidance += `\n  Skills: ${as.skills_list.join(', ')}`;
-    guidance.push(asGuidance);
-  });
-
-  return guidance.join('\n\n');
-}
-
-/**
- * Parse subject and level from SOW filename
- *
- * Filename format: <subject>_<level>.json
- * Example: "application-of-mathematics_national-4.json"
- *
- * Returns subject and level with hyphens preserved as-is (no transformation)
- *
- * @param fileName - SOW filename (e.g., "application-of-mathematics_national-4.json")
- * @returns Object with subject and level fields
- * @throws Error if filename doesn't match expected pattern
- */
-function parseSubjectLevel(fileName: string): { subject: string; level: string } {
-  // Remove .json extension
-  const baseName = fileName.replace('.json', '');
-
-  // Split by underscore - first part is subject, rest is level
-  const underscoreIndex = baseName.indexOf('_');
-  if (underscoreIndex === -1) {
-    throw new Error(`Invalid filename format: ${fileName} (expected <subject>_<level>.json)`);
-  }
-
-  const subject = baseName.substring(0, underscoreIndex);
-  const level = baseName.substring(underscoreIndex + 1);
-
-  return { subject, level };
-}
-
-/**
- * Ensure course document exists before creating child data
- *
- * This function prevents orphaned foreign key references by creating the parent
- * course document if it doesn't exist. Appwrite's NoSQL database doesn't enforce
- * referential integrity, so this acts as an application-level FK constraint.
- *
- * @param databases - Appwrite Databases instance
- * @param courseId - Course ID (format: course_<code>)
- * @param subject - Subject identifier with hyphens (e.g., "application-of-mathematics")
- * @param level - Level identifier with hyphens (e.g., "national-4")
- */
-async function ensureCourseExists(
-  databases: Databases,
-  courseId: string,
-  subject: string,
-  level: string
-): Promise<void> {
-  // Check if course already exists
-  const existing = await databases.listDocuments(
-    'default',
-    'courses',
-    [Query.equal('courseId', courseId)]
-  );
-
-  if (existing.documents.length > 0) {
-    console.log(`  ✅ Course exists: ${courseId}`);
-    return;
-  }
-
-  // Create course with simplified schema v2
-  console.log(`  🔨 Creating missing course: ${courseId}`);
-  await databases.createDocument(
-    'default',
-    'courses',
-    'unique()',
-    {
-      courseId,
-      subject,
-      level,
-      schema_version: 2
-    }
-  );
-  console.log(`  ✅ Created course: ${courseId} (${subject} - ${level})`);
-}
-
-/**
- * PHASE -2: Extract outcomes from SQA collection (Auto-Skip if Import File Exists)
- */
-async function extractOutcomesFromSQA(
-  databases: Databases,
-  sowData: SOWJSONFile,
-  subject: string,
-  level: string,
-  outputDir: string,
-  fileName: string
-): Promise<void> {
-  // Use original filename for import file (preserves hyphens from SOW filename)
-  const importFilePath = path.join(outputDir, 'course_outcomes_imports', `${fileName}.json`);
-
-  if (fs.existsSync(importFilePath)) {
-    console.log(`  ✅ Import file already exists: ${fileName}.json (SKIP)`);
-    return;
-  }
-
-  console.log(`  🔍 Extracting outcomes from sqa_education.sqa_current...`);
-
-  // Query SQA collection with underscored versions
-  // Try common pluralization patterns for Application of Mathematics
-  const subjectVariants = [subject];
-  if (subject === 'application_of_mathematics') {
-    subjectVariants.push('applications_of_mathematics');
-  }
-
-  let sqaResult;
-  for (const subjectVariant of subjectVariants) {
-    sqaResult = await databases.listDocuments(
-      'sqa_education',
-      'sqa_current',
-      [
-        Query.equal('subject', subjectVariant),
-        Query.equal('level', level),
-        Query.limit(10)
-      ]
-    );
-
-    if (sqaResult.documents.length > 0) {
-      console.log(`  ✅ Found SQA data using subject="${subjectVariant}"`);
-      break;
-    }
-  }
-
-  if (!sqaResult || sqaResult.documents.length === 0) {
-    throw new Error(
-      `No SQA data found for subject variants: ${subjectVariants.join(', ')} (level: ${level}).\n` +
-      `Tried: ${subjectVariants.map(s => `"${s}"`).join(', ')}`
-    );
-  }
-
-  const courseOutcomes: CourseOutcomeImport[] = [];
-
-  // Process each SQA document
-  for (const doc of sqaResult.documents) {
-    const sqaDoc = doc as any;
-    const data = JSON.parse(sqaDoc.data);
-    const units = data.course_structure?.units || data.units || [];
-
-    for (const unit of units) {
-      for (const outcome of unit.outcomes) {
-        // Generate teacher guidance and keywords
-        const teacherGuidance = generateTeacherGuidance(outcome.assessment_standards);
-        const keywords = extractKeywords(outcome.title, outcome.assessment_standards);
-
-        courseOutcomes.push({
-          courseId: sowData.courseId,
-          courseSqaCode: (sowData as any).courseSqaCode || sqaDoc.course_code,
-          unitCode: unit.code,
-          unitTitle: unit.title,
-          scqfCredits: unit.scqf_credits,
-          outcomeId: outcome.id,
-          outcomeTitle: outcome.title,
-          assessmentStandards: JSON.stringify(outcome.assessment_standards),
-          teacherGuidance,
-          keywords
-        });
-      }
-    }
-  }
-
-  // Write to per-course import file
-  fs.mkdirSync(path.dirname(importFilePath), { recursive: true });
-  fs.writeFileSync(importFilePath, JSON.stringify(courseOutcomes, null, 2), 'utf-8');
-
-  console.log(`  ✅ Extracted ${courseOutcomes.length} outcomes → ${fileName}.json`);
-}
-
-/**
- * PHASE -1: Populate course_outcomes Collection (Auto-Skip if Already Populated)
- */
-async function populateCourseOutcomes(
-  databases: Databases,
-  courseId: string,
-  outputDir: string,
-  fileName: string
-): Promise<void> {
-  // Check if outcomes already populated
-  const existingCheck = await databases.listDocuments(
-    'default',
-    'course_outcomes',
-    [
-      Query.equal('courseId', courseId),
-      Query.limit(1)
-    ]
-  );
-
-  if (existingCheck.documents.length > 0) {
-    console.log(`  ✅ course_outcomes already populated for ${courseId} (SKIP)`);
-    return;
-  }
-
-  console.log(`  📥 Populating course_outcomes collection...`);
-
-  // Read import file (using original filename)
-  const importFilePath = path.join(outputDir, 'course_outcomes_imports', `${fileName}.json`);
-
-  if (!fs.existsSync(importFilePath)) {
-    throw new Error(`Import file not found: ${fileName}.json. Phase -2 may have failed.`);
-  }
-
-  const importData: CourseOutcomeImport[] = JSON.parse(fs.readFileSync(importFilePath, 'utf-8'));
-  const courseData = importData.filter(item => item.courseId === courseId);
-
-  if (courseData.length === 0) {
-    throw new Error(`No import data for courseId ${courseId} in ${fileName}.json`);
-  }
-
-  // Create documents
-  let createdCount = 0;
-  for (const outcomeData of courseData) {
-    const docData = {
-      courseId: outcomeData.courseId,
-      courseSqaCode: outcomeData.courseSqaCode,
-      unitCode: outcomeData.unitCode,
-      unitTitle: outcomeData.unitTitle,
-      scqfCredits: outcomeData.scqfCredits,
-      outcomeId: outcomeData.outcomeId,
-      outcomeTitle: outcomeData.outcomeTitle,
-      assessmentStandards: outcomeData.assessmentStandards,
-      teacherGuidance: outcomeData.teacherGuidance,
-      keywords: JSON.stringify(outcomeData.keywords)
-    };
-
-    await databases.createDocument('default', 'course_outcomes', ID.unique(), docData);
-    createdCount++;
-  }
-
-  console.log(`  ✅ Created ${createdCount} course_outcomes documents`);
-}
-
 /**
  * Normalize outcome ID to standard format (e.g., "1" -> "O1", "O1" -> "O1")
  */
@@ -367,6 +98,77 @@ function normalizeOutcomeId(outcomeId: string): string {
     return `O${outcomeId}`;
   }
   return outcomeId;
+}
+
+/**
+ * Validate all prerequisites exist before attempting SOW seeding
+ *
+ * This function replaces the old ensureCourseExists(), extractOutcomesFromSQA(),
+ * and populateCourseOutcomes() functions with a fail-fast validation approach.
+ *
+ * @param databases - Appwrite Databases instance
+ * @param courseId - Course ID to validate (format: course_<code>)
+ * @throws Error with actionable message if prerequisites are missing
+ */
+async function validatePrerequisites(
+  databases: Databases,
+  courseId: string
+): Promise<void> {
+  console.log('\n🔍 Validating prerequisites...\n');
+
+  // Check 1: Verify course document exists
+  console.log('  ✓ Checking course document...');
+  const courseCheck = await databases.listDocuments(
+    'default',
+    'courses',
+    [Query.equal('courseId', courseId), Query.limit(1)]
+  );
+
+  if (courseCheck.documents.length === 0) {
+    throw new Error(
+      `❌ PREREQUISITE MISSING: Course "${courseId}" not found in courses collection.\n\n` +
+      `💡 ACTION REQUIRED:\n` +
+      `   Run the bulk course seeding script first:\n` +
+      `   $ npm run seed:courses\n` +
+      `   or\n` +
+      `   $ tsx scripts/bulkSeedAllCourses.ts\n\n` +
+      `This will create all course documents and their outcomes from the SQA database.`
+    );
+  }
+
+  console.log(`    ✅ Course document exists: ${courseId}`);
+
+  // Check 2: Verify course_outcomes are populated
+  console.log('  ✓ Checking course outcomes...');
+  const outcomesCheck = await databases.listDocuments(
+    'default',
+    'course_outcomes',
+    [Query.equal('courseId', courseId), Query.limit(1)]
+  );
+
+  if (outcomesCheck.documents.length === 0) {
+    throw new Error(
+      `❌ PREREQUISITE MISSING: No course_outcomes found for course "${courseId}".\n\n` +
+      `💡 ACTION REQUIRED:\n` +
+      `   The course document exists but has no outcomes populated.\n` +
+      `   Run the bulk course seeding script to populate outcomes:\n` +
+      `   $ npm run seed:courses\n` +
+      `   or\n` +
+      `   $ tsx scripts/bulkSeedAllCourses.ts\n\n` +
+      `The bulk seeding script will extract outcomes from the SQA database\n` +
+      `and populate the course_outcomes collection for this course.`
+    );
+  }
+
+  // Get actual count of outcomes for informational purposes
+  const outcomesCount = await databases.listDocuments(
+    'default',
+    'course_outcomes',
+    [Query.equal('courseId', courseId)]
+  );
+
+  console.log(`    ✅ Course outcomes populated: ${outcomesCount.total} outcomes found`);
+  console.log('\n✅ All prerequisites validated successfully!\n');
 }
 
 /**
@@ -701,29 +503,36 @@ async function validateTemplateReferences(
 function parseCLIArgs(): CLIArgs {
   const args = minimist(process.argv.slice(2));
 
+  // Parse courseId if provided (used for all modes)
+  const courseId = args['course-id'] || undefined;
+
   // Determine mode
   if (args.batch) {
     return {
       mode: 'batch',
       inputDir: args['input-dir'],
-      validate: args.validate || false
+      validate: args.validate || false,
+      courseId
     };
   } else if (args.name) {
     return {
       mode: 'named',
       name: args.name,
-      inputDir: args['input-dir']
+      inputDir: args['input-dir'],
+      courseId
     };
   } else if (args.sow) {
     return {
       mode: 'single',
-      sowFile: args.sow
+      sowFile: args.sow,
+      courseId
     };
   } else {
     // Default to batch mode
     return {
       mode: 'batch',
-      validate: false
+      validate: false,
+      courseId
     };
   }
 }
@@ -854,7 +663,7 @@ function generateBatchReport(results: BatchResult[], inputDir: string): void {
 /**
  * Process batch of SOW files
  */
-async function processBatch(inputDir: string, validateOnly: boolean = false): Promise<BatchResult[]> {
+async function processBatch(inputDir: string, validateOnly: boolean = false, courseId?: string): Promise<BatchResult[]> {
   const sowFiles = discoverSOWFiles(inputDir);
 
   console.log(`\n📦 Batch Processing: ${sowFiles.length} SOW files found\n`);
@@ -875,7 +684,7 @@ async function processBatch(inputDir: string, validateOnly: boolean = false): Pr
 
       if (!validateOnly) {
         // Seed
-        await seedSingleSOW(sow.sowFile);
+        await seedSingleSOW(sow.sowFile, courseId);
       } else {
         console.log('✅ Validation passed (dry-run mode, no database writes)');
       }
@@ -893,7 +702,7 @@ async function processBatch(inputDir: string, validateOnly: boolean = false): Pr
   return results;
 }
 
-async function seedSingleSOW(sowFilePath: string): Promise<void> {
+async function seedSingleSOW(sowFilePath: string, courseIdOverride?: string): Promise<void> {
   console.log('🌱 Starting Authored_SOW seed script...\n');
 
   // Validate environment variables
@@ -942,68 +751,36 @@ async function seedSingleSOW(sowFilePath: string): Promise<void> {
   const fileContent = fs.readFileSync(sowFilePath, 'utf-8');
   const sowData: SOWJSONFile = JSON.parse(fileContent);
 
-  console.log(`✅ Successfully loaded SOW data for course: ${sowData.courseId}`);
+  // Use courseIdOverride if provided, otherwise use from SOW data
+  const courseId = courseIdOverride || sowData.courseId;
+
+  console.log(`✅ Successfully loaded SOW data for course: ${courseId}`);
   console.log(`   Version: ${sowData.version}`);
   console.log(`   Status: ${sowData.status}`);
   console.log(`   Entries: ${sowData.entries.length} lessons\n`);
 
-  // Parse subject/level from filename using new helper function
-  // Filename format: <subject>_<level>.json (e.g., "application-of-mathematics_national-4.json")
-  const fileName = path.basename(sowFilePath, '.json');
-  const { subject: subjectRaw, level: levelRaw } = parseSubjectLevel(fileName + '.json');
-
-  // For SQA queries, we need underscored versions (SQA collection uses underscores)
-  const subject = subjectRaw.replace(/-/g, '_');
-  const level = levelRaw.replace(/-/g, '_');
-
-  // Derive output directory (assumes Seeding_Data structure)
-  // sowFilePath is like: .../Seeding_Data/input/sows/mathematics_national-4.json
-  // Go up 2 levels: .../Seeding_Data/input/sows -> .../Seeding_Data/input -> .../Seeding_Data
-  const seedingDataDir = path.dirname(path.dirname(sowFilePath));
-  const outputDir = path.join(seedingDataDir, 'output');
-
-  console.log(`📋 Detected: subject="${subjectRaw}", level="${levelRaw}"`);
-  console.log(`   SQA query will use: subject="${subject}", level="${level}"`);
-  console.log(`📁 Output directory: ${outputDir}\n`);
+  // ============================================================
+  // PHASE 0: Validate Prerequisites
+  // ============================================================
+  await validatePrerequisites(databases, courseId);
 
   // ============================================================
-  // PHASE -3: Ensure Course Document Exists
+  // PHASE 1: Validate Outcome References
   // ============================================================
-  console.log('📦 PHASE -3: Ensure Course Document Exists');
-  await ensureCourseExists(databases, sowData.courseId, subjectRaw, levelRaw);
-  console.log('');
+  console.log('📦 PHASE 1: Validate Outcome References');
+  await validateOutcomeReferences(databases, sowData.entries, courseId);
 
   // ============================================================
-  // PHASE -2: Extract Outcomes from SQA
-  // ============================================================
-  console.log('📦 PHASE -2: Extract Outcomes from SQA');
-  await extractOutcomesFromSQA(databases, sowData, subject, level, outputDir, fileName);
-  console.log('');
-
-  // ============================================================
-  // PHASE -1: Populate course_outcomes Collection
-  // ============================================================
-  console.log('📦 PHASE -1: Populate course_outcomes Collection');
-  await populateCourseOutcomes(databases, sowData.courseId, outputDir, fileName);
-  console.log('');
-
-  // ============================================================
-  // PHASE 0: Validate Outcome References
-  // ============================================================
-  console.log('📦 PHASE 0: Validate Outcome References');
-  await validateOutcomeReferences(databases, sowData.entries, sowData.courseId);
-
-  // ============================================================
-  // PHASE 1: Create/Update Lesson Template Placeholders
+  // PHASE 2: Create/Update Lesson Template Placeholders
   // ============================================================
   const referenceMap = await createOrUpdateLessonTemplates(
     databases,
     sowData.entries,
-    sowData.courseId
+    courseId
   );
 
   // ============================================================
-  // PHASE 2: Update Authored_SOW Entries with Real Template IDs
+  // PHASE 3: Update Authored_SOW Entries with Real Template IDs
   // ============================================================
   const updatedEntries = await updateEntriesWithTemplateRefs(
     sowData.entries,
@@ -1011,10 +788,10 @@ async function seedSingleSOW(sowFilePath: string): Promise<void> {
   );
 
   // ============================================================
-  // PHASE 3: Prepare and Upsert Authored_SOW Data
+  // PHASE 4: Prepare and Upsert Authored_SOW Data
   // ============================================================
   const authoredSOWData: AuthoredSOWData = {
-    courseId: sowData.courseId,
+    courseId: courseId,
     version: String(sowData.version), // Ensure version is string
     status: sowData.status,
     entries: updatedEntries, // Use entries with real template IDs!
@@ -1053,7 +830,7 @@ async function seedSingleSOW(sowFilePath: string): Promise<void> {
     console.log(`   Entries stored: ${entries.length} lessons`);
 
     // ============================================================
-    // PHASE 4: Validate All Template References
+    // PHASE 5: Validate All Template References
     // ============================================================
     await validateTemplateReferences(databases, updatedEntries);
 
@@ -1093,12 +870,12 @@ async function main() {
 
   // Route to appropriate mode
   if (args.mode === 'batch') {
-    await processBatch(inputDir, args.validate || false);
+    await processBatch(inputDir, args.validate || false, args.courseId);
   } else if (args.mode === 'named') {
     const sowFile = path.join(inputDir, 'input/sows', `${args.name}.json`);
-    await seedSingleSOW(sowFile);
+    await seedSingleSOW(sowFile, args.courseId);
   } else {
-    await seedSingleSOW(args.sowFile!);
+    await seedSingleSOW(args.sowFile!, args.courseId);
   }
 }
 

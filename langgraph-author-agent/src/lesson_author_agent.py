@@ -40,11 +40,16 @@ except ImportError:
         APPWRITE_AVAILABLE
     )
 
-# Initialize Gemini model using init_chat_model (avoids --allow-blocking flag)
+# Import model factory for dynamic model selection
+try:
+    from src.model_factory import get_model
+except ImportError:
+    from model_factory import get_model
 
-gemini = init_chat_model(
-    "gemini-2.5-pro", model_provider="google_genai", temperature=0.7
-)
+# Initialize model dynamically based on LESSON_MODEL_VERSION env var
+# Supports: gemini-2.5-pro, gemini-flash-lite, deepseek-r1-32b, deepseek-r1-70b
+# Fails fast with detailed error if LESSON_MODEL_VERSION not set or invalid
+model = get_model()
 # =============================================================================
 # SUBAGENT CONFIGURATIONS
 # =============================================================================
@@ -73,7 +78,7 @@ combined_lesson_critic = {
 # Create the Lesson Author DeepAgent with 2 subagents (Course_data.txt pre-fetched by seeding script)
 # Main agent now directly authors lessons, with targeted subagents for research and critique
 agent = create_deep_agent(
-    model=gemini,
+    model=model,  # Dynamic model from model_factory (supports Gemini + Ollama)
     tools=internet_only_tools,  # Internet search for orchestration
     instructions=LESSON_AGENT_PROMPT,
     subagents=[

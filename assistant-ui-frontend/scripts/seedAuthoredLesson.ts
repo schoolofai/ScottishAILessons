@@ -22,9 +22,15 @@ import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import * as readline from 'readline';
 import { compressCards, getCompressionStats } from '../lib/appwrite/utils/compression';
 
+// Load frontend .env.local (for Appwrite config)
 dotenv.config({ path: '.env.local' });
+
+// Load agent .env (for LESSON_MODEL_VERSION) - reads actual agent config
+const agentEnvPath = path.join(__dirname, '../../langgraph-author-agent/.env');
+dotenv.config({ path: agentEnvPath });
 
 // Configuration
 const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
@@ -75,11 +81,39 @@ interface AuthoredSOW {
 
 async function main() {
   // Parse command line arguments
-  const [courseId, orderStr, resourcePackPath] = process.argv.slice(2);
+  const [courseId, orderStr, resourcePackPath, modelVersion] = process.argv.slice(2);
 
   if (!courseId || !orderStr || !resourcePackPath) {
-    console.error('Usage: npm run seed:authored-lesson <courseId> <order> <resourcePackPath>');
-    console.error('Example: npm run seed:authored-lesson "course_c84774" 0 "../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt"');
+    console.error('Usage: npm run seed:authored-lesson <courseId> <order> <resourcePackPath> [modelVersion]');
+    console.error('');
+    console.error('Arguments:');
+    console.error('  courseId         - Course identifier (e.g., "course_c84774")');
+    console.error('  order            - Lesson order number in SOW (e.g., 0, 1, 2...)');
+    console.error('  resourcePackPath - Path to research pack JSON file');
+    console.error('  modelVersion     - OPTIONAL: Override model version for this lesson');
+    console.error('');
+    console.error('Model Version Behavior:');
+    console.error('  - If NOT provided: Reads LESSON_MODEL_VERSION from langgraph-author-agent/.env');
+    console.error('  - If provided: Overrides .env value (use for testing different models)');
+    console.error('');
+    console.error('Available model versions:');
+    console.error('  Cloud Models:');
+    console.error('    - gemini-2.5-pro    : High-quality Gemini');
+    console.error('    - gemini-flash-lite : Fast, cost-effective Gemini');
+    console.error('  Local Models (Ollama):');
+    console.error('    - llama-4-scout     : Meta Llama 4 Scout (recommended)');
+    console.error('    - llama-3.3-70b     : Meta Llama 3.3 70B');
+    console.error('    - llama-3.1-70b     : Meta Llama 3.1 70B');
+    console.error('    - qwen-2.5-72b      : Alibaba Qwen2.5 72B');
+    console.error('');
+    console.error('Example (use agent config):');
+    console.error('  npm run seed:authored-lesson "course_c84774" 0 "../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt"');
+    console.error('');
+    console.error('Example (override model):');
+    console.error('  npm run seed:authored-lesson "course_c84774" 0 "path/to/pack.txt" "gemini-flash-lite"');
+    console.error('');
+    console.error('⚠️  Model version must match the actual model used by the LangGraph agent!');
+    console.error('    Set LESSON_MODEL_VERSION in langgraph-author-agent/.env before running.');
     process.exit(1);
   }
 
@@ -89,10 +123,98 @@ async function main() {
     process.exit(1);
   }
 
+  // Model version resolution with hybrid strategy
+  const agentModelVersion = process.env.LESSON_MODEL_VERSION;
+  const cliModelVersion = modelVersion;
+
+  let selectedModel: string;
+  let isOverride = false;
+
+  if (cliModelVersion) {
+    // CLI override provided
+    selectedModel = cliModelVersion;
+    isOverride = true;
+
+    // Warn if overriding differs from agent config
+    if (agentModelVersion && cliModelVersion !== agentModelVersion) {
+      console.warn('');
+      console.warn('⚠️  MODEL VERSION OVERRIDE DETECTED');
+      console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.warn(`   Agent configured for: ${agentModelVersion}`);
+      console.warn(`   Database will record:  ${cliModelVersion}`);
+      console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.warn('');
+      console.warn('⚠️  WARNING: This override is ONLY safe if you have also changed');
+      console.warn('    LESSON_MODEL_VERSION in langgraph-author-agent/.env to match!');
+      console.warn('');
+      console.warn('    If the agent generates with one model but the database records');
+      console.warn('    another, your lesson content will be incorrectly attributed.');
+      console.warn('');
+
+      // Require confirmation for mismatches
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+
+      const answer = await new Promise<string>((resolve) => {
+        rl.question('Continue with this override? (yes/no): ', resolve);
+      });
+      rl.close();
+
+      if (answer.toLowerCase() !== 'yes') {
+        console.log('');
+        console.log('Aborted. Please either:');
+        console.log(`  1. Update langgraph-author-agent/.env to: LESSON_MODEL_VERSION=${cliModelVersion}`);
+        console.log(`  2. Or run without override to use: ${agentModelVersion}`);
+        console.log('');
+        process.exit(0);
+      }
+      console.warn('');
+      console.warn('✓ Override confirmed. Proceeding...');
+      console.warn('');
+    }
+  } else if (agentModelVersion) {
+    // Use agent's config (default behavior)
+    selectedModel = agentModelVersion;
+    console.log(`ℹ️  Using model version from langgraph-author-agent/.env: ${selectedModel}`);
+    console.log('');
+  } else {
+    // FAIL FAST - no config found
+    console.error('');
+    console.error('❌ ERROR: Model version not configured');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('');
+    console.error('LESSON_MODEL_VERSION is not set in langgraph-author-agent/.env');
+    console.error('');
+    console.error('Please choose one of the following:');
+    console.error('');
+    console.error('Option 1: Set in langgraph-author-agent/.env (recommended)');
+    console.error('  echo "LESSON_MODEL_VERSION=gemini-flash-lite" >> langgraph-author-agent/.env');
+    console.error('');
+    console.error('Option 2: Provide as CLI parameter');
+    console.error('  npm run seed:authored-lesson "course_c84774" 0 "path/to/pack.txt" "gemini-flash-lite"');
+    console.error('');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('');
+    process.exit(1);
+  }
+
   console.log('🚀 Starting Lesson Authoring Pipeline');
   console.log('=====================================');
   console.log(`Course ID: ${courseId}`);
   console.log(`Order: ${order}`);
+
+  // Display model version with source indicator
+  if (isOverride) {
+    console.log(`Model Version: ${selectedModel} (CLI override)`);
+    if (agentModelVersion && selectedModel === agentModelVersion) {
+      console.log(`               ✓ Matches agent config`);
+    }
+  } else {
+    console.log(`Model Version: ${selectedModel} (from langgraph-author-agent/.env)`);
+  }
+
   console.log(`Resource Pack: ${resourcePackPath}`);
   console.log('');
 
@@ -116,6 +238,15 @@ async function main() {
     const authoredSOW = await getAuthoredSOW(databases, courseId);
     console.log(`✅ Found Authored SOW for course: ${courseId}`);
     console.log(`   Total entries: ${authoredSOW.entries.length}`);
+    console.log('');
+
+    // Step 2.1: Extract SOW references for model versioning
+    console.log('🔗 Extracting SOW references...');
+    const authoredSOWId = (authoredSOW as any).$id;
+    const authoredSOWVersion = authoredSOW.version || (authoredSOW as any).version || 'v1.0';
+    console.log(`✅ SOW Reference:`);
+    console.log(`   Document ID: ${authoredSOWId}`);
+    console.log(`   Version: ${authoredSOWVersion}`);
     console.log('');
 
     // Step 2.5: Fetch course metadata
@@ -184,12 +315,41 @@ async function main() {
     console.log(`   Cards: ${template.cards?.length || 0}`);
     console.log('');
 
-    // Step 7: Upsert to lesson_templates
+    // Step 7: Upsert to lesson_templates with model versioning
     console.log('💾 Upserting to lesson_templates...');
-    const result = await upsertLessonTemplate(databases, lessonTemplate, courseId, order);
+    const result = await upsertLessonTemplate(
+      databases,
+      lessonTemplate,
+      courseId,
+      order,
+      authoredSOWId,
+      authoredSOWVersion,
+      selectedModel
+    );
     console.log(`✅ ${result.action} lesson template`);
     console.log(`   Document ID: ${result.documentId}`);
+    console.log(`   Model Version: ${selectedModel}`);
     console.log('');
+
+    // Verification reminder if override was used
+    if (isOverride && cliModelVersion !== agentModelVersion) {
+      console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.warn('⚠️  VERIFICATION REMINDER');
+      console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.warn('');
+      console.warn('   This lesson was generated with an OVERRIDDEN model version:');
+      console.warn('');
+      console.warn(`   Database recorded:  ${selectedModel}`);
+      console.warn(`   Agent configured:   ${agentModelVersion || 'not set'}`);
+      console.warn('');
+      console.warn('   ⚠️  If these differ, the lesson content attribution is INCORRECT!');
+      console.warn('');
+      console.warn('   Verify that LESSON_MODEL_VERSION in langgraph-author-agent/.env');
+      console.warn(`   was set to "${selectedModel}" when the agent ran.`);
+      console.warn('');
+      console.warn('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.warn('');
+    }
 
     console.log('=====================================');
     console.log('🎉 SUCCESS! Lesson template created');
@@ -565,21 +725,28 @@ function logToFile(filePath: string, message: string): void {
 
 /**
  * Upsert lesson template to lesson_templates collection
- * Lookup by courseId + sow_order for deterministic updates
+ * Lookup by courseId + sow_order + model_version for deterministic updates
+ * Enables multiple AI model versions of the same lesson
  */
 async function upsertLessonTemplate(
   databases: Databases,
   lessonTemplate: any,
   courseId: string,
-  sowOrder: number
+  sowOrder: number,
+  authoredSOWId: string,
+  authoredSOWVersion: string,
+  modelVersion: string
 ): Promise<{ action: 'Created' | 'Updated'; documentId: string }> {
   // Query for existing lesson template
+  // Uniqueness constraint: (courseId, sow_order, model_version)
+  // This allows multiple AI model versions of the same lesson
   const existingDocs = await databases.listDocuments(
     DATABASE_ID,
     LESSON_TEMPLATES_COLLECTION,
     [
       Query.equal('courseId', courseId),
-      Query.equal('sow_order', sowOrder)
+      Query.equal('sow_order', sowOrder),
+      Query.equal('model_version', modelVersion)
     ]
   );
 
@@ -604,6 +771,15 @@ async function upsertLessonTemplate(
   const docData = {
     courseId,
     sow_order: sowOrder,
+
+    // NEW: SOW reference fields for model versioning
+    authored_sow_id: authoredSOWId,
+    authored_sow_version: authoredSOWVersion,
+
+    // NEW: Model versioning for A/B testing
+    model_version: modelVersion,
+
+    // Existing fields
     title: template.title,
     createdBy: 'lesson_author_agent',
     version: 1,
