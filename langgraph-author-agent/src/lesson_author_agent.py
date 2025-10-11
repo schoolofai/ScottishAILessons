@@ -1,8 +1,12 @@
 """Lesson Author DeepAgent - Orchestrates 2 subagents to produce LessonTemplate JSON documents for Scottish secondary education."""
 
 import os
+import logging
 from langchain.chat_models import init_chat_model
 from deepagents import create_deep_agent
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Dual-import pattern for prompts
 try:
@@ -47,9 +51,30 @@ except ImportError:
     from model_factory import get_model
 
 # Initialize model dynamically based on LESSON_MODEL_VERSION env var
-# Supports: gemini-2.5-pro, gemini-flash-lite, deepseek-r1-32b, deepseek-r1-70b
+# Supports: gemini-2.5-pro, gemini-flash-lite, llama models, etc.
+# Special case: "default" uses Anthropic Claude (no model_factory)
 # Fails fast with detailed error if LESSON_MODEL_VERSION not set or invalid
-model = get_model()
+
+lesson_model_version = os.getenv("LESSON_MODEL_VERSION", "")
+
+if lesson_model_version == "default":
+    # Skip model factory - let DeepAgents use default Anthropic Claude
+    # This requires ANTHROPIC_API_KEY to be set in .env
+    logger.info("🤖 Using default Anthropic Claude model (LESSON_MODEL_VERSION=default)")
+    logger.info("⚠️  Ensure ANTHROPIC_API_KEY is set in .env")
+    model = None  # Signal to skip model parameter
+elif not lesson_model_version:
+    # Fast fail if env var not set at all
+    error_msg = (
+        "LESSON_MODEL_VERSION environment variable is required. "
+        "Set to 'default' for Anthropic Claude, or choose from available models."
+    )
+    logger.error(error_msg)
+    raise ValueError(error_msg)
+else:
+    # Use model factory for custom models (Gemini, Ollama, etc.)
+    logger.info(f"🤖 Using custom model from model_factory: {lesson_model_version}")
+    model = get_model()
 # =============================================================================
 # SUBAGENT CONFIGURATIONS
 # =============================================================================
@@ -77,12 +102,26 @@ combined_lesson_critic = {
 
 # Create the Lesson Author DeepAgent with 2 subagents (Course_data.txt pre-fetched by seeding script)
 # Main agent now directly authors lessons, with targeted subagents for research and critique
-agent = create_deep_agent(
-    model=model,  # Dynamic model from model_factory (supports Gemini + Ollama)
-    tools=internet_only_tools,  # Internet search for orchestration
-    instructions=LESSON_AGENT_PROMPT,
-    subagents=[
-        research_subagent,
-        combined_lesson_critic
-    ]
-).with_config({"recursion_limit": 1000})
+
+# Create agent with conditional model parameter
+if model is None:
+    # Default: Use DeepAgents' built-in Anthropic Claude (no model param)
+    agent = create_deep_agent(
+        tools=internet_only_tools,  # Internet search for orchestration
+        instructions=LESSON_AGENT_PROMPT,
+        subagents=[
+            research_subagent,
+            combined_lesson_critic
+        ]
+    ).with_config({"recursion_limit": 1000})
+else:
+    # Custom: Use model from model_factory (Gemini, Ollama, etc.)
+    agent = create_deep_agent(
+        model=model,  # Dynamic model from model_factory (supports Gemini + Ollama)
+        tools=internet_only_tools,  # Internet search for orchestration
+        instructions=LESSON_AGENT_PROMPT,
+        subagents=[
+            research_subagent,
+            combined_lesson_critic
+        ]
+    ).with_config({"recursion_limit": 1000})

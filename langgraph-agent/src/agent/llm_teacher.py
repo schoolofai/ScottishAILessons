@@ -148,6 +148,72 @@ def extract_curriculum_context_from_state(state: Dict) -> Dict[str, str]:
     )
 
 
+def get_lesson_type_pedagogy_guidance(lesson_type: str) -> str:
+    """Return lesson-type-specific pedagogical guidance for LLM prompts.
+
+    Args:
+        lesson_type: One of "teach", "independent_practice", "formative_assessment", "revision"
+
+    Returns:
+        Detailed pedagogical instructions for the specific lesson type
+    """
+    guidance_map = {
+        "teach": """
+TEACHING APPROACH (Teach Lesson):
+- Use the EXPLAINER and EXAMPLES to teach the concept from first principles
+- Build understanding step-by-step using the provided teaching materials
+- Assume minimal prior knowledge - explain thoroughly using the explainer content
+- Take time to work through the provided examples in detail
+- Focus on conceptual clarity before presenting the question
+
+CRITICAL - CFU Question Handling:
+- The Question/CFU is for ASSESSMENT - DO NOT solve it or give away the answer
+- After teaching with explainer/examples, present the CFU question for the student to answer
+- Let the student demonstrate their understanding by solving the CFU themselves""",
+
+        "independent_practice": """
+TEACHING APPROACH (Independent Practice):
+- Reference the EXPLAINER content briefly as a reminder
+- Work through the provided EXAMPLES to demonstrate the method
+- You may create SIMILAR practice examples (different numbers/context) to show the process
+- Encourage them to apply what they've learned
+
+CRITICAL - CFU Question Handling:
+- The Question/CFU is for the STUDENT to practice - DO NOT solve it
+- Present the CFU question as their independent practice task
+- They need to work it out themselves to build proficiency
+- Provide hints if they struggle (during feedback), but don't solve it upfront""",
+
+        "formative_assessment": """
+TEACHING APPROACH (Formative Assessment):
+- Minimal teaching - this is about measuring what they already know
+- You may reference the EXPLAINER very briefly (1 sentence) as context only
+- DO NOT work through examples - we're assessing, not teaching
+- Keep all guidance extremely light
+
+CRITICAL - CFU Question Handling:
+- The Question/CFU is the ASSESSMENT - DO NOT provide any solution or hints
+- Present the question cleanly and clearly
+- Let their response reveal their current understanding level
+- This is diagnostic - their struggle or success tells us where they are""",
+
+        "revision": """
+TEACHING APPROACH (Revision):
+- Use the EXPLAINER to jog their memory with a brief (2-3 sentence) reminder
+- You may reference the EXAMPLES quickly to refresh their recall
+- Keep it concise - they've learned this before, just need a memory trigger
+- Don't re-teach from scratch, just prompt recall
+
+CRITICAL - CFU Question Handling:
+- The Question/CFU is to CHECK retention - DO NOT solve it
+- After the brief reminder, present the CFU question for them to answer
+- They should be able to apply their remembered knowledge to solve it"""
+    }
+
+    # Default to "teach" if unknown lesson type
+    return guidance_map.get(lesson_type, guidance_map["teach"])
+
+
 class EvaluationResponse(BaseModel):
     """Structured response for LLM-based evaluation."""
     is_correct: bool = Field(description="Whether the student response is correct")
@@ -191,6 +257,16 @@ Student name: {student_name}"""),
 
 {course_context_block}
 
+Progress: You are on card {card_number} of {total_cards} in this lesson.
+
+IMPORTANT CONTINUATION GUIDELINES:
+- DO NOT include a greeting (student was already greeted at the start)
+- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
+- Reference that you're continuing the lesson naturally
+- Keep it conversational and encouraging
+
+{lesson_type_pedagogy}
+
 Context: {card_context}
 Explainer: {explainer}
 Examples: {examples}
@@ -200,7 +276,7 @@ Question: {question}
 
 {policy_reminders}
 
-Make it feel like friendly tutoring.
+Make it feel like friendly tutoring with clear progress indication.
 End with the question naturally in the conversation. Make sure to include the question for the student to answer.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
@@ -369,6 +445,8 @@ You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
 {sqa_alignment_summary}
 
+{lesson_type_pedagogy}
+
 {engagement_guidance}
 
 {policy_reminders}
@@ -390,7 +468,7 @@ Make it feel like one natural conversation flow, not separate sections.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
 - Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
 Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Start the lesson with the first card")
@@ -403,6 +481,8 @@ You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 {course_context_block}
 
 {sqa_alignment_summary}
+
+{lesson_type_pedagogy}
 
 {engagement_guidance}
 
@@ -436,7 +516,7 @@ Make it feel like one natural conversation flow with a clear, structured questio
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
 - Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
 Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Start the lesson with the first MCQ card")
@@ -446,6 +526,16 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("system", """Present this multiple choice question conversationally to a {level_description} {subject_area} student.
 
 {course_context_block}
+
+Progress: You are on card {card_number} of {total_cards} in this lesson.
+
+IMPORTANT CONTINUATION GUIDELINES:
+- DO NOT include a greeting (student was already greeted at the start)
+- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
+- Reference that you're continuing the lesson naturally
+- Keep it conversational and encouraging
+
+{lesson_type_pedagogy}
 
 {engagement_guidance}
 
@@ -465,11 +555,11 @@ etc.
 
 Please respond with the number of your choice (1, 2, 3, etc.).
 
-Make it feel like friendly tutoring with a clearly structured question.
+Make it feel like friendly tutoring with clear progress indication and a clearly structured question.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
 - Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
 Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Present this MCQ card: {card_title}")
@@ -899,12 +989,14 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson completion message: {str(e)}"
             ) from e
 
-    def present_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None):
+    def present_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
         """Present lesson card conversationally (sync version) - returns full response object.
 
         Args:
             card: Card data
             state: Optional full state dict with curriculum metadata
+            card_index: Zero-indexed position of current card (default: 0)
+            total_cards: Total number of cards in lesson (default: 1)
         """
         try:
             examples = "\n".join(card.get("example", []))
@@ -927,6 +1019,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 subject_area = "learning"
                 level_description = ""
 
+            # Extract lesson_type and generate pedagogy guidance
+            lesson_type = state.get("lesson_type", "teach") if state else "teach"
+            lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
+
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
@@ -934,6 +1030,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     examples=examples,
                     question=question,
                     card_title=card.get("title", ""),
+                    card_number=card_index + 1,  # Convert to 1-indexed for display
+                    total_cards=total_cards,
+                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
                     subject_area=subject_area,
                     level_description=level_description,
                     **curriculum_context
@@ -948,6 +1047,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "has_explainer": bool(card.get("explainer")),
                     "has_examples": bool(card.get("example")),
                     "has_question": bool(card.get("cfu", {}).get("stem")),
+                    "card_index": card_index,
+                    "total_cards": total_cards,
+                    "lesson_type": state.get("lesson_type") if state else None,
                     "error_type": type(e).__name__
                 }
             )
@@ -1009,6 +1111,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "sqa_alignment_summary": ""
                 }
 
+            # Extract lesson_type and generate pedagogy guidance
+            lesson_type = state.get("lesson_type", "teach") if state else "teach"
+            lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
+
             response = self.llm.invoke(
                 self.greeting_with_first_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Lesson"),
@@ -1017,6 +1123,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     card_explainer=first_card.get("explainer", ""),
                     card_examples=examples,
                     card_question=first_card.get("cfu", {}).get("stem", ""),
+                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
                     **curriculum_context  # Unpack all formatted strings
                 )
             )
@@ -1028,6 +1135,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "lesson_title": lesson_snapshot.get("title", "unknown"),
                     "card_title": first_card.get("title", "unknown"),
                     "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
+                    "lesson_type": state.get("lesson_type") if state else None,
                     "error_type": type(e).__name__
                 }
             )
@@ -1071,6 +1179,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "sqa_alignment_summary": ""
                 }
 
+            # Extract lesson_type and generate pedagogy guidance
+            lesson_type = state.get("lesson_type", "teach") if state else "teach"
+            lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
+
             response = self.llm.invoke(
                 self.greeting_with_first_mcq_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Lesson"),
@@ -1080,6 +1192,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     card_examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
+                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
                     **curriculum_context  # Unpack all formatted strings
                 )
             )
@@ -1092,6 +1205,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "card_title": first_card.get("title", "unknown"),
                     "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
                     "cfu_type": first_card.get("cfu", {}).get("type", "unknown"),
+                    "lesson_type": state.get("lesson_type") if state else None,
                     "error_type": type(e).__name__
                 }
             )
@@ -1099,12 +1213,14 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate MCQ greeting with first lesson card: {str(e)}"
             ) from e
 
-    def present_mcq_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None):
+    def present_mcq_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
         """Present MCQ card with structured format (sync version) - returns full response object.
 
         Args:
             card: MCQ card data
             state: Optional full state dict with curriculum metadata
+            card_index: Zero-indexed position of current card (default: 0)
+            total_cards: Total number of cards in lesson (default: 1)
         """
         try:
             cfu = card.get("cfu", {})
@@ -1130,6 +1246,10 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 subject_area = "learning"
                 level_description = ""
 
+            # Extract lesson_type and generate pedagogy guidance
+            lesson_type = state.get("lesson_type", "teach") if state else "teach"
+            lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
+
             response = self.llm.invoke(
                 self.mcq_card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
@@ -1138,6 +1258,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     mcq_question=question,
                     mcq_options=formatted_options,
                     card_title=card.get("title", ""),
+                    card_number=card_index + 1,  # Convert to 1-indexed for display
+                    total_cards=total_cards,
+                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
                     subject_area=subject_area,
                     level_description=level_description,
                     **curriculum_context
@@ -1153,6 +1276,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     "has_examples": bool(card.get("example")),
                     "cfu_type": card.get("cfu", {}).get("type", "unknown"),
                     "num_options": len(card.get("cfu", {}).get("options", [])),
+                    "card_index": card_index,
+                    "total_cards": total_cards,
+                    "lesson_type": state.get("lesson_type") if state else None,
                     "error_type": type(e).__name__
                 }
             )

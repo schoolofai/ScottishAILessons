@@ -1,6 +1,7 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { Session, Evidence, LessonSnapshot } from '../types';
+import { decompressJSON } from '../utils/compression';
 
 /**
  * Session driver for session state management and progress tracking
@@ -12,7 +13,12 @@ export class SessionDriver extends BaseDriver {
   async getSessionState(sessionId: string) {
     try {
       const session = await this.get<Session>('sessions', sessionId);
-      const parsedSnapshot = JSON.parse(session.lessonSnapshot) as LessonSnapshot;
+      const parsedSnapshot = decompressJSON<LessonSnapshot>(session.lessonSnapshot);
+
+      // Validate decompression succeeded
+      if (!parsedSnapshot) {
+        throw new Error('Failed to decompress lesson snapshot');
+      }
       
       // Get evidence count for progress calculation
       const evidence = await this.list<Evidence>('evidence', [

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionClient, appwriteConfig } from "@/lib/appwrite/server";
 import { ID, Query } from "appwrite";
+import { compressJSON } from "@/lib/appwrite/utils/compression";
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
         lessonTemplateId: lessonTemplateId,
         startedAt: new Date().toISOString(),
         stage: 'design',
-        lessonSnapshot: JSON.stringify(lessonSnapshot)
+        lessonSnapshot: compressJSON(lessonSnapshot)
       },
       [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
     );

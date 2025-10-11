@@ -6,7 +6,7 @@
  */
 
 import { ID, Databases, Account, Client } from 'appwrite';
-import { decompressCards } from '../appwrite/utils/compression';
+import { decompressCards, compressJSON, decompressJSON } from '../appwrite/utils/compression';
 
 export interface StartLessonParams {
   lessonTemplateId: string;
@@ -96,6 +96,11 @@ export async function createLessonSession(params: StartLessonParams): Promise<Le
       hasThreadId: !!threadId
     });
 
+    // Compress lesson snapshot for storage
+    const uncompressedSize = JSON.stringify(lessonSnapshot).length;
+    const compressedSnapshot = compressJSON(lessonSnapshot);
+    console.log(`📦 Compressed lesson snapshot: ${uncompressedSize} → ${compressedSnapshot.length} chars (${((1 - compressedSnapshot.length/uncompressedSize) * 100).toFixed(1)}% savings)`);
+
     // Prepare session data
     const sessionData: Record<string, any> = {
       studentId,
@@ -103,7 +108,7 @@ export async function createLessonSession(params: StartLessonParams): Promise<Le
       lessonTemplateId,
       startedAt: new Date().toISOString(),
       stage: 'design',
-      lessonSnapshot: JSON.stringify(lessonSnapshot)  // Stringify for storage
+      lessonSnapshot: compressedSnapshot  // Compressed for storage
     };
 
     // Include threadId if provided (for continuity from EnhancedDashboard)
@@ -138,12 +143,13 @@ export async function createLessonSession(params: StartLessonParams): Promise<Le
 
 /**
  * Convenience function for extracting lesson snapshot from session
+ * Handles both compressed and uncompressed lesson snapshots for backward compatibility
  */
 export function parseLessonSnapshot(lessonSnapshot: string) {
   try {
-    return JSON.parse(lessonSnapshot);
+    return decompressJSON(lessonSnapshot);  // Auto-handles compressed & uncompressed
   } catch (error) {
-    console.error('Failed to parse lesson snapshot:', error);
+    console.error('Failed to decompress/parse lesson snapshot:', error);
     throw new Error('Invalid lesson snapshot data');
   }
 }

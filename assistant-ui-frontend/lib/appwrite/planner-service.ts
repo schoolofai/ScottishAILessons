@@ -6,6 +6,7 @@ import { RoutineDriver } from './driver/RoutineDriver';
 import { SOWDriver } from './driver/SOWDriver';
 import { EvidenceDriver } from './driver/EvidenceDriver';
 import { EnrichedOutcome } from '../types/course-outcomes';
+import { compressJSON } from './utils/compression';
 import {
   SchedulingContext,
   Course,
@@ -625,7 +626,7 @@ export class CoursePlannerService {
           startedAt: now, // Required field in Appwrite
           endedAt: null,
           stage: 'design', // Default stage from schema
-          lessonSnapshot: JSON.stringify({
+          lessonSnapshot: compressJSON({
             lessonTemplateId: validatedRequest.lessonTemplateId,
             courseId: validatedRequest.courseId,
             title: template.title,

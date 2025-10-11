@@ -1,7 +1,7 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import { EvidenceDriver } from './EvidenceDriver';
-import { decompressCards } from '../utils/compression';
+import { decompressCards, compressJSON } from '../utils/compression';
 import type {
   LessonTemplate,
   Session,
@@ -131,7 +131,7 @@ export class LessonDriver extends BaseDriver {
         courseId,
         lessonTemplateId,
         stage: 'design',
-        lessonSnapshot: JSON.stringify(lessonSnapshot)
+        lessonSnapshot: compressJSON(lessonSnapshot)
       };
 
       const permissions = this.createUserPermissions(user.$id);
@@ -240,7 +240,7 @@ export class LessonDriver extends BaseDriver {
   async updateLessonSnapshot(sessionId: string, snapshot: LessonSnapshot): Promise<Session> {
     try {
       return await this.update<Session>('sessions', sessionId, {
-        lessonSnapshot: JSON.stringify(snapshot)
+        lessonSnapshot: compressJSON(snapshot)
       });
     } catch (error) {
       throw this.handleError(error, 'update lesson snapshot');

@@ -284,13 +284,7 @@ async function main() {
     console.log(`   Duration: ${sowMetadata.weeks} weeks × ${sowMetadata.periods_per_week} periods/week`);
     console.log('');
 
-    // Step 5: Create triple JSON input
-    console.log('🔧 Creating triple JSON input...');
-    const tripleInput = createTripleInput(sowEntry, resourcePack, sowMetadata);
-    console.log(`✅ Created input (${tripleInput.length} characters)`);
-    console.log('');
-
-    // Step 6: Run lesson author agent with retry logic
+    // Step 5: Run lesson author agent with retry logic
     console.log('🤖 Invoking lesson_author agent with error recovery...');
     console.log(`   URL: ${LANGGRAPH_URL}`);
 
@@ -305,7 +299,14 @@ async function main() {
     console.log(`   Log file: ${logFile}`);
     console.log('');
 
-    const lessonTemplate = await runLessonAuthorAgent(tripleInput, courseData, LANGGRAPH_URL, logFile);
+    const lessonTemplate = await runLessonAuthorAgent(
+      sowEntry,
+      resourcePack,
+      sowMetadata,
+      courseData,
+      LANGGRAPH_URL,
+      logFile
+    );
     console.log('✅ Lesson template generated');
     // Handle both flat and nested structures
     const template = lessonTemplate.content || lessonTemplate;
@@ -570,20 +571,9 @@ function parseSOWMetadata(authoredSOW: AuthoredSOW): SOWContextMetadata {
 }
 
 /**
- * Create triple JSON input for lesson_author agent
- * Format: <sow_entry_json>,\n<resource_pack_json>,\n<sow_metadata_json>
+ * REMOVED: createTripleInput function
+ * Now using direct file injection instead of triple JSON message format
  */
-function createTripleInput(
-  sowEntry: AuthoredSOWEntry,
-  resourcePack: any,
-  sowMetadata: SOWContextMetadata
-): string {
-  return (
-    JSON.stringify(sowEntry) + ',\n' +
-    JSON.stringify(resourcePack) + ',\n' +
-    JSON.stringify(sowMetadata)
-  );
-}
 
 /**
  * Run lesson author agent with error recovery and retry logic
@@ -594,14 +584,16 @@ function createTripleInput(
  *
  * Strategy:
  * - Maintain the same threadId across retries for state continuity
- * - Pre-inject Course_data.txt into thread state before first run
- * - Send "continue" or "proceed" message to resume from last checkpoint
+ * - Pre-inject all input files into thread state before first run
+ * - Send simple trigger message on first run, "continue" on retries
  * - Log all attempts and errors for debugging
  * - Maximum 10 retry attempts before failing
  * - Exponential backoff between retries
  */
 async function runLessonAuthorAgent(
-  tripleInput: string,
+  sowEntry: AuthoredSOWEntry,
+  resourcePack: any,
+  sowMetadata: SOWContextMetadata,
   courseData: string,
   langgraphUrl: string,
   logFilePath: string
@@ -615,7 +607,6 @@ async function runLessonAuthorAgent(
 
   logToFile(logFilePath, `Thread created: ${threadId}`);
   console.log(`   Thread ID: ${threadId}`);
-  console.log(`   Course_data.txt ready for injection (${courseData.length} chars)`);
 
   let attempt = 0;
   let lastError: Error | null = null;
@@ -626,18 +617,35 @@ async function runLessonAuthorAgent(
     console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
 
     try {
-      // First attempt: send triple input + inject Course_data.txt in files
+      // First attempt: inject all files + simple trigger message
       // Subsequent attempts: send "continue" to resume
       const input = attempt === 1
         ? {
-            messages: [{ role: 'user', content: tripleInput }],
-            files: { 'Course_data.txt': courseData }  // Inject Course_data.txt in first run
+            messages: [{
+              role: 'user',
+              content: 'Author lesson from provided input files'
+            }],
+            files: {
+              'Course_data.txt': courseData,
+              'sow_entry_input.json': JSON.stringify(sowEntry, null, 2),
+              'research_pack.json': JSON.stringify(resourcePack, null, 2),
+              'sow_context.json': JSON.stringify(sowMetadata, null, 2)
+            }
           }
         : { messages: [{ role: 'user', content: 'continue' }] };
 
       if (attempt === 1) {
-        logToFile(logFilePath, `Injecting Course_data.txt in first run (${courseData.length} chars)`);
-        console.log(`   ✅ Injecting Course_data.txt in first run`);
+        logToFile(logFilePath, 'Injecting input files:');
+        logToFile(logFilePath, `  - Course_data.txt: ${courseData.length} chars`);
+        logToFile(logFilePath, `  - sow_entry_input.json: ${JSON.stringify(sowEntry).length} chars`);
+        logToFile(logFilePath, `  - research_pack.json: ${JSON.stringify(resourcePack).length} chars`);
+        logToFile(logFilePath, `  - sow_context.json: ${JSON.stringify(sowMetadata).length} chars`);
+
+        console.log(`   ✅ Injecting 4 input files:`);
+        console.log(`      - Course_data.txt (${courseData.length} chars)`);
+        console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
+        console.log(`      - research_pack.json (${JSON.stringify(resourcePack).length} chars)`);
+        console.log(`      - sow_context.json (${JSON.stringify(sowMetadata).length} chars)`);
       }
 
       // Stream agent execution
