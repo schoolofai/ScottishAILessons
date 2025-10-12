@@ -81,7 +81,9 @@ interface AuthoredSOW {
 
 async function main() {
   // Parse command line arguments
-  const [courseId, orderStr, resourcePackPath, modelVersion] = process.argv.slice(2);
+  // Filter out flags (anything starting with --) before extracting positional args
+  const positionalArgs = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
+  const [courseId, orderStr, resourcePackPath, modelVersion] = positionalArgs;
 
   if (!courseId || !orderStr || !resourcePackPath) {
     console.error('Usage: npm run seed:authored-lesson <courseId> <order> <resourcePackPath> [modelVersion]');
@@ -121,6 +123,17 @@ async function main() {
   if (isNaN(order)) {
     console.error('Error: order must be a valid number');
     process.exit(1);
+  }
+
+  // Check for --minimal flag
+  const isMinimal = process.argv.includes('--minimal');
+
+  if (isMinimal) {
+    console.log('');
+    console.log('🔹 MINIMAL MODE: Using only sow_entry_input.json (95% token reduction)');
+    console.log('   Optional files (Course_data.txt, research_pack.json, sow_context.json) will be skipped');
+    console.log('   Agent will use training knowledge for pedagogy and curriculum standards');
+    console.log('');
   }
 
   // Model version resolution with hybrid strategy
@@ -227,20 +240,14 @@ async function main() {
   const databases = new Databases(appwrite);
 
   try {
-    // Step 1: Load resource pack
-    console.log('📂 Loading resource pack...');
-    const resourcePack = await loadResourcePack(resourcePackPath);
-    console.log(`✅ Loaded resource pack (version ${resourcePack.research_pack_version || 'N/A'})`);
-    console.log('');
-
-    // Step 2: Get Authored SOW document (full document with metadata)
+    // Step 1: Get Authored SOW document (always needed - contains required sowEntry)
     console.log('📚 Fetching Authored SOW document...');
     const authoredSOW = await getAuthoredSOW(databases, courseId);
     console.log(`✅ Found Authored SOW for course: ${courseId}`);
     console.log(`   Total entries: ${authoredSOW.entries.length}`);
     console.log('');
 
-    // Step 2.1: Extract SOW references for model versioning
+    // Step 1.1: Extract SOW references for model versioning
     console.log('🔗 Extracting SOW references...');
     const authoredSOWId = (authoredSOW as any).$id;
     const authoredSOWVersion = authoredSOW.version || (authoredSOW as any).version || 'v1.0';
@@ -249,23 +256,7 @@ async function main() {
     console.log(`   Version: ${authoredSOWVersion}`);
     console.log('');
 
-    // Step 2.5: Fetch course metadata
-    console.log('🎓 Fetching course metadata...');
-    const courseMetadata = await getCourseMetadata(databases, courseId);
-    console.log(`✅ Course: ${courseMetadata.subject} ${courseMetadata.level}`);
-    console.log('');
-
-    // Step 2.6: Fetch SQA course data
-    console.log('📚 Fetching SQA course data from sqa_education database...');
-    const courseData = await fetchSQACourseData(
-      databases,
-      courseMetadata.subject,
-      courseMetadata.level
-    );
-    console.log(`✅ Fetched SQA data (${courseData.length} characters)`);
-    console.log('');
-
-    // Step 3: Extract SOW entry for the specified order
+    // Step 2: Extract SOW entry for the specified order (REQUIRED - contains lesson requirements)
     console.log(`🔍 Extracting entry at order ${order}...`);
     const sowEntry = await getSOWEntryByOrder(authoredSOW, order);
     console.log(`✅ Found entry: "${sowEntry.label}"`);
@@ -273,18 +264,55 @@ async function main() {
     console.log(`   Duration: ${sowEntry.estMinutes} minutes`);
     console.log('');
 
-    // Step 4: Parse SOW metadata
-    console.log('📋 Parsing SOW context metadata...');
-    const sowMetadata = parseSOWMetadata(authoredSOW);
-    console.log(`✅ Extracted metadata:`);
-    console.log(`   Policy notes: ${sowMetadata.coherence.policy_notes.length}`);
-    console.log(`   Sequencing notes: ${sowMetadata.coherence.sequencing_notes.length}`);
-    console.log(`   Accessibility notes: ${sowMetadata.accessibility_notes.length}`);
-    console.log(`   Engagement notes: ${sowMetadata.engagement_notes.length}`);
-    console.log(`   Duration: ${sowMetadata.weeks} weeks × ${sowMetadata.periods_per_week} periods/week`);
-    console.log('');
+    // Step 3: Conditionally fetch optional data based on --minimal flag
+    let resourcePack: any | null = null;
+    let courseData: string | null = null;
+    let sowMetadata: SOWContextMetadata | null = null;
 
-    // Step 5: Run lesson author agent with retry logic
+    if (!isMinimal) {
+      console.log('📄 Fetching optional context files...');
+
+      // Load resource pack
+      console.log('   📂 Loading resource pack...');
+      resourcePack = await loadResourcePack(resourcePackPath);
+      console.log(`   ✅ Loaded resource pack (version ${resourcePack.research_pack_version || 'N/A'})`);
+
+      // Fetch course metadata (needed for SQA data lookup)
+      console.log('   🎓 Fetching course metadata...');
+      const courseMetadata = await getCourseMetadata(databases, courseId);
+      console.log(`   ✅ Course: ${courseMetadata.subject} ${courseMetadata.level}`);
+
+      // Fetch SQA course data
+      console.log('   📚 Fetching SQA course data from sqa_education database...');
+      courseData = await fetchSQACourseData(
+        databases,
+        courseMetadata.subject,
+        courseMetadata.level
+      );
+      console.log(`   ✅ Fetched SQA data (${courseData.length} characters)`);
+
+      // Parse SOW metadata
+      console.log('   📋 Parsing SOW context metadata...');
+      sowMetadata = parseSOWMetadata(authoredSOW);
+      console.log(`   ✅ Extracted metadata:`);
+      console.log(`      Policy notes: ${sowMetadata.coherence.policy_notes.length}`);
+      console.log(`      Sequencing notes: ${sowMetadata.coherence.sequencing_notes.length}`);
+      console.log(`      Accessibility notes: ${sowMetadata.accessibility_notes.length}`);
+      console.log(`      Engagement notes: ${sowMetadata.engagement_notes.length}`);
+      console.log(`      Duration: ${sowMetadata.weeks} weeks × ${sowMetadata.periods_per_week} periods/week`);
+
+      console.log('✅ Optional context files loaded');
+      console.log('');
+    } else {
+      console.log('⚡ MINIMAL MODE: Skipping optional context files');
+      console.log('   Agent will use training knowledge for:');
+      console.log('   - Pedagogical patterns (research_pack.json)');
+      console.log('   - Course context (sow_context.json)');
+      console.log('   - SQA standards (Course_data.txt)');
+      console.log('');
+    }
+
+    // Step 4: Run lesson author agent with retry logic
     console.log('🤖 Invoking lesson_author agent with error recovery...');
     console.log(`   URL: ${LANGGRAPH_URL}`);
 
@@ -304,6 +332,7 @@ async function main() {
       resourcePack,
       sowMetadata,
       courseData,
+      isMinimal,
       LANGGRAPH_URL,
       logFile
     );
@@ -592,9 +621,10 @@ function parseSOWMetadata(authoredSOW: AuthoredSOW): SOWContextMetadata {
  */
 async function runLessonAuthorAgent(
   sowEntry: AuthoredSOWEntry,
-  resourcePack: any,
-  sowMetadata: SOWContextMetadata,
-  courseData: string,
+  resourcePack: any | null,
+  sowMetadata: SOWContextMetadata | null,
+  courseData: string | null,
+  isMinimal: boolean,
   langgraphUrl: string,
   logFilePath: string
 ): Promise<any> {
@@ -617,35 +647,70 @@ async function runLessonAuthorAgent(
     console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
 
     try {
-      // First attempt: inject all files + simple trigger message
+      // First attempt: inject files + trigger message
       // Subsequent attempts: send "continue" to resume
-      const input = attempt === 1
-        ? {
-            messages: [{
-              role: 'user',
-              content: 'Author lesson from provided input files'
-            }],
-            files: {
-              'Course_data.txt': courseData,
-              'sow_entry_input.json': JSON.stringify(sowEntry, null, 2),
-              'research_pack.json': JSON.stringify(resourcePack, null, 2),
-              'sow_context.json': JSON.stringify(sowMetadata, null, 2)
-            }
-          }
-        : { messages: [{ role: 'user', content: 'continue' }] };
+      let input: any;
 
       if (attempt === 1) {
-        logToFile(logFilePath, 'Injecting input files:');
-        logToFile(logFilePath, `  - Course_data.txt: ${courseData.length} chars`);
-        logToFile(logFilePath, `  - sow_entry_input.json: ${JSON.stringify(sowEntry).length} chars`);
-        logToFile(logFilePath, `  - research_pack.json: ${JSON.stringify(resourcePack).length} chars`);
-        logToFile(logFilePath, `  - sow_context.json: ${JSON.stringify(sowMetadata).length} chars`);
+        // Build files object - always include required file
+        const files: Record<string, string> = {
+          'sow_entry_input.json': JSON.stringify(sowEntry, null, 2)
+        };
 
-        console.log(`   ✅ Injecting 4 input files:`);
-        console.log(`      - Course_data.txt (${courseData.length} chars)`);
-        console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
-        console.log(`      - research_pack.json (${JSON.stringify(resourcePack).length} chars)`);
-        console.log(`      - sow_context.json (${JSON.stringify(sowMetadata).length} chars)`);
+        // Add optional files only if provided (not in minimal mode)
+        if (!isMinimal && courseData) {
+          files['Course_data.txt'] = courseData;
+        }
+        if (!isMinimal && resourcePack) {
+          files['research_pack.json'] = JSON.stringify(resourcePack, null, 2);
+        }
+        if (!isMinimal && sowMetadata) {
+          files['sow_context.json'] = JSON.stringify(sowMetadata, null, 2);
+        }
+
+        input = {
+          messages: [{
+            role: 'user',
+            content: isMinimal
+              ? 'Author lesson from sow_entry_input.json using your training knowledge'
+              : 'Author lesson from provided input files'
+          }],
+          files
+        };
+
+        // Log file injection
+        logToFile(logFilePath, `Injecting input files (minimal mode: ${isMinimal}):`);
+        logToFile(logFilePath, `  - sow_entry_input.json: ${JSON.stringify(sowEntry).length} chars`);
+
+        if (isMinimal) {
+          console.log(`   ⚡ MINIMAL MODE: Injecting 1 required file:`);
+          console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
+          logToFile(logFilePath, '  (Optional files skipped - using training knowledge)');
+        } else {
+          if (courseData) {
+            logToFile(logFilePath, `  - Course_data.txt: ${courseData.length} chars`);
+          }
+          if (resourcePack) {
+            logToFile(logFilePath, `  - research_pack.json: ${JSON.stringify(resourcePack).length} chars`);
+          }
+          if (sowMetadata) {
+            logToFile(logFilePath, `  - sow_context.json: ${JSON.stringify(sowMetadata).length} chars`);
+          }
+
+          console.log(`   ✅ Injecting ${Object.keys(files).length} input files:`);
+          console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
+          if (courseData) {
+            console.log(`      - Course_data.txt (${courseData.length} chars)`);
+          }
+          if (resourcePack) {
+            console.log(`      - research_pack.json (${JSON.stringify(resourcePack).length} chars)`);
+          }
+          if (sowMetadata) {
+            console.log(`      - sow_context.json (${JSON.stringify(sowMetadata).length} chars)`);
+          }
+        }
+      } else {
+        input = { messages: [{ role: 'user', content: 'continue' }] };
       }
 
       // Stream agent execution
