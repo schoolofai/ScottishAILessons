@@ -1,892 +1,703 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env tsx
 
 /**
- * Authored SOW Seeding Script (Phase 2 Refactored)
+ * Seed Authored SOW - Generate Scheme of Work using LangGraph sow_author agent
  *
- * Seeds Authored_SOW collection with lesson template placeholders and validates
- * all prerequisites exist before processing. Uses fail-fast validation approach.
- *
- * Workflow:
- * 0. Validates prerequisites (course document & course_outcomes exist)
- * 1. Validates outcome references from SOW entries
- * 2. Creates/updates lesson_templates with real outcome references
- * 3. Updates Authored_SOW entries with real template IDs
- * 4. Upserts Authored_SOW document
- * 5. Validates all template references
+ * Features:
+ * - Error recovery with automatic retry (max 10 attempts)
+ * - Thread persistence for agent continuation
+ * - Comprehensive logging to files
+ * - Exponential backoff between retries
+ * - Agent-driven SOW authoring (no lesson template creation)
  *
  * Usage:
- *   # Single file mode
- *   tsx scripts/seedAuthoredSOW.ts --sow path/to/sow.json
+ *   tsx scripts/seedAuthoredSOW.ts <courseId> <resourcePackPath>
  *
- *   # Named mode (looks in input/sows directory)
- *   tsx scripts/seedAuthoredSOW.ts --name coursename
- *
- *   # Batch mode (processes all files in input/sows)
- *   tsx scripts/seedAuthoredSOW.ts --batch
- *
- *   # With courseId override (for courses with ID length issues)
- *   tsx scripts/seedAuthoredSOW.ts --sow path/to/sow.json --course-id course_c85077
- *
- * Prerequisites (REQUIRED):
- *   ⚠️  Course and outcomes must exist before running this script!
- *   Run bulk course seeding first:
- *     $ npm run seed:courses
- *     or
- *     $ tsx scripts/bulkSeedAllCourses.ts
- *
- * Environment Variables:
- *   - NEXT_PUBLIC_APPWRITE_ENDPOINT (Appwrite API endpoint)
- *   - NEXT_PUBLIC_APPWRITE_PROJECT_ID (Appwrite project ID)
- *   - APPWRITE_API_KEY (Admin API key for server-side operations)
+ * Example:
+ *   tsx scripts/seedAuthoredSOW.ts "course_c84774" "../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt"
  */
 
+import { Client as AppwriteClient, Databases, Query } from 'node-appwrite';
+import { Client as LangGraphClient } from '@langchain/langgraph-sdk';
+import { readFile } from 'fs/promises';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Client, Databases, ID, Query } from 'node-appwrite';
-import { ServerAuthoredSOWDriver, AuthoredSOWData, AuthoredSOWEntry } from '../__tests__/support/ServerAuthoredSOWDriver';
 import * as dotenv from 'dotenv';
-import minimist from 'minimist';
-import Ajv from 'ajv';
+import { ServerAuthoredSOWDriver, AuthoredSOWData } from '../__tests__/support/ServerAuthoredSOWDriver';
 
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../.env.local') });
+// Load frontend .env.local (for Appwrite config)
+dotenv.config({ path: '.env.local' });
 
-interface SOWJSONFile {
-  $id: string;
-  courseId: string;
-  version: number | string;
-  status: 'draft' | 'published' | 'archived';
-  metadata: any;
-  entries: any[];
-}
+// Configuration
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY!;
+const LANGGRAPH_URL = process.env.LANGGRAPH_SOW_AUTHOR_URL || 'http://localhost:2027';
 
-// CLI Argument Interfaces
-interface CLIArgs {
-  mode: 'single' | 'named' | 'batch';
-  sowFile?: string;
-  name?: string;
-  inputDir?: string;
-  validate?: boolean;
-  courseId?: string;
-}
+const DATABASE_ID = 'default';
+const AUTHORED_SOW_COLLECTION = 'Authored_SOW';
 
-interface SOWFile {
-  sowFile: string;
-  name: string;
-  subject: string;
-  level: string;
-}
+async function main() {
+  // Parse command line arguments (filter out flags)
+  const positionalArgs = process.argv.slice(2).filter(arg => !arg.startsWith('--'));
+  const [courseId, resourcePackPath] = positionalArgs;
 
-interface ValidationResult {
-  valid: boolean;
-  errors: any[];
-  warnings?: string[];
-}
-
-interface BatchResult {
-  name: string;
-  status: 'success' | 'failed';
-  error?: string;
-}
-
-/**
- * Normalize outcome ID to standard format (e.g., "1" -> "O1", "O1" -> "O1")
- */
-function normalizeOutcomeId(outcomeId: string): string {
-  // If it's just a number, add "O" prefix
-  if (/^\d+$/.test(outcomeId)) {
-    return `O${outcomeId}`;
-  }
-  return outcomeId;
-}
-
-/**
- * Validate all prerequisites exist before attempting SOW seeding
- *
- * This function replaces the old ensureCourseExists(), extractOutcomesFromSQA(),
- * and populateCourseOutcomes() functions with a fail-fast validation approach.
- *
- * @param databases - Appwrite Databases instance
- * @param courseId - Course ID to validate (format: course_<code>)
- * @throws Error with actionable message if prerequisites are missing
- */
-async function validatePrerequisites(
-  databases: Databases,
-  courseId: string
-): Promise<void> {
-  console.log('\n🔍 Validating prerequisites...\n');
-
-  // Check 1: Verify course document exists
-  console.log('  ✓ Checking course document...');
-  const courseCheck = await databases.listDocuments(
-    'default',
-    'courses',
-    [Query.equal('courseId', courseId), Query.limit(1)]
-  );
-
-  if (courseCheck.documents.length === 0) {
-    throw new Error(
-      `❌ PREREQUISITE MISSING: Course "${courseId}" not found in courses collection.\n\n` +
-      `💡 ACTION REQUIRED:\n` +
-      `   Run the bulk course seeding script first:\n` +
-      `   $ npm run seed:courses\n` +
-      `   or\n` +
-      `   $ tsx scripts/bulkSeedAllCourses.ts\n\n` +
-      `This will create all course documents and their outcomes from the SQA database.`
-    );
+  if (!courseId || !resourcePackPath) {
+    console.error('Usage: tsx seedAuthoredSOW.ts <courseId> <resourcePackPath>');
+    console.error('');
+    console.error('Arguments:');
+    console.error('  courseId         - Course identifier (e.g., "course_c84774")');
+    console.error('  resourcePackPath - Path to research pack JSON file');
+    console.error('');
+    console.error('Example:');
+    console.error('  tsx scripts/seedAuthoredSOW.ts "course_c84774" "../langgraph-author-agent/data/research_pack_json_AOM_nat3.txt"');
+    process.exit(1);
   }
 
-  console.log(`    ✅ Course document exists: ${courseId}`);
-
-  // Check 2: Verify course_outcomes are populated
-  console.log('  ✓ Checking course outcomes...');
-  const outcomesCheck = await databases.listDocuments(
-    'default',
-    'course_outcomes',
-    [Query.equal('courseId', courseId), Query.limit(1)]
-  );
-
-  if (outcomesCheck.documents.length === 0) {
-    throw new Error(
-      `❌ PREREQUISITE MISSING: No course_outcomes found for course "${courseId}".\n\n` +
-      `💡 ACTION REQUIRED:\n` +
-      `   The course document exists but has no outcomes populated.\n` +
-      `   Run the bulk course seeding script to populate outcomes:\n` +
-      `   $ npm run seed:courses\n` +
-      `   or\n` +
-      `   $ tsx scripts/bulkSeedAllCourses.ts\n\n` +
-      `The bulk seeding script will extract outcomes from the SQA database\n` +
-      `and populate the course_outcomes collection for this course.`
-    );
-  }
-
-  // Get actual count of outcomes for informational purposes
-  const outcomesCount = await databases.listDocuments(
-    'default',
-    'course_outcomes',
-    [Query.equal('courseId', courseId)]
-  );
-
-  console.log(`    ✅ Course outcomes populated: ${outcomesCount.total} outcomes found`);
-  console.log('\n✅ All prerequisites validated successfully!\n');
-}
-
-/**
- * Validate all outcome references exist in course_outcomes collection
- */
-async function validateOutcomeReferences(
-  databases: Databases,
-  entries: AuthoredSOWEntry[],
-  courseId: string
-): Promise<void> {
-  console.log('\n🔍 Validating outcome references...\n');
-
-  // Collect all unique outcome IDs from SOW entries (normalized)
-  const allOutcomeIds = new Set<string>();
-  entries.forEach(entry => {
-    (entry.outcomeRefs || []).forEach(outcomeId => {
-      allOutcomeIds.add(normalizeOutcomeId(outcomeId));
-    });
-  });
-
-  console.log(`   Found ${allOutcomeIds.size} unique outcome references\n`);
-
-  let validCount = 0;
-  let invalidRefs: string[] = [];
-
-  // Validate each outcome ID exists in course_outcomes
-  for (const outcomeId of allOutcomeIds) {
-    try {
-      const result = await databases.listDocuments(
-        'default',
-        'course_outcomes',
-        [
-          Query.equal('courseId', courseId),
-          Query.equal('outcomeId', outcomeId),
-          Query.limit(1)
-        ]
-      );
-
-      if (result.documents.length === 0) {
-        invalidRefs.push(outcomeId);
-        console.error(`  ❌ ${outcomeId}: Not found in course_outcomes`);
-      } else {
-        validCount++;
-        console.log(`  ✅ ${outcomeId}: ${result.documents[0].outcomeTitle}`);
-      }
-    } catch (error: any) {
-      invalidRefs.push(outcomeId);
-      console.error(`  ❌ ${outcomeId}: Query error - ${error.message}`);
-    }
-  }
-
+  console.log('🚀 Starting SOW Authoring Pipeline');
+  console.log('=====================================');
+  console.log(`Course ID: ${courseId}`);
+  console.log(`Resource Pack: ${resourcePackPath}`);
   console.log('');
 
-  if (invalidRefs.length > 0) {
-    throw new Error(
-      `❌ Invalid outcome references found:\n` +
-      invalidRefs.map(id => `  - ${id}`).join('\n') +
-      `\n\n💡 Please ensure course_outcomes collection has been populated with migrateCourseOutcomes.ts`
-    );
-  }
-
-  console.log(`  ✅ All ${validCount} outcome references validated\n`);
-}
-
-/**
- * Map outcome IDs (e.g., "O1" or "1") to course_outcomes document IDs
- */
-async function mapOutcomeIdsToDocumentIds(
-  databases: Databases,
-  outcomeIds: string[],
-  courseId: string
-): Promise<string[]> {
-  const documentIds: string[] = [];
-
-  for (const outcomeId of outcomeIds) {
-    // Normalize outcome ID (e.g., "1" -> "O1")
-    const normalizedOutcomeId = normalizeOutcomeId(outcomeId);
-
-    const result = await databases.listDocuments(
-      'default',
-      'course_outcomes',
-      [
-        Query.equal('courseId', courseId),
-        Query.equal('outcomeId', normalizedOutcomeId),
-        Query.limit(1)
-      ]
-    );
-
-    if (result.documents.length === 0) {
-      throw new Error(
-        `❌ Outcome ${outcomeId} (normalized: ${normalizedOutcomeId}) not found in course_outcomes for course ${courseId}. ` +
-        `This should have been caught by validation.`
-      );
-    }
-
-    documentIds.push(result.documents[0].$id);
-  }
-
-  return documentIds;
-}
-
-/**
- * Create or update lesson template placeholders for each Authored_SOW entry
- * Returns a map of old placeholder refs to actual document IDs
- */
-async function createOrUpdateLessonTemplates(
-  databases: Databases,
-  entries: AuthoredSOWEntry[],
-  courseId: string
-): Promise<Map<string, string>> {
-  const referenceMap = new Map<string, string>();
-
-  console.log('\n📝 Creating lesson template placeholders...');
-  console.log(`   Total entries to process: ${entries.length}\n`);
-
-  let createdCount = 0;
-  let updatedCount = 0;
-
-  for (const entry of entries) {
-    const oldRef = entry.lessonTemplateRef; // e.g., "AUTO_TBD_1"
-
-    // Map outcome IDs to real course_outcomes document IDs
-    const outcomeDocumentIds = await mapOutcomeIdsToDocumentIds(
-      databases,
-      entry.outcomeRefs || [],
-      courseId
-    );
-
-    // Create template data with Phase 3 MVP2.5 fields
-    const templateData: any = {
-      title: entry.label,
-      courseId: courseId,
-      sow_order: entry.order, // ✅ SOW entry order for deterministic identification
-      outcomeRefs: JSON.stringify(outcomeDocumentIds), // ✅ Real document IDs!
-      cards: JSON.stringify([]), // Empty placeholder - to be populated later
-      version: 1,
-      status: 'draft',
-      createdBy: 'sow_author_agent', // Required field
-      // Phase 3 pedagogy fields
-      lesson_type: entry.lesson_type || 'teach',
-      estMinutes: entry.estMinutes || 50,
-      engagement_tags: JSON.stringify(entry.engagement_tags || []),
-      policy: JSON.stringify(entry.policy || {})
-    };
-
-    try {
-      // Check if template already exists with this courseId + sow_order
-      // sow_order is deterministic and stable even if titles change
-      let existing = await databases.listDocuments(
-        'default',
-        'lesson_templates',
-        [
-          Query.equal('courseId', courseId),
-          Query.equal('sow_order', entry.order),
-          Query.limit(1)
-        ]
-      );
-
-      // MIGRATION: Fall back to title-based lookup for old templates without sow_order
-      if (existing.documents.length === 0) {
-        existing = await databases.listDocuments(
-          'default',
-          'lesson_templates',
-          [
-            Query.equal('courseId', courseId),
-            Query.equal('title', entry.label),
-            Query.limit(1)
-          ]
-        );
-      }
-
-      let templateDoc;
-      if (existing.documents.length > 0) {
-        // Update existing template (either found by sow_order or title)
-        templateDoc = await databases.updateDocument(
-          'default',
-          'lesson_templates',
-          existing.documents[0].$id,
-          templateData
-        );
-        updatedCount++;
-        console.log(`  ✅ Updated #${entry.order}: ${entry.label} (${templateDoc.$id})`);
-      } else {
-        // Create new template with admin permissions
-        templateDoc = await databases.createDocument(
-          'default',
-          'lesson_templates',
-          ID.unique(),
-          templateData
-          // No permissions parameter - admin API key has full access
-        );
-        createdCount++;
-        console.log(`  ✅ Created #${entry.order}: ${entry.label} (${templateDoc.$id})`);
-      }
-
-      // Store mapping: old placeholder → real document ID
-      referenceMap.set(oldRef, templateDoc.$id);
-
-    } catch (error: any) {
-      console.error(`  ❌ Failed to process entry #${entry.order}: ${entry.label}`);
-      console.error(`     Error: ${error.message}`);
-      throw error;
-    }
-  }
-
-  console.log(`\n📊 Template Creation Summary:`);
-  console.log(`   Created: ${createdCount}`);
-  console.log(`   Updated: ${updatedCount}`);
-  console.log(`   Total: ${referenceMap.size}`);
-
-  return referenceMap;
-}
-
-/**
- * Update Authored_SOW entries with real template IDs
- */
-async function updateEntriesWithTemplateRefs(
-  entries: AuthoredSOWEntry[],
-  referenceMap: Map<string, string>
-): Promise<AuthoredSOWEntry[]> {
-
-  console.log('\n🔗 Updating Authored_SOW entries with real template IDs...\n');
-
-  const updatedEntries = entries.map((entry) => {
-    const realTemplateId = referenceMap.get(entry.lessonTemplateRef);
-
-    if (!realTemplateId) {
-      throw new Error(
-        `Missing template ID mapping for entry: ${entry.label} ` +
-        `(placeholder ref: ${entry.lessonTemplateRef})`
-      );
-    }
-
-    const oldRef = entry.lessonTemplateRef.substring(0, 15) + '...'; // Truncate for display
-    const newRef = realTemplateId.substring(0, 15) + '...';
-    console.log(`  #${entry.order.toString().padStart(3, ' ')}. ${entry.label.padEnd(40, ' ')} ${oldRef} → ${newRef}`);
-
-    return {
-      ...entry,
-      lessonTemplateRef: realTemplateId // Replace placeholder with real ID!
-    };
-  });
-
-  console.log(`\n✅ ${updatedEntries.length} entries updated with real template IDs`);
-
-  return updatedEntries;
-}
-
-/**
- * Validate all template references
- * - Check uniqueness of all IDs
- * - Verify all templates exist in database
- * - Validate title matching (warning only)
- */
-async function validateTemplateReferences(
-  databases: Databases,
-  entries: AuthoredSOWEntry[]
-): Promise<void> {
-
-  console.log('\n✅ Validating template references...\n');
-
-  const templateIds = entries.map(e => e.lessonTemplateRef);
-
-  // Check 1: All IDs are unique
-  const uniqueIds = new Set(templateIds);
-  if (uniqueIds.size !== templateIds.length) {
-    const duplicates = templateIds.filter((id, idx) =>
-      templateIds.indexOf(id) !== idx
-    );
-    throw new Error(
-      `Duplicate template references found:\n` +
-      duplicates.map(id => `  - ${id}`).join('\n')
-    );
-  }
-  console.log(`  ✅ Uniqueness Check: All ${uniqueIds.size} template IDs are unique`);
-
-  // Check 2: All referenced templates exist
-  let validCount = 0;
-  let invalidRefs: string[] = [];
-
-  for (const entry of entries) {
-    try {
-      await databases.getDocument(
-        'default',
-        'lesson_templates',
-        entry.lessonTemplateRef
-      );
-      validCount++;
-    } catch (error) {
-      invalidRefs.push(`#${entry.order} ${entry.label}: ${entry.lessonTemplateRef}`);
-    }
-  }
-
-  if (invalidRefs.length > 0) {
-    throw new Error(
-      `Invalid template references (documents don't exist):\n` +
-      invalidRefs.map(r => `  - ${r}`).join('\n')
-    );
-  }
-
-  console.log(`  ✅ Existence Check: All ${validCount} templates exist in database`);
-
-  // Check 3: Verify titles match (warning only)
-  let titleMismatches = 0;
-  for (const entry of entries) {
-    const template = await databases.getDocument(
-      'default',
-      'lesson_templates',
-      entry.lessonTemplateRef
-    );
-
-    if (template.title !== entry.label) {
-      console.warn(
-        `  ⚠️  Title mismatch #${entry.order}: "${entry.label}" (SOW) vs "${template.title}" (template)`
-      );
-      titleMismatches++;
-    }
-  }
-
-  if (titleMismatches === 0) {
-    console.log(`  ✅ Title Matching: All titles match perfectly`);
-  } else {
-    console.log(`  ⚠️  Title Matching: ${titleMismatches} mismatches found (non-critical)`);
-  }
-
-  console.log('\n🎉 Validation Complete: All critical checks passed!\n');
-}
-
-/**
- * Parse CLI arguments
- */
-function parseCLIArgs(): CLIArgs {
-  const args = minimist(process.argv.slice(2));
-
-  // Parse courseId if provided (used for all modes)
-  const courseId = args['course-id'] || undefined;
-
-  // Determine mode
-  if (args.batch) {
-    return {
-      mode: 'batch',
-      inputDir: args['input-dir'],
-      validate: args.validate || false,
-      courseId
-    };
-  } else if (args.name) {
-    return {
-      mode: 'named',
-      name: args.name,
-      inputDir: args['input-dir'],
-      courseId
-    };
-  } else if (args.sow) {
-    return {
-      mode: 'single',
-      sowFile: args.sow,
-      courseId
-    };
-  } else {
-    // Default to batch mode
-    return {
-      mode: 'batch',
-      validate: false,
-      courseId
-    };
-  }
-}
-
-/**
- * Validate directory structure
- */
-function validateDirectoryStructure(baseDir: string): ValidationResult {
-  const required = [
-    'input/sows',
-    'output/logs',
-    'output/reports'
-  ];
-
-  const errors: string[] = [];
-
-  for (const dir of required) {
-    const fullPath = path.join(baseDir, dir);
-    if (!fs.existsSync(fullPath)) {
-      errors.push(`Missing required directory: ${dir}`);
-    }
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors
-  };
-}
-
-/**
- * Validate SOW file using JSON schema
- */
-async function validateSOWFile(filePath: string): Promise<ValidationResult> {
-  const ajv = new Ajv();
-
-  const schema = {
-    type: 'object',
-    required: ['$id', 'courseId', 'version', 'status', 'metadata', 'entries'],
-    properties: {
-      $id: { type: 'string' },
-      courseId: { type: 'string', pattern: '^course_[a-z0-9]+$' },
-      version: { type: ['number', 'string'], minimum: 1 },
-      status: { enum: ['draft', 'published', 'archived'] },
-      metadata: { type: 'object' },
-      entries: {
-        type: 'array',
-        minItems: 1,
-        items: {
-          type: 'object',
-          required: ['order', 'lessonTemplateRef', 'label', 'outcomeRefs'],
-          properties: {
-            order: { type: 'number' },
-            lessonTemplateRef: { type: 'string' },
-            label: { type: 'string', minLength: 1 },
-            outcomeRefs: { type: 'array', items: { type: 'string' } },
-            assessmentStandardRefs: { type: 'array' }
-          }
-        }
-      }
-    }
-  };
-
-  const validate = ajv.compile(schema);
-
-  try {
-    const content = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    const valid = validate(content);
-
-    return {
-      valid: !!valid,
-      errors: validate.errors || []
-    };
-  } catch (error: any) {
-    return {
-      valid: false,
-      errors: [{ message: `JSON parse error: ${error.message}` }]
-    };
-  }
-}
-
-/**
- * Discover SOW files in input directory
- */
-function discoverSOWFiles(inputDir: string): SOWFile[] {
-  const sowsDir = path.join(inputDir, 'input/sows');
-
-  const sowFiles = fs.readdirSync(sowsDir)
-    .filter(f => f.endsWith('.json'));
-
-  return sowFiles.map(sowFile => {
-    const name = sowFile.replace('.json', '');
-    const parts = name.split('_');
-    const subject = parts[0];
-    const level = parts.slice(1).join('_');
-
-    return {
-      sowFile: path.join(sowsDir, sowFile),
-      name,
-      subject,
-      level
-    };
-  });
-}
-
-/**
- * Generate batch processing report
- */
-function generateBatchReport(results: BatchResult[], inputDir: string): void {
-  const reportFile = path.join(inputDir, 'output/reports', `batch-report-${Date.now()}.json`);
-
-  const report = {
-    timestamp: new Date().toISOString(),
-    total: results.length,
-    successful: results.filter(r => r.status === 'success').length,
-    failed: results.filter(r => r.status === 'failed').length,
-    results
-  };
-
-  fs.writeFileSync(reportFile, JSON.stringify(report, null, 2));
-
-  console.log(`\n📊 Batch Summary:`);
-  console.log(`   Total: ${report.total}`);
-  console.log(`   ✅ Successful: ${report.successful}`);
-  console.log(`   ❌ Failed: ${report.failed}`);
-  console.log(`\n📁 Report saved: ${reportFile}`);
-}
-
-/**
- * Process batch of SOW files
- */
-async function processBatch(inputDir: string, validateOnly: boolean = false, courseId?: string): Promise<BatchResult[]> {
-  const sowFiles = discoverSOWFiles(inputDir);
-
-  console.log(`\n📦 Batch Processing: ${sowFiles.length} SOW files found\n`);
-
-  const results: BatchResult[] = [];
-
-  for (const sow of sowFiles) {
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`Processing: ${sow.name}`);
-    console.log(`${'='.repeat(60)}\n`);
-
-    try {
-      // Validate
-      const validation = await validateSOWFile(sow.sowFile);
-      if (!validation.valid) {
-        throw new Error(`Validation failed: ${JSON.stringify(validation.errors)}`);
-      }
-
-      if (!validateOnly) {
-        // Seed
-        await seedSingleSOW(sow.sowFile, courseId);
-      } else {
-        console.log('✅ Validation passed (dry-run mode, no database writes)');
-      }
-
-      results.push({ name: sow.name, status: 'success' });
-    } catch (error: any) {
-      console.error(`❌ Failed to process ${sow.name}:`, error.message);
-      results.push({ name: sow.name, status: 'failed', error: error.message });
-    }
-  }
-
-  // Generate summary report
-  generateBatchReport(results, inputDir);
-
-  return results;
-}
-
-async function seedSingleSOW(sowFilePath: string, courseIdOverride?: string): Promise<void> {
-  console.log('🌱 Starting Authored_SOW seed script...\n');
-
   // Validate environment variables
-  const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
-  const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
-  const apiKey = process.env.APPWRITE_API_KEY;
-
-  if (!endpoint || !projectId || !apiKey) {
+  if (!APPWRITE_ENDPOINT || !APPWRITE_PROJECT_ID || !APPWRITE_API_KEY) {
     console.error('❌ Missing required environment variables:');
-    if (!endpoint) console.error('  - NEXT_PUBLIC_APPWRITE_ENDPOINT');
-    if (!projectId) console.error('  - NEXT_PUBLIC_APPWRITE_PROJECT_ID');
-    if (!apiKey) console.error('  - APPWRITE_API_KEY');
+    if (!APPWRITE_ENDPOINT) console.error('  - NEXT_PUBLIC_APPWRITE_ENDPOINT');
+    if (!APPWRITE_PROJECT_ID) console.error('  - NEXT_PUBLIC_APPWRITE_PROJECT_ID');
+    if (!APPWRITE_API_KEY) console.error('  - APPWRITE_API_KEY');
     process.exit(1);
   }
 
   console.log('✅ Environment variables validated');
-  console.log(`   Endpoint: ${endpoint}`);
-  console.log(`   Project: ${projectId}\n`);
+  console.log(`   Endpoint: ${APPWRITE_ENDPOINT}`);
+  console.log(`   Project: ${APPWRITE_PROJECT_ID}`);
+  console.log('');
 
-  // Create admin client with API key
-  const adminClient = new Client()
-    .setEndpoint(endpoint)
-    .setProject(projectId)
-    .setKey(apiKey);
+  // Initialize Appwrite client
+  const appwriteClient = new AppwriteClient()
+    .setEndpoint(APPWRITE_ENDPOINT)
+    .setProject(APPWRITE_PROJECT_ID)
+    .setKey(APPWRITE_API_KEY);
 
-  const databases = new Databases(adminClient);
-
-  console.log('✅ Admin client created with API key authentication\n');
-
-  // Initialize server driver with admin client
-  const sowDriver = new ServerAuthoredSOWDriver({
-    client: adminClient,
-    account: null as any,
-    databases
-  });
-
-  console.log('✅ ServerAuthoredSOWDriver initialized\n');
-
-  // Read the SOW file from provided path
-  console.log(`📖 Reading SOW data from: ${sowFilePath}`);
-
-  if (!fs.existsSync(sowFilePath)) {
-    throw new Error(`File not found: ${sowFilePath}`);
-  }
-
-  const fileContent = fs.readFileSync(sowFilePath, 'utf-8');
-  const sowData: SOWJSONFile = JSON.parse(fileContent);
-
-  // Use courseIdOverride if provided, otherwise use from SOW data
-  const courseId = courseIdOverride || sowData.courseId;
-
-  console.log(`✅ Successfully loaded SOW data for course: ${courseId}`);
-  console.log(`   Version: ${sowData.version}`);
-  console.log(`   Status: ${sowData.status}`);
-  console.log(`   Entries: ${sowData.entries.length} lessons\n`);
-
-  // ============================================================
-  // PHASE 0: Validate Prerequisites
-  // ============================================================
-  await validatePrerequisites(databases, courseId);
-
-  // ============================================================
-  // PHASE 1: Validate Outcome References
-  // ============================================================
-  console.log('📦 PHASE 1: Validate Outcome References');
-  await validateOutcomeReferences(databases, sowData.entries, courseId);
-
-  // ============================================================
-  // PHASE 2: Create/Update Lesson Template Placeholders
-  // ============================================================
-  const referenceMap = await createOrUpdateLessonTemplates(
-    databases,
-    sowData.entries,
-    courseId
-  );
-
-  // ============================================================
-  // PHASE 3: Update Authored_SOW Entries with Real Template IDs
-  // ============================================================
-  const updatedEntries = await updateEntriesWithTemplateRefs(
-    sowData.entries,
-    referenceMap
-  );
-
-  // ============================================================
-  // PHASE 4: Prepare and Upsert Authored_SOW Data
-  // ============================================================
-  const authoredSOWData: AuthoredSOWData = {
-    courseId: courseId,
-    version: String(sowData.version), // Ensure version is string
-    status: sowData.status,
-    entries: updatedEntries, // Use entries with real template IDs!
-    metadata: {
-      ...sowData.metadata,
-      total_lessons: updatedEntries.length,
-      total_estimated_minutes: updatedEntries.reduce((sum, entry) => sum + (entry.estMinutes || 0), 0),
-      generated_at: new Date().toISOString(),
-      author_agent_version: '1.0'
-    },
-    accessibility_notes: Array.isArray(sowData.metadata.accessibility_notes)
-      ? sowData.metadata.accessibility_notes.join('\n')
-      : sowData.metadata.accessibility_notes || ''
-  };
-
-  console.log('\n📊 Transformed data summary:');
-  console.log(`   Total lessons: ${authoredSOWData.metadata.total_lessons}`);
-  console.log(`   Total estimated minutes: ${authoredSOWData.metadata.total_estimated_minutes}`);
-  console.log(`   Accessibility notes: ${authoredSOWData.accessibility_notes ? 'Yes' : 'No'}`);
+  const databases = new Databases(appwriteClient);
 
   try {
-    console.log('\n💾 Upserting to Authored_SOW collection...');
+    // Step 1: Get course metadata
+    console.log('📚 Fetching course metadata...');
+    const course = await getCourseMetadata(databases, courseId);
+    console.log(`✅ Found course: ${course.title}`);
+    console.log(`   Subject: ${course.subject}`);
+    console.log(`   Level: ${course.level}`);
+    console.log('');
 
-    const result = await sowDriver.upsertAuthoredSOW(authoredSOWData);
+    // Step 2: Fetch SQA course data
+    console.log('📚 Fetching SQA course data from sqa_education database...');
+    const courseDataTxt = await fetchSQACourseData(
+      databases,
+      course.subject,
+      course.level
+    );
+    console.log(`✅ Fetched SQA data (${courseDataTxt.length} characters)`);
+    console.log('');
 
-    console.log('\n✅ Successfully seeded Authored_SOW!');
-    console.log(`   Document ID: ${result.$id}`);
-    console.log(`   Course ID: ${result.courseId}`);
-    console.log(`   Version: ${result.version}`);
-    console.log(`   Status: ${result.status}`);
-    console.log(`   Created At: ${result.$createdAt}`);
-    console.log(`   Updated At: ${result.$updatedAt}`);
+    // Step 3: Load resource pack
+    console.log('📂 Loading resource pack...');
+    const resourcePack = await loadResourcePack(resourcePackPath);
+    console.log(`✅ Loaded resource pack (version ${resourcePack.research_pack_version})`);
+    console.log('');
 
-    // Parse and display entry count
-    const entries = JSON.parse(result.entries);
-    console.log(`   Entries stored: ${entries.length} lessons`);
+    // Step 4: Create log file
+    const logDir = path.join(__dirname, '../logs/sow-authoring');
+    fs.mkdirSync(logDir, { recursive: true });
+    const logFile = path.join(
+      logDir,
+      `sow_${courseId}_${Date.now()}.log`
+    );
+    console.log(`   Log file: ${logFile}`);
+    console.log('');
 
-    // ============================================================
-    // PHASE 5: Validate All Template References
-    // ============================================================
-    await validateTemplateReferences(databases, updatedEntries);
+    // Step 5: Run SOW author agent with retry logic
+    console.log('🤖 Invoking sow_author agent with error recovery...');
+    console.log(`   URL: ${LANGGRAPH_URL}`);
+    console.log('');
 
-    console.log('=' .repeat(60));
-    console.log('🎉 Seed script completed successfully!');
-    console.log('=' .repeat(60));
-    console.log('\n📊 Final Summary:');
-    console.log(`   ✅ Lesson templates: ${referenceMap.size} created/updated`);
-    console.log(`   ✅ Authored_SOW: 1 document upserted`);
-    console.log(`   ✅ Template references: All validated`);
-    console.log(`   ✅ Total lessons: ${entries.length}`);
+    const { threadId, sowData, criticResult } = await runSOWAuthorAgent(
+      courseDataTxt,
+      resourcePack,
+      LANGGRAPH_URL,
+      logFile
+    );
+
+    // ═════════════════════════════════════════════════════════════════
+    // STEP 5A: Write output files BEFORE database operations
+    // Files are preserved for debugging even if database operations fail
+    // ═════════════════════════════════════════════════════════════════
+    console.log('📝 Writing output files (saved before database operations)...');
+    const outputFilePath = writeSOWToFile(threadId, sowData, courseId);
+    console.log(`✅ SOW written to: ${outputFilePath}`);
+
+    // Write critic result to output file if available
+    let criticFilePath: string | null = null;
+    if (criticResult) {
+      criticFilePath = writeCriticResultToFile(threadId, criticResult, courseId);
+      if (criticFilePath) {
+        console.log(`✅ Critic result written to: ${criticFilePath}`);
+      }
+    } else {
+      console.log(`ℹ️  No critic result found in thread state`);
+    }
+
+    console.log('');
+    console.log('✅ Files saved successfully - preserved for debugging');
+    console.log('✅ SOW generated successfully');
+    console.log(`   Entries: ${sowData.entries.length} lessons`);
+    console.log('   Thread ID: ' + threadId);
+    console.log('');
+
+    // ═════════════════════════════════════════════════════════════════
+    // STEP 6-7: Database operations (files already saved above)
+    // ═════════════════════════════════════════════════════════════════
+    try {
+      // Step 6: Enrich metadata
+      console.log('📊 Enriching metadata for database...');
+      const enrichedMetadata = enrichSOWMetadata(sowData, course);
+      console.log('✅ Metadata enriched');
+      console.log(`   Total lessons: ${enrichedMetadata.total_lessons}`);
+      console.log(`   Total estimated minutes: ${enrichedMetadata.total_estimated_minutes}`);
+      console.log('');
+
+      // Step 7: Upsert to database
+      const result = await upsertSOWToDatabase(
+        databases,
+        sowData,
+        enrichedMetadata,
+        appwriteClient
+      );
+
+      console.log('=====================================');
+      console.log('🎉 SUCCESS! SOW authored and saved');
+      console.log('=====================================');
+    } catch (dbError: any) {
+      console.error('');
+      console.error('=====================================');
+      console.error('⚠️  DATABASE OPERATION FAILED');
+      console.error('=====================================');
+      console.error(`Error: ${dbError.message}`);
+      console.error('');
+      console.error('📁 Output files were saved successfully and are available for debugging:');
+      console.error(`   SOW file: ${outputFilePath}`);
+      if (criticFilePath) {
+        console.error(`   Critic file: ${criticFilePath}`);
+      }
+      console.error(`   Log file: ${logFile}`);
+      console.error(`   Thread ID: ${threadId}`);
+      console.error('');
+      throw dbError; // Re-throw to maintain fail-fast behavior
+    }
 
   } catch (error) {
-    console.error('\n❌ Failed to seed Authored_SOW:');
+    console.error('');
+    console.error('=====================================');
+    console.error('❌ ERROR: SOW authoring failed');
+    console.error('=====================================');
     console.error(error);
     process.exit(1);
   }
 }
 
 /**
- * Main entry point - routes to appropriate mode based on CLI arguments
+ * Fetch course metadata from courses collection
  */
-async function main() {
-  const args = parseCLIArgs();
+async function getCourseMetadata(
+  databases: Databases,
+  courseId: string
+): Promise<{ subject: string; level: string; title: string; courseId: string }> {
+  const response = await databases.listDocuments(
+    'default',
+    'courses',
+    [Query.equal('courseId', courseId)]
+  );
 
-  // Set default input directory
-  const defaultInputDir = path.join(__dirname, '../../langgraph-author-agent/data/Seeding_Data');
-  const inputDir = args.inputDir || defaultInputDir;
-
-  // Validate directory structure
-  const dirValidation = validateDirectoryStructure(inputDir);
-  if (!dirValidation.valid) {
-    console.error('❌ Invalid directory structure:');
-    dirValidation.errors.forEach(err => console.error(`   - ${err}`));
-    process.exit(1);
+  if (response.documents.length === 0) {
+    throw new Error(`No course found with courseId: ${courseId}`);
   }
 
-  // Route to appropriate mode
-  if (args.mode === 'batch') {
-    await processBatch(inputDir, args.validate || false, args.courseId);
-  } else if (args.mode === 'named') {
-    const sowFile = path.join(inputDir, 'input/sows', `${args.name}.json`);
-    await seedSingleSOW(sowFile, args.courseId);
-  } else {
-    await seedSingleSOW(args.sowFile!, args.courseId);
+  const course = response.documents[0];
+
+  if (!course.subject || !course.level) {
+    throw new Error(`Course ${courseId} missing subject or level fields`);
+  }
+
+  return {
+    courseId: course.courseId,
+    subject: course.subject,
+    level: course.level,
+    title: course.title || `${course.subject} ${course.level}`
+  };
+}
+
+/**
+ * Normalize subject and level from courses collection format to sqa_current collection format
+ * - Converts hyphens to underscores
+ * - Handles special case: "application-of-mathematics" → "applications_of_mathematics"
+ */
+function normalizeSQAQueryValues(subject: string, level: string): { subject: string; level: string } {
+  let normalizedSubject = subject.replace(/-/g, '_');
+  let normalizedLevel = level.replace(/-/g, '_');
+
+  // Special case: plural form for applications of mathematics
+  if (normalizedSubject === 'application_of_mathematics') {
+    normalizedSubject = 'applications_of_mathematics';
+  }
+
+  return {
+    subject: normalizedSubject,
+    level: normalizedLevel
+  };
+}
+
+/**
+ * Fetch SQA course data from sqa_current collection in sqa_education database
+ */
+async function fetchSQACourseData(
+  databases: Databases,
+  subject: string,
+  level: string
+): Promise<string> {
+  const normalized = normalizeSQAQueryValues(subject, level);
+
+  console.log(`   Normalized: "${subject}" → "${normalized.subject}", "${level}" → "${normalized.level}"`);
+
+  const response = await databases.listDocuments(
+    'sqa_education',
+    'sqa_current',
+    [
+      Query.equal('subject', normalized.subject),
+      Query.equal('level', normalized.level)
+    ]
+  );
+
+  if (response.documents.length === 0) {
+    throw new Error(
+      `No SQA data found for subject="${normalized.subject}" level="${normalized.level}" ` +
+      `(original: subject="${subject}" level="${level}")`
+    );
+  }
+
+  const sqaDoc = response.documents[0];
+  const data = sqaDoc.data;
+
+  // Return as string (data field contains JSON string or object)
+  return typeof data === 'string' ? data : JSON.stringify(data);
+}
+
+/**
+ * Load resource pack from file path
+ */
+async function loadResourcePack(filePath: string): Promise<any> {
+  try {
+    const content = await readFile(filePath, 'utf-8');
+    const pack = JSON.parse(content);
+
+    // Validate schema version
+    if (!pack.research_pack_version || pack.research_pack_version !== 3) {
+      throw new Error(
+        `Invalid research pack version. Expected 3, got ${pack.research_pack_version}`
+      );
+    }
+
+    // Validate required fields
+    const requiredFields = ['subject', 'level', 'exemplars_from_sources', 'distilled_data'];
+    for (const field of requiredFields) {
+      if (!pack[field]) {
+        throw new Error(`Research pack missing required field: ${field}`);
+      }
+    }
+
+    return pack;
+  } catch (error: any) {
+    if (error.code === 'ENOENT') {
+      throw new Error(`Research pack file not found: ${filePath}`);
+    }
+    throw new Error(`Failed to load resource pack from ${filePath}: ${error.message}`);
   }
 }
 
-// Run the seed script
-main()
-  .then(() => {
-    console.log('\n👋 Exiting...');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('\n❌ Unexpected error:');
-    console.error(error);
-    process.exit(1);
+/**
+ * Run SOW author agent with error recovery and retry logic
+ *
+ * Strategy:
+ * - Maintain same threadId across retries for state continuity
+ * - Pre-inject all input files into thread state before first run
+ * - Send simple trigger message on first run, "continue" on retries
+ * - Log all attempts and errors for debugging
+ * - Maximum 10 retry attempts before failing
+ * - Exponential backoff between retries
+ */
+async function runSOWAuthorAgent(
+  courseDataTxt: string,
+  resourcePack: any,
+  langgraphUrl: string,
+  logFilePath: string
+): Promise<any> {
+  const client = new LangGraphClient({ apiUrl: langgraphUrl });
+  const MAX_RETRIES = 10;
+
+  // Create thread once - reuse across retries
+  const thread = await client.threads.create();
+  const threadId = thread.thread_id;
+
+  logToFile(logFilePath, `Thread created: ${threadId}`);
+  console.log(`   Thread ID: ${threadId}`);
+
+  let attempt = 0;
+  let lastError: Error | null = null;
+
+  while (attempt < MAX_RETRIES) {
+    attempt++;
+    logToFile(logFilePath, `\n=== Attempt ${attempt}/${MAX_RETRIES} ===`);
+    console.log(`\n🔄 Attempt ${attempt}/${MAX_RETRIES}...`);
+
+    try {
+      // First attempt: inject files + trigger message
+      // Subsequent attempts: send "continue" to resume
+      let input: any;
+
+      if (attempt === 1) {
+        // Build files object for first attempt
+        const files: Record<string, string> = {
+          'Course_data.txt': courseDataTxt,
+          'research_pack_json': JSON.stringify(resourcePack, null, 2)
+        };
+
+        input = {
+          messages: [{
+            role: 'user',
+            content: 'Author SOW from provided input files'
+          }],
+          files
+        };
+
+        // Log file injection
+        logToFile(logFilePath, `Injecting input files:`);
+        logToFile(logFilePath, `  - Course_data.txt: ${courseDataTxt.length} chars`);
+        logToFile(logFilePath, `  - research_pack_json: ${JSON.stringify(resourcePack).length} chars`);
+
+        console.log(`   ✅ Injecting ${Object.keys(files).length} input files:`);
+        console.log(`      - Course_data.txt (${courseDataTxt.length} chars)`);
+        console.log(`      - research_pack_json (${JSON.stringify(resourcePack).length} chars)`);
+      } else {
+        input = { messages: [{ role: 'user', content: 'continue' }] };
+      }
+
+      // Stream agent execution
+      const stream = client.runs.stream(
+        threadId,
+        'sow_author',
+        { input, stream_mode: 'values' }
+      );
+
+      let runId: string | null = null;
+      let messageCount = 0;
+
+      for await (const chunk of stream) {
+        // Capture run ID from metadata event (first event in stream)
+        if (chunk.event === 'metadata' && chunk.data?.run_id) {
+          runId = chunk.data.run_id;
+          logToFile(logFilePath, `Run ID: ${runId}`);
+        }
+
+        if (chunk.event === 'messages/partial') {
+          messageCount++;
+          if (messageCount % 10 === 0) {
+            process.stdout.write('.');
+          }
+        }
+      }
+      console.log('');
+
+      if (!runId) {
+        throw new Error('Failed to capture run ID from stream');
+      }
+
+      // Verify run completed successfully BEFORE checking files
+      console.log(`   Checking run status...`);
+      const run = await client.runs.get(threadId, runId);
+
+      logToFile(logFilePath, `Run status: ${run.status}`);
+      logToFile(logFilePath, `Run metadata: ${JSON.stringify(run, null, 2)}`);
+
+      if (run.status === 'error') {
+        // Extract error details from run object
+        const errorDetails = run.error || 'Unknown error';
+        const errorMsg = `Run failed with status: ${run.status}. Error: ${errorDetails}`;
+        logToFile(logFilePath, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      if (run.status === 'interrupted') {
+        const errorMsg = `Run was interrupted. Manual intervention may be required.`;
+        logToFile(logFilePath, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      if (run.status !== 'success') {
+        const errorMsg = `Run completed with unexpected status: ${run.status}`;
+        logToFile(logFilePath, errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      console.log(`   ✅ Run completed with status: ${run.status}`);
+
+      // Get final state - only after verifying run status
+      const state = await client.threads.getState(threadId);
+      const files = state.values.files || {};
+
+      // Check for successful completion
+      if (files['authored_sow_json']) {
+        logToFile(logFilePath, `✅ Success on attempt ${attempt}`);
+        console.log(`✅ SOW generated successfully on attempt ${attempt}`);
+
+        // Extract critic result if available
+        let criticResult = null;
+        if (files['sow_critic_result_json']) {
+          try {
+            criticResult = JSON.parse(files['sow_critic_result_json']);
+            logToFile(logFilePath, `Captured sow_critic_result_json`);
+          } catch (error: any) {
+            logToFile(logFilePath, `Warning: Failed to parse sow_critic_result_json: ${error.message}`);
+          }
+        }
+
+        return {
+          threadId: threadId,
+          sowData: JSON.parse(files['authored_sow_json']),
+          criticResult: criticResult
+        };
+      }
+
+      // If status was 'success' but no file, check for critic failures
+      // Check for critic failures
+      const criticFiles = [
+        'sow_coverage_critic_result_json',
+        'sow_sequencing_critic_result_json',
+        'sow_policy_critic_result_json',
+        'sow_accessibility_critic_result_json',
+        'sow_authenticity_critic_result_json'
+      ];
+
+      for (const criticFile of criticFiles) {
+        if (files[criticFile]) {
+          const criticResult = JSON.parse(files[criticFile]);
+          if (criticResult.pass === false) {
+            const errorMsg = `⚠️  Critic ${criticFile} failed (score: ${criticResult.score})`;
+            logToFile(logFilePath, errorMsg);
+            logToFile(logFilePath, JSON.stringify(criticResult, null, 2));
+
+            console.log(`   ${errorMsg}`);
+            if (criticResult.issues) {
+              criticResult.issues.slice(0, 3).forEach((issue: string) => {
+                console.log(`      - ${issue}`);
+              });
+            }
+
+            // Continue to retry with "continue" message
+            lastError = new Error(`Critic failed: ${criticFile}`);
+            continue;
+          }
+        }
+      }
+
+      // Run succeeded but no output file - unexpected state
+      throw new Error('Run succeeded but produced no authored_sow_json file');
+
+    } catch (error: any) {
+      lastError = error;
+
+      // Enhanced error logging with type detection
+      const errorType = error.constructor.name;
+      const errorMsg = `❌ Attempt ${attempt} failed (${errorType}): ${error.message}`;
+
+      logToFile(logFilePath, errorMsg);
+      logToFile(logFilePath, `Error stack: ${error.stack || 'No stack trace'}`);
+
+      // Check if this is an InvalidUpdateError specifically
+      if (error.message.includes('InvalidUpdateError') ||
+          error.message.includes('INVALID_CONCURRENT_GRAPH_UPDATE')) {
+        logToFile(logFilePath, '⚠️  Detected concurrent graph update error - likely agent bug');
+        console.log(`   ⚠️  Concurrent update detected - this may require agent code fix`);
+      }
+
+      console.log(`   ${errorMsg}`);
+
+      // Wait before retry (exponential backoff)
+      if (attempt < MAX_RETRIES) {
+        const waitTime = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        console.log(`   Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+
+  // All retries exhausted
+  const finalError = `Failed after ${MAX_RETRIES} attempts. Last error: ${lastError?.message}`;
+  logToFile(logFilePath, `\n❌ FINAL FAILURE: ${finalError}`);
+  throw new Error(finalError);
+}
+
+/**
+ * Append log entry to file with timestamp
+ */
+function logToFile(filePath: string, message: string): void {
+  const timestamp = new Date().toISOString();
+  const logEntry = `[${timestamp}] ${message}\n`;
+  fs.appendFileSync(filePath, logEntry, 'utf-8');
+}
+
+/**
+ * Write SOW output to JSON file in output directory
+ */
+function writeSOWToFile(threadId: string, sowData: any, courseId: string): string {
+  // Create output directory in current working directory
+  const outputDir = path.join(process.cwd(), 'output');
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Create filename with thread ID
+  const fileName = `sow_${courseId}_${threadId}.json`;
+  const filePath = path.join(outputDir, fileName);
+
+  // Write formatted JSON to file
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(sowData, null, 2),
+    'utf-8'
+  );
+
+  return filePath;
+}
+
+/**
+ * Write SOW critic result to JSON file in output directory
+ */
+function writeCriticResultToFile(
+  threadId: string,
+  criticResult: any,
+  courseId: string
+): string | null {
+  if (!criticResult) {
+    return null;
+  }
+
+  // Create output directory in current working directory
+  const outputDir = path.join(process.cwd(), 'output');
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // Create filename with thread ID
+  const fileName = `critic_result_${courseId}_${threadId}.json`;
+  const filePath = path.join(outputDir, fileName);
+
+  // Write formatted JSON to file
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(criticResult, null, 2),
+    'utf-8'
+  );
+
+  return filePath;
+}
+
+/**
+ * Enrich SOW metadata from agent output with database fields
+ */
+function enrichSOWMetadata(
+  agentOutput: any,
+  courseInfo: { title: string; subject: string; level: string; courseId: string }
+): any {
+  // Calculate derived fields
+  const totalLessons = agentOutput.entries.length;
+  const totalEstimatedMinutes = agentOutput.entries.reduce(
+    (sum: number, entry: any) => sum + (entry.estMinutes || 0),
+    0
+  );
+
+  // Merge agent metadata with database metadata
+  return {
+    // Agent-generated metadata (preserve structure)
+    coherence: agentOutput.metadata.coherence || {
+      policy_notes: [],
+      sequencing_notes: []
+    },
+    engagement_notes: agentOutput.metadata.engagement_notes || [],
+    weeks: agentOutput.metadata.weeks || 0,
+    periods_per_week: agentOutput.metadata.periods_per_week || 0,
+
+    // Database-specific metadata (new fields)
+    course_name: courseInfo.title,
+    level: courseInfo.level,
+    total_lessons: totalLessons,
+    total_estimated_minutes: totalEstimatedMinutes,
+    generated_at: new Date().toISOString(),
+    author_agent_version: '2.0'  // Refactored version marker
+  };
+}
+
+/**
+ * Format accessibility notes from array to newline-separated string
+ */
+function formatAccessibilityNotes(notes: string[] | string | undefined): string {
+  if (!notes) return '';
+  if (typeof notes === 'string') return notes;
+  if (Array.isArray(notes)) return notes.join('\n');
+  return '';
+}
+
+/**
+ * Upsert SOW to Authored_SOW collection
+ */
+async function upsertSOWToDatabase(
+  databases: Databases,
+  agentOutput: any,
+  enrichedMetadata: any,
+  appwriteClient: AppwriteClient
+): Promise<any> {
+  // Prepare database document
+  const sowData: AuthoredSOWData = {
+    courseId: agentOutput.courseId,
+    version: String(agentOutput.version),  // Convert number to string
+    status: agentOutput.status || 'draft',
+    entries: agentOutput.entries,  // Driver will stringify
+    metadata: enrichedMetadata,    // Driver will stringify
+    accessibility_notes: formatAccessibilityNotes(agentOutput.metadata.accessibility_notes)
+  };
+
+  console.log('\n💾 Upserting to Authored_SOW collection...');
+
+  // Initialize driver
+  const sowDriver = new ServerAuthoredSOWDriver({
+    client: appwriteClient,
+    account: null as any,
+    databases
   });
+
+  // Upsert (creates if new, updates if exists)
+  const result = await sowDriver.upsertAuthoredSOW(sowData);
+
+  console.log('\n✅ Successfully seeded Authored_SOW!');
+  console.log(`   Document ID: ${result.$id}`);
+  console.log(`   Course ID: ${result.courseId}`);
+  console.log(`   Version: ${result.version}`);
+  console.log(`   Status: ${result.status}`);
+  console.log(`   Created At: ${result.$createdAt}`);
+  console.log(`   Updated At: ${result.$updatedAt}`);
+
+  // Parse and display entry count
+  const entries = JSON.parse(result.entries);
+  console.log(`   Entries stored: ${entries.length} lessons`);
+  console.log(`   Total estimated minutes: ${enrichedMetadata.total_estimated_minutes}`);
+
+  return result;
+}
+
+// Run the script
+main();

@@ -1,0 +1,1212 @@
+{
+  "metadata": {
+    "coherence": {
+      "policy_notes": [
+        "The Scheme of Work is structured to build foundational non-calculator skills first, as required by the Added Value Unit assessment. Calculator use is introduced strategically for more complex topics like Pythagoras and statistics."
+      ],
+      "sequencing_notes": [
+        "The curriculum follows the SQA recommended sequence: Numeracy -> Managing Finance and Statistics -> Geometry and Measures. This ensures foundational skills are in place before tackling more applied problems. The SoW culminates in dedicated preparation for the Added Value Unit."
+      ]
+    },
+    "accessibility_notes": [
+      "All lessons are designed with dyslexia-friendly principles, using plain language (CEFR_B1), clear structures, and visual scaffolds. Real-life Scottish contexts are used to aid comprehension and engagement."
+    ],
+    "engagement_notes": [
+      "Engagement is driven by authentic, relatable Scottish contexts such as comparing ScotRail fares, budgeting for a trip to the Edinburgh Fringe, calculating carpet costs for a Glasgow tenement, and interpreting NHS health data."
+    ]
+  },
+  "entries": [
+    {
+      "order": 1,
+      "label": "Numeracy: Fractions, Decimals, and Percentages",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Numeracy Skills",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc"
+      },
+      "engagement_tags": [
+        "shopping",
+        "finance",
+        "discounts"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.1",
+          "description": "Interpreting a situation to identify a straightforward numerical problem",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.2",
+          "description": "Selecting and using an appropriate numerical strategy",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This foundational lesson introduces the core concepts of fractions, decimals, and percentages (FDP) in real-life contexts. It focuses on non-calculator methods for finding percentages of quantities, a key skill for the Added Value Unit.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Deal or No Deal?",
+            "purpose": "To activate prior knowledge of percentages in a familiar, real-world context.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Display three supermarket offers: '50% off', '1/2 price', 'Save £10 on a £20 shop'. Students discuss in pairs which is the best deal and why.",
+            "cfu_strategy": "Think-Pair-Share: 'Which offer provides the biggest saving? Justify your answer.'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use large, clear visuals for the offers to support learners with visual impairments or reading difficulties."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "The FDP Triangle",
+            "purpose": "To explicitly teach the equivalence between common fractions, decimals, and percentages.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation to identify a straightforward numerical problem",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher uses a large visual aid to show the connections between key equivalences (1/2, 0.5, 50%; 1/4, 0.25, 25%; 1/10, 0.1, 10%). This helps students interpret problems regardless of how the number is presented.",
+            "key_concepts": [
+              "Equivalence",
+              "Fraction",
+              "Decimal",
+              "Percentage"
+            ],
+            "cfu_strategy": "Mini-Whiteboards: 'Show me the decimal for 1/4.' 'Show me the percentage for 0.1.'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Provide students with a printed, smaller version of the FDP triangle for their notes. Use colour-coding to reinforce connections."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "The 10% Method",
+            "purpose": "To model a reliable, non-calculator strategy for finding percentages of an amount.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate numerical strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher models finding 30% of £120 by first finding 10% (dividing by 10) and then multiplying to find 30%. This 'chunking' method is a core strategy.",
+            "worked_example": "Problem: A concert ticket for a gig in Glasgow costs £120, but there's a 30% discount for booking early. What is the saving? \nStep 1: Find 10% of £120 -> £120 / 10 = £12. \nStep 2: Find 30% -> 10% x 3 = £12 x 3 = £36. \nAnswer: The saving is £36.",
+            "cfu_strategy": "I Do, We Do, You Do: Teacher models, then the class does one together, then students try one on their own.",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Clearly write out the steps. Use think-aloud to explain the reasoning behind each step."
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Practice Makes Perfect",
+            "purpose": "To provide scaffolded practice of the modelled non-calculator percentage strategy.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate numerical strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students work in pairs on a short set of problems on mini-whiteboards, allowing for quick formative assessment and correction.",
+            "practice_problems": [
+              "Find 20% of £80.",
+              "Calculate a 15% service charge on a £40 meal.",
+              "A survey of 200 people found 25% are left-handed. How many people is this?"
+            ],
+            "cfu_strategy": "Show-Me: After each question, students hold up their whiteboards for the teacher to check understanding.",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use round numbers to keep the cognitive load focused on the strategy, not complex arithmetic."
+          },
+          {
+            "card_number": 5,
+            "card_type": "independent_practice",
+            "title": "SQA Style Questions",
+            "purpose": "To apply FDP skills to exam-style problems independently.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation to identify a straightforward numerical problem",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate numerical strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students complete a worksheet with 3 questions adapted from the SQA specimen paper, requiring them to both interpret the problem and solve it.",
+            "cfu_strategy": "Worksheet review: Teacher goes through the answers at the end, or students can self-assess with a provided mark scheme.",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Worksheet uses a clear, sans-serif font (size 12+) and provides adequate space for working."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Ticket Out The Door",
+            "purpose": "To quickly assess individual understanding of the core lesson objective.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate numerical strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students answer a single question on a slip of paper: 'What is 40% of 500?' This provides a quick data point for the teacher.",
+            "cfu_strategy": "Exit Ticket Analysis: Teacher reviews the slips to identify common errors and inform the starter for the next lesson.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Read the question aloud to support students with reading difficulties."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 10min guided practice → 10min independent practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "AS1.1 (interpreting) is addressed in the explainer and independent practice, where students must understand what the question is asking. AS1.2 (strategy) is the focus of the modelling and practice cards. The independent practice integrates both.",
+        "misconceptions_embedded_in_cards": [],
+        "assessment_progression": "Assessment builds from informal discussion (starter) to scaffolded practice (guided practice) and finally to individual summative checks (independent practice, exit ticket).",
+        "accessibility_integration": "Visual aids, clear modelling, scaffolded practice with round numbers, and dyslexia-friendly resources are used throughout to support all learners."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a foundational non-calculator lesson. The primary goal is to build student confidence in handling fractions, decimals, and percentages, which are essential for all other units. Emphasise the '10% method' as a reliable strategy."
+    },
+    {
+      "order": 2,
+      "label": "Numeracy: Time, Speed, and Distance",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Numeracy Skills",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Numeracy: Fractions, Decimals, and Percentages"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc"
+      },
+      "engagement_tags": [
+        "travel",
+        "transport",
+        "bus_fares",
+        "timetables"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS2.1",
+          "description": "Interpreting a situation to identify a straightforward numerical problem involving time",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS2.2",
+          "description": "Selecting and using an appropriate strategy to solve a problem involving time",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson focuses on solving problems involving speed, distance, and time. Students will learn to interpret timetables and use the SDT formula in practical, non-calculator contexts, such as planning a journey in Scotland.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "How Long?",
+            "purpose": "To activate prior knowledge of time calculations.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Display a simple problem: 'A train leaves Glasgow at 09:15 and arrives in Edinburgh at 10:05. How long did the journey take?' Students solve on mini-whiteboards.",
+            "cfu_strategy": "Show-Me: Students hold up their answers. Teacher can quickly see who is confident and who is struggling.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use a digital clock visual to support understanding of 24-hour time."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "The SDT Triangle",
+            "purpose": "To introduce and explain the Speed, Distance, Time formula and its rearrangements.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation to identify a straightforward numerical problem involving time",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher introduces the SDT triangle as a visual aid for remembering the formula (D = S x T, S = D / T, T = D / S). The focus is on identifying what information is given and what needs to be calculated.",
+            "key_concepts": [
+              "Speed",
+              "Distance",
+              "Time",
+              "Formula"
+            ],
+            "cfu_strategy": "MCQ: 'If a question gives you distance and speed, which formula do you use to find the time?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Provide a printed copy of the SDT triangle for students' notes. Use physical gestures (covering up one variable) to demonstrate how it works."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Calculating Average Speed",
+            "purpose": "To model how to solve a typical SQA-style non-calculator speed problem.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using an appropriate strategy to solve a problem involving time",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher models the SQA specimen question: 'A train journey of 120 miles takes 2 hours 30 minutes. What is the average speed?' The key challenge here is converting the time into a decimal.",
+            "worked_example": "Problem: As above. \nStep 1 (Convert time): 30 minutes is 0.5 hours. So the time is 2.5 hours. \nStep 2 (Select formula): Speed = Distance / Time. \nStep 3 (Calculate): Speed = 120 / 2.5. (To do this non-calc, double top and bottom: 240 / 5). \nStep 4 (Solve): 240 / 5 = 48. \nAnswer: The average speed is 48 mph.",
+            "cfu_strategy": "Targeted Questioning: 'Why did I have to change 2 hours 30 minutes to 2.5 hours? What would happen if I used 2.30?'",
+            "misconceptions_addressed": [
+              {
+                "misconception": "Using 2.30 for 2 hours 30 mins.",
+                "remediation": "Explicitly teach that time is not a decimal system. Use a clock face to show that 30 mins is half (0.5) of an hour, 15 mins is a quarter (0.25), etc."
+              }
+            ],
+            "estimated_minutes": 10,
+            "accessibility_notes": "Break down the non-calculator division (240/5) into manageable chunks (200/5 + 40/5)."
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Journey Planner",
+            "purpose": "To provide scaffolded practice of SDT calculations.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using an appropriate strategy to solve a problem involving time",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students work in pairs to solve problems based on a simplified Scottish bus timetable. One problem asks for speed, one for distance, one for time.",
+            "practice_problems": [
+              "A bus travels 60 miles from Perth to Dundee in 1.5 hours. What is its average speed?",
+              "How far would the bus travel in 30 minutes (0.5 hours) at the same speed?",
+              "How long would it take to travel 100 miles at the same speed?"
+            ],
+            "cfu_strategy": "Peer Check: Pairs check their answers with another pair before sharing with the class.",
+            "estimated_minutes": 15,
+            "accessibility_notes": "The simplified timetable reduces cognitive load. The problems use friendly numbers for non-calculator work."
+          },
+          {
+            "card_number": 5,
+            "card_type": "independent_practice",
+            "title": "Solo Journey",
+            "purpose": "To assess individual ability to solve SDT problems.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation to identify a straightforward numerical problem involving time",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using an appropriate strategy to solve a problem involving time",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students independently complete a 2-question worksheet with SQA-style problems.",
+            "cfu_strategy": "Self-Correction: Students are given the final answers and must work backwards to find their mistakes if their answer is wrong.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Worksheet uses a clear layout and provides the SDT triangle as a scaffold."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Time Conversion Check",
+            "purpose": "To check the key misconception from the lesson.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using an appropriate strategy to solve a problem involving time",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Ask students to write the decimal equivalent for '3 hours 45 minutes' on a sticky note.",
+            "cfu_strategy": "Sticky Note Analysis: Teacher quickly sorts the notes into correct (3.75) and incorrect (e.g., 3.45) piles to gauge understanding.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Frame the question simply and read it aloud."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min independent practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "AS2.1 (interpreting) is the focus of the explainer and the start of each problem. AS2.2 (strategy) is explicitly taught in the modelling card and practiced in the guided and independent sections. The misconception card is crucial for ensuring the strategy in AS2.2 is applied correctly.",
+        "misconceptions_embedded_in_cards": [
+          "Card 3 directly addresses and remediates the common error of treating minutes as a decimal part of an hour."
+        ],
+        "assessment_progression": "The lesson moves from whole-class checks (mini-whiteboards) to collaborative problem-solving (pairs) and individual assessment (worksheet, exit ticket), with a specific check on the key misconception.",
+        "accessibility_integration": "Visual aids (SDT triangle, clock face), simplified resources (timetable), and clear modelling with think-aloud are used to support all learners. Non-calculator methods are broken down into simpler steps."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a non-calculator lesson. The most critical part is the conversion of time to decimals. Spend extra time on this if necessary, as it's a common point of failure. Use real Scottish journey examples to make it relatable."
+    },
+    {
+      "order": 3,
+      "label": "Managing Finance: Budgeting and Best Buys",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Managing Finance and Statistics",
+        "block_index": "2.1",
+        "prerequisites": [
+          "Numeracy: Fractions, Decimals, and Percentages"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed"
+      },
+      "engagement_tags": [
+        "finance",
+        "budgeting",
+        "shopping",
+        "mobile_phones"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.1",
+          "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.2",
+          "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.3",
+          "description": "Explaining a solution in relation to the context",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson introduces personal finance concepts. Students will create simple budgets and compare deals to find the 'best buy'. The lesson uses non-calculator skills for budgeting and a calculator for comparing complex deals, reflecting real-world application.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Income vs Expenditure",
+            "purpose": "To introduce the core concepts of budgeting.",
+            "standards_addressed": [],
+            "pedagogical_approach": "On the board, create two columns: 'Money In (Income)' and 'Money Out (Expenditure)'. Ask students to suggest items for each column for a typical teenager (e.g., part-time job vs. phone bill, bus fare).",
+            "cfu_strategy": "Brainstorm: 'What other things do people spend money on?'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use simple icons next to 'Income' (+) and 'Expenditure' (-) to reinforce the concepts visually."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "What is a Budget?",
+            "purpose": "To explain the purpose and structure of a simple budget.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher explains that a budget is a plan to manage money. Show a simple weekly budget template: Income - Expenditure = Balance. Explain that a positive balance is a 'surplus' and a negative balance is a 'deficit'.",
+            "key_concepts": [
+              "Budget",
+              "Income",
+              "Expenditure",
+              "Balance",
+              "Surplus",
+              "Deficit"
+            ],
+            "cfu_strategy": "Quick Quiz: 'If your income is £50 and your expenditure is £45, do you have a surplus or a deficit? How much?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use a clear, simple template. Define key terms explicitly and write them on the board."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Creating a Simple Budget",
+            "purpose": "To model how to complete a budget and calculate the balance.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher completes a worked example on the board for a fictional person's weekly budget. This is a non-calculator task, focusing on addition and subtraction.",
+            "worked_example": "Scenario: Aisha earns £60 from her part-time job. She spends £15 on her phone, £10 on bus fares, and £20 on lunches. \nIncome: £60. \nExpenditure: £15 + £10 + £20 = £45. \nBalance: £60 - £45 = £15. \nConclusion: Aisha has a surplus of £15.",
+            "cfu_strategy": "Think Aloud: Teacher verbalises the calculation process. 'First, I need to find the total expenditure by adding these three numbers...'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use a table format to clearly separate income and expenditure. Highlight the final balance."
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Best Buy Challenge (Calculator)",
+            "purpose": "To practice comparing products to find the best value for money.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students use calculators to compare two differently sized products (e.g., a 500g box of cereal for £2.50 vs a 750g box for £3.60). The strategy is to find the price per unit (e.g., price per 100g).",
+            "practice_problems": [
+              "Which is better value: 6 toilet rolls for £2.10 or 9 toilet rolls for £3.06? (Find price per roll)",
+              "Compare two mobile phone deals from a Scottish provider."
+            ],
+            "cfu_strategy": "Structured Question: 'What calculation do you need to do for the first product? What about the second? Which is the cheaper option per roll?'",
+            "estimated_minutes": 15,
+            "accessibility_notes": "Provide a worksheet with the structure 'Product A: Cost / Quantity = Price per unit'. This scaffolds the process. This is a good point to introduce calculators for more complex division."
+          },
+          {
+            "card_number": 5,
+            "card_type": "independent_practice",
+            "title": "My Budget",
+            "purpose": "To apply budgeting skills to a personal, relatable scenario.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students are given a blank budget template and a short scenario (e.g., 'Plan a weekend trip to the Edinburgh Fringe with a budget of £100'). They must list their expected income and expenditure and calculate the balance.",
+            "cfu_strategy": "Peer Review: Students swap their completed budgets with a partner and check their calculations.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Provide a list of example costs (e.g., train ticket, show ticket, lunch) to help students who may struggle to generate ideas."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Justify Your Choice",
+            "purpose": "To assess the ability to explain a financial decision.",
+            "standards_addressed": [
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Present two options (e.g., 'Pay £100 now' vs 'Pay 10 monthly payments of £11'). Ask students to write down which is the better deal and why.",
+            "cfu_strategy": "Sentence Stem: Provide the stem 'Option __ is the best deal because...'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Read the options aloud. The sentence stem provides a scaffold for writing the explanation."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min independent practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "AS1.1 is covered when students interpret the scenarios in the budgeting and best buy problems. AS1.2 is the calculation part of both tasks (non-calc for budget, calc for best buy). AS1.3 is the crucial final step, especially in the 'Best Buy' and exit ticket, where students must explain *why* one option is better.",
+        "misconceptions_embedded_in_cards": [],
+        "assessment_progression": "The lesson assesses distinct skills: non-calculator addition/subtraction in the budget task (modelling/independent) and calculator-based division and comparison in the best buy task (guided practice). The exit ticket specifically targets the communication standard (AS1.3).",
+        "accessibility_integration": "Visuals (icons), templates (budgets), and structured worksheets (best buys) are used throughout. The lesson strategically separates non-calculator and calculator tasks to manage cognitive load. Scaffolds like sentence stems and idea lists are provided."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a mixed-calculator lesson. Emphasise that budgeting is often simple arithmetic (non-calc), but comparing deals often requires a calculator to find the unit price. The key takeaway is that the 'best buy' is the one with the lowest price per unit."
+    },
+    {
+      "order": 4,
+      "label": "Statistics: Reading and Drawing Charts",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Managing Finance and Statistics",
+        "block_index": "2.2",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "calc"
+      },
+      "engagement_tags": [
+        "data",
+        "surveys",
+        "sports",
+        "NHS"
+      ],
+      "outcomeRefs": [
+        "O2"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS2.1",
+          "description": "Interpreting a situation involving data and identifying an appropriate strategy",
+          "outcome": "O2"
+        },
+        {
+          "code": "AS2.2",
+          "description": "Using appropriate mathematical processes to analyse and present data",
+          "outcome": "O2"
+        },
+        {
+          "code": "AS2.3",
+          "description": "Explaining a solution in relation to the context",
+          "outcome": "O2"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson introduces basic statistical skills. Students will learn to extract information from tables and bar charts, and construct their own charts from raw data. A calculator will be available for any calculations, but the focus is on data handling.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Misleading Charts",
+            "purpose": "To engage students and highlight the importance of reading charts carefully.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Show a bar chart with a non-zero y-axis, which exaggerates the differences between the bars. Ask students: 'What does this chart seem to show? What is misleading about it?'",
+            "cfu_strategy": "Discussion: 'Why might someone create a misleading chart?'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use a simple, clear example of a misleading chart. Ensure the labels are large and easy to read."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "Features of a Good Bar Chart",
+            "purpose": "To explicitly teach the key components of a well-constructed bar chart.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation involving data and identifying an appropriate strategy",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Teacher presents a 'good' bar chart and points out the essential features using a checklist: Title, Labelled Axes (with units), Appropriate Scale, Gaps between bars. This forms the success criteria for drawing charts.",
+            "key_concepts": [
+              "Bar Chart",
+              "Axis",
+              "Scale",
+              "Title",
+              "Label"
+            ],
+            "cfu_strategy": "Spot the Mistake: Show a chart with a missing feature (e.g., no title) and ask students to identify what is wrong using the checklist.",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Provide students with a printed copy of the checklist to glue into their notes."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "From Table to Chart",
+            "purpose": "To model the process of constructing a bar chart from a simple frequency table.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Using appropriate mathematical processes to analyse and present data",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Using a simple dataset (e.g., favourite Scottish football teams from a class survey), the teacher models how to draw a bar chart on squared paper, referring to the checklist from the previous card at each step.",
+            "worked_example": "Data: Rangers 8, Celtic 10, Aberdeen 4, Hibs 3. \nStep 1: Draw axes. \nStep 2: Choose a scale for the y-axis (frequency). \nStep 3: Label axes ('Team' and 'Frequency'). \nStep 4: Draw bars for each team. \nStep 5: Add a title ('Favourite Scottish Football Teams').",
+            "cfu_strategy": "Step-by-Step: 'What is the first thing I need to do? What is the highest frequency, and how does that help me choose a scale?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use a visualiser or smartboard to model the drawing process clearly. Use different colours for each bar."
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Paired Charting",
+            "purpose": "To provide scaffolded practice in drawing and interpreting charts.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Using appropriate mathematical processes to analyse and present data",
+                "outcome": "O2"
+              },
+              {
+                "code": "AS2.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "In pairs, Student A is given a table of data and must draw the chart. Student B is given the finished chart and must write three statements about what the data shows. They then compare their work.",
+            "practice_problems": [
+              "Data on modes of transport to school (Walk, Bus, Car, Bike). Student A draws, Student B writes a sentence like 'The most common way to get to school is by bus.'"
+            ],
+            "cfu_strategy": "Peer Assessment: Students use the checklist to assess each other's charts.",
+            "estimated_minutes": 15,
+            "accessibility_notes": "Provide squared paper and rulers. The data should be simple with a small number of categories."
+          },
+          {
+            "card_number": 5,
+            "card_type": "independent_practice",
+            "title": "Data Interpretation",
+            "purpose": "To practice extracting and explaining information from a chart independently.",
+            "standards_addressed": [
+              {
+                "code": "AS2.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Students are given a bar chart showing, for example, NHS Scotland waiting times for different procedures. They must answer 3 questions that require them to read the chart and make a simple comparison.",
+            "cfu_strategy": "Worksheet completion. Questions might include: 'Which procedure has the longest wait time?', 'How much longer is the wait for X than Y?'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "The chart should be clear and uncluttered. Questions should be phrased simply."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Checklist Recall",
+            "purpose": "To assess recall of the key features of a good chart.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation involving data and identifying an appropriate strategy",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Ask students to list three things a good bar chart must have on a sticky note.",
+            "cfu_strategy": "Reviewing Notes: Teacher can quickly see if the key messages from the explainer card have been retained.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Allow students to refer to their notes if needed, as the goal is to reinforce the success criteria."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min independent practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "AS2.1 is about knowing what to do, which is covered in the explainer and exit ticket (knowing the features of a chart). AS2.2 is the 'doing' part, covered in the modelling and guided practice. AS2.3 is the 'explaining' part, which is practiced in the second half of the guided practice and the independent practice, where students must write statements about the data.",
+        "misconceptions_embedded_in_cards": [],
+        "assessment_progression": "The lesson builds from identifying features (explainer) to constructing a chart with heavy scaffolding (modelling), then to collaborative creation (guided practice) and finally to independent interpretation. The exit ticket reinforces the core success criteria.",
+        "accessibility_integration": "The use of a checklist provides a clear scaffold for success. The paired activity breaks the task down into smaller parts (drawing vs. interpreting). Using squared paper and visualisers supports the physical act of drawing the charts."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a practical, hands-on lesson. Access to squared paper and rulers is essential. The focus is on the clarity and accuracy of the charts produced. Use real, relevant data where possible, such as from school surveys or local statistics."
+    },
+    {
+      "order": 5,
+      "label": "Geometry: Perimeter and Area",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Geometry and Measures",
+        "block_index": "3.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "mixed"
+      },
+      "engagement_tags": [
+        "DIY",
+        "home_improvement",
+        "gardening"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.1",
+          "description": "Interpreting a situation to identify a straightforward problem involving measurement",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.2",
+          "description": "Selecting and using an appropriate measurement strategy",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.3",
+          "description": "Explaining a solution in relation to the context, including appropriate units",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson introduces the concepts of perimeter and area for simple and composite shapes. Students will learn the difference between the two, apply the correct formulas, and solve practical problems. Simple shapes will be non-calculator; composite shapes will be calculator-based.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Fence or Turf?",
+            "purpose": "To introduce the core difference between perimeter and area in a real-world context.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation to identify a straightforward problem involving measurement",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Show a picture of a rectangular garden. Ask students: 'If I am building a fence, am I measuring the perimeter or the area? What if I am laying new turf?'",
+            "cfu_strategy": "Think-Pair-Share: Students discuss in pairs before sharing their reasoning with the class.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use a clear, simple image. Use gestures to trace the 'outside' (perimeter) and the 'inside' (area)."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "Perimeter vs. Area",
+            "purpose": "To explicitly define perimeter and area and provide the formulas for rectangles.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation to identify a straightforward problem involving measurement",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher defines Perimeter as 'the distance around the outside of a shape' (add all sides) and Area as 'the space inside a shape' (L x W for a rectangle). Emphasise the different units (cm for perimeter, cm² for area).",
+            "key_concepts": [
+              "Perimeter",
+              "Area",
+              "Units",
+              "Formula"
+            ],
+            "cfu_strategy": "Mini-Whiteboards: Show a simple rectangle with dimensions. 'Calculate the perimeter. Now calculate the area. Don't forget the units!'",
+            "misconceptions_addressed": [
+              {
+                "misconception": "Confusing perimeter and area.",
+                "remediation": "Use the 'Fence vs Turf' analogy. Reinforce that units are different (cm vs cm²)."
+              }
+            ],
+            "estimated_minutes": 10,
+            "accessibility_notes": "Write the definitions and formulas clearly on the board. Provide a handout with this key information."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Area of a Composite Shape",
+            "purpose": "To model the strategy for finding the area of an L-shaped room.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate measurement strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Teacher models the 'split and calculate' strategy for a composite L-shape. This is where a calculator can be used for the multiplication and addition.",
+            "worked_example": "Problem: A living room in a Glasgow tenement is L-shaped. Calculate its area. \nStep 1: Split the L-shape into two rectangles (A and B). \nStep 2: Calculate the area of rectangle A (e.g., 5m x 3m = 15m²). \nStep 3: Calculate the area of rectangle B (e.g., 2m x 4m = 8m²). \nStep 4: Add the two areas together (15 + 8 = 23m²). \nAnswer: The total area is 23m².",
+            "cfu_strategy": "Targeted Questioning: 'Are there other ways I could have split this shape? Would it give the same answer?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use a diagram on the board and physically draw the line to split the shape. Use colour-coding for the two smaller rectangles."
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Room Designer",
+            "purpose": "To provide scaffolded practice in calculating perimeter and area of composite shapes.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate measurement strategy",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context, including appropriate units",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students work in pairs on a worksheet showing different composite shapes. For each shape, they must calculate both the perimeter and the area.",
+            "practice_problems": [
+              "An L-shaped room.",
+              "A T-shaped room."
+            ],
+            "cfu_strategy": "Gallery Walk: Pairs stick their work on the wall, and students walk around to see different solutions and methods.",
+            "estimated_minutes": 15,
+            "accessibility_notes": "Worksheet provides diagrams with all necessary dimensions clearly labelled. Remind students to use their calculators."
+          },
+          {
+            "card_number": 5,
+            "card_type": "independent_practice",
+            "title": "Costing a Job",
+            "purpose": "To apply area and perimeter calculations to a real-world financial problem.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate measurement strategy",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context, including appropriate units",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students solve a multi-step problem: 'A rectangular room is 5m by 4m. Carpet costs £12 per square metre. Skirting board costs £3 per metre. What is the total cost to carpet and skirt the room?'",
+            "cfu_strategy": "Self-Check: 'Which calculation is for area and which is for perimeter? Did you find two separate costs and add them together?'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Break the problem down into two parts on the worksheet: Part A (Carpet Cost), Part B (Skirting Cost)."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Units Check",
+            "purpose": "To quickly assess understanding of the correct units for perimeter and area.",
+            "standards_addressed": [
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context, including appropriate units",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Ask students to write down the correct units for the area of a football pitch and the perimeter of a book.",
+            "cfu_strategy": "Quick Sort: Teacher holds up answers and asks students to point to the correct unit (m or m²) on a poster.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Focus on the concept, not the numbers. Use familiar objects."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min independent practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "AS1.1 is covered in the starter, where students must interpret the context. AS1.2 is the main focus of the modelling and practice cards, where students select and use the correct formulas and strategies. AS1.3 is reinforced throughout, especially in the independent practice and the exit ticket, with a strong focus on using the correct units (m vs m²).",
+        "misconceptions_embedded_in_cards": [
+          "Card 2 directly addresses the common confusion between perimeter and area, which is the foundational concept of the lesson."
+        ],
+        "assessment_progression": "The lesson builds from conceptual understanding (starter) to procedural fluency with simple shapes (explainer), then applies this to complex shapes (modelling/guided practice) and finally to a multi-step contextual problem (independent practice).",
+        "accessibility_integration": "The 'Fence or Turf' analogy provides a strong visual and conceptual anchor. The 'split and calculate' method is modelled visually. The mixed-calculator policy allows students to focus on the geometric strategy for complex shapes without getting bogged down in arithmetic."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a mixed-calculator lesson. Basic perimeter/area of rectangles should be non-calc. Composite shapes should be calc-based to focus on the 'split' strategy. The distinction between units (cm vs cm²) is a key learning point."
+    },
+    {
+      "order": 6,
+      "label": "Geometry: Pythagoras' Theorem",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Geometry and Measures",
+        "block_index": "3.2",
+        "prerequisites": [
+          "Geometry: Perimeter and Area"
+        ]
+      },
+      "policy": {
+        "calculator_section": "calc"
+      },
+      "engagement_tags": [
+        "DIY",
+        "construction",
+        "navigation"
+      ],
+      "outcomeRefs": [
+        "O2"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS2.1",
+          "description": "Interpreting a situation to identify a straightforward problem involving Pythagoras' theorem",
+          "outcome": "O2"
+        },
+        {
+          "code": "AS2.2",
+          "description": "Selecting and using Pythagoras' theorem",
+          "outcome": "O2"
+        },
+        {
+          "code": "AS2.3",
+          "description": "Explaining a solution in relation to the context, including appropriate units",
+          "outcome": "O2"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson introduces Pythagoras' Theorem. Students will learn to identify the hypotenuse, select the correct version of the formula (adding or subtracting), and apply it to solve real-world problems. This is a calculator-based lesson.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Right-Angled Triangles",
+            "purpose": "To activate prior knowledge of right-angled triangles and introduce the key vocabulary.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Show students several triangles and ask them to identify the right-angled ones. Once identified, introduce the term 'hypotenuse' as the longest side, opposite the right angle.",
+            "cfu_strategy": "Show-Me: 'On your mini-whiteboards, draw a right-angled triangle and label the hypotenuse.'",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use clear diagrams. Physically point to the right angle and the opposite side (hypotenuse)."
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "Pythagoras' Theorem",
+            "purpose": "To introduce the formula a² + b² = c² and explain its purpose.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation to identify a straightforward problem involving Pythagoras' theorem",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Teacher states the theorem and explains that it connects the lengths of the three sides in any right-angled triangle. Emphasise that 'c' is *always* the hypotenuse. Explain that we use it to find a missing side when we know two sides.",
+            "key_concepts": [
+              "Pythagoras' Theorem",
+              "Hypotenuse",
+              "Square",
+              "Square Root"
+            ],
+            "cfu_strategy": "Formula Check: 'If the hypotenuse is 10, what letter in the formula is 10?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Write the formula large and clear on the board. Label a diagram with a, b, and c to match."
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Finding the Longest Side",
+            "purpose": "To model how to use the formula to find the length of the hypotenuse.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using Pythagoras' theorem",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Teacher models a problem where the two shorter sides are known, requiring the 'adding' version of the formula. This is a calculator-based process.",
+            "worked_example": "Problem: A rectangular park is 80m long and 60m wide. If you walk diagonally across it, how far do you walk? \nStep 1: Identify c (the diagonal). a=80, b=60. \nStep 2: Formula: c² = a² + b². \nStep 3: Substitute: c² = 80² + 60² = 6400 + 3600 = 10000. \nStep 4: Square root: c = √10000 = 100. \nAnswer: You walk 100m.",
+            "cfu_strategy": "Calculator Practice: 'Everyone, type 80² into your calculator. What do you get? Now, how do you find the square root of 10000?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Ensure all students know how to use the square (x²) and square root (√) buttons on their calculators. Break the process into clear, numbered steps."
+          },
+          {
+            "card_number": 4,
+            "card_type": "modelling",
+            "title": "Finding a Shorter Side",
+            "purpose": "To model how to rearrange the formula to find a shorter side.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using Pythagoras' theorem",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Teacher models the SQA specimen question: 'A ladder 5m long is placed against a wall. The foot of the ladder is 1.4m from the wall. How far up the wall does it reach?' This requires the 'subtracting' version.",
+            "worked_example": "Problem: As above. \nStep 1: Identify c (the ladder, 5m). a=1.4, b=?. \nStep 2: Formula: b² = c² - a². \nStep 3: Substitute: b² = 5² - 1.4² = 25 - 1.96 = 23.04. \nStep 4: Square root: b = √23.04 = 4.8. \nAnswer: The ladder reaches 4.8m up the wall.",
+            "cfu_strategy": "Key Question: 'Why did I subtract this time instead of adding? What was different about this problem?'",
+            "misconceptions_addressed": [
+              {
+                "misconception": "Always adding the squares, regardless of which side is missing.",
+                "remediation": "Emphasise the rule: 'If you are finding the hypotenuse (longest side), you add. If you are finding a shorter side, you subtract.'"
+              }
+            ],
+            "estimated_minutes": 10,
+            "accessibility_notes": "Use a diagram for the ladder problem. Clearly show that the longest side was already known."
+          },
+          {
+            "card_number": 5,
+            "card_type": "guided_practice",
+            "title": "Mixed Problems",
+            "purpose": "To practice selecting the correct version of the formula.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation to identify a straightforward problem involving Pythagoras' theorem",
+                "outcome": "O2"
+              },
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using Pythagoras' theorem",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Students work in pairs on a worksheet with two columns: 'Find the hypotenuse (Add)' and 'Find a shorter side (Subtract)'. They must first place the problem in the correct column before solving.",
+            "cfu_strategy": "Peer Discussion: 'Why does this problem belong in the 'add' column? What information tells you that?'",
+            "estimated_minutes": 10,
+            "accessibility_notes": "The two-column structure acts as a graphic organiser to support decision making."
+          },
+          {
+            "card_number": 6,
+            "card_type": "exit_ticket",
+            "title": "Add or Subtract?",
+            "purpose": "To assess the key decision-making process of the lesson.",
+            "standards_addressed": [
+              {
+                "code": "AS2.1",
+                "description": "Interpreting a situation to identify a straightforward problem involving Pythagoras' theorem",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Show a diagram of a right-angled triangle with two sides given and one side marked 'x'. Students write 'add' or 'subtract' on a sticky note depending on how they would find 'x'.",
+            "cfu_strategy": "Quick Check: Teacher can instantly see if students can apply the core rule.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use a clear, simple diagram. The focus is on the strategy, not the calculation."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling (add) → 10min modelling (subtract) → 10min guided practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "This lesson is tightly focused. AS2.1 is about identifying the problem type, which is covered in the starter, explainer, guided practice, and exit ticket. AS2.2 is the calculation, which is modelled twice for the two variations of the formula and then practiced. AS2.3 is the final answer, ensuring students add the correct units (e.g., 'm').",
+        "misconceptions_embedded_in_cards": [
+          "Card 4 directly addresses the most critical misconception: always adding the squares. By having two separate modelling cards, the difference is highlighted."
+        ],
+        "assessment_progression": "The lesson structure is designed to build understanding of the core concept (what Pythagoras is), then the two different procedures (adding vs. subtracting), and finally the decision-making process of choosing the correct procedure (guided practice and exit ticket).",
+        "accessibility_integration": "Heavy use of diagrams, clear vocabulary instruction (hypotenuse), step-by-step modelling, and graphic organisers (two-column worksheet) all support learners. The calculator removes barriers related to complex arithmetic, allowing focus on the geometric concept."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a calculator-based lesson. Ensure all students can use their calculator's square and square root functions. The main teaching point is learning to distinguish between problems that require adding the squares and those that require subtracting."
+    },
+    {
+      "order": 7,
+      "label": "Course Revision and AVU Practice",
+      "lesson_type": "revision",
+      "coherence": {
+        "block_name": "Added Value Unit Preparation",
+        "block_index": "4.1",
+        "prerequisites": [
+          "All previous lessons"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed"
+      },
+      "engagement_tags": [
+        "SQA",
+        "exam_practice"
+      ],
+      "outcomeRefs": [
+        "O1",
+        "O2"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.2",
+          "description": "Selecting and using an appropriate numerical strategy",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS2.2",
+          "description": "Selecting and using Pythagoras' theorem",
+          "outcome": "O2"
+        },
+        {
+          "code": "AS1.2",
+          "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS2.2",
+          "description": "Using appropriate mathematical processes to analyse and present data",
+          "outcome": "O2"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson is a spiral revision session covering key topics from the course in preparation for the Added Value Unit (AVU). It will feature a mix of calculator and non-calculator questions, mirroring the format of the final assessment.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Topic Recall",
+            "purpose": "To activate students' memory of the topics covered in the course.",
+            "standards_addressed": [],
+            "pedagogical_approach": "In groups, students have 3 minutes to brainstorm as many topics as they can remember from the course (e.g., percentages, area, budgets, charts, Pythagoras).",
+            "cfu_strategy": "Group Whiteboard: Each group writes their list on a large whiteboard, and the class compares the lists.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "This is a low-stakes activity. Encourage participation from everyone."
+          },
+          {
+            "card_number": 2,
+            "card_type": "guided_practice",
+            "title": "Non-Calculator Mixed Questions",
+            "purpose": "To practice a variety of non-calculator skills under timed conditions.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Selecting and using an appropriate numerical strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students work through a 3-question worksheet featuring typical non-calculator AVU questions. The teacher circulates and provides support. After 10 minutes, the teacher goes through the solutions.",
+            "practice_problems": [
+              "Find 40% of £300.",
+              "A journey of 90 miles takes 1 hour 30 minutes. Find the average speed.",
+              "Calculate the perimeter of a rectangle that is 12cm long and 5cm wide."
+            ],
+            "cfu_strategy": "Targeted Questioning: 'What was the key first step in the speed question? Why?'",
+            "estimated_minutes": 15,
+            "accessibility_notes": "The questions are sourced from past or specimen papers, providing authentic practice."
+          },
+          {
+            "card_number": 3,
+            "card_type": "guided_practice",
+            "title": "Calculator Mixed Questions",
+            "purpose": "To practice a variety of calculator-based skills.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Selecting and using Pythagoras' theorem",
+                "outcome": "O2"
+              },
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Students switch to using calculators and tackle a 3-question worksheet with typical calculator AVU questions.",
+            "practice_problems": [
+              "A ladder of 8m leans against a wall. Its base is 2m from the wall. How high does it reach?",
+              "Which is better value: 400g of pasta for £1.20 or 600g for £1.74?",
+              "Find the area of an L-shaped room with given dimensions."
+            ],
+            "cfu_strategy": "Peer Marking: Students swap papers and use a marking scheme provided by the teacher to grade their partner's work.",
+            "estimated_minutes": 15,
+            "accessibility_notes": "Remind students to show their working, as marks are awarded for method."
+          },
+          {
+            "card_number": 4,
+            "card_type": "independent_practice",
+            "title": "Interpreting Data",
+            "purpose": "To practice the statistical reasoning and communication skills needed for the AVU.",
+            "standards_addressed": [
+              {
+                "code": "AS2.2",
+                "description": "Using appropriate mathematical processes to analyse and present data",
+                "outcome": "O2"
+              }
+            ],
+            "pedagogical_approach": "Students are given a bar chart and must answer a question that requires them to make a comparison and justify their answer in a sentence.",
+            "cfu_strategy": "Self-Assessment: Students compare their written answer to a model answer provided by the teacher.",
+            "estimated_minutes": 10,
+            "accessibility_notes": "Provide a sentence stem: 'The chart shows that ______ is more popular than ______ because...'"
+          },
+          {
+            "card_number": 5,
+            "card_type": "exit_ticket",
+            "title": "Topic Confidence Check",
+            "purpose": "To gather data on student confidence levels to inform future revision sessions.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Students are given a list of the 5 key topics covered in the lesson. They rate their confidence on a scale of 1-3 (1=Need help, 2=Okay, 3=Confident) for each topic.",
+            "cfu_strategy": "Data Collection: Teacher collects the slips to identify topics that require further whole-class revision.",
+            "estimated_minutes": 5,
+            "accessibility_notes": "Use clear topic headings. This is a self-reflective task, not a test."
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 15min non-calc practice → 15min calc practice → 10min data practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "This lesson is intentionally designed to mix standards from different units, forcing students to switch between different mathematical strategies as they would in the AVU. It covers numeracy, finance, and geometry within one session.",
+        "misconceptions_embedded_in_cards": [],
+        "assessment_progression": "The lesson is a form of formative assessment itself. The guided practice sections allow the teacher to identify and address common errors in real time. The exit ticket provides a clear overview of student confidence, which is crucial for planning the final push before the AVU.",
+        "accessibility_integration": "The lesson is broken into timed, manageable chunks to maintain focus. Authentic exam questions are used, but in a supportive, guided context. Peer marking and self-assessment strategies are used to empower students in their revision."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": true
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This is a fast-paced revision lesson. The goal is not to re-teach topics from scratch, but to practice retrieving knowledge and applying it to exam-style questions. Emphasise exam technique: reading the question carefully, showing working, and including units."
+    }
+  ]
+}

@@ -1,4 +1,11 @@
-"""SoW Author DeepAgent - Orchestrates 8 subagents to produce schema-compliant Scheme of Work JSON documents for Scottish secondary education."""
+"""SoW Author DeepAgent - Directly authors schema-compliant Scheme of Work JSON documents for Scottish secondary education.
+
+This refactored architecture reduces complexity by:
+- Main agent directly authors SoW (no author subagent delegation)
+- Single unified_critic validates all dimensions in one pass (replaces 5 individual critics)
+- 2 subagents total: research_subagent + unified_critic (down from 7)
+- 62% reduction in components while maintaining full validation coverage
+"""
 
 import os
 
@@ -14,48 +21,24 @@ except ImportError:
 # Dual-import pattern for prompts
 try:
     from src.sow_author_prompts import (
-        SOW_AGENT_PROMPT,
-        SOW_AUTHOR_SUBAGENT_PROMPT,
-        SOW_COVERAGE_CRITIC_PROMPT,
-        SOW_SEQUENCING_CRITIC_PROMPT,
-        SOW_POLICY_CRITIC_PROMPT,
-        SOW_ACCESSIBILITY_CRITIC_PROMPT,
-        SOW_AUTHENTICITY_CRITIC_PROMPT
+        SOW_UNIFIED_AGENT_PROMPT,
+        SOW_UNIFIED_CRITIC_PROMPT
     )
     from src.research_agent_prompts import SUB_RESEARCH_PROMPT
-    from src.shared_prompts import COURSE_OUTCOME_SUBAGENT_PROMPT
 except ImportError:
     from sow_author_prompts import (
-        SOW_AGENT_PROMPT,
-        SOW_AUTHOR_SUBAGENT_PROMPT,
-        SOW_COVERAGE_CRITIC_PROMPT,
-        SOW_SEQUENCING_CRITIC_PROMPT,
-        SOW_POLICY_CRITIC_PROMPT,
-        SOW_ACCESSIBILITY_CRITIC_PROMPT,
-        SOW_AUTHENTICITY_CRITIC_PROMPT
+        SOW_UNIFIED_AGENT_PROMPT,
+        SOW_UNIFIED_CRITIC_PROMPT
     )
     from research_agent_prompts import SUB_RESEARCH_PROMPT
-    from shared_prompts import COURSE_OUTCOME_SUBAGENT_PROMPT
 
 # Import tool utilities (Tavily + Appwrite MCP)
+# Note: Refactored architecture uses all_tools for all subagents
+# (internet_only_tools and appwrite_only_tools no longer needed)
 try:
-    from src.sow_author_tools import (
-        internet_search,
-        appwrite_tools,
-        all_tools,
-        internet_only_tools,
-        appwrite_only_tools,
-        APPWRITE_AVAILABLE
-    )
+    from src.sow_author_tools import all_tools
 except ImportError:
-    from sow_author_tools import (
-        internet_search,
-        appwrite_tools,
-        all_tools,
-        internet_only_tools,
-        appwrite_only_tools,
-        APPWRITE_AVAILABLE
-    )
+    from sow_author_tools import all_tools
 
 # Initialize Gemini model
 gemini = ChatGoogleGenerativeAI(
@@ -77,60 +60,12 @@ research_subagent = {
     "tools": all_tools  # Tavily + Appwrite
 }
 
-# 2. Course Outcome Subagent - Fetches SQA data and proposes coherent unit/block structure
-course_outcome_subagent = {
-    "name": "course_outcome_subagent",
-    "description": "Fetch official SQA course data from Appwrite, write to Course_data.txt, and propose unit/block structure aligned with SQA specifications. MUST be called first to establish grounding data.",
-    "prompt": COURSE_OUTCOME_SUBAGENT_PROMPT,
-    "tools": appwrite_only_tools  # Database access for course structures
-}
-
-# 3. SoW Author Subagent - Drafts and revises the SoW JSON document
-sow_author_subagent = {
-    "name": "sow_author_subagent",
-    "description": "Draft/edit the SoW according to the schema defined in <schema_sow_with_field_descriptions> and write it to authored_sow_json.",
-    "prompt": SOW_AUTHOR_SUBAGENT_PROMPT,
-    "tools": appwrite_only_tools  # Database access for reference SoWs
-}
-
-# 4. Coverage Critic - Evaluates breadth and completeness
-sow_coverage_critic = {
-    "name": "sow_coverage_critic",
-    "description": "Evaluates completeness and representativeness of SoW. Checks exemplars breadth, balance, metadata sufficiency (≥0.90 threshold).",
-    "prompt": SOW_COVERAGE_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for validation
-}
-
-# 5. Sequencing Critic - Validates logical ordering
-sow_sequencing_critic = {
-    "name": "sow_sequencing_critic",
-    "description": "Validates logical ordering of SoW entries. Ensures prerequisites first, realistic lesson_type cadence (≥0.80 threshold).",
-    "prompt": SOW_SEQUENCING_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for validation
-}
-
-# 6. Policy Consistency Critic - Checks policy guardrails
-sow_policy_consistency = {
-    "name": "sow_policy_consistency",
-    "description": "Checks calculator usage staging, assessment cadence, and timing consistency with research policy notes (≥0.80 threshold).",
-    "prompt": SOW_POLICY_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for policy checks
-}
-
-# 7. Accessibility & Engagement Critic - Reviews accessibility and engagement
-sow_accessibility_engage = {
-    "name": "sow_accessibility_engage",
-    "description": "Reviews plain-language guidance, dyslexia-friendly cues, and authentic engagement/context tags (≥0.90 threshold).",
-    "prompt": SOW_ACCESSIBILITY_CRITIC_PROMPT,
-    "tools": internet_only_tools  # Tavily only for accessibility research
-}
-
-# 8. Scotland Authenticity Critic - Verifies Scottish context and terminology
-sow_authenticity_scotland = {
-    "name": "sow_authenticity_scotland",
-    "description": "Verifies Scottish authenticity (currency in £, local services, SQA/CfE phrasing, place-based examples).",
-    "prompt": SOW_AUTHENTICITY_CRITIC_PROMPT,
-    "tools": all_tools  # Tavily + Appwrite for Scottish context validation
+# 2. Unified Critic - Comprehensive validation across all dimensions
+unified_critic = {
+    "name": "unified_critic",
+    "description": "Comprehensively validate the authored SoW across all dimensions (Coverage, Sequencing, Policy, Accessibility, Authenticity) in a single pass. Writes sow_critic_result_json with dimensional scores, pass/fail status, and prioritized todos.",
+    "prompt": SOW_UNIFIED_CRITIC_PROMPT,
+    "tools": all_tools  # Tavily + Appwrite for comprehensive validation
 }
 
 
@@ -138,21 +73,17 @@ sow_authenticity_scotland = {
 # MAIN SoW DEEPAGENT
 # =============================================================================
 
-# Create the SoW Author DeepAgent with all 8 subagents
-# Uses custom state schema with todos reducer to prevent InvalidUpdateError
+# Create the SoW Author DeepAgent with 2 subagents (research + unified critic)
+# Uses custom state schema with todos reducer (preserved for compatibility, though less critical with single critic)
+# Architecture: Main agent directly authors SoW, then calls unified_critic for comprehensive validation
+# NOTE: course data must be pre-populated before agent execution
 agent = async_create_deep_agent(
     model=gemini,
     tools=all_tools,  # Tavily + Appwrite for full orchestration capability
-    instructions=SOW_AGENT_PROMPT,
+    instructions=SOW_UNIFIED_AGENT_PROMPT,
     subagents=[
         research_subagent,
-        course_outcome_subagent,
-        sow_author_subagent,
-        sow_coverage_critic,
-        sow_sequencing_critic,
-        sow_policy_consistency,
-        sow_accessibility_engage,
-        sow_authenticity_scotland
+        unified_critic
     ],
-    context_schema=SowAuthorState,  # Custom state with todos reducer (prevents InvalidUpdateError on concurrent critic updates)
+    context_schema=SowAuthorState,  # Custom state with todos reducer (preserved for compatibility)
 ).with_config({"recursion_limit": 1000})

@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "scores": {
+    "coverage": 1,
+    "sequencing": 1,
+    "policy": 1,
+    "accessibility": 1,
+    "authenticity": 1
+  },
+  "feedback": "The SoW is of excellent quality. All dimensions meet or exceed the required standards. The lesson plans are detailed, pedagogically sound, and well-aligned with the SQA curriculum for National 4 Applications of Mathematics. The chunking strategy has been applied effectively, creating a coherent and manageable learning sequence. The integration of Scottish contexts, clear accessibility provisions, and adherence to calculator policy are exemplary.",
+  "todos": []
+}

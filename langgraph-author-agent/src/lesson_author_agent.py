@@ -15,14 +15,12 @@ try:
         COMBINED_LESSON_CRITIC_PROMPT
     )
     from src.research_agent_prompts import SUB_RESEARCH_PROMPT
-    from src.shared_prompts import COURSE_OUTCOME_SUBAGENT_PROMPT
 except ImportError:
     from lesson_author_prompts import (
         LESSON_AGENT_PROMPT,
         COMBINED_LESSON_CRITIC_PROMPT
     )
     from research_agent_prompts import SUB_RESEARCH_PROMPT
-    from shared_prompts import COURSE_OUTCOME_SUBAGENT_PROMPT
 
 # Import tool utilities (Tavily + Appwrite MCP)
 try:
