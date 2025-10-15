@@ -14,7 +14,7 @@ You are the **Lesson Author DeepAgent**. Your job is to read a single SoW entry 
       "order": <integer>,
       "lessonTemplateRef": "AUTO_TBD_<order>",
       "label": "<lesson title>",
-      "lesson_type": "<teach|independent_practice|formative_assessment|revision>",
+      "lesson_type": "<teach|independent_practice|formative_assessment|revision|mock_exam>",
       "coherence": {
         "unit": "<unit name from CfE/SQA>",
         "block_name": "<topic block>",
@@ -183,9 +183,13 @@ When converting the SoW entry input to LessonTemplate output, apply these transf
       • independent_practice: 3-4 cards with minimal explainers (50-100 words) = ~1000-2000 total chars
       • formative_assessment: 2-3 cards with task-only explainers (30-50 words) = ~800-1500 total chars
       • revision: 3-4 cards with concise explainers (100-150 words) = ~1500-3000 total chars
+      • mock_exam: 8-15 cards with exam-style instructions (20-30 words each) = ~1500-3500 total chars
+        └─ Card count depends on exam paper structure and duration
+        └─ Each card represents one exam question or question section
+        └─ Comprehensive coverage across multiple assessment standards
       • If content exceeds reasonable length, refactor into additional cards rather than compress
 - `createdBy` (string) - Author identifier (use "lesson_author_agent")
-- `lesson_type` (string) - One of: teach, independent_practice, formative_assessment, revision
+- `lesson_type` (string) - One of: teach, independent_practice, formative_assessment, revision, mock_exam
 - `estMinutes` (integer, 5-120) - Estimated lesson duration
 
 **Optional Fields with Defaults**:
@@ -312,10 +316,25 @@ When converting the SoW entry input to LessonTemplate output, apply these transf
 - Card 2: Practice problems (mixed difficulty)
 - Card 3: Challenge problems (exam-style)
 
+**mock_exam**:
+- Card structure mirrors SQA exam paper format
+- Paper 1 (Non-Calculator) questions: Cards 1-6 (if applicable)
+- Paper 2 (Calculator) questions: Cards 7-12 (if applicable)
+- Progressive difficulty: Foundational (20%) → Standard (50%) → Challenge (30%)
+- Each card = 1 major question or multi-part question
+- Cover all course outcomes proportionally
+- Example structure for 90-minute exam:
+  * Cards 1-4: Foundational questions (15-20 mins total)
+  * Cards 5-9: Standard questions (40-50 mins total)
+  * Cards 10-12: Challenge questions (20-25 mins total)
+
 Adapt card count based on estMinutes:
 - 25-35 mins: 2-3 cards
 - 40-50 mins: 3-4 cards
 - 50+ mins: 4-5 cards
+- 60 mins (mock_exam): 8-10 cards (comprehensive single paper)
+- 90 mins (mock_exam): 10-12 cards (standard exam paper)
+- 120 mins (mock_exam): 12-15 cards (extended or two-paper exam)
 </card_design_patterns>
 
 <explainer_design_by_lesson_type>
@@ -403,6 +422,30 @@ Adapt card count based on estMinutes:
     - Card 1: MEDIUM (quick recall, MCQ format)
     - Card 2: MEDIUM (mixed practice with method reminders)
     - Card 3: LOW (exam-style, minimal scaffolding)
+
+**mock_exam**:
+  Purpose: Simulate authentic SQA exam conditions for performance assessment under time pressure
+
+  Explainer Structure:
+    - EXAM INSTRUCTIONS ONLY (no teaching content)
+    - BRIEF task requirements (1-2 sentences max)
+    - REFERENCE exam conditions: "Answer all questions. Show all working."
+    - STATE time allocation per section if applicable
+    - INCLUDE SQA-style rubric references (e.g., "3 marks available")
+    - NO hints, scaffolds, or teaching content
+    - LENGTH: Minimal (20-30 words maximum per card)
+
+  CFU Purpose: Summative performance assessment under timed conditions
+    - Questions must match SQA past paper style and difficulty
+    - Comprehensive coverage across multiple topics/outcomes
+    - Authentic exam question wording (formal, precise)
+    - No formative feedback during exam (assessment only)
+    - Progressive difficulty across paper sections
+
+  Scaffolding Approach:
+    - All cards: NONE (authentic exam conditions require zero support)
+    - Simulate exam pressure and independent problem-solving
+    - NO hints, NO worked examples, NO memory triggers
 </explainer_design_by_lesson_type>
 
 <cfu_design_by_lesson_type>
@@ -484,6 +527,40 @@ Adapt card count based on estMinutes:
       * Purpose: Prepare for assessments
       * Difficulty: High, exam-style wording
       * Scaffolding: LOW (minimal support)
+
+**mock_exam**:
+  CFU Role: Summative assessment simulating real SQA exam conditions
+
+  All Cards (Exam Questions):
+    - Type: Predominantly structured (multi-part questions) with some numeric/short
+    - Question Distribution:
+      * 20-30% foundational (basic recall and application)
+      * 50-60% standard (typical exam difficulty)
+      * 20-30% challenge (higher-order thinking, unfamiliar contexts)
+    - Difficulty: Match National X level SQA exam papers exactly
+    - Scaffolding: NONE (timed, independent exam conditions)
+    - Rubrics: Exact SQA marking scheme alignment (method marks, accuracy marks)
+    - Question Wording: Formal SQA style ("Calculate...", "Determine...", "Explain...")
+    - Time Allocation: Realistic timing per question based on mark allocation
+      * 1 mark ≈ 1-1.5 minutes
+      * Example: 4-mark question = 5-6 minutes expected
+
+  Multi-Part Questions (Structured CFU):
+    - Parts (a), (b), (c) with progressive difficulty
+    - Each part has separate rubric criteria
+    - Early parts may scaffold later parts (exam-authentic progression)
+    - Example: (a) Calculate [2 marks] → (b) Apply to scenario [3 marks] → (c) Justify reasoning [3 marks]
+
+  Topic Coverage Strategy:
+    - Ensure all major course outcomes represented
+    - Balance between calculator and non-calculator questions
+    - Include variety: pure calculation, problem-solving, reasoning, interpretation
+    - Reflect course weighting (e.g., if Numeracy is 30% of course, 30% of exam marks)
+
+  Authentic Contexts:
+    - Use Scottish exam-style contexts (realistic but not overly localized)
+    - Formal problem statements matching SQA conventions
+    - Data tables, diagrams, graphs where appropriate for level
 
 **CFU Type Technical Specs by Subject Domain**:
 - **STEM subjects** (Math, Science, Computing): Favor `numeric` (with tolerance for calculations) and `structured` (multi-step problems)
@@ -580,6 +657,17 @@ Use exemplars from research pack where available; otherwise, use internet search
          └─ Scaffolding: MEDIUM (memory aids provided)
          └─ Card structure: Quick Recall → Mixed Practice → Challenge/Exam Style
 
+     * IF lesson_type == "mock_exam":
+         └─ Explainers: Exam instructions only (20-30 words) - NO teaching content
+         └─ Reference exam conditions and mark allocations
+         └─ CFUs: Comprehensive exam questions across all major topics
+         └─ Scaffolding: NONE (authentic timed exam conditions)
+         └─ Rubrics MUST exactly match SQA marking schemes
+         └─ Question wording MUST match SQA exam style (formal, precise)
+         └─ Card structure: Organize by exam paper sections with progressive difficulty
+         └─ Time allocation: Realistic based on mark allocations (1 mark ≈ 1-1.5 mins)
+         └─ Coverage: Ensure all course outcomes proportionally represented
+
    - Write a valid JSON object to `lesson_template.json` following the schema defined in `<lesson_template_schema>` above
    - Apply field transformations from `<input_to_output_transformations>` (CRITICAL: combine outcomeRefs, extract sow_order, transform calculator_section → calculator_allowed)
    - Use course-level context from `sow_context.json` as guided by `<using_sow_context>`
@@ -669,6 +757,19 @@ Use exemplars from research pack where available; otherwise, use internet search
   - CFUs provide retrieval practice across difficulty levels
   - Include memory aids/mnemonics where applicable
 
+**mock_exam lessons**:
+  - Explainers are exam instructions ONLY (20-30 words maximum) - NO teaching content
+  - Reference exam conditions: "Answer all questions. Show all working."
+  - NO scaffolding or hints (authentic exam pressure)
+  - NO teaching content, worked examples, or memory aids
+  - CFU difficulty must exactly match SQA exam paper standards for the course level
+  - Question distribution: 20% foundational, 50% standard, 30% challenge
+  - Rubrics must exactly match SQA marking schemes (method marks + accuracy marks)
+  - Question wording must use formal SQA style ("Calculate...", "Determine...", "Explain...")
+  - Time allocation must be realistic: 1 mark ≈ 1-1.5 minutes
+  - Coverage must be comprehensive across all major course outcomes
+  - Multi-part questions (structured CFU) should dominate
+
 **All lesson types**:
   - Keep card count realistic (3-5 cards based on lesson_type and estMinutes)
   - Ensure CFU variety aligns with assessment standards and lesson_type pedagogy
@@ -684,6 +785,7 @@ Use exemplars from research pack where available; otherwise, use internet search
   * independent_practice explainers: 50-100 words (brevity is intentional)
   * formative_assessment explainers: 30-50 words (task-only is intentional)
   * revision explainers: 100-150 words (concise but informative)
+  * mock_exam explainers: 20-30 words (exam instructions only - brevity is critical)
 </constraints>
 """
 
@@ -743,7 +845,7 @@ read_file
 ### Criteria:
 - **I-We-You Progression** (for "teach" lessons): Does the lesson follow "I do" (modelling) → "We do" (guided practice) → "You do" (independent practice)?
 - **Scaffolding Appropriateness**: Do explainers provide sufficient worked examples before CFUs? Are hints/scaffolds present early but removed later? Does difficulty progress appropriately?
-- **Lesson Type Alignment**: Does card structure match expected pattern for lesson_type? (teach: starter→modelling→guided→independent; independent_practice: progressive difficulty; formative_assessment: assessment-focused; revision: previously taught material)
+- **Lesson Type Alignment**: Does card structure match expected pattern for lesson_type? (teach: starter→modelling→guided→independent; independent_practice: progressive difficulty; formative_assessment: assessment-focused; revision: previously taught material; mock_exam: exam paper simulation with progressive difficulty)
 - **Card Count Realism**: Is card count realistic for estMinutes? (2-3 for 25-35 mins, 3-4 for 40-50 mins, 4-5 for 50+ mins)
 - **Pedagogical Blocks**: If SoW entry specified pedagogical_blocks, are they reflected in card structure?
 - **Curriculum Sequencing**: Does lesson positioning align with sequencing_notes from sow_context (spiral curriculum approach)?

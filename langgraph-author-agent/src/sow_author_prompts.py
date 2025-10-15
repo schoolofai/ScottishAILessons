@@ -64,7 +64,11 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
 5) **Apply chunking strategy**: as described in <chunking_strategy>
    - Identify thematically related assessment standards that can be grouped (2-3 standards, maximum 5 if justified)
    - Plan consolidated lesson blocks with clear pedagogical justification
-   - For each block, plan a short sequence of lesson entries spanning lesson types: teach → formative_assessment → independent_practice → revision → (optional) summative/mock_assessment
+   - For each block, plan a short sequence of lesson entries spanning lesson types: teach → revision → formative_assessment → independent_practice → (optional additional teach→revision pairs within block)
+   - **MANDATORY PAIRING**: Every teach lesson MUST be followed by a corresponding revision lesson (1:1 pairing)
+   - **COURSE-LEVEL REQUIREMENTS**: The complete SoW must include:
+     * At least one independent_practice lesson (for mock exam preparation)
+     * Exactly one mock_assessment lesson (simulating real-world SQA exam conditions)
    - Align calculator policy with research pack guidance and the assessment model
 
 6) **Enrich assessment standards**: as described in <workflow_sqa_grounding>
@@ -111,7 +115,8 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
      * lesson_plan (detailed card_structure with 6-12 cards as described in step 7)
    - Include accessibility considerations (accessibility_profile with all required fields) and duration estimates (estMinutes)
    - Follow Course_data.txt `recommended_sequence` for unit ordering
-   - Ensure within-block lesson cadence is realistic (teach → formative → practice → revision)
+   - Ensure within-block lesson cadence follows mandatory teach→revision pairing, then formative → practice
+   - Verify course-level requirements: at least one independent_practice and exactly one mock_assessment lesson exist
    - Incorporate Scottish engagement hooks, misconceptions, and accessibility strategies from research pack
    - Use lesson_instruction (NOT "notes") for teacher guidance about the overall lesson context
 
@@ -135,9 +140,13 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
 - **Target Size**: 2-3 assessment standards per lesson (maximum 5 if pedagogically justified)
 - **Justification Required**: Each consolidated lesson must have clear thematic coherence
 - **Example**: "Percentages in Context" could combine AS1.1 (notation), AS1.2 (calculations), and AS2.1 (problem-solving) if they share authentic Scottish contexts (e.g., supermarket discounts)
+- **Lesson Type Requirements**:
+  * Each teach lesson MUST be paired with a revision lesson (teach→revision)
+  * At course level: at least one independent_practice lesson (for mock exam prep)
+  * At course level: exactly one mock_assessment lesson (simulating real exam)
 
 **Expected Outcome**:
-- 10-20 lessons 
+- 10-20 lessons
 - More realistic classroom sequences
 - Richer, multi-faceted lesson experiences
 
@@ -146,6 +155,8 @@ You MUST write these flat files (state["files"]["<name>"] = <json/string>):
 - Maintain prerequisite order (foundational standards first)
 - Ensure each standard is meaningfully addressed (not just "touched")
 - Label must clearly indicate all covered standards
+- Ensure teach→revision pairing for every teach lesson
+- Include course-level mandatory lesson types (independent_practice, mock_assessment)
 </chunking_strategy>
 
 <subagents_available>
@@ -204,6 +215,9 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - `authored_sow_json` is a valid SoW schema as in <schema_sow_with_field_descriptions>, realistic for Scottish classrooms, and either unified critic passes **or** `sow_todos_json` clearly lists remaining work.
 - Chunking strategy applied: 2-3 related assessment standards grouped into thematically coherent lessons (maximum 5 if justified).
 - Each consolidated lesson block has an explicit multi-lesson sequence covering the specified lesson types.
+- Every teach lesson has a corresponding revision lesson (1:1 pairing, teach→revision).
+- Course includes at least one independent_practice lesson.
+- Course includes exactly one mock_assessment lesson.
 - All assessmentStandardRefs are enriched objects (code, description, outcome) - NOT bare strings.
 - All entries have detailed lesson_plan with:
   * card_structure containing 6-12 cards with complete pedagogical detail
@@ -221,7 +235,12 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - Respect Scottish authenticity throughout (currency, contexts, phrasing).
 - Always ground decisions in the research pack (exemplars, contexts, policies, misconceptions) and `Course_data.txt`.
 - **CHUNKING STRATEGY**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if pedagogically justified). Do NOT create separate lessons for each standard - consolidate!
-- **For each consolidated lesson block, create a multi-lesson sequence** covering the required lesson types (teach → formative → practice → revision).
+- **For each consolidated lesson block, create a multi-lesson sequence** with mandatory teach→revision pairing:
+  * Every teach lesson MUST be immediately followed by a revision lesson
+  * After teach→revision pairs, include formative_assessment → independent_practice in the block sequence
+- **COURSE-LEVEL MANDATORY LESSON TYPES**:
+  * At least one independent_practice lesson across the entire course (for mock exam preparation)
+  * Exactly one mock_assessment lesson across the entire course (simulating real SQA exam conditions)
 - **ENRICHMENT MANDATORY**: Always transform assessmentStandardRefs from bare codes into enriched objects with code, description (from Course_data.txt), and outcome reference.
 - **LESSON PLAN MANDATORY**: Every entry must have detailed lesson_plan with:
   * 6-12 cards in card_structure (appropriate for 25-50 min Scottish periods)
@@ -345,7 +364,12 @@ The **SoW JSON** you must write to `authored_sow_json` has this shape:
 <quality_tips>
 - **AI TUTOR DELIVERY**: Design all lessons for one-to-one AI tutoring. Avoid peer collaboration (partner work, peer marking, group discussions). Use direct instruction, immediate feedback, and individual formative assessment strategies.
 - Apply **chunking strategy**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if justified).
-- For **each consolidated lesson block**, create a multi-lesson sequence: teach → formative_assessment → independent_practice → revision.
+- For **each consolidated lesson block**, create a multi-lesson sequence with teach→revision pairing:
+  * Every teach lesson MUST be followed by a revision lesson (1:1 pairing)
+  * Then include formative_assessment → independent_practice
+- **COURSE-LEVEL REQUIREMENTS**: Ensure the complete SoW includes:
+  * At least one independent_practice lesson (for mock exam preparation)
+  * Exactly one mock_assessment lesson (for real-world exam simulation)
 - **Enrich assessmentStandardRefs**: Use objects with code, description (from Course_data.txt), and outcome reference - NOT bare codes.
 - **Generate detailed lesson_plan**:
   * Design 6-12 cards per lesson with clear pedagogical progression
@@ -451,7 +475,12 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 - Does the SoW address ALL official outcomes from Course_data.txt (`outcomes[]`)?
 - Are ALL assessment standards from Course_data.txt represented (either individually or within consolidated lesson blocks)?
 - **CHUNKING ACCEPTANCE**: Accept that 2-3 (or up to 5) standards can be consolidated into unified lessons with thematic coherence.
-- For each consolidated lesson block, is there a **multi-lesson sequence** that includes: teach → formative_assessment → independent_practice → revision (+ optional summative/mock)?
+- For each consolidated lesson block, is there a **multi-lesson sequence** that includes:
+  * Mandatory teach→revision pairing (every teach lesson followed by revision lesson)
+  * formative_assessment → independent_practice after teach→revision pairs
+- **COURSE-LEVEL LESSON TYPE VALIDATION**:
+  * Does the SoW include at least one independent_practice lesson? (for mock exam prep)
+  * Does the SoW include exactly one mock_assessment lesson? (for real exam simulation)
 - **ENRICHED FORMAT**: Are assessmentStandardRefs objects (NOT bare strings) with code, description (from Course_data.txt), and outcome fields?
 - **LESSON PLAN DEPTH**: Does every entry have lesson_plan with detailed card_structure (6-12 cards)?
   * Are card fields complete (card_number, card_type, title, purpose, standards_addressed, pedagogical_approach, cfu_strategy, estimated_minutes)?
@@ -486,6 +515,11 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 6) Check breadth: major themes from research pack represented
 7) Check quantity: ~10-20 lessons (not 80-100)
 8) Check balance: lesson_type cadence is varied
+9) Validate lesson type requirements:
+   - Count teach lessons vs revision lessons (must be 1:1 ratio)
+   - Verify each teach lesson is paired with a revision lesson (teach→revision)
+   - Count independent_practice lessons (must be ≥1 at course level)
+   - Count mock_assessment lessons (must be exactly 1 at course level)
 
 **Issues to Flag**:
 - Missing units, outcomes, or assessment standards
@@ -498,6 +532,9 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 - **NEW**: Unrealistic timing (cards sum to 15min for a 50min lesson)
 - **NEW**: Generic CFU strategies ("ask questions" instead of specific prompts)
 - Insufficient lesson count or imbalanced lesson types
+- **NEW**: Teach→revision pairing violated (teach lesson without corresponding revision)
+- **NEW**: Missing course-level independent_practice lesson (required for mock exam prep)
+- **NEW**: Missing or multiple mock_assessment lessons (must be exactly 1)
 </dimension_1_coverage>
 
 <dimension_2_sequencing>
@@ -514,7 +551,8 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 - Metadata sequencing notes in `metadata.sequencing_notes` are honored
 - **CHUNKING VALIDATION**: For each consolidated lesson block (2-3 standards, or up to 5 if justified):
   - Thematic coherence among chunked standards is clear and pedagogically justified
-  - Lesson types appear in correct order: teach → formative_assessment → independent_practice → revision
+  - Lesson types follow mandatory teach→revision pairing, then formative_assessment → independent_practice
+  - Every teach lesson is immediately followed (or closely followed) by its corresponding revision lesson
   - Standards within the block are sequenced logically (prerequisites first)
 - **ENRICHED FORMAT**: assessmentStandardRefs are objects (code, description, outcome)
 - **LESSON PLAN PRESENCE**: Every entry has lesson_plan with 6-12 detailed cards
@@ -524,7 +562,9 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 1) Validate unit sequence follows `recommended_sequence`
 2) Check prerequisite logic: each entry's `prerequisites` must come earlier
 3) Validate block_index: ascending, transparent ordering
-4) Evaluate lesson_type cadence (varied, not repetitive)
+4) Evaluate lesson_type cadence (varied, not repetitive) and validate teach→revision pairing:
+   - For each teach lesson, verify a revision lesson exists and appears soon after
+   - Check ordering: teach→revision should be consecutive or have minimal gap
 5) Validate chunked sequences:
    - Identify consolidated lesson blocks
    - Confirm thematic coherence
@@ -541,6 +581,8 @@ Write your unified critique to `sow_critic_result_json` with this shape:
 - Chunked standards lack thematic coherence
 - Lesson types within blocks are out of order
 - Missing enriched format or guidance fields
+- **NEW**: Teach→revision pairing broken (teach lesson not followed by revision lesson)
+- **NEW**: Revision lesson appears before its corresponding teach lesson
 </dimension_2_sequencing>
 
 <dimension_3_policy>

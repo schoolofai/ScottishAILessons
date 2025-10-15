@@ -1,0 +1,478 @@
+{
+  "metadata": {
+    "coherence": {
+      "policy_notes": [
+        "The course strategically sequences calculator usage, beginning with a strong non-calculator foundation in the Numeracy unit and gradually introducing calculators for more complex topics like Pythagoras and statistics, mirroring the two-part structure of the SQA Added Value Unit."
+      ],
+      "sequencing_notes": [
+        "The curriculum flows logically from foundational Numeracy skills into their application in Managing Finance and Statistics, and then Geometry and Measures. This ensures prerequisite skills are established before more complex, context-heavy problems are introduced. The SoW culminates in a dedicated block for revision and mock assessment to prepare for the final Added Value Unit."
+      ]
+    },
+    "accessibility_notes": [
+      "Lessons are designed with accessibility in mind, using plain language (CEFR_B1), clear step-by-step instructions, and dyslexia-friendly formatting. All content is grounded in relatable, real-life Scottish contexts to aid comprehension and engagement."
+    ],
+    "engagement_notes": [
+      "Engagement is fostered through the consistent use of authentic Scottish contexts, such as calculating costs for a trip to the Edinburgh Fringe, comparing ScotRail journey times, or budgeting with prices from local supermarkets. This makes the mathematics relevant and practical for learners in Scotland."
+    ]
+  },
+  "entries": [
+    {
+      "order": 1,
+      "label": "Introduction to Numeracy: Fractions, Percentages, and Decimals (Non-Calc)",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Numeracy Foundations",
+        "block_index": "1.1",
+        "prerequisites": []
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Focus on accurate calculation and showing working."
+      },
+      "engagement_tags": [
+        "shopping",
+        "finance",
+        "budgeting"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.2",
+          "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson introduces foundational non-calculator numeracy skills, focusing on fractions, percentages, and decimals. It builds from basic concepts to applying them in simple, real-life Scottish shopping scenarios.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "What's the Deal?",
+            "purpose": "To activate prior knowledge of fractions and percentages in a familiar context.",
+            "standards_addressed": [],
+            "pedagogical_approach": "Present a simple shopping scenario: 'A T-shirt costs £10. There's a 50% off sale. How much is it now? What if it was 1/2 price instead?' Use this to lead into the lesson.",
+            "cfu_strategy": "Open question: 'When have you used fractions or percentages this week?'",
+            "estimated_minutes": 5
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "Fractions, Percentages, and Decimals: The Basics",
+            "purpose": "To explicitly teach the relationship and conversion between common fractions, percentages, and decimals.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Use a visual aid (like a pizza or a grid) to show equivalences (e.g., 1/2 = 50% = 0.5; 1/4 = 25% = 0.25). Provide a simple conversion chart for reference.",
+            "key_concepts": [
+              "Fraction",
+              "Percentage",
+              "Decimal",
+              "Equivalence",
+              "Conversion"
+            ],
+            "cfu_strategy": "MCQ: 'Which of these is equivalent to 3/4? A) 0.34, B) 75%, C) 3.4'",
+            "estimated_minutes": 10
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Calculating a Percentage of an Amount",
+            "purpose": "To model the non-calculator method for finding a percentage of a quantity.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Demonstrate the '10% method'. Find 10% by dividing by 10, then use that to find 20%, 5%, 50% etc. Step-by-step breakdown with clear annotation.",
+            "worked_example": "Find 30% of £60. Step 1: Find 10% by doing £60 / 10 = £6. Step 2: Find 30% by doing 3 x £6 = £18. The answer is £18.",
+            "cfu_strategy": "Structured question: 'Show me the steps to find 20% of £80.'",
+            "estimated_minutes": 10
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "Supermarket Savings",
+            "purpose": "To provide scaffolded practice on calculating discounts.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Present a series of items from a Scottish supermarket flyer with different percentage discounts (e.g., 25% off Irn-Bru, 10% off Tunnock's Teacakes). Students calculate the saving and the new price. AI provides immediate feedback.",
+            "practice_problems": [
+              "A box of shortbread costs £4. It has 25% off. What is the new price?",
+              "A bottle of juice is £2. It has a 10% discount. How much do you save?",
+              "A bag of tatties is £1.50. There's a 20% discount. What is the final price?"
+            ],
+            "cfu_strategy": "Fill-in-the-blank: 'To find 25% of £12, I first find 10% which is ___, then I find 5% which is ___, so 25% is ___.'",
+            "misconceptions_addressed": [
+              {
+                "misconception": "Calculating the discount but forgetting to subtract it from the original price.",
+                "remediation": "The AI tutor will prompt: 'Great, you've found the discount. Now what's the final price you pay at the till?'"
+              }
+            ],
+            "estimated_minutes": 15
+          },
+          {
+            "card_number": 5,
+            "card_type": "exit_ticket",
+            "title": "Ticket Out",
+            "purpose": "To assess understanding of the core concepts from the lesson.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "A single, multi-step problem summarizing the lesson's skills.",
+            "cfu_strategy": "Structured question: 'A survey of 80 pupils found 1/4 walk to school. 10% of the walkers are late. How many pupils who walk are late?'",
+            "rubric_guidance": {
+              "total_points": 2,
+              "criteria": [
+                {
+                  "description": "Correctly calculates 1/4 of 80.",
+                  "points": 1
+                },
+                {
+                  "description": "Correctly calculates 10% of the result.",
+                  "points": 1
+                }
+              ]
+            },
+            "estimated_minutes": 5
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min exit ticket (45 min total)",
+        "multi_standard_integration_strategy": "This lesson focuses solely on AS1.2 to build a strong foundation in calculation before applying it to problem-solving contexts.",
+        "misconceptions_embedded_in_cards": [
+          "Card 4 addresses the common error of finding the discount amount but not the final price."
+        ],
+        "assessment_progression": "Assessment progresses from simple MCQs (Card 2) to scaffolded guided practice with immediate feedback (Card 4), culminating in a multi-step problem in the exit ticket (Card 5)."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 45,
+      "lesson_instruction": "This is a foundational lesson on non-calculator numeracy. The focus is on building student confidence with the '10% method' for percentages and understanding the equivalence between fractions, decimals, and percentages. Use the supermarket context to keep the examples relatable and practical."
+    },
+    {
+      "order": 2,
+      "label": "Revision: Core Numeracy Skills",
+      "lesson_type": "revision",
+      "coherence": {
+        "block_name": "Numeracy Foundations",
+        "block_index": "1.2",
+        "prerequisites": [
+          "Introduction to Numeracy: Fractions, Percentages, and Decimals (Non-Calc)"
+        ]
+      },
+      "policy": {
+        "calculator_section": "non_calc",
+        "assessment_notes": "Emphasis on recall and speed of accurate calculation."
+      },
+      "engagement_tags": [
+        "shopping",
+        "quizzes"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.2",
+          "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This revision lesson reinforces the core non-calculator skills from the previous lesson. It uses quick-fire questions and spaced practice to improve fluency and recall of fraction, percentage, and decimal calculations.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Quick Recall",
+            "purpose": "To quickly reactivate knowledge of FDP equivalences.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "A rapid-fire quiz where the AI presents a fraction (e.g., '1/4') and the student must type the equivalent percentage and decimal.",
+            "cfu_strategy": "Direct Questioning: 'What is 2/5 as a decimal? What is 0.8 as a percentage?'",
+            "estimated_minutes": 5
+          },
+          {
+            "card_number": 2,
+            "card_type": "guided_practice",
+            "title": "The 10% Method Challenge",
+            "purpose": "To provide focused practice on the non-calculator percentage method.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "A series of progressively harder percentage calculations using the 10% method. The AI can provide hints if the student gets stuck on a step.",
+            "practice_problems": [
+              "Find 40% of £70.",
+              "Find 15% of £120.",
+              "Find 5% of £90.",
+              "Find 35% of £200."
+            ],
+            "cfu_strategy": "Targeted feedback: The AI will check each step of the calculation (e.g., 'Correct, 10% is £12. Now how do you find 5% from that?').",
+            "estimated_minutes": 15
+          },
+          {
+            "card_number": 3,
+            "card_type": "independent_practice",
+            "title": "Mixed Numeracy Problems",
+            "purpose": "To apply FDP skills to a variety of word problems.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Present 3-4 SQA-style word problems that require different numeracy skills. The student works through them independently before the AI reveals the worked solutions.",
+            "practice_problems": [
+              "A cinema has 200 seats. On Tuesday, 3/4 of the seats were sold. How many seats were empty?",
+              "A phone bill is £25. VAT is 20%. How much is the VAT in pounds?",
+              "In a class of 30 pupils, 6 have blue eyes. What percentage of the class has blue eyes?"
+            ],
+            "cfu_strategy": "Self-assessment: After attempting the problems, the student compares their working to the model solution and identifies any errors.",
+            "estimated_minutes": 15
+          },
+          {
+            "card_number": 4,
+            "card_type": "exit_ticket",
+            "title": "Confidence Check",
+            "purpose": "To gauge student confidence and identify remaining areas of difficulty.",
+            "standards_addressed": [],
+            "pedagogical_approach": "A self-reflection poll.",
+            "cfu_strategy": "Poll: 'How confident do you feel with non-calculator percentages? 1 (Not confident) to 5 (Very confident).'",
+            "estimated_minutes": 5
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 15min guided practice → 15min independent practice → 5min exit ticket (40 min total)",
+        "multi_standard_integration_strategy": "This lesson continues to focus on AS1.2 to ensure mastery of the core calculation skill.",
+        "misconceptions_embedded_in_cards": [],
+        "assessment_progression": "The lesson moves from rapid recall (Card 1) to focused, scaffolded practice (Card 2) and then to independent application in exam-style questions (Card 3), with a final self-assessment (Card 4)."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 40,
+      "lesson_instruction": "This revision lesson is crucial for building fluency. The goal is for the student to perform these non-calculator skills accurately and relatively quickly. Use the guided practice to drill the '10% method' until it becomes second nature. The independent practice introduces the context of word problems."
+    },
+    {
+      "order": 3,
+      "label": "Time, Speed, and Distance Calculations",
+      "lesson_type": "teach",
+      "coherence": {
+        "block_name": "Numeracy Foundations",
+        "block_index": "1.3",
+        "prerequisites": [
+          "Revision: Core Numeracy Skills"
+        ]
+      },
+      "policy": {
+        "calculator_section": "mixed",
+        "assessment_notes": "Pay close attention to units (hours, minutes, miles, km)."
+      },
+      "engagement_tags": [
+        "travel",
+        "transport",
+        "scotrail"
+      ],
+      "outcomeRefs": [
+        "O1"
+      ],
+      "assessmentStandardRefs": [
+        {
+          "code": "AS1.1",
+          "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.2",
+          "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+          "outcome": "O1"
+        },
+        {
+          "code": "AS1.3",
+          "description": "Explaining a solution in relation to the context",
+          "outcome": "O1"
+        }
+      ],
+      "lesson_plan": {
+        "summary": "This lesson teaches the relationship between speed, distance, and time. It covers using the formula triangle, converting between minutes and decimal hours, and applying these skills to real-world travel problems, including reading timetables.",
+        "card_structure": [
+          {
+            "card_number": 1,
+            "card_type": "starter",
+            "title": "Fastest Journey",
+            "purpose": "To introduce the concepts of speed, distance, and time in a relatable context.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Show two simple ScotRail journeys: Glasgow to Edinburgh (50 miles, 1 hour) and Glasgow to Dundee (80 miles, 1.5 hours). Ask: 'Which train is faster on average?'",
+            "cfu_strategy": "Open question: 'What information do you need to work out how fast something is going?'",
+            "estimated_minutes": 5
+          },
+          {
+            "card_number": 2,
+            "card_type": "explainer",
+            "title": "The Speed, Distance, Time Triangle",
+            "purpose": "To introduce and explain how to use the S=D/T formula triangle.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Display the formula triangle. Explain how to use it to find each variable by covering it up. Emphasise the importance of using the correct units (e.g., miles per HOUR requires time in HOURS).",
+            "key_concepts": [
+              "Speed",
+              "Distance",
+              "Time",
+              "Formula Triangle",
+              "Units"
+            ],
+            "cfu_strategy": "MCQ: 'To find Distance, you multiply... A) Speed x Time, B) Speed / Time, C) Time / Speed.'",
+            "estimated_minutes": 10
+          },
+          {
+            "card_number": 3,
+            "card_type": "modelling",
+            "title": "Converting Time",
+            "purpose": "To model how to convert time from hours and minutes into decimal hours for calculations.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Work through a clear example. 'A journey takes 2 hours 30 minutes. We know 30 minutes is half an hour, which is 0.5 hours. So the time for our calculation is 2.5 hours.' Provide a quick conversion table for common times (15 mins = 0.25, 30 mins = 0.5, 45 mins = 0.75).",
+            "worked_example": "Convert 1 hour 45 minutes to decimal hours. Step 1: 45 minutes is 3/4 of an hour. Step 2: 3/4 = 0.75. Step 3: So the time is 1.75 hours.",
+            "misconceptions_addressed": [
+              {
+                "misconception": "Incorrectly converting time, e.g., writing 1 hour 30 mins as 1.3 hours.",
+                "remediation": "Emphasise that time is out of 60 minutes, not 100. Use a clock face visual to reinforce fractions of an hour."
+              }
+            ],
+            "cfu_strategy": "Direct Question: 'What is 2 hours 15 minutes in decimal hours?'",
+            "estimated_minutes": 10
+          },
+          {
+            "card_number": 4,
+            "card_type": "guided_practice",
+            "title": "ScotRail Journey Planner",
+            "purpose": "To apply the S=D/T formula to problems involving a real timetable.",
+            "standards_addressed": [
+              {
+                "code": "AS1.1",
+                "description": "Interpreting a situation involving finance and identifying an appropriate strategy",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "Provide a simplified ScotRail timetable extract. Ask the student to calculate journey times, and then, given a distance, calculate the average speed. A calculator is permitted for the final division.",
+            "practice_problems": [
+              "A train leaves Edinburgh at 09:15 and arrives in Aberdeen at 11:45. How long did the journey take?",
+              "The distance is 130 miles. What was the average speed? (Calc allowed)",
+              "A train travels at 60 mph for 2.5 hours. How far does it go?"
+            ],
+            "cfu_strategy": "The AI tutor checks each part of the process: 'First, what is the journey time in hours and minutes? Now, what is that in decimal hours? Finally, what is the calculation for speed?'",
+            "estimated_minutes": 15
+          },
+          {
+            "card_number": 5,
+            "card_type": "exit_ticket",
+            "title": "Planning a Trip",
+            "purpose": "To assess the student's ability to solve a multi-step S=D/T problem.",
+            "standards_addressed": [
+              {
+                "code": "AS1.2",
+                "description": "Using appropriate mathematical processes and/or calculations to determine a solution",
+                "outcome": "O1"
+              },
+              {
+                "code": "AS1.3",
+                "description": "Explaining a solution in relation to the context",
+                "outcome": "O1"
+              }
+            ],
+            "pedagogical_approach": "A final word problem requiring time conversion and a speed calculation.",
+            "cfu_strategy": "Structured question: 'A bus journey of 90 miles takes 1 hour 30 minutes. What is the average speed of the bus in miles per hour?'",
+            "rubric_guidance": {
+              "total_points": 3,
+              "criteria": [
+                {
+                  "description": "Correctly calculates journey time (1.5 hours).",
+                  "points": 1
+                },
+                {
+                  "description": "Selects correct formula (S=D/T).",
+                  "points": 1
+                },
+                {
+                  "description": "Calculates correct answer with units (60 mph).",
+                  "points": 1
+                }
+              ]
+            },
+            "estimated_minutes": 5
+          }
+        ],
+        "lesson_flow_summary": "5min starter → 10min explainer → 10min modelling → 15min guided practice → 5min exit ticket (50 min total)",
+        "multi_standard_integration_strategy": "This lesson integrates interpreting a situation (AS1.1), performing calculations (AS1.2), and explaining the result (AS1.3) within the context of travel planning.",
+        "misconceptions_embedded_in_cards": [
+          "Card 3 directly addresses and remediates the common error of incorrectly converting minutes to decimal hours."
+        ],
+        "assessment_progression": "The lesson builds from understanding the formula (Card 2), to mastering the prerequisite skill of time conversion (Card 3), to applying everything in context (Card 4), and finally to a summative exit ticket (Card 5)."
+      },
+      "accessibility_profile": {
+        "dyslexia_friendly": true,
+        "plain_language_level": "CEFR_B1",
+        "extra_time": false
+      },
+      "estMinutes": 50,
+      "lesson_instruction": "This lesson introduces the practical skill of speed, distance, time calculations. The main barrier for students is often the time conversion. Spend adequate time on Card 3, ensuring the student understands why 1 hour 30 mins is 1.5 and not 1.3. The use of a real (simplified) timetable makes the context authentic."
+    }
+  ]
+}

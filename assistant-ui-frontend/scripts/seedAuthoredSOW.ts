@@ -167,12 +167,13 @@ async function main() {
       console.log(`   Total estimated minutes: ${enrichedMetadata.total_estimated_minutes}`);
       console.log('');
 
-      // Step 7: Upsert to database
+      // Step 7: Upsert to database (with courseId for version determination)
       const result = await upsertSOWToDatabase(
         databases,
         sowData,
         enrichedMetadata,
-        appwriteClient
+        appwriteClient,
+        courseId  // Pass courseId from command line args
       );
 
       console.log('=====================================');
@@ -653,24 +654,114 @@ function formatAccessibilityNotes(notes: string[] | string | undefined): string 
 }
 
 /**
+ * Determine the next version for a SOW document
+ *
+ * Strategy:
+ * - If no existing SOW for the course: return "1.0" (initial version)
+ * - If existing versions exist: increment the minor version (1.0 → 1.1 → 1.2)
+ * - Versions follow semantic versioning: major.minor
+ */
+async function determineSOWVersion(
+  databases: Databases,
+  courseId: string
+): Promise<string> {
+  try {
+    console.log(`🔍 Checking for existing SOW versions for course: ${courseId}`);
+
+    // Query existing SOW documents for this course, ordered by version descending
+    const response = await databases.listDocuments(
+      DATABASE_ID,
+      AUTHORED_SOW_COLLECTION,
+      [
+        Query.equal('courseId', courseId),
+        Query.orderDesc('version'),
+        Query.limit(1)
+      ]
+    );
+
+    // No existing versions - this is the first SOW for this course
+    if (response.documents.length === 0) {
+      console.log(`   ℹ️  No existing versions found. Creating initial version 1.0`);
+      return '1.0';
+    }
+
+    // Parse the latest version and increment minor version
+    const latestDoc = response.documents[0];
+    const latestVersion = latestDoc.version;
+
+    console.log(`   📌 Latest version found: ${latestVersion}`);
+
+    // Parse version string (support multiple formats)
+    const versionParts = latestVersion.split('.');
+
+    // Handle single-number versions (e.g., "2" → "3")
+    if (versionParts.length === 1) {
+      const singleVersion = parseInt(versionParts[0], 10);
+      if (!isNaN(singleVersion)) {
+        const newVersion = String(singleVersion + 1);
+        console.log(`   ✅ Incrementing single-number version: ${latestVersion} → ${newVersion}`);
+        return newVersion;
+      }
+    }
+
+    // Handle major.minor versions (e.g., "1.0" → "1.1")
+    if (versionParts.length === 2) {
+      const major = parseInt(versionParts[0], 10);
+      const minor = parseInt(versionParts[1], 10);
+
+      if (!isNaN(major) && !isNaN(minor)) {
+        const newVersion = `${major}.${minor + 1}`;
+        console.log(`   ✅ Incrementing minor version: ${latestVersion} → ${newVersion}`);
+        return newVersion;
+      }
+    }
+
+    // Fallback for unexpected formats
+    console.warn(`   ⚠️  Unexpected version format: ${latestVersion}. Defaulting to "1.0"`);
+    return '1.0';
+  } catch (error: any) {
+    console.error(`   ❌ Error determining version: ${error.message}`);
+    console.error(`   ℹ️  Falling back to timestamp-based version`);
+
+    // Fallback: timestamp-based version for uniqueness
+    const timestamp = Date.now();
+    return `1.${timestamp}`;
+  }
+}
+
+/**
  * Upsert SOW to Authored_SOW collection
+ *
+ * Enriches the agent's pedagogical output with database administrative fields:
+ * - courseId: from script parameter (not agent output)
+ * - version: determined by querying existing versions
+ * - status: defaults to 'draft' for newly authored SOWs
  */
 async function upsertSOWToDatabase(
   databases: Databases,
   agentOutput: any,
   enrichedMetadata: any,
-  appwriteClient: AppwriteClient
+  appwriteClient: AppwriteClient,
+  courseId: string  // Script-provided courseId
 ): Promise<any> {
-  // Prepare database document
+  console.log('\n💾 Preparing SOW data for database...');
+
+  // Determine version for this SOW (auto-increment or initial)
+  const version = await determineSOWVersion(databases, courseId);
+
+  // Prepare database document with script-provided administrative fields
   const sowData: AuthoredSOWData = {
-    courseId: agentOutput.courseId,
-    version: String(agentOutput.version),  // Convert number to string
-    status: agentOutput.status || 'draft',
+    courseId: courseId,  // From script parameter, not agent output
+    version: version,    // Determined by version strategy
+    status: 'draft',     // Default status for newly authored SOWs
     entries: agentOutput.entries,  // Driver will stringify
     metadata: enrichedMetadata,    // Driver will stringify
     accessibility_notes: formatAccessibilityNotes(agentOutput.metadata.accessibility_notes)
   };
 
+  console.log(`   Course ID: ${courseId}`);
+  console.log(`   Version: ${version}`);
+  console.log(`   Status: draft`);
   console.log('\n💾 Upserting to Authored_SOW collection...');
 
   // Initialize driver

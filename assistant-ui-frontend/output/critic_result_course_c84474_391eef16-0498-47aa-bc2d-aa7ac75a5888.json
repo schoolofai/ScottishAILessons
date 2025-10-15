@@ -1,0 +1,71 @@
+{
+  "pass": false,
+  "overall_score": 0.74,
+  "dimensions": {
+    "coverage": {
+      "score": 0.2,
+      "pass": false,
+      "threshold": 0.9,
+      "issues": [
+        "The SoW only contains 3 lessons, which is a tiny fraction of the full course content. It is missing the vast majority of units, outcomes, and assessment standards required by the SQA specification in Course_data.txt.",
+        "Required course-level lesson types are missing. The SoW does not contain at least one 'independent_practice' lesson or the mandatory single 'mock_assessment' lesson.",
+        "Lesson plan depth is insufficient. All lessons have 4-5 cards, which is below the required minimum of 6 cards per lesson.",
+        "There is a timing mismatch in Lesson 3 ('Time, Speed, and Distance Calculations'). The sum of the card 'estimated_minutes' is 45, but the lesson's 'estMinutes' is listed as 50."
+      ]
+    },
+    "sequencing": {
+      "score": 1,
+      "pass": true,
+      "threshold": 0.8,
+      "issues": []
+    },
+    "policy": {
+      "score": 1,
+      "pass": true,
+      "threshold": 0.8,
+      "issues": []
+    },
+    "accessibility": {
+      "score": 1,
+      "pass": true,
+      "threshold": 0.9,
+      "issues": []
+    },
+    "authenticity": {
+      "score": 0.5,
+      "pass": false,
+      "threshold": 0.9,
+      "issues": [
+        "There is a critical mismatch between the lesson content and the referenced SQA standards. The SoW teaches foundational 'Numeracy' topics (fractions, percentages, speed/distance/time) but incorrectly maps them to assessment standards (AS1.1, AS1.2, AS1.3) from the 'Managing Finance and Statistics' unit. This is a fundamental error that misrepresents the curriculum structure."
+      ]
+    }
+  },
+  "feedback": "The Scheme of Work fails its validation. While it demonstrates outstanding quality in several areas—notably its logical sequencing, consistent policy application, excellent accessibility features, and superb use of authentic Scottish contexts—it has critical failures in Coverage and Authenticity that prevent it from passing.\n\nThe primary issue is a fundamental mismatch between the content being taught (Numeracy) and the official SQA assessment standards being referenced (from Managing Finance and Statistics). This error invalidates the pedagogical mapping of the lessons. Furthermore, the SoW has severe coverage gaps, failing to include the vast majority of the course curriculum and missing mandatory lesson types like 'independent_practice' and 'mock_assessment'. Finally, the lesson plans themselves are too shallow, with all entries falling short of the required 6-12 card depth, and one lesson contains a timing calculation error. \n\nTo pass, the SoW requires urgent correction of the standard mapping, expansion of lesson plan depth, and a significant increase in overall course coverage.",
+  "todos": [
+    {
+      "priority": "high",
+      "dimension": "authenticity",
+      "instruction": "Correct the mapping of lesson content to the appropriate SQA units, outcomes, and assessment standards. The current 'Numeracy' content is incorrectly mapped to 'Managing Finance' standards."
+    },
+    {
+      "priority": "high",
+      "dimension": "coverage",
+      "instruction": "Expand all lesson plans to meet the minimum depth requirement of 6-12 cards. Lessons currently have 4-5 cards."
+    },
+    {
+      "priority": "high",
+      "dimension": "coverage",
+      "instruction": "Fix the timing calculation for Lesson 3 ('Time, Speed, and Distance Calculations'). The card 'estimated_minutes' sum to 45, but the lesson 'estMinutes' is 50."
+    },
+    {
+      "priority": "medium",
+      "dimension": "coverage",
+      "instruction": "Expand the SoW to include content for all required SQA units ('Numeracy', 'Managing Finance and Statistics', 'Geometry and Measures', 'Added Value Unit')."
+    },
+    {
+      "priority": "medium",
+      "dimension": "coverage",
+      "instruction": "Add the required course-level lessons: at least one 'independent_practice' lesson and exactly one 'mock_assessment' lesson."
+    }
+  ]
+}
