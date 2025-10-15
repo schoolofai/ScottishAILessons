@@ -1,5 +1,220 @@
 """Prompt templates for the Scheme of Work (SoW) Author Agent system."""
 
+import os
+from pathlib import Path
+from typing import Literal
+
+# =============================================================================
+# DYNAMIC PROMPT ASSEMBLY
+# =============================================================================
+
+def assemble_sow_prompt(
+    mode: Literal['default', 'schema', 'full', 'first_time'] = 'default'
+) -> str:
+    """
+    Dynamically assemble SOW author prompt from layered components.
+
+    Args:
+        mode: Prompt assembly mode
+            - 'default': Layers 1-2 (~340 tokens) - for familiar agents
+            - 'schema': Layers 1-3 (~440 tokens) - includes schema refs
+            - 'full': Layers 1-4 (~540 tokens) - includes quality guidelines
+            - 'first_time': All layers + explicit READ instructions (~1000+ tokens)
+
+    Returns:
+        Assembled prompt string
+
+    Token Budget by Mode:
+        - default: ~340 tokens (Layers 1-2)
+        - schema: ~440 tokens (Layers 1-3)
+        - full: ~540 tokens (Layers 1-4)
+        - first_time: ~1000+ tokens (All layers + schema READs)
+
+    Example:
+        >>> prompt = assemble_sow_prompt(mode='default')
+        >>> # Use for routine SOW authoring
+
+        >>> prompt = assemble_sow_prompt(mode='full')
+        >>> # Use after critic failures or quality-focused runs
+    """
+    # Determine base directory (src/prompts/layers/)
+    base_dir = Path(__file__).parent / 'prompts' / 'layers'
+
+    # Define layers to load based on mode
+    layers_map = {
+        'default': ['critical.md', 'core.md'],
+        'schema': ['critical.md', 'core.md', 'schema_ref.md'],
+        'full': ['critical.md', 'core.md', 'schema_ref.md', 'quality.md'],
+        'first_time': ['critical.md', 'core.md', 'schema_ref.md', 'quality.md']
+    }
+
+    layers_to_load = layers_map.get(mode, layers_map['default'])
+
+    # Load and concatenate layers
+    assembled_parts = []
+
+    for layer_file in layers_to_load:
+        layer_path = base_dir / layer_file
+        try:
+            with open(layer_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                assembled_parts.append(content)
+        except FileNotFoundError:
+            # Fallback: Layer file not found, skip
+            print(f"Warning: Layer file not found: {layer_path}")
+            continue
+
+    # For first_time mode, add explicit schema READ instructions
+    if mode == 'first_time':
+        schema_instructions = """
+
+# Schema Reference Instructions (First-Time Mode)
+
+Since this is your first time authoring, READ the following schema files for complete details:
+
+1. **SOW Schema**: READ `src/schemas/sow_schema.md`
+   - Complete structure for authored_sow_json
+   - Field requirements and validation rules
+   - Enriched format examples
+
+2. **Lesson Card Schema**: READ `src/schemas/lesson_card_schema.md`
+   - Detailed card_structure requirements
+   - Card types and conditional fields
+   - CFU strategy examples
+
+3. **Research Pack Schema**: READ `src/schemas/research_pack_schema.md`
+   - Understanding research_pack_json structure
+   - Extracting pedagogical patterns
+   - Using Scottish context hooks
+
+After reading schemas, proceed with SOW authoring using the core process.
+"""
+        assembled_parts.append(schema_instructions)
+
+    # Join all parts with double newlines
+    assembled_prompt = '\n\n'.join(assembled_parts)
+
+    return assembled_prompt
+
+
+# =============================================================================
+# PRE-ASSEMBLED PROMPTS (for backwards compatibility)
+# =============================================================================
+
+# Default mode: Layers 1-2 (~ 340 tokens)
+SOW_AGENT_PROMPT_DEFAULT = assemble_sow_prompt(mode='default')
+
+# Schema mode: Layers 1-3 (~440 tokens)
+SOW_AGENT_PROMPT_SCHEMA = assemble_sow_prompt(mode='schema')
+
+# Full mode: Layers 1-4 (~540 tokens)
+SOW_AGENT_PROMPT_FULL = assemble_sow_prompt(mode='full')
+
+# First-time mode: All layers + schema READs (~1000+ tokens)
+SOW_AGENT_PROMPT_FIRST_TIME = assemble_sow_prompt(mode='first_time')
+
+
+# =============================================================================
+# CRITIC PROMPT ASSEMBLY
+# =============================================================================
+
+def assemble_critic_prompt(
+    mode: Literal['default', 'full', 'detailed'] = 'default'
+) -> str:
+    """
+    Dynamically assemble Critic prompt from layered components.
+
+    Args:
+        mode: Prompt assembly mode
+            - 'default': Layers 1-2 (~370 tokens) - lightweight dimension summaries
+            - 'full': Layers 1-2 + scoring guidance (~420 tokens)
+            - 'detailed': All layers + detailed dimension files (~1500+ tokens)
+
+    Returns:
+        Assembled critic prompt string
+
+    Token Budget by Mode:
+        - default: ~370 tokens (Critical + Dimensions Core)
+        - full: ~420 tokens (+ scoring guidance)
+        - detailed: ~1500+ tokens (+ all dimension detail files)
+
+    Example:
+        >>> prompt = assemble_critic_prompt(mode='default')
+        >>> # Use for routine SOW validation
+
+        >>> prompt = assemble_critic_prompt(mode='detailed')
+        >>> # Use when agent needs extensive validation guidance
+    """
+    # Determine base directory (src/prompts/critic/)
+    base_dir = Path(__file__).parent / 'prompts' / 'critic'
+    dimensions_dir = base_dir / 'dimensions'
+
+    # Define layers to load based on mode
+    layers_map = {
+        'default': ['critical.md', 'dimensions_core.md'],
+        'full': ['critical.md', 'dimensions_core.md'],
+        'detailed': ['critical.md', 'dimensions_core.md']
+    }
+
+    layers_to_load = layers_map.get(mode, layers_map['default'])
+
+    # Load and concatenate layers
+    assembled_parts = []
+
+    for layer_file in layers_to_load:
+        layer_path = base_dir / layer_file
+        try:
+            with open(layer_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                assembled_parts.append(content)
+        except FileNotFoundError:
+            # Fallback: Layer file not found, skip
+            print(f"Warning: Critic layer file not found: {layer_path}")
+            continue
+
+    # For detailed mode, add all dimension validation files
+    if mode == 'detailed':
+        dimension_files = [
+            'coverage.md',
+            'sequencing.md',
+            'policy.md',
+            'accessibility.md',
+            'authenticity.md'
+        ]
+
+        detailed_section = "\n\n# Detailed Dimension Validation\n\n"
+        assembled_parts.append(detailed_section)
+
+        for dim_file in dimension_files:
+            dim_path = dimensions_dir / dim_file
+            try:
+                with open(dim_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    assembled_parts.append(content)
+            except FileNotFoundError:
+                print(f"Warning: Dimension file not found: {dim_path}")
+                continue
+
+    # Join all parts with double newlines
+    assembled_prompt = '\n\n'.join(assembled_parts)
+
+    return assembled_prompt
+
+
+# =============================================================================
+# PRE-ASSEMBLED CRITIC PROMPTS (for backwards compatibility)
+# =============================================================================
+
+# Default mode: Layers 1-2 (~370 tokens)
+CRITIC_PROMPT_DEFAULT = assemble_critic_prompt(mode='default')
+
+# Full mode: Layers 1-2 + scoring guidance (~420 tokens)
+CRITIC_PROMPT_FULL = assemble_critic_prompt(mode='full')
+
+# Detailed mode: All layers + dimension files (~1500+ tokens)
+CRITIC_PROMPT_DETAILED = assemble_critic_prompt(mode='detailed')
+
+
 # =============================================================================
 # ACTIVE PROMPTS - USE THESE IN PRODUCTION
 # =============================================================================

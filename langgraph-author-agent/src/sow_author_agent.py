@@ -19,16 +19,17 @@ except ImportError:
     from sow_author_state import SowAuthorState
 
 # Dual-import pattern for prompts
+# Using refactored prompts with ~61% token reduction (3000 → 1158 tokens for author)
 try:
     from src.sow_author_prompts import (
-        SOW_UNIFIED_AGENT_PROMPT,
-        SOW_UNIFIED_CRITIC_PROMPT
+        SOW_AGENT_PROMPT_DEFAULT,      # Refactored: ~1158 tokens (was SOW_UNIFIED_AGENT_PROMPT ~3000)
+        CRITIC_PROMPT_DEFAULT           # Refactored: ~1505 tokens (was SOW_UNIFIED_CRITIC_PROMPT ~1500)
     )
     from src.research_agent_prompts import SUB_RESEARCH_PROMPT
 except ImportError:
     from sow_author_prompts import (
-        SOW_UNIFIED_AGENT_PROMPT,
-        SOW_UNIFIED_CRITIC_PROMPT
+        SOW_AGENT_PROMPT_DEFAULT,
+        CRITIC_PROMPT_DEFAULT
     )
     from research_agent_prompts import SUB_RESEARCH_PROMPT
 
@@ -64,7 +65,7 @@ research_subagent = {
 unified_critic = {
     "name": "unified_critic",
     "description": "Comprehensively validate the authored SoW across all dimensions (Coverage, Sequencing, Policy, Accessibility, Authenticity) in a single pass. Writes sow_critic_result_json with dimensional scores, pass/fail status, and prioritized todos.",
-    "prompt": SOW_UNIFIED_CRITIC_PROMPT,
+    "prompt": CRITIC_PROMPT_DEFAULT,  # Refactored: ~1505 tokens with lightweight dimension summaries
     "tools": all_tools  # Tavily + Appwrite for comprehensive validation
 }
 
@@ -77,10 +78,11 @@ unified_critic = {
 # Uses custom state schema with todos reducer (preserved for compatibility, though less critical with single critic)
 # Architecture: Main agent directly authors SoW, then calls unified_critic for comprehensive validation
 # NOTE: course data must be pre-populated before agent execution
+# REFACTORED: Using modular prompt architecture with ~61% token reduction (3000 → 1158 tokens)
 agent = async_create_deep_agent(
     model=gemini,
     tools=all_tools,  # Tavily + Appwrite for full orchestration capability
-    instructions=SOW_UNIFIED_AGENT_PROMPT,
+    instructions=SOW_AGENT_PROMPT_DEFAULT,  # Refactored: ~1158 tokens with layered context architecture
     subagents=[
         research_subagent,
         unified_critic
