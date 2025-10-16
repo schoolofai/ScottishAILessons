@@ -8,7 +8,7 @@ This test validates the complete SOW authoring pipeline from CLI input to databa
 
 - **Subject**: `application-of-mathematics` (hyphenated format)
 - **Level**: `national-4`
-- **Course ID**: `68e262811061bfe64e31` (must exist in `default.courses`)
+- **Course ID**: `course_c84474` (must exist in `default.courses`)
 - **Expected Output**: Complete SOW in `default.Authored_SOW` with 10+ lessons
 
 ## Prerequisites
@@ -18,7 +18,7 @@ Before running the test, ensure:
 1. ✅ Virtual environment exists and is activated
 2. ✅ All dependencies installed: `pip install -r requirements.txt`
 3. ✅ `.mcp.json` configured with valid Appwrite credentials
-4. ✅ Course `68e262811061bfe64e31` exists in `default.courses` with:
+4. ✅ Course with `courseId = "course_c84474"` exists in `default.courses` with:
    - `subject = "application-of-mathematics"`
    - `level = "national-4"`
 5. ✅ SQA course data exists in `sqa_education.sqa_current`:
@@ -30,7 +30,7 @@ Before running the test, ensure:
 ### 1. Prerequisites Validation
 - Check `.venv` exists
 - Check `.mcp.json` exists and is valid
-- Query `default.courses` to verify `68e262811061bfe64e31` exists
+- Query `default.courses` by courseId field to verify `course_c84474` exists
 - Verify subject/level match expected values
 - Query `sqa_education.sqa_current` to verify SQA course data exists
 
@@ -58,7 +58,7 @@ Before running the test, ensure:
 - Query `default.Authored_SOW` with extracted document ID
 - Validate document exists
 - Verify required fields:
-  - `courseId = "68e262811061bfe64e31"`
+  - `courseId = "course_c84474"`
   - `version = "1"`
   - `status = "draft"`
 - Validate `entries` field:

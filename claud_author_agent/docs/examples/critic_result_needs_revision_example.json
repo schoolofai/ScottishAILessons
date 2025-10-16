@@ -1,0 +1,32 @@
+{
+  "overall_status": "needs_revision",
+  "overall_score": 0.86,
+  "dimension_scores": {
+    "pedagogical_design": 0.90,
+    "assessment_design": 0.85,
+    "accessibility": 0.82,
+    "scottish_context": 0.88,
+    "coherence": 0.88,
+    "sow_template_fidelity": 0.85
+  },
+  "feedback": [
+    {
+      "dimension": "accessibility",
+      "severity": "high",
+      "issue": "Card 2 explainer_plain contains 3 sentences exceeding 15 words (17, 18, and 16 words)",
+      "action": "Rewrite Card 2 explainer_plain with sentences of 8-12 words maximum. Break long sentences into 2-3 shorter ones."
+    },
+    {
+      "dimension": "accessibility",
+      "severity": "medium",
+      "issue": "Card 4 explainer_plain uses passive voice: 'The discount is calculated by...'",
+      "action": "Rewrite in active voice: 'Calculate the discount by...'"
+    },
+    {
+      "dimension": "assessment_design",
+      "severity": "high",
+      "issue": "Card 3 rubric missing method mark - only awards point for correct final answer",
+      "action": "Add method mark criterion: 'Uses correct formula for fraction calculation (1 point)' before accuracy mark"
+    }
+  ]
+}

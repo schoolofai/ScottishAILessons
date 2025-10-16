@@ -1,6 +1,6 @@
 # SOW Schema - Authored SOW JSON Structure
 
-## Complete Schema for `authored_sow_json`
+## Complete Schema for `authored_sow.json`
 
 ```json
 {

@@ -181,14 +181,28 @@ async def list_appwrite_documents(
         query_objects = []
         if queries:
             for query_str in queries:
-                # Parse query string like 'equal("subject", "mathematics")'
-                # This is a simplified parser - in production use proper query building
+                # Parse query string like 'equal("subject", "mathematics")' or 'equal("sow_order", 1)'
+                # This parser handles both string and numeric values
                 if 'equal(' in query_str:
                     # Extract field and value
                     parts = query_str.replace('equal(', '').replace(')', '').split(',')
                     if len(parts) == 2:
                         field = parts[0].strip().strip('"')
-                        value = parts[1].strip().strip('"')
+                        value_str = parts[1].strip()
+
+                        # Detect if value is quoted (string) or unquoted (numeric)
+                        if value_str.startswith('"') and value_str.endswith('"'):
+                            value = value_str.strip('"')  # String value
+                        else:
+                            # Try to parse as numeric (int first, then float)
+                            try:
+                                value = int(value_str)
+                            except ValueError:
+                                try:
+                                    value = float(value_str)
+                                except ValueError:
+                                    value = value_str  # Keep as string if not numeric
+
                         query_objects.append(Query.equal(field, [value]))
 
         # List documents
@@ -219,20 +233,20 @@ async def list_appwrite_documents(
 async def create_appwrite_document(
     database_id: str,
     collection_id: str,
-    document_id: str,
     data: Dict[str, Any],
-    permissions: List[str],
-    mcp_config_path: str
+    mcp_config_path: str,
+    document_id: Optional[str] = None,
+    permissions: Optional[List[str]] = None
 ) -> Dict[str, Any]:
     """Create a new document in Appwrite.
 
     Args:
         database_id: Database ID (e.g., 'default')
         collection_id: Collection ID (e.g., 'Authored_SOW')
-        document_id: Document ID to create
         data: Document data as dictionary
-        permissions: List of permission strings (e.g., ['read("any")'])
         mcp_config_path: Path to .mcp.json configuration
+        document_id: Document ID to create (if None, Appwrite auto-generates)
+        permissions: List of permission strings (if None, uses default permissions)
 
     Returns:
         Created document data including $id, $createdAt, etc.
@@ -240,7 +254,110 @@ async def create_appwrite_document(
     Raises:
         AppwriteException: If document ID already exists or other error
     """
-    logger.info(f"MCP Create: Creating document {document_id} in {database_id}.{collection_id}")
+    logger.info(f"MCP Create: Creating document in {database_id}.{collection_id}")
+    if document_id:
+        logger.info(f"  Using provided document_id: {document_id}")
+    else:
+        logger.info(f"  Using auto-generated document_id")
+
+    try:
+        from appwrite.client import Client
+        from appwrite.services.databases import Databases
+        from appwrite.id import ID
+        from appwrite.exception import AppwriteException
+
+        # Load MCP config
+        config_path = Path(mcp_config_path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"MCP config not found: {mcp_config_path}")
+
+        with open(config_path) as f:
+            mcp_config = json.load(f)
+
+        # Extract credentials
+        appwrite_config = mcp_config.get("mcpServers", {}).get("appwrite", {})
+        args = appwrite_config.get("args", [])
+
+        endpoint = None
+        api_key = None
+        project_id = None
+
+        for arg in args:
+            if arg.startswith("APPWRITE_ENDPOINT="):
+                endpoint = arg.split("=", 1)[1]
+            elif arg.startswith("APPWRITE_API_KEY="):
+                api_key = arg.split("=", 1)[1]
+            elif arg.startswith("APPWRITE_PROJECT_ID="):
+                project_id = arg.split("=", 1)[1]
+
+        if not all([endpoint, api_key, project_id]):
+            raise ValueError("Missing Appwrite credentials in MCP config")
+
+        # Initialize client
+        client = Client()
+        client.set_endpoint(endpoint)
+        client.set_project(project_id)
+        client.set_key(api_key)
+
+        databases = Databases(client)
+
+        # Auto-generate document ID if not provided
+        if document_id is None:
+            document_id = ID.unique()
+
+        # Use empty permissions array if not provided (server-side default)
+        if permissions is None:
+            permissions = []
+
+        # Create document
+        try:
+            result = databases.create_document(
+                database_id=database_id,
+                collection_id=collection_id,
+                document_id=document_id,
+                data=data,
+                permissions=permissions
+            )
+
+            logger.info(f"✓ Document created: {result['$id']}")
+            return result
+
+        except AppwriteException as e:
+            if e.code == 409:
+                logger.error(f"Document ID already exists: {document_id}")
+            logger.error(f"Appwrite error: {e.message} (code: {e.code})")
+            raise
+
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed. Run: pip install appwrite")
+    except Exception as e:
+        logger.error(f"Failed to create document: {e}")
+        raise
+
+
+async def update_appwrite_document(
+    database_id: str,
+    collection_id: str,
+    document_id: str,
+    data: Dict[str, Any],
+    mcp_config_path: str
+) -> Dict[str, Any]:
+    """Update an existing document in Appwrite.
+
+    Args:
+        database_id: Database ID (e.g., 'default')
+        collection_id: Collection ID (e.g., 'lesson_templates')
+        document_id: Document ID to update
+        data: Document data to update (partial or full)
+        mcp_config_path: Path to .mcp.json configuration
+
+    Returns:
+        Updated document data including $id, $updatedAt, etc.
+
+    Raises:
+        AppwriteException: If document doesn't exist or other error
+    """
+    logger.info(f"MCP Update: Updating document {document_id} in {database_id}.{collection_id}")
 
     try:
         from appwrite.client import Client
@@ -282,29 +399,28 @@ async def create_appwrite_document(
 
         databases = Databases(client)
 
-        # Create document
+        # Update document
         try:
-            result = databases.create_document(
+            result = databases.update_document(
                 database_id=database_id,
                 collection_id=collection_id,
                 document_id=document_id,
-                data=data,
-                permissions=permissions
+                data=data
             )
 
-            logger.info(f"✓ Document created: {document_id}")
+            logger.info(f"✓ Document updated: {document_id}")
             return result
 
         except AppwriteException as e:
-            if e.code == 409:
-                logger.error(f"Document ID already exists: {document_id}")
+            if e.code == 404:
+                logger.error(f"Document not found: {document_id}")
             logger.error(f"Appwrite error: {e.message} (code: {e.code})")
             raise
 
     except ImportError:
         raise ImportError("Appwrite Python SDK not installed. Run: pip install appwrite")
     except Exception as e:
-        logger.error(f"Failed to create document: {e}")
+        logger.error(f"Failed to update document: {e}")
         raise
 
 

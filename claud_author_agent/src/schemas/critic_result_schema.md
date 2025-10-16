@@ -1,6 +1,6 @@
 # Critic Result Schema
 
-## Structure for `sow_critic_result_json`
+## Structure for `sow_critic_result.json`
 
 ```json
 {

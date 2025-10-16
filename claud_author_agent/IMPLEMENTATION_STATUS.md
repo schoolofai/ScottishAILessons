@@ -20,7 +20,7 @@ claud_author_agent/
 │   │   ├── validation.py               # Input validation (100 lines)
 │   │   ├── metrics.py                  # Cost tracking (150 lines)
 │   │   └── logging_config.py           # Logging setup (60 lines)
-│   ├── prompts/                        # 5 subagent prompts
+│   ├── prompts/                        # 2 subagent prompts
 │   └── schemas/                        # 4 schema documentation files
 ├── requirements.txt
 ├── .mcp.json
@@ -31,7 +31,7 @@ claud_author_agent/
 
 **IsolatedFilesystem** (`src/utils/filesystem.py`):
 - Context manager for temporary workspace
-- Flat file structure (4 files: Course_data.txt, research_pack_json, authored_sow_json, sow_critic_result_json)
+- Flat file structure (2 files: Course_data.txt, authored_sow_json)
 - Optional persistence for debugging
 - File read/write helpers
 
@@ -65,24 +65,19 @@ claud_author_agent/
 - NO LLM processing - saves tokens and ensures consistency
 - Fail-fast error handling with detailed messages
 
-### 3 Subagent Prompts (Aligned with LangGraph Architecture)
+### 2 Subagent Prompts (Aligned with LangGraph Architecture)
 
-1. **Research Subagent** (`src/prompts/research_subagent_prompt.md`)
-   - Web research specialist for Scottish curriculum
-   - Creates research pack v3 with SQA exemplars, pedagogical patterns, Scottish contexts
-   - Grounded in Course_data.txt for official terminology
-   - **Aligned with LangGraph layers**: role/context, process, schemas, constraints
-
-2. **SOW Author** (`src/prompts/sow_author_prompt.md`)
-   - Senior Curriculum Architect
+1. **SOW Author** (`src/prompts/sow_author_prompt.md`)
+   - Senior Curriculum Architect with on-demand research capabilities
    - 10-step authoring process (expanded from 8)
+   - **On-demand WebSearch/WebFetch**: Targeted research during authoring (Scottish contexts, exemplars, misconceptions)
    - Chunking strategy (2-3 standards per lesson)
    - Enriched format enforcement (entry-level AND card-level)
    - Teach→revision pairing mandatory
    - 6-12 card lesson plans with specific CFU strategies
    - **Aligned with LangGraph layers**: Complete 5-layer structure from production prompts
 
-3. **Unified Critic** (`src/prompts/unified_critic_prompt.md`)
+2. **Unified Critic** (`src/prompts/unified_critic_prompt.md`)
    - Senior Quality Assurance Specialist
    - 5-dimension validation:
      - Coverage (≥0.90) - includes lesson plan depth validation
@@ -92,6 +87,7 @@ claud_author_agent/
      - Authenticity (≥0.90) - Scottish context at card level
    - Detailed feedback with prioritized actions
    - **Aligned with LangGraph layers**: Complete 8-layer structure from production prompts
+   - Validates Course_data.txt and authored_sow_json (no research pack needed)
 
 **Note**: Upserter remains as Python utility (not subagent) for deterministic database operations.
 
@@ -208,16 +204,14 @@ mypy>=1.5.0
 
 ## Architecture Highlights
 
-### Hybrid Pipeline: Python Pre/Post-Processing + 3 Subagents
+### Hybrid Pipeline: Python Pre/Post-Processing + 2 Subagents
 
 ```
 Input: {subject, level, courseId}
   ↓
 [Python: Course Data Extractor] → Course_data.txt (NO LLM, deterministic)
   ↓
-[Research Subagent] → research_pack_json (LLM creative task)
-  ↓
-[SOW Author] → authored_sow_json (LLM creative task)
+[SOW Author + WebSearch/WebFetch] → authored_sow_json (LLM creative task with on-demand research)
   ↓
 [Unified Critic] → sow_critic_result_json (LLM quality validation)
   ↓ (retry loop if validation fails, max 3)
@@ -227,16 +221,15 @@ Input: {subject, level, courseId}
 Output: {document_id, metrics}
 ```
 
-**Rationale**: Use Python for deterministic operations (JSON extraction, database writes), LLM agents only for creative/judgmental tasks (research, authoring, critique). This saves tokens and ensures consistency.
+**Rationale**: Use Python for deterministic operations (JSON extraction, database writes), LLM agents only for creative/judgmental tasks (authoring with on-demand research, critique). On-demand research saves ~10-15K tokens per execution vs. upfront bulk research while maintaining quality through lesson-specific contexts.
 
 ### Flat Filesystem Architecture
 
 ```
 /tmp/sow_author_20251015_135422_xyz/
 ├── README.md                    # Workspace docs
-├── Course_data.txt              # SQA data
-├── research_pack_json           # Research findings
-├── authored_sow_json            # Complete SOW
+├── Course_data.txt              # SQA data (pre-populated by Python)
+├── authored_sow_json            # Complete SOW (with on-demand research)
 └── sow_critic_result_json       # Validation results
 ```
 
@@ -261,8 +254,9 @@ Output: {document_id, metrics}
 
 **Architecture Changes**:
 - LangGraph: 2 LLM subagents (SOW author + critic) + Python utilities
-- Claude SDK: 3 LLM subagents (research + SOW author + critic) + Python utilities
+- Claude SDK: 2 LLM subagents (SOW author with WebSearch/WebFetch + critic) + Python utilities
 - Course data extraction: Moved from LLM subagent to Python utility (token savings)
+- Research: Moved from upfront LLM subagent to on-demand WebSearch/WebFetch (token savings + better quality)
 - Upserting: Remains Python utility in both implementations
 
 **LangGraph Production Prompt Alignment** (October 2025):
@@ -331,24 +325,25 @@ Output: {document_id, metrics}
 ## Success Criteria
 
 ✅ **Complete project structure** with all directories and files
-✅ **All 5 subagent prompts** adapted from LangGraph with filesystem architecture
+✅ **All 2 subagent prompts** adapted from LangGraph with filesystem architecture
 ✅ **All 4 schema files** documenting data structures
 ✅ **Main agent orchestrator** with async execution and error handling
 ✅ **Utility modules** (filesystem, validation, metrics, logging)
 ✅ **Configuration files** (requirements.txt, .mcp.json)
 ✅ **Comprehensive documentation** (README, implementation plan, schemas)
+✅ **On-demand research** via WebSearch/WebFetch (token-efficient, lesson-specific)
 
 ---
 
 ## File Count Summary
 
 - **Python files**: 7 (main + 5 utils [filesystem, validation, metrics, logging_config, course_data_extractor] + __init__)
-- **Prompt files**: 3 (research, sow_author, unified_critic - aligned with LangGraph)
+- **Prompt files**: 2 (sow_author, unified_critic - aligned with LangGraph)
 - **Schema files**: 4 (sow, research_pack, critic_result, course_data)
 - **Config files**: 2 (requirements.txt, .mcp.json)
 - **Docs**: 3 (README, implementation plan, this status file)
 
-**Total**: 19 files (updated October 2025 with LangGraph alignment)
+**Total**: 18 files (updated October 2025 with on-demand research architecture)
 
 ---
 
@@ -364,7 +359,8 @@ The SOW Author agent is **fully implemented with LangGraph production prompt ali
 
 **Architecture**:
 - ✅ Moved course data extraction from LLM subagent to Python utility (token savings)
-- ✅ Reduced pipeline from 4 to 3 LLM subagents
+- ✅ Reduced pipeline from 4 to 2 LLM subagents
+- ✅ Moved research from upfront LLM subagent to on-demand WebSearch/WebFetch (~10-15K token savings per execution)
 - ✅ Hybrid orchestration: Python for deterministic ops, LLMs for creative tasks
 
 **Prompt Alignment**:

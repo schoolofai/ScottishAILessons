@@ -146,177 +146,23 @@ async def extract_course_data_to_file(
     logger.info(f"  ✓ Extracted course: {course_name} ({course_code})")
     logger.info(f"  ✓ Units: {len(units)}")
 
-    # Step 6: Format as Course_data.txt
-    lines = _format_course_data(
-        course_name=course_name,
-        course_code=course_code,
-        subject=subject,
-        level=level,
-        units=units,
-        recommended_sequence=recommended_sequence,
-        sequence_rationale=sequence_rationale,
-        delivery_notes=delivery_notes,
-        assessment_model=assessment_model,
-        marking_guidance=marking_guidance
-    )
+    # Step 6: Write raw JSON dump (preserves exact database structure)
+    content = json.dumps(data_json, indent=2, ensure_ascii=False)
+
+    # Add metadata footer
+    footer = f"\n\n---\nExtracted from Appwrite: {datetime.now().isoformat()}\n"
+    footer += f"Document extracted using Python utility (no LLM processing) - "
+    footer += f"Raw JSON dump from sqa_education.sqa_current collection's 'data' field\n"
+    content = content + footer
 
     # Step 7: Write to file (FAIL-FAST if write fails)
-    content = '\n'.join(lines)
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(content, encoding='utf-8')
         logger.info(f"  ✅ Course_data.txt written to: {output_path}")
-        logger.info(f"     Size: {len(content)} bytes, {len(lines)} lines")
+        logger.info(f"     Size: {len(content)} bytes (raw JSON)")
     except Exception as e:
         raise IOError(
             f"Failed to write Course_data.txt to {output_path}: {e}. "
             f"Check file permissions and disk space."
         )
-
-
-def _format_course_data(
-    course_name: str,
-    course_code: str,
-    subject: str,
-    level: str,
-    units: List[Dict[str, Any]],
-    recommended_sequence: List[str],
-    sequence_rationale: str,
-    delivery_notes: List[str],
-    assessment_model: Dict[str, Any],
-    marking_guidance: Dict[str, Any]
-) -> List[str]:
-    """Format extracted course data as Course_data.txt lines.
-
-    This helper function takes extracted course data and formats it
-    as a readable text file for SOW authoring agents.
-
-    Args:
-        course_name: Full course title
-        course_code: SQA course code
-        subject: Subject slug (original format)
-        level: Level slug (original format)
-        units: List of unit dictionaries
-        recommended_sequence: Recommended unit order
-        sequence_rationale: Rationale for sequencing
-        delivery_notes: Teaching delivery notes
-        assessment_model: Assessment model dictionary
-        marking_guidance: Marking guidance dictionary
-
-    Returns:
-        List of formatted text lines
-    """
-    lines = []
-
-    # Header
-    lines.append(f"# SQA Course Data: {course_name}")
-    lines.append(f"Subject: {subject}")
-    lines.append(f"Level: {level}")
-    lines.append(f"Course Code: {course_code}")
-    lines.append("")
-
-    # Units section
-    lines.append("## Units")
-    lines.append("")
-
-    for unit_idx, unit in enumerate(units, start=1):
-        unit_title = unit.get('title', f'Unit {unit_idx}')
-        lines.append(f"### Unit {unit_idx}: {unit_title}")
-
-        # Unit marking guidance (if present)
-        unit_marking_guidance = unit.get('unit_marking_guidance', '')
-        if unit_marking_guidance:
-            lines.append(f"**Unit Marking Guidance**: {unit_marking_guidance}")
-
-        lines.append("")
-
-        # Outcomes
-        outcomes = unit.get('outcomes', [])
-        if outcomes:
-            lines.append("#### Outcomes")
-            for outcome_idx, outcome in enumerate(outcomes, start=1):
-                outcome_title = outcome.get('title', f'Outcome {outcome_idx}')
-                lines.append(f"- **O{outcome_idx}**: {outcome_title}")
-            lines.append("")
-
-        # Assessment Standards
-        # Extract from outcomes (standards may be nested under outcomes)
-        lines.append("#### Assessment Standards")
-
-        all_standards = []
-        for outcome_idx, outcome in enumerate(outcomes, start=1):
-            standards = outcome.get('assessment_standards', [])
-            for std_idx, standard in enumerate(standards, start=1):
-                if isinstance(standard, dict):
-                    # Enriched format with code and description
-                    code = standard.get('code', f'AS{outcome_idx}.{std_idx}')
-                    description = standard.get('description', standard.get('title', ''))
-                    all_standards.append((code, description, f'O{outcome_idx}'))
-                elif isinstance(standard, str):
-                    # Bare string - use as description
-                    code = f'AS{outcome_idx}.{std_idx}'
-                    all_standards.append((code, standard, f'O{outcome_idx}'))
-
-        # Write standards in enriched format
-        if all_standards:
-            for code, description, outcome_ref in all_standards:
-                lines.append(f"- **{code}** (Outcome: {outcome_ref}): {description}")
-        else:
-            lines.append("- (No assessment standards defined)")
-
-        lines.append("")
-
-    # Recommended Sequence
-    if recommended_sequence:
-        lines.append("## Recommended Sequence")
-        for idx, item in enumerate(recommended_sequence, start=1):
-            lines.append(f"{idx}. {item}")
-        lines.append("")
-
-    # Sequence Rationale
-    if sequence_rationale:
-        lines.append("## Sequence Rationale")
-        lines.append(sequence_rationale)
-        lines.append("")
-
-    # Delivery Notes
-    if delivery_notes:
-        lines.append("## Delivery Notes")
-        for note in delivery_notes:
-            lines.append(f"- {note}")
-        lines.append("")
-
-    # Assessment Model
-    if assessment_model:
-        lines.append("## Assessment Model")
-
-        coursework_type = assessment_model.get('coursework_type', 'N/A')
-        coursework_weight = assessment_model.get('coursework_weight_percent', 0)
-        lines.append(f"**Type**: {coursework_type}")
-        lines.append(f"**Weight**: {coursework_weight}%")
-
-        coursework_notes = assessment_model.get('coursework_notes', '')
-        if coursework_notes:
-            lines.append(f"**Notes**: {coursework_notes}")
-
-        # Calculator policy (if present)
-        calculator_policy = assessment_model.get('calculator_policy', '')
-        if calculator_policy:
-            lines.append(f"**Calculator Policy**: {calculator_policy}")
-
-        lines.append("")
-
-    # Marking Guidance
-    if marking_guidance and marking_guidance.get('provided'):
-        lines.append("## Marking Guidance")
-        guidance_text = marking_guidance.get('guidance', '')
-        if guidance_text:
-            lines.append(guidance_text)
-        lines.append("")
-
-    # Footer
-    lines.append("---")
-    lines.append(f"Extracted from Appwrite: {datetime.now().isoformat()}")
-    lines.append(f"Document extracted using Python utility (no LLM processing)")
-
-    return lines

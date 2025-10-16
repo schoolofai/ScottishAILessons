@@ -91,7 +91,7 @@ async def upsert_sow_to_appwrite(
         sow_file_path: Path to authored_sow_json file
         subject: Subject slug (e.g., 'mathematics')
         level: Level slug (e.g., 'national-5')
-        course_id: Validated courseId (e.g., '68e262811061bfe64e31')
+        course_id: Validated courseId field value (e.g., 'course_c84474')
         execution_id: Execution timestamp ID
         mcp_config_path: Path to .mcp.json
 
@@ -366,7 +366,7 @@ async def test_upsert_sow():
     # Test parameters
     subject = "mathematics"
     level = "national-5"
-    course_id = "68e262811061bfe64e31"  # Real course ID
+    course_id = "course_c84474"  # Real courseId field value
     execution_id = f"TEST_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     expected_doc_id = f"{subject}_{level}_v1_{execution_id}"
 
@@ -738,7 +738,7 @@ SOW Upserter Integration Test
 Test Configuration:
   Subject:      mathematics
   Level:        national-5
-  Course ID:    68e262811061bfe64e31
+  Course ID:    course_c84474
   Execution ID: TEST_20251015_180530
   Expected Doc ID: mathematics_national-5_v1_TEST_20251015_180530
 
@@ -763,7 +763,7 @@ Step 3: Verifying document in Appwrite
   Document $id: mathematics_national-5_v1_TEST_20251015_180530
 
 Verifying required fields:
-  ✓ courseId: 68e262811061bfe64e31
+  ✓ courseId: course_c84474
   ✓ version: 1
   ✓ status: draft
   ✓ entries: 2 lessons (JSON valid)

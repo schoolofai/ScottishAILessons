@@ -1,0 +1,13 @@
+{
+  "overall_status": "pass",
+  "overall_score": 0.92,
+  "dimension_scores": {
+    "pedagogical_design": 0.95,
+    "assessment_design": 0.90,
+    "accessibility": 0.88,
+    "scottish_context": 0.93,
+    "coherence": 0.90,
+    "sow_template_fidelity": 0.92
+  },
+  "feedback": []
+}

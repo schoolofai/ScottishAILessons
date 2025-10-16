@@ -35,7 +35,7 @@ async def test_course_validation():
     # Test parameters
     subject = "application-of-mathematics"
     level = "national-4"
-    courseId = "68e262811061bfe64e31"  # Actual courseId from default.courses
+    courseId = "course_c84474"  # courseId field value (not document $id)
     mcp_config_path = ".mcp.json"
 
     print(f"Test Parameters:")
@@ -75,19 +75,23 @@ async def test_course_validation():
     print("-" * 70)
 
     try:
-        course_doc = await get_appwrite_document(
+        # Query by courseId field (not document $id)
+        course_docs = await list_appwrite_documents(
             database_id="default",
             collection_id="courses",
-            document_id=courseId,
+            queries=[f'equal("courseId", "{courseId}")'],
             mcp_config_path=mcp_config_path
         )
 
-        if not course_doc:
-            print(f"❌ FAIL: Course {courseId} not found in default.courses")
+        if not course_docs or len(course_docs) == 0:
+            print(f"❌ FAIL: Course with courseId={courseId} not found in default.courses")
             return False
+
+        course_doc = course_docs[0]  # Get first matching course
 
         print(f"✓ PASS: Course document found")
         print(f"  Document ID: {course_doc.get('$id', 'N/A')}")
+        print(f"  Course ID:   {course_doc.get('courseId', 'N/A')}")
         print(f"  Subject:     {course_doc.get('subject', 'N/A')}")
         print(f"  Level:       {course_doc.get('level', 'N/A')}")
 

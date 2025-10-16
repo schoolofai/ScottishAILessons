@@ -1,0 +1,13 @@
+{
+  "order": 1,
+  "label": "Introduction to Fractions of Amounts",
+  "big_idea": "Students will understand that fractions represent parts of a whole and can be applied to calculate portions of quantities in real-world Scottish contexts like shopping discounts and transport costs. This foundational skill connects to percentage calculations and proportional reasoning.",
+  "outcomeRefs": ["O1", "AS1.2"],
+  "estMinutes": 50,
+  "lesson_type": "teach",
+  "engagement_tags": ["finance", "shopping", "transport"],
+  "policy": {
+    "calculator_allowed": false,
+    "assessment_notes": "Non-calculator lesson building foundational numeracy"
+  }
+}

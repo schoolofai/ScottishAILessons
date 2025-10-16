@@ -1,0 +1,161 @@
+{
+  "courseId": "course_test_mock",
+  "title": "Calculating Fractions of Amounts",
+  "outcomeRefs": ["O1", "AS1.2"],
+  "lesson_type": "teach",
+  "estMinutes": 50,
+  "createdBy": "lesson_author_agent",
+  "sow_order": 1,
+  "version": 1,
+  "status": "draft",
+  "engagement_tags": ["finance", "shopping"],
+  "policy": {
+    "calculator_allowed": false,
+    "assessment_notes": "Non-calculator lesson building foundational numeracy"
+  },
+  "cards": [
+    {
+      "id": "card_001",
+      "title": "Starter: Fraction Recall",
+      "explainer": "Let's start by thinking about fractions! When you see 1/4, this means 1 part out of 4 equal parts. If a pizza has 4 slices and you eat 1 slice, you've eaten 1/4 of the pizza. Today we'll learn how to find fractions of amounts, like finding 1/4 of £20.",
+      "explainer_plain": "Think about fractions. 1/4 means 1 part out of 4 parts. If a pizza has 4 slices and you eat 1, you ate 1/4. Today we learn to find fractions of amounts. Like 1/4 of £20.",
+      "cfu": {
+        "type": "mcq",
+        "id": "q001",
+        "stem": "Which of these represents one-quarter?",
+        "options": ["1/4", "1/2", "1/3", "2/4"],
+        "answerIndex": 0,
+        "rubric": {
+          "total_points": 1,
+          "criteria": [
+            {
+              "description": "Correctly identifies fraction notation for one-quarter",
+              "points": 1
+            }
+          ]
+        }
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_FRAC_001",
+          "misconception": "Confusing numerator and denominator",
+          "clarification": "Remember: the bottom number (denominator) shows how many equal parts, the top number (numerator) shows how many parts you have"
+        }
+      ],
+      "context_hooks": ["Scottish contexts: quarters in rugby matches, quarters in financial year"]
+    },
+    {
+      "id": "card_002",
+      "title": "Modelling: Finding Fractions",
+      "explainer": "Let me show you how to find a fraction of an amount. **Example: Find 1/4 of £20**\n\n**Step 1:** Divide by the denominator (bottom number)\n£20 ÷ 4 = £5\n\n**Step 2:** Multiply by the numerator (top number)\n£5 × 1 = £5\n\n**Answer:** 1/4 of £20 = £5\n\n**Why does this work?** When we divide £20 into 4 equal parts, each part is £5. Since we want 1 of those parts (1/4), we take 1 × £5 = £5.\n\nNow you try a similar problem!",
+      "explainer_plain": "Let me show you how to find a fraction of an amount. Example: Find 1/4 of £20. Step 1: Divide by the bottom number. £20 divided by 4 equals £5. Step 2: Multiply by the top number. £5 times 1 equals £5. Answer: 1/4 of £20 is £5. Why does this work? When we divide £20 into 4 equal parts, each part is £5. We want 1 part. So 1 times £5 equals £5.",
+      "cfu": {
+        "type": "structured_response",
+        "id": "q002",
+        "stem": "Find 1/3 of £18. Show your working step by step.",
+        "rubric": {
+          "total_points": 3,
+          "criteria": [
+            {
+              "description": "Correctly divides by denominator: £18 ÷ 3 = £6",
+              "points": 1
+            },
+            {
+              "description": "Correctly multiplies by numerator: £6 × 1 = £6",
+              "points": 1
+            },
+            {
+              "description": "States correct final answer: £6",
+              "points": 1
+            }
+          ]
+        },
+        "hints": [
+          "Start by dividing £18 by the denominator (bottom number). What is 18 ÷ 3?",
+          "Now multiply your answer by the numerator (top number). What is that result × 1?",
+          "Remember to include the £ symbol in your final answer."
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_FRAC_002",
+          "misconception": "Dividing by the numerator instead of denominator",
+          "clarification": "Always divide by the bottom number (denominator) first, then multiply by the top number (numerator)"
+        }
+      ],
+      "context_hooks": ["Use Scottish currency examples", "Reference Tesco meal deal prices"]
+    },
+    {
+      "id": "card_003",
+      "title": "Guided Practice: Shopping Scenario",
+      "explainer": "Now let's practice with a real shopping scenario. Remember the steps: divide by the denominator, then multiply by the numerator.",
+      "explainer_plain": "Now let's practice with a real shopping example. Remember the steps. First divide by the bottom number. Then multiply by the top number.",
+      "cfu": {
+        "type": "numeric",
+        "id": "q003",
+        "stem": "A box of Scottish shortbread costs £12. It's reduced by 1/3 in a sale at Tesco. How much is the discount? (Enter your answer in pounds, e.g., 4.00)",
+        "expected": 4.0,
+        "tolerance": 0.01,
+        "money2dp": true,
+        "rubric": {
+          "total_points": 2,
+          "criteria": [
+            {
+              "description": "Correctly calculates 1/3 of £12 using division method",
+              "points": 1
+            },
+            {
+              "description": "States correct discount amount: £4",
+              "points": 1
+            }
+          ]
+        },
+        "hints": [
+          "First, find 1/3 of £12. Divide £12 by 3.",
+          "What is £12 ÷ 3? That's your discount amount.",
+          "Check: Does your answer make sense? 1/3 is about 33%, so the discount should be around £4."
+        ]
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_FRAC_003",
+          "misconception": "Finding the fraction but forgetting it represents the discount, not the final price",
+          "clarification": "The question asks for the discount amount (how much you save), not the new price. 1/3 of £12 = £4 is the discount."
+        }
+      ],
+      "context_hooks": ["Tesco in Edinburgh", "Scottish shortbread as authentic product", "Typical supermarket discount percentages"]
+    },
+    {
+      "id": "card_004",
+      "title": "Independent Practice: Train Tickets",
+      "explainer": "Time to work independently! Use the same method we practiced.",
+      "explainer_plain": "Now work on your own. Use the same method we practiced.",
+      "cfu": {
+        "type": "structured_response",
+        "id": "q004",
+        "stem": "A ScotRail train ticket from Edinburgh to Glasgow costs £24. Sarah uses a railcard that gives her 1/3 off the price. Calculate:\n(a) The discount amount\n(b) The price Sarah pays",
+        "rubric": {
+          "total_points": 4,
+          "criteria": [
+            {
+              "description": "Correctly calculates discount: 1/3 of £24 = £8",
+              "points": 2
+            },
+            {
+              "description": "Correctly calculates final price: £24 - £8 = £16",
+              "points": 2
+            }
+          ]
+        }
+      },
+      "misconceptions": [
+        {
+          "id": "MISC_MATH_FRAC_004",
+          "misconception": "Calculating the discount but stating that as the final price",
+          "clarification": "Remember: the discount is how much you save, not how much you pay. Subtract the discount from the original price to find what you pay."
+        }
+      ],
+      "context_hooks": ["ScotRail Edinburgh-Glasgow route", "Railcard discounts (actual 1/3 off for 16-25)", "Common journey for Scottish students"]
+    }
+  ]
+}

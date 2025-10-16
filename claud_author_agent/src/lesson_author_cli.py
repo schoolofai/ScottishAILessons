@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""CLI wrapper for SOW Author Claude Agent.
+"""CLI wrapper for Lesson Author Claude Agent.
 
 Supports three input methods:
 1. JSON file: --input input.json
-2. Command-line args: --subject mathematics --level national-5 --courseId course_123
+2. Command-line args: --courseId course_c84874 --order 1
 3. Interactive prompts: (no args provided)
+
+Note: Order values start from 1 (not 0). SOW entries are 1-indexed.
 """
 
 import argparse
@@ -15,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .sow_author_claude_client import SOWAuthorClaudeAgent
+from .lesson_author_claude_client import LessonAuthorClaudeAgent
 
 # Setup logging
 logging.basicConfig(
@@ -25,21 +27,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_input_from_json(json_path: str) -> Dict[str, str]:
+def load_input_from_json(json_path: str) -> Dict[str, Any]:
     """Load input parameters from JSON file.
 
     Expected JSON format:
     {
-        "subject": "mathematics",
-        "level": "national-5",
-        "courseId": "course_c84874"
+        "courseId": "course_c84874",
+        "order": 1
     }
 
     Args:
         json_path: Path to JSON input file
 
     Returns:
-        Dictionary with subject, level, courseId
+        Dictionary with courseId and order
 
     Raises:
         FileNotFoundError: If JSON file not found
@@ -57,7 +58,7 @@ def load_input_from_json(json_path: str) -> Dict[str, str]:
         raise ValueError(f"Invalid JSON in input file: {e}")
 
     # Validate required fields
-    required_fields = ["subject", "level", "courseId"]
+    required_fields = ["courseId", "order"]
     missing_fields = [field for field in required_fields if field not in data]
 
     if missing_fields:
@@ -66,53 +67,63 @@ def load_input_from_json(json_path: str) -> Dict[str, str]:
             f"Expected: {', '.join(required_fields)}"
         )
 
+    # Validate order is integer
+    if not isinstance(data["order"], int):
+        raise ValueError(f"'order' must be an integer, got: {type(data['order']).__name__}")
+
+    # Validate order is >= 1 (SOW entries are 1-indexed)
+    if data["order"] < 1:
+        raise ValueError(f"'order' must be >= 1 (SOW entries start at 1), got: {data['order']}")
+
     return {
-        "subject": data["subject"],
-        "level": data["level"],
-        "courseId": data["courseId"]
+        "courseId": data["courseId"],
+        "order": data["order"]
     }
 
 
-def interactive_input() -> Dict[str, str]:
+def interactive_input() -> Dict[str, Any]:
     """Prompt user for input parameters interactively.
 
     Returns:
-        Dictionary with subject, level, courseId
+        Dictionary with courseId and order
     """
     print("=" * 70)
-    print("SOW Author - Interactive Input")
+    print("Lesson Author - Interactive Input")
     print("=" * 70)
     print()
     print("Please provide the following information:")
     print()
 
-    # Subject input with examples
-    print("Subject (e.g., 'mathematics', 'application-of-mathematics'):")
-    subject = input("  > ").strip()
-
-    if not subject:
-        raise ValueError("Subject cannot be empty")
-
-    # Level input with examples
-    print("\nLevel (e.g., 'national-4', 'national-5', 'higher'):")
-    level = input("  > ").strip()
-
-    if not level:
-        raise ValueError("Level cannot be empty")
-
     # Course ID input with examples
-    print("\nCourse ID - courseId field value (e.g., 'course_c84474'):")
+    print("Course ID - courseId field value (e.g., 'course_c84874'):")
     print("  (Must exist in default.courses collection)")
-    course_id = input("  > ").strip()
+    courseId = input("  > ").strip()
 
-    if not course_id:
+    if not courseId:
         raise ValueError("Course ID cannot be empty")
+
+    # Order input with examples
+    print("\nLesson Order - entry order in SOW (e.g., 1, 2, 3):")
+    print("  (Must be valid order in SOW entries for this course)")
+    print("  (Note: Order starts from 1, not 0)")
+    order_input = input("  > ").strip()
+
+    if not order_input:
+        raise ValueError("Order cannot be empty")
+
+    try:
+        order = int(order_input)
+    except ValueError:
+        raise ValueError(f"Order must be an integer, got: '{order_input}'")
+
+    # Validate order is >= 1 (SOW entries are 1-indexed)
+    if order < 1:
+        raise ValueError(f"Order must be >= 1 (SOW entries start at 1), got: {order}")
 
     print()
     return {
-        "subject": subject,
-        "level": level,
-        "courseId": course_id
+        "courseId": courseId,
+        "order": order
     }
 
 
@@ -123,28 +134,29 @@ def parse_arguments() -> argparse.Namespace:
         Parsed arguments namespace
     """
     parser = argparse.ArgumentParser(
-        description="SOW Author Claude Agent - CLI Wrapper",
+        description="Lesson Author Claude Agent - CLI Wrapper",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   # JSON file input
-  python -m src.sow_author_cli --input input.json
+  python -m src.lesson_author_cli --input input.json
 
   # Command-line arguments
-  python -m src.sow_author_cli \\
-    --subject mathematics \\
-    --level national-5 \\
-    --courseId course_c84474
+  python -m src.lesson_author_cli \\
+    --courseId course_c84874 \\
+    --order 1
 
   # Interactive mode (no arguments)
-  python -m src.sow_author_cli
+  python -m src.lesson_author_cli
 
   # Custom configuration
-  python -m src.sow_author_cli \\
+  python -m src.lesson_author_cli \\
     --input input.json \\
     --mcp-config .mcp.json \\
-    --max-retries 5 \\
+    --max-retries 10 \\
     --no-persist-workspace
+
+Note: Order values start from 1 (not 0). SOW entries are 1-indexed.
         """
     )
 
@@ -154,24 +166,19 @@ Examples:
         '--input',
         type=str,
         metavar='JSON_FILE',
-        help='Path to JSON file containing subject, level, and courseId'
+        help='Path to JSON file containing courseId and order'
     )
 
     # Direct parameter input
     parser.add_argument(
-        '--subject',
-        type=str,
-        help='SQA subject (e.g., "mathematics", "application-of-mathematics")'
-    )
-    parser.add_argument(
-        '--level',
-        type=str,
-        help='SQA level (e.g., "national-5", "higher")'
-    )
-    parser.add_argument(
         '--courseId',
         type=str,
-        help='Course identifier (must exist in default.courses)'
+        help='Course identifier (e.g., "course_c84874")'
+    )
+    parser.add_argument(
+        '--order',
+        type=int,
+        help='Lesson order number in SOW entries (e.g., 1, 2, 3) - starts from 1, not 0'
     )
 
     # Configuration options
@@ -185,9 +192,9 @@ Examples:
     parser.add_argument(
         '--max-retries',
         type=int,
-        default=3,
+        default=10,
         metavar='N',
-        help='Maximum critic retry attempts (default: 3)'
+        help='Maximum critic retry attempts (default: 10)'
     )
     parser.add_argument(
         '--no-persist-workspace',
@@ -206,20 +213,18 @@ Examples:
 
 
 async def run_agent(
-    subject: str,
-    level: str,
     courseId: str,
+    order: int,
     mcp_config_path: str = ".mcp.json",
-    max_critic_retries: int = 3,
+    max_critic_retries: int = 10,
     persist_workspace: bool = True,
     log_level: str = "INFO"
 ) -> Dict[str, Any]:
-    """Run the SOW Author agent with given parameters.
+    """Run the Lesson Author agent with given parameters.
 
     Args:
-        subject: SQA subject
-        level: SQA level
         courseId: Course identifier
+        order: Lesson order number
         mcp_config_path: Path to MCP config
         max_critic_retries: Maximum critic retry attempts
         persist_workspace: Whether to preserve workspace
@@ -229,13 +234,12 @@ async def run_agent(
         Result dictionary from agent execution
     """
     print("=" * 70)
-    print("SOW Author Claude Agent")
+    print("Lesson Author Claude Agent")
     print("=" * 70)
     print()
     print("Input Parameters:")
-    print(f"  Subject:       {subject}")
-    print(f"  Level:         {level}")
     print(f"  Course ID:     {courseId}")
+    print(f"  Order:         {order}")
     print(f"  MCP Config:    {mcp_config_path}")
     print(f"  Max Retries:   {max_critic_retries}")
     print(f"  Persist WS:    {persist_workspace}")
@@ -245,7 +249,7 @@ async def run_agent(
     print()
 
     # Initialize agent
-    agent = SOWAuthorClaudeAgent(
+    agent = LessonAuthorClaudeAgent(
         mcp_config_path=mcp_config_path,
         persist_workspace=persist_workspace,
         max_critic_retries=max_critic_retries,
@@ -254,9 +258,8 @@ async def run_agent(
 
     # Execute pipeline
     result = await agent.execute(
-        subject=subject,
-        level=level,
-        courseId=courseId
+        courseId=courseId,
+        order=order
     )
 
     return result
@@ -272,7 +275,7 @@ def print_result(result: Dict[str, Any]) -> None:
     print("=" * 70)
 
     if result["success"]:
-        print("✅ SOW AUTHORING COMPLETED SUCCESSFULLY!")
+        print("✅ LESSON TEMPLATE AUTHORING COMPLETED SUCCESSFULLY!")
         print("=" * 70)
         print()
         print("Results:")
@@ -285,10 +288,10 @@ def print_result(result: Dict[str, Any]) -> None:
         print(f"  Total Tokens:     {metrics.get('total_tokens', 'N/A')}")
         print(f"  Total Cost (USD): ${metrics.get('total_cost_usd', 0.0):.4f}")
         print()
-        print("✓ SOW has been saved to Appwrite database: default.Authored_SOW")
+        print("✓ Lesson template has been saved to Appwrite database: default.lesson_templates")
 
     else:
-        print("❌ SOW AUTHORING FAILED")
+        print("❌ LESSON TEMPLATE AUTHORING FAILED")
         print("=" * 70)
         print()
         print(f"Error: {result.get('error', 'Unknown error')}")
@@ -318,33 +321,31 @@ async def main() -> int:
             logger.info(f"Loading input from JSON file: {args.input}")
             params = load_input_from_json(args.input)
 
-        elif args.subject and args.level and args.courseId:
+        elif args.courseId is not None and args.order is not None:
             # Method 2: Command-line arguments
             logger.info("Using command-line arguments")
             params = {
-                "subject": args.subject,
-                "level": args.level,
-                "courseId": args.courseId
+                "courseId": args.courseId,
+                "order": args.order
             }
 
-        elif not any([args.subject, args.level, args.courseId]):
+        elif args.courseId is None and args.order is None:
             # Method 3: Interactive prompts
             logger.info("No input provided, entering interactive mode")
             params = interactive_input()
 
         else:
             # Partial command-line args provided (error)
-            print("❌ ERROR: When using command-line arguments, all three parameters are required:")
-            print("  --subject, --level, --courseId")
+            print("❌ ERROR: When using command-line arguments, both parameters are required:")
+            print("  --courseId and --order")
             print()
             print("Use --help for usage examples")
             return 1
 
         # Run agent
         result = await run_agent(
-            subject=params["subject"],
-            level=params["level"],
             courseId=params["courseId"],
+            order=params["order"],
             mcp_config_path=args.mcp_config,
             max_critic_retries=args.max_retries,
             persist_workspace=not args.no_persist_workspace,

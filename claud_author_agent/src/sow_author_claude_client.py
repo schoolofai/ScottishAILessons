@@ -1,6 +1,6 @@
 """Main SOW Author Claude Agent implementation.
 
-Orchestrates a 5-subagent pipeline to author complete Schemes of Work (SOW)
+Orchestrates a 2-subagent pipeline to author complete Schemes of Work (SOW)
 for Scottish secondary education from subject + level input to Appwrite database.
 """
 
@@ -28,13 +28,12 @@ class SOWAuthorClaudeAgent:
     Pre-processing (Python):
     0. Course Data Extractor → Creates Course_data.txt from Appwrite (Python utility)
 
-    Pipeline execution (3 subagents):
-    1. Research Subagent → Creates research_pack_json
-    2. SOW Author → Creates authored_sow_json
-    3. Unified Critic → Validates and creates sow_critic_result_json (with retry)
+    Pipeline execution (2 subagents):
+    1. SOW Author → Creates authored_sow_json (with on-demand WebSearch/WebFetch)
+    2. Unified Critic → Validates and creates sow_critic_result_json (with retry)
 
     Post-processing (Python):
-    4. Upserter → Writes to Appwrite default.Authored_SOW (Python utility)
+    3. Upserter → Writes to Appwrite default.Authored_SOW (Python utility)
 
     Attributes:
         mcp_config_path: Path to .mcp.json configuration file
@@ -45,8 +44,9 @@ class SOWAuthorClaudeAgent:
 
     Architecture Notes:
         - Course data extraction moved to Python (no LLM needed, saves tokens)
+        - Research moved to on-demand WebSearch/WebFetch (targeted, efficient)
         - Upserting kept as Python (deterministic, no LLM needed)
-        - Only creative/judgmental tasks use LLM agents (research, authoring, critique)
+        - Only creative/judgmental tasks use LLM agents (authoring, critique)
     """
 
     def __init__(
@@ -90,18 +90,15 @@ class SOWAuthorClaudeAgent:
 
         Note:
             Course data extraction is now handled by Python utility (no subagent).
-            Pipeline reduced from 4 to 3 subagents.
+            Research is now handled by on-demand WebSearch/WebFetch (no subagent).
+            Pipeline reduced from 4 to 2 subagents.
         """
         prompts_dir = Path(__file__).parent / "prompts"
 
-        # Load 3 subagent prompts (course_data_extractor removed - Python handles it)
+        # Load 2 subagent prompts (course_data_extractor and research_subagent removed)
         subagents = {
-            "research_subagent": AgentDefinition(
-                description="Research subagent for web research and data collection",
-                prompt=(prompts_dir / "research_subagent_prompt.md").read_text()
-            ),
             "sow_author": AgentDefinition(
-                description="SOW author for creating complete schemes of work",
+                description="SOW author for creating complete schemes of work with on-demand WebSearch/WebFetch",
                 prompt=(prompts_dir / "sow_author_prompt.md").read_text()
             ),
             "unified_critic": AgentDefinition(
@@ -203,7 +200,7 @@ class SOWAuthorClaudeAgent:
 
                 logger.info(f"Agent configured with permission_mode='bypassPermissions' + WebSearch/WebFetch enabled")
 
-                # Execute pipeline (now only 3 subagents: research, sow_author, critic)
+                # Execute pipeline (now only 2 subagents: sow_author with WebSearch/WebFetch, critic)
                 async with ClaudeSDKClient(options) as client:
                     # Initial prompt to orchestrate subagents
                     initial_prompt = self._build_initial_prompt(
@@ -221,7 +218,7 @@ class SOWAuthorClaudeAgent:
                     logger.info("Starting message stream - logging ALL raw messages...")
                     message_count = 0
 
-                    # Process messages until agent completion (4 subagents)
+                    # Process messages until agent completion (2 subagents)
                     async for message in client.receive_messages():
                         message_count += 1
 
@@ -233,7 +230,7 @@ class SOWAuthorClaudeAgent:
                         logger.info(f"=" * 80)
 
                         if isinstance(message, ResultMessage):
-                            # Agent has completed 4 subagents
+                            # Agent has completed 2 subagents
                             logger.info(f"✅ Pipeline completed after {message_count} messages")
                             break
 
@@ -244,7 +241,7 @@ class SOWAuthorClaudeAgent:
 
                 from .utils.sow_upserter import upsert_sow_to_appwrite
 
-                sow_file_path = workspace_path / "authored_sow_json"
+                sow_file_path = workspace_path / "authored_sow.json"
 
                 appwrite_document_id = await upsert_sow_to_appwrite(
                     sow_file_path=str(sow_file_path),
@@ -442,24 +439,20 @@ All files will be created in: {workspace_path}
 
 ## Pipeline Execution
 
-Execute the following 3 subagents in sequence:
+Execute the following 2 subagents in sequence:
 
-### 1. Research Subagent
-- **Task**: Conduct web research and create research pack v3
-- **Output**: `/workspace/research_pack_json`
-- **Delegate to**: @research_subagent
-
-### 2. SOW Author
-- **Task**: Author complete SOW using inputs
-- **Inputs**: `/workspace/Course_data.txt` (pre-populated), `/workspace/research_pack_json`
-- **Output**: `/workspace/authored_sow_json`
+### 1. SOW Author (with on-demand WebSearch/WebFetch)
+- **Task**: Author complete SOW using Course_data.txt and on-demand web research
+- **Inputs**: `/workspace/Course_data.txt` (pre-populated)
+- **Output**: `/workspace/authored_sow.json`
 - **Delegate to**: @sow_author
 - **Note**: Course_data.txt already exists - extracted by orchestrator before agent execution
+- **Research**: SOW Author has WebSearch and WebFetch tools for on-demand research during authoring (Scottish contexts, exemplars, misconceptions)
 
-### 3. Unified Critic (with retry loop)
+### 2. Unified Critic (with retry loop)
 - **Task**: Validate SOW across 5 dimensions
-- **Inputs**: All 3 files above
-- **Output**: `/workspace/sow_critic_result_json`
+- **Inputs**: `/workspace/Course_data.txt` (pre-populated), `/workspace/authored_sow.json`
+- **Output**: `/workspace/sow_critic_result.json`
 - **Delegate to**: @unified_critic
 - **Logic**:
   - If overall_pass = false and attempt < {self.max_critic_retries}:
@@ -474,7 +467,7 @@ After each subagent execution, use TodoWrite to log:
 - Estimated cost
 
 ## Final Output
-When all 3 subagents complete successfully, report completion.
+When both subagents complete successfully, report completion.
 The authored SOW will be persisted to Appwrite by the orchestrating system.
 
 Begin pipeline execution now.
