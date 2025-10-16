@@ -4,25 +4,33 @@ Autonomous pipeline for authoring Schemes of Work (SOW) for Scottish secondary e
 
 ## Overview
 
-This agent takes a `{subject, level, courseId}` input and produces a complete, validated SOW in the Appwrite database through a 4-subagent pipeline + deterministic Python upserter:
+This agent takes a `{subject, level, courseId}` input and produces a complete, validated SOW in the Appwrite database through Python pre-processing + 3-subagent pipeline + deterministic Python upserting:
 
+**Pre-Processing (Python)**:
+0. **Course Data Extractor (Python)** → Appwrite SDK → `Course_data.txt` (no LLM, deterministic)
+
+**Pipeline Execution (3 Subagents)**:
 1. **Research Subagent** → Web research → `research_pack_json`
-2. **Course Data Extractor** → Appwrite MCP → `Course_data.txt`
-3. **SOW Author** → Authoring → `authored_sow_json`
-4. **Unified Critic** → Validation (with retry) → `sow_critic_result_json`
-5. **Python Upserter** → Database write → Appwrite `default.Authored_SOW` (deterministic)
+2. **SOW Author** → Authoring → `authored_sow_json`
+3. **Unified Critic** → Validation (with retry) → `sow_critic_result_json`
+
+**Post-Processing (Python)**:
+4. **Python Upserter** → Database write → Appwrite `default.Authored_SOW` (deterministic)
 
 ## Features
 
 - ✅ **Fully Autonomous**: Subject + level + courseId → complete SOW in database
 - ✅ **Fail-Fast Validation**: Validates courseId exists in database before pipeline execution
+- ✅ **Hybrid Orchestration**: Python for deterministic operations (extraction, upserting), LLMs for creative tasks (research, authoring, critique)
 - ✅ **Flat File Architecture**: Simple 4-file workspace for subagent communication
 - ✅ **Quality Validation**: 5-dimension critic with automatic retry (up to 3 attempts)
-- ✅ **Deterministic Database Operations**: Python-based upserting for reliability (no agent variance)
+- ✅ **Deterministic Database Operations**: Python-based course data extraction and upserting for reliability (no agent variance)
+- ✅ **Cost Optimization**: Python extraction saves tokens compared to LLM subagent
 - ✅ **Cost Tracking**: Per-subagent and total token/cost metrics
 - ✅ **Workspace Persistence**: Optional preservation for debugging
 - ✅ **Hardcoded MVP Fields**: version="1", status="draft" for simplicity
 - ✅ **Scottish Curriculum Compliant**: SQA standards, CfE alignment, Scottish contexts
+- ✅ **LangGraph Prompt Alignment**: Production-ready prompts aligned with LangGraph architecture
 
 ## Installation
 

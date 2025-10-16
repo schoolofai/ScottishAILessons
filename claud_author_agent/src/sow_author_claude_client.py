@@ -25,12 +25,16 @@ logger = logging.getLogger(__name__)
 class SOWAuthorClaudeAgent:
     """Autonomous SOW authoring pipeline using Claude Agent SDK.
 
-    Executes 5 subagents in sequence:
+    Pre-processing (Python):
+    0. Course Data Extractor → Creates Course_data.txt from Appwrite (Python utility)
+
+    Pipeline execution (3 subagents):
     1. Research Subagent → Creates research_pack_json
-    2. Course Data Extractor → Creates Course_data.txt from Appwrite
-    3. SOW Author → Creates authored_sow_json
-    4. Unified Critic → Validates and creates sow_critic_result_json (with retry)
-    5. Upserter → Writes to Appwrite default.Authored_SOW
+    2. SOW Author → Creates authored_sow_json
+    3. Unified Critic → Validates and creates sow_critic_result_json (with retry)
+
+    Post-processing (Python):
+    4. Upserter → Writes to Appwrite default.Authored_SOW (Python utility)
 
     Attributes:
         mcp_config_path: Path to .mcp.json configuration file
@@ -38,6 +42,11 @@ class SOWAuthorClaudeAgent:
         max_critic_retries: Maximum attempts for critic validation loop
         execution_id: Unique identifier for this execution
         cost_tracker: Tracks costs across all subagents
+
+    Architecture Notes:
+        - Course data extraction moved to Python (no LLM needed, saves tokens)
+        - Upserting kept as Python (deterministic, no LLM needed)
+        - Only creative/judgmental tasks use LLM agents (research, authoring, critique)
     """
 
     def __init__(
@@ -78,18 +87,18 @@ class SOWAuthorClaudeAgent:
 
         Raises:
             FileNotFoundError: If prompt files are missing
+
+        Note:
+            Course data extraction is now handled by Python utility (no subagent).
+            Pipeline reduced from 4 to 3 subagents.
         """
         prompts_dir = Path(__file__).parent / "prompts"
 
-        # Load all 4 subagent prompts
+        # Load 3 subagent prompts (course_data_extractor removed - Python handles it)
         subagents = {
             "research_subagent": AgentDefinition(
                 description="Research subagent for web research and data collection",
                 prompt=(prompts_dir / "research_subagent_prompt.md").read_text()
-            ),
-            "course_data_extractor": AgentDefinition(
-                description="Course data extractor for SQA data from Appwrite",
-                prompt=(prompts_dir / "course_data_extractor_prompt.md").read_text()
             ),
             "sow_author": AgentDefinition(
                 description="SOW author for creating complete schemes of work",
@@ -157,6 +166,25 @@ class SOWAuthorClaudeAgent:
 
                 logger.info(f"Workspace created: {workspace_path}")
 
+                # ═══════════════════════════════════════════════════════════════
+                # PRE-PROCESSING: Extract Course_data.txt using Python (NO AGENT)
+                # ═══════════════════════════════════════════════════════════════
+                logger.info("Pre-processing: Extracting Course_data.txt via Python utility...")
+
+                from .utils.course_data_extractor import extract_course_data_to_file
+
+                course_data_path = workspace_path / "Course_data.txt"
+
+                await extract_course_data_to_file(
+                    subject=subject,
+                    level=level,
+                    mcp_config_path=str(self.mcp_config_path),
+                    output_path=course_data_path
+                )
+
+                logger.info(f"✅ Course_data.txt ready at: {course_data_path}")
+                logger.info("   Python extraction complete - no LLM tokens used")
+
                 # Load MCP config as dict (not path string)
                 mcp_config = {}
                 if self.mcp_config_path.exists():
@@ -175,7 +203,7 @@ class SOWAuthorClaudeAgent:
 
                 logger.info(f"Agent configured with permission_mode='bypassPermissions' + WebSearch/WebFetch enabled")
 
-                # Execute pipeline
+                # Execute pipeline (now only 3 subagents: research, sow_author, critic)
                 async with ClaudeSDKClient(options) as client:
                     # Initial prompt to orchestrate subagents
                     initial_prompt = self._build_initial_prompt(
@@ -406,28 +434,29 @@ You are orchestrating the autonomous authoring of a Scheme of Work (SOW) for Sco
 ## Workspace
 All files will be created in: {workspace_path}
 
+## Pre-Processing (Complete)
+✅ `Course_data.txt` has been pre-populated by Python extraction (no subagent needed)
+   - Source: sqa_education.sqa_current collection
+   - Extracted: Official SQA course structure, units, outcomes, assessment standards
+   - Location: `/workspace/Course_data.txt`
+
 ## Pipeline Execution
 
-Execute the following 4 subagents in sequence:
+Execute the following 3 subagents in sequence:
 
 ### 1. Research Subagent
 - **Task**: Conduct web research and create research pack v3
 - **Output**: `/workspace/research_pack_json`
 - **Delegate to**: @research_subagent
 
-### 2. Course Data Extractor
-- **Task**: Extract SQA course data from Appwrite (sqa_education.current_sqa)
-- **Filters**: subject="{subject}", level="{level}"
-- **Output**: `/workspace/Course_data.txt`
-- **Delegate to**: @course_data_extractor
-
-### 3. SOW Author
+### 2. SOW Author
 - **Task**: Author complete SOW using inputs
-- **Inputs**: `/workspace/Course_data.txt`, `/workspace/research_pack_json`
+- **Inputs**: `/workspace/Course_data.txt` (pre-populated), `/workspace/research_pack_json`
 - **Output**: `/workspace/authored_sow_json`
 - **Delegate to**: @sow_author
+- **Note**: Course_data.txt already exists - extracted by orchestrator before agent execution
 
-### 4. Unified Critic (with retry loop)
+### 3. Unified Critic (with retry loop)
 - **Task**: Validate SOW across 5 dimensions
 - **Inputs**: All 3 files above
 - **Output**: `/workspace/sow_critic_result_json`
@@ -445,7 +474,7 @@ After each subagent execution, use TodoWrite to log:
 - Estimated cost
 
 ## Final Output
-When all 4 subagents complete successfully, report completion.
+When all 3 subagents complete successfully, report completion.
 The authored SOW will be persisted to Appwrite by the orchestrating system.
 
 Begin pipeline execution now.

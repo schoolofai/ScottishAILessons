@@ -55,41 +55,45 @@ claud_author_agent/
 
 ## Phase 2: Subagent Prompts ✅
 
-### All 5 Subagent Prompts Created
+### Python Pre-Processing Utility
+
+**Course Data Extractor** (`src/utils/course_data_extractor.py`):
+- Python utility for deterministic SQA course data extraction
+- Queries `sqa_education.sqa_current` collection via Appwrite SDK
+- Extracts nested JSON from `data` field
+- Formats as Course_data.txt before agent execution
+- NO LLM processing - saves tokens and ensures consistency
+- Fail-fast error handling with detailed messages
+
+### 3 Subagent Prompts (Aligned with LangGraph Architecture)
 
 1. **Research Subagent** (`src/prompts/research_subagent_prompt.md`)
    - Web research specialist for Scottish curriculum
    - Creates research pack v3 with SQA exemplars, pedagogical patterns, Scottish contexts
    - Grounded in Course_data.txt for official terminology
+   - **Aligned with LangGraph layers**: role/context, process, schemas, constraints
 
-2. **Course Data Extractor** (`src/prompts/course_data_extractor_prompt.md`)
-   - Appwrite MCP specialist
-   - Queries sqa_education.current_sqa collection
-   - Extracts full SQA course structure to Course_data.txt
-
-3. **SOW Author** (`src/prompts/sow_author_prompt.md`)
+2. **SOW Author** (`src/prompts/sow_author_prompt.md`)
    - Senior Curriculum Architect
-   - 8-step authoring process
+   - 10-step authoring process (expanded from 8)
    - Chunking strategy (2-3 standards per lesson)
-   - Enriched format enforcement
+   - Enriched format enforcement (entry-level AND card-level)
    - Teach→revision pairing mandatory
    - 6-12 card lesson plans with specific CFU strategies
+   - **Aligned with LangGraph layers**: Complete 5-layer structure from production prompts
 
-4. **Unified Critic** (`src/prompts/unified_critic_prompt.md`)
+3. **Unified Critic** (`src/prompts/unified_critic_prompt.md`)
    - Senior Quality Assurance Specialist
    - 5-dimension validation:
-     - Coverage (≥0.90)
-     - Sequencing (≥0.80)
-     - Policy (≥0.80)
-     - Accessibility (≥0.90)
-     - Authenticity (≥0.90)
+     - Coverage (≥0.90) - includes lesson plan depth validation
+     - Sequencing (≥0.80) - includes teach→revision pairing checks
+     - Policy (≥0.80) - calculator policy, timing consistency
+     - Accessibility (≥0.90) - profile completeness, plain language
+     - Authenticity (≥0.90) - Scottish context at card level
    - Detailed feedback with prioritized actions
+   - **Aligned with LangGraph layers**: Complete 8-layer structure from production prompts
 
-5. **Upserter** (`src/prompts/upserter_subagent_prompt.md`)
-   - Database operations specialist
-   - Version auto-increment (1.0 → 1.1)
-   - Metadata enrichment
-   - Upserts to default.Authored_SOW
+**Note**: Upserter remains as Python utility (not subagent) for deterministic database operations.
 
 ### All 4 Schema Documentation Files Created
 
@@ -204,24 +208,26 @@ mypy>=1.5.0
 
 ## Architecture Highlights
 
-### 5-Subagent Pipeline
+### Hybrid Pipeline: Python Pre/Post-Processing + 3 Subagents
 
 ```
-Input: {subject, level}
+Input: {subject, level, courseId}
   ↓
-[Research Subagent] → research_pack_json
+[Python: Course Data Extractor] → Course_data.txt (NO LLM, deterministic)
   ↓
-[Course Data Extractor] → Course_data.txt
+[Research Subagent] → research_pack_json (LLM creative task)
   ↓
-[SOW Author] → authored_sow_json
+[SOW Author] → authored_sow_json (LLM creative task)
   ↓
-[Unified Critic] → sow_critic_result_json
+[Unified Critic] → sow_critic_result_json (LLM quality validation)
   ↓ (retry loop if validation fails, max 3)
   ↓
-[Upserter] → Appwrite: default.Authored_SOW
+[Python: Upserter] → Appwrite: default.Authored_SOW (NO LLM, deterministic)
   ↓
 Output: {document_id, metrics}
 ```
+
+**Rationale**: Use Python for deterministic operations (JSON extraction, database writes), LLM agents only for creative/judgmental tasks (research, authoring, critique). This saves tokens and ensures consistency.
 
 ### Flat Filesystem Architecture
 
@@ -245,7 +251,7 @@ Output: {document_id, metrics}
 
 ---
 
-## Prompt Adaptation from LangGraph
+## Prompt Adaptation from LangGraph (October 2025 Update)
 
 ### What Was Adapted
 
@@ -254,24 +260,39 @@ Output: {document_id, metrics}
 - Implicit tool usage → Explicit tool instructions (Read, Write, TodoWrite)
 
 **Architecture Changes**:
-- LangGraph: 2 subagents (research + critic)
-- Claude SDK: 5 subagents (research + extractor + author + critic + upserter)
-- Main agent role changed from direct authoring to orchestration
+- LangGraph: 2 LLM subagents (SOW author + critic) + Python utilities
+- Claude SDK: 3 LLM subagents (research + SOW author + critic) + Python utilities
+- Course data extraction: Moved from LLM subagent to Python utility (token savings)
+- Upserting: Remains Python utility in both implementations
+
+**LangGraph Production Prompt Alignment** (October 2025):
+- **SOW Author**: Fully aligned with 5-layer LangGraph structure
+  - Layer 1: Role and context
+  - Layer 2: Core process (10 steps, expanded from 8)
+  - Layer 3: Complete schemas (enriched format, lesson plan depth)
+  - Layer 4: Constraints and workflows
+  - Layer 5: Quality guidelines
+- **Unified Critic**: Fully aligned with 8-layer LangGraph structure
+  - Layers 1-2: Role, validation process
+  - Layers 3-7: 5 dimension criteria (coverage, sequencing, policy, accessibility, authenticity)
+  - Layer 8: Scoring and aggregation
 
 ### What Was Preserved
 
 **All Pedagogical Content**:
-- 8-step SOW authoring process
-- Critical constraints (enriched format, teach→revision pairing, 6-12 cards)
+- 10-step SOW authoring process (expanded from 8 in original)
+- Critical constraints (enriched format entry + card level, teach→revision pairing, 6-12 cards)
 - Quality guidelines (CFU specificity, Scottish authenticity, one-to-one design)
 - 5-dimension validation with same thresholds
-- Chunking strategy (2-3 standards per lesson)
+- Chunking strategy (2-3 standards per lesson, up to 5 if justified)
+- Lesson plan depth validation (card-level enrichment, timing sums, CFU strategies)
 
 **SQA/CfE Compliance**:
 - Complete standard coverage requirement
 - Official terminology preservation
 - Calculator policy alignment
 - Accessibility provisions
+- Scottish context validation at card level (£, Scottish shops, CfE terminology)
 
 ---
 
@@ -321,22 +342,39 @@ Output: {document_id, metrics}
 
 ## File Count Summary
 
-- **Python files**: 6 (main + 4 utils + __init__)
-- **Prompt files**: 5 (one per subagent)
+- **Python files**: 7 (main + 5 utils [filesystem, validation, metrics, logging_config, course_data_extractor] + __init__)
+- **Prompt files**: 3 (research, sow_author, unified_critic - aligned with LangGraph)
 - **Schema files**: 4 (sow, research_pack, critic_result, course_data)
 - **Config files**: 2 (requirements.txt, .mcp.json)
 - **Docs**: 3 (README, implementation plan, this status file)
 
-**Total**: 20 newly created files
+**Total**: 19 files (updated October 2025 with LangGraph alignment)
 
 ---
 
-## Claude Agent SDK Implementation Ready
+## Claude Agent SDK Implementation Ready (Updated October 2025)
 
-The SOW Author agent is **fully implemented** and ready for:
+The SOW Author agent is **fully implemented with LangGraph production prompt alignment** and ready for:
 1. Dependency installation (`pip install -r requirements.txt`)
 2. MCP configuration (add Appwrite API key to `.mcp.json`)
 3. Execution testing with real subject/level inputs
 4. Integration with existing SOW seeding pipeline
 
-The implementation maintains **100% functional parity** with the LangGraph version while adapting to Claude SDK's filesystem-based architecture and adding autonomous course data extraction + database upserting capabilities.
+### Key Updates (October 2025)
+
+**Architecture**:
+- ✅ Moved course data extraction from LLM subagent to Python utility (token savings)
+- ✅ Reduced pipeline from 4 to 3 LLM subagents
+- ✅ Hybrid orchestration: Python for deterministic ops, LLMs for creative tasks
+
+**Prompt Alignment**:
+- ✅ SOW Author: Fully aligned with LangGraph 5-layer production structure
+- ✅ Unified Critic: Fully aligned with LangGraph 8-layer production structure
+- ✅ Expanded from 8-step to 10-step authoring process
+- ✅ Enhanced validation: lesson plan depth, card-level enrichment, teach→revision pairing
+
+The implementation maintains **100% functional parity** with the LangGraph version while:
+- Adapting to Claude SDK's filesystem-based architecture
+- Using production-ready prompts from LangGraph (layered structure)
+- Optimizing for cost with Python pre/post-processing
+- Ensuring consistency with fail-fast error handling
