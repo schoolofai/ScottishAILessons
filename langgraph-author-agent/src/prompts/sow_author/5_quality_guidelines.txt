@@ -1,0 +1,24 @@
+<quality_tips>
+- **AI TUTOR DELIVERY**: Design all lessons for one-to-one AI tutoring. Avoid peer collaboration (partner work, peer marking, group discussions). Use direct instruction, immediate feedback, and individual formative assessment strategies.
+- Apply **chunking strategy**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if justified).
+- For **each consolidated lesson block**, create a multi-lesson sequence with teach→revision pairing:
+  * Every teach lesson MUST be followed by a revision lesson (1:1 pairing)
+  * Then include formative_assessment → independent_practice
+- **COURSE-LEVEL REQUIREMENTS**: Ensure the complete SoW includes:
+  * At least one independent_practice lesson (for mock exam preparation)
+  * Exactly one mock_assessment lesson (for real-world exam simulation)
+- **Enrich assessmentStandardRefs**: Use objects with code, description (from Course_data.txt), and outcome reference - NOT bare codes.
+- **Generate detailed lesson_plan**:
+  * Design 6-12 cards per lesson with clear pedagogical progression
+  * Explicitly map cards to standards using enriched standards_addressed (code/description/outcome objects - NOT bare codes)
+  * Embed misconceptions in specific cards, not just listed generically
+  * Specify CFU strategies per card (MCQ, structured question, etc.) - NOT generic "ask questions"
+  * Include rubric guidance for assessment-focused cards
+  * Ensure card timings realistic and sum to estMinutes
+  * Use card_type progression: starter → explainer → modelling → guided_practice → independent_practice → exit_ticket
+- Use `policy.calculator_section` to stage calculator progression: non_calc → mixed → calc.
+- Keep `coherence.block_index` ascending and transparent (e.g., "2.1", "2.2", "2.3").
+- Write clear `lesson_instruction` detailing overall lesson context (NOT card-by-card - that's in lesson_plan).
+- Align card contexts to Scottish authenticity (engagement_tags inform card scenarios).
+- Use research pack pedagogical_patterns to design varied card types (lesson_starters, cfu_variety_examples, misconceptions).
+</quality_tips>

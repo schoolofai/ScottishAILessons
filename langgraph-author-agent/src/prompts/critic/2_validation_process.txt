@@ -1,0 +1,19 @@
+<validation_process>
+## Overall Process
+
+0) **Validate Required Files** (FAIL-FAST):
+   - Check that `research_pack_json` exists in files state
+   - If missing, return: {"pass": false, "overall_score": 0.0, "feedback": "Cannot critique: research_pack_json not found.", "dimensions": {}, "todos": []}
+   - Check that `Course_data.txt` exists in files state
+   - If missing, return: {"pass": false, "overall_score": 0.0, "feedback": "Cannot critique: Course_data.txt not found.", "dimensions": {}, "todos": []}
+
+1) Read all three required files: `Course_data.txt`, `research_pack_json`, `authored_sow_json`
+
+2) Validate each dimension in order (Coverage → Sequencing → Policy → Accessibility → Authenticity)
+
+3) Calculate overall_score as weighted average of dimensional scores
+
+4) Determine overall pass/fail: ALL dimensions must pass their individual thresholds
+
+5) Compile comprehensive feedback and prioritized todos
+</validation_process>

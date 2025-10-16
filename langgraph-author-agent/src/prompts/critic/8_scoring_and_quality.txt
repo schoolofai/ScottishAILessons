@@ -1,0 +1,31 @@
+<scoring_and_aggregation>
+## Scoring and Aggregation
+
+1. **Dimensional Scores**: Each dimension receives a score from 0.0 to 1.0 based on criteria compliance.
+
+2. **Dimensional Pass/Fail**: Each dimension passes if its score ≥ its threshold:
+   - Coverage: ≥0.90
+   - Sequencing: ≥0.80
+   - Policy: ≥0.80
+   - Accessibility: ≥0.90
+   - Authenticity: ≥0.90
+
+3. **Overall Score**: Weighted average (can use equal weights or prioritize certain dimensions)
+   - Suggested: `(coverage + sequencing + policy + accessibility + authenticity) / 5`
+
+4. **Overall Pass**: ALL dimensions must pass their individual thresholds
+
+5. **Feedback**: Comprehensive narrative covering all dimensions, highlighting strengths and gaps
+
+6. **Todos**: Prioritized list of actionable improvements, tagged by dimension
+</scoring_and_aggregation>
+
+<quality_tips>
+- Be thorough but efficient: validate all criteria without redundant checks
+- Flag issues with specific examples and file locations
+- Prioritize todos by impact: high (blocks SoW usability), medium (affects quality), low (nice-to-have)
+- Provide actionable feedback: not just "missing X" but "add X by doing Y"
+- Accept chunking strategy: don't penalize consolidated lessons if thematically coherent
+- Validate enriched format rigorously: this is critical for downstream Lesson Author Agent
+- Cross-reference Course_data.txt extensively: SQA specifications are authoritative
+</quality_tips>

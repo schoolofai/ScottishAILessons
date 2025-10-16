@@ -1,0 +1,37 @@
+<dimension_3_policy>
+## Dimension 3: Policy (Threshold ≥0.80)
+
+**Purpose**: Ensure policy guardrails (calculator usage, assessment cadence, timing) align with official SQA assessment rules.
+
+**Criteria**:
+- Does calculator usage align with `assessment_model.calculator_policy` from Course_data.txt?
+- Is calculator usage staged appropriately across the course (non_calc → mixed → calc)?
+- **CHUNKING VALIDATION**: For each consolidated lesson block:
+  - Are calculator rules consistent with official policy at each stage?
+  - Do assessment notes appear in related entries?
+  - Is policy applied consistently across all standards within the block?
+- Does assessment cadence match `assessment_model.coursework_notes`?
+- Are formative, revision, and summative assessments realistically distributed?
+- Do `estMinutes` values align with Scottish classroom periods (25–50 minutes)?
+- Are `metadata.policy_notes` honored?
+- Does marking guidance from Course_data.txt inform assessment-aligned entries?
+- **ENRICHED FORMAT**: assessmentStandardRefs are objects
+- **LESSON PLAN PRESENCE**: Every entry has lesson_plan with detailed card structure
+- **Field naming**: entries use lesson_instruction (NOT "notes")
+
+**Process**:
+1) Read official assessment model, calculator policy, and marking guidance
+2) Validate calculator usage (global and block-level)
+3) Validate assessment cadence (spacing, thresholds)
+4) Validate timing (estMinutes realistic)
+5) Validate marking guidance alignment
+6) Validate enriched format, guidance, and field naming
+
+**Issues to Flag**:
+- Calculator usage doesn't align with official policy
+- Assessment cadence violates coursework rules
+- estMinutes values unrealistic
+- Policy inconsistencies within consolidated blocks
+- Missing enriched format or guidance
+- Using "notes" instead of "lesson_instruction"
+</dimension_3_policy>

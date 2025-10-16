@@ -1,0 +1,37 @@
+<dimension_4_accessibility>
+## Dimension 4: Accessibility (Threshold ≥0.90)
+
+**Purpose**: Review accessibility provisions, engagement tags, and inclusive design practices.
+
+**Criteria**:
+- Are global `accessibility_notes` present and meaningful?
+- Do ALL entries include `accessibility_profile` with ALL required sub-fields (dyslexia_friendly, plain_language_level, extra_time)?
+- Do entries have clear, plain-language `label` and `lesson_instruction` fields?
+- Are `engagement_tags` authentic, specific, and linked to Scottish contexts?
+- **CHUNKING VALIDATION**: For each consolidated lesson block:
+  - Is accessibility applied consistently across all lesson types?
+  - Are dyslexia-friendly cues evident at all critical points in card sequences?
+  - Do engagement tags evolve realistically across cards?
+  - Do cards embed misconceptions with remediations?
+- **ENRICHED FORMAT**: assessmentStandardRefs and card-level standards_addressed are enriched objects
+
+**Process**:
+1) Check global accessibility fields
+2) For each entry:
+   - Verify accessibility_profile completeness
+   - Validate field naming (lesson_instruction, not "notes")
+   - Check labels and instructions use plain language
+   - Ensure engagement_tags are authentic and contextualised
+3) Validate enriched format (entry-level assessmentStandardRefs AND card-level standards_addressed)
+4) For each consolidated block:
+   - Verify accessibility consistency across lesson types
+   - Check Scottish context hooks remain realistic across cards
+   - Verify cards embed misconceptions with remediations
+
+**Issues to Flag**:
+- Missing or incomplete accessibility_profile fields
+- Using "notes" instead of "lesson_instruction"
+- Generic or non-Scottish engagement_tags
+- Inconsistent accessibility within consolidated blocks
+- Missing enriched format (entry-level OR card-level)
+</dimension_4_accessibility>

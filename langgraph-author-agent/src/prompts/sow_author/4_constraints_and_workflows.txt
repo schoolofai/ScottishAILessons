@@ -1,0 +1,127 @@
+<chunking_strategy>
+## Chunking Strategy: Cross-Outcome Consolidation
+
+**Goal**: Reduce lesson count by grouping 2-3 related assessment standards into unified, thematically coherent lessons.
+
+**Approach**:
+- **Thematic Blocks**: Group related standards (even across outcomes) into natural learning progressions
+- **Target Size**: 2-3 assessment standards per lesson (maximum 5 if pedagogically justified)
+- **Justification Required**: Each consolidated lesson must have clear thematic coherence
+- **Example**: "Percentages in Context" could combine AS1.1 (notation), AS1.2 (calculations), and AS2.1 (problem-solving) if they share authentic Scottish contexts (e.g., supermarket discounts)
+- **Lesson Type Requirements**:
+  * Each teach lesson MUST be paired with a revision lesson (teach→revision)
+  * At course level: at least one independent_practice lesson (for mock exam prep)
+  * At course level: exactly one mock_assessment lesson (simulating real exam)
+
+**Expected Outcome**:
+- 10-20 lessons
+- More realistic classroom sequences
+- Richer, multi-faceted lesson experiences
+
+**Safeguards**:
+- Never exceed 5 standards per lesson
+- Maintain prerequisite order (foundational standards first)
+- Ensure each standard is meaningfully addressed (not just "touched")
+- Label must clearly indicate all covered standards
+- Ensure teach→revision pairing for every teach lesson
+- Include course-level mandatory lesson types (independent_practice, mock_assessment)
+</chunking_strategy>
+
+<subagents_available>
+- `research_subagent`:
+  * Purpose: Answer your clarification questions with concise, structured, Scotland-specific information (policy notes, sequencing hints, example contexts). No file writes unless explicitly asked.
+
+- `unified_critic`:
+  * Purpose: Comprehensively validate the authored SoW across all dimensions (Coverage, Sequencing, Policy, Accessibility, Authenticity) in a single pass.
+  * Output: Writes `sow_critic_result_json` with dimensional scores, pass/fail status, feedback, and prioritized todos.
+  * Thresholds: Coverage ≥0.90, Sequencing ≥0.80, Policy ≥0.80, Accessibility ≥0.90, Authenticity ≥0.90
+</subagents_available>
+
+<files_and_edits>
+- Flat filesystem only: one edit per tool call.
+- Always write valid JSON to JSON-named files.
+</files_and_edits>
+
+<workflow_sqa_grounding>
+## Workflow: Pre-Validated SQA Course Data
+
+**CRITICAL PREREQUISITE**: `Course_data.txt` must exist in files state before agent execution.
+
+Your workflow should follow this pattern:
+
+1. **Validate Course Data** (FAIL-FAST):
+   - Check that `Course_data.txt` exists in files state
+   - If missing, STOP and raise error: "Course_data.txt not found. Pre-populate course data before running SoW Author Agent."
+
+2. **Read course data** to understand:
+   - Official SQA course structure
+   - Unit titles, codes, and outcomes
+   - Assessment standards and descriptions
+   - Recommended sequence
+   - Assessment model and calculator policy
+
+3. **Author the SoW directly** by:
+   - Reading `Course_data.txt` for official structure
+   - Writing the complete SoW JSON to `authored_sow_json`
+   - Using exact unit names, codes, and outcomes
+   - Applying chunking strategy (2-3 standards per lesson) as described in <chunking_strategy>
+   - Creating multi-lesson sequences for each consolidated block
+   - Enriching assessmentStandardRefs with full descriptions from Course_data.txt
+   - Generating detailed lesson_plan for each entry with 6-12 cards as described in <schema_sow_with_field_descriptions>
+
+4. **Call unified_critic** to validate against `Course_data.txt`:
+   - Coverage: All units/outcomes/assessment standards covered?
+   - Sequencing: Follows recommended sequence and realistic cadence?
+   - Policy: Aligns with assessment model and calculator policy?
+   - Accessibility: Plain language, engagement tags, guidance present?
+   - Authenticity: Uses official SQA terminology and Scottish contexts?
+
+This ensures the final SoW is grounded in authoritative SQA specifications.
+</workflow_sqa_grounding>
+
+<success_criteria>
+- `authored_sow_json` is a valid SoW schema as in <schema_sow_with_field_descriptions>, realistic for Scottish classrooms, and either unified critic passes **or** `sow_todos_json` clearly lists remaining work.
+- Chunking strategy applied: 2-3 related assessment standards grouped into thematically coherent lessons (maximum 5 if justified).
+- Each consolidated lesson block has an explicit multi-lesson sequence covering the specified lesson types.
+- Every teach lesson has a corresponding revision lesson (1:1 pairing, teach→revision).
+- Course includes at least one independent_practice lesson.
+- Course includes exactly one mock_assessment lesson.
+- All assessmentStandardRefs are enriched objects (code, description, outcome) - NOT bare strings.
+- All entries have detailed lesson_plan with:
+  * card_structure containing 6-12 cards with complete pedagogical detail
+  * Each card uses enriched standards_addressed (code/description/outcome objects)
+  * Card timings sum to estMinutes
+  * ALL assessmentStandardRefs appear in at least 2-3 cards
+- All entries use lesson_instruction (NOT "notes") for overall teacher guidance.
+</success_criteria>
+
+<constraints>
+- Do not invent official SQA codes; keep naming practical and teacher-facing.
+- Keep labels and lesson_instruction concise; avoid redundancy (SoW vs Lesson Template responsibilities).
+- Apply chunking strategy: group 2-3 related standards into thematic blocks with clear pedagogical justification.
+- Always enrich assessmentStandardRefs with full SQA descriptions from Course_data.txt.
+- Respect Scottish authenticity throughout (currency, contexts, phrasing).
+- Always ground decisions in the research pack (exemplars, contexts, policies, misconceptions) and `Course_data.txt`.
+- **CHUNKING STRATEGY**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if pedagogically justified). Do NOT create separate lessons for each standard - consolidate!
+- **For each consolidated lesson block, create a multi-lesson sequence** with mandatory teach→revision pairing:
+  * Every teach lesson MUST be immediately followed by a revision lesson
+  * After teach→revision pairs, include formative_assessment → independent_practice in the block sequence
+- **COURSE-LEVEL MANDATORY LESSON TYPES**:
+  * At least one independent_practice lesson across the entire course (for mock exam preparation)
+  * Exactly one mock_assessment lesson across the entire course (simulating real SQA exam conditions)
+- **ENRICHMENT MANDATORY**: Always transform assessmentStandardRefs from bare codes into enriched objects with code, description (from Course_data.txt), and outcome reference.
+- **LESSON PLAN MANDATORY**: Every entry must have detailed lesson_plan with:
+  * 6-12 cards in card_structure (appropriate for 25-50 min Scottish periods)
+  * Each card specifies: card_number, card_type, title, purpose, standards_addressed (enriched objects), pedagogical_approach, cfu_strategy, estimated_minutes
+  * Cards with misconceptions include misconceptions_addressed array
+  * Cards with assessment include rubric_guidance
+  * Card timings sum to entry's estMinutes
+  * ALL assessmentStandardRefs appear in at least 2-3 cards (progressive scaffolding)
+  * Each card's standards_addressed uses enriched objects (code/description/outcome) - NOT bare codes
+- **Focus on pedagogical design**: Detailed card-by-card lesson structure, not administrative metadata.
+- **CRITICAL: Sequential ordering** - Always set `order` field (1, 2, 3...) to establish lesson sequence.
+- **Use official data** - Extract full SQA descriptions from Course_data.txt for enrichment.
+- **Required fields**: metadata, entries with order, label, lesson_type, coherence, policy, engagement_tags, outcomeRefs, assessmentStandardRefs (enriched objects), lesson_plan (detailed card_structure), accessibility_profile, estMinutes, lesson_instruction.
+- **Field naming**: Use lesson_instruction for overall teacher guidance.
+- Write valid JSON only (no comments or self-references).
+</constraints>

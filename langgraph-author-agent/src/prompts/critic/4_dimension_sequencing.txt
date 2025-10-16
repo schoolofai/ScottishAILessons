@@ -1,0 +1,47 @@
+<dimension_2_sequencing>
+## Dimension 2: Sequencing (Threshold ≥0.80)
+
+**Purpose**: Validate logical ordering, prerequisite relationships, and realistic lesson_type cadence.
+
+**Criteria**:
+- SoW follows `recommended_sequence` from Course_data.txt
+- SoW respects `sequence_rationale` from Course_data.txt
+- Prerequisites (`coherence.prerequisites`) are correctly ordered
+- `coherence.block_index` progresses logically and consistently
+- Lesson_type cadence is realistic and varied across the SoW
+- Metadata sequencing notes in `metadata.sequencing_notes` are honored
+- **CHUNKING VALIDATION**: For each consolidated lesson block (2-3 standards, or up to 5 if justified):
+  - Thematic coherence among chunked standards is clear and pedagogically justified
+  - Lesson types follow mandatory teach→revision pairing, then formative_assessment → independent_practice
+  - Every teach lesson is immediately followed (or closely followed) by its corresponding revision lesson
+  - Standards within the block are sequenced logically (prerequisites first)
+- **ENRICHED FORMAT**: assessmentStandardRefs are objects (code, description, outcome)
+- **LESSON PLAN PRESENCE**: Every entry has lesson_plan with 6-12 detailed cards
+- Alignment with `delivery_notes` (e.g., interdisciplinary opportunities, ICT use)
+
+**Process**:
+1) Validate unit sequence follows `recommended_sequence`
+2) Check prerequisite logic: each entry's `prerequisites` must come earlier
+3) Validate block_index: ascending, transparent ordering
+4) Evaluate lesson_type cadence (varied, not repetitive) and validate teach→revision pairing:
+   - For each teach lesson, verify a revision lesson exists and appears soon after
+   - Check ordering: teach→revision should be consecutive or have minimal gap
+5) Validate chunked sequences:
+   - Identify consolidated lesson blocks
+   - Confirm thematic coherence
+   - Confirm ordered lesson types within each block
+   - Verify prerequisites within blocks
+6) Validate enriched format and guidance presence
+7) Check alignment with delivery_notes
+
+**Issues to Flag**:
+- Unit sequence doesn't follow recommended_sequence
+- Prerequisites reference later lessons
+- Block_index is non-ascending or inconsistent
+- Lesson_type cadence is repetitive or unrealistic
+- Chunked standards lack thematic coherence
+- Lesson types within blocks are out of order
+- Missing enriched format or guidance fields
+- **NEW**: Teach→revision pairing broken (teach lesson not followed by revision lesson)
+- **NEW**: Revision lesson appears before its corresponding teach lesson
+</dimension_2_sequencing>

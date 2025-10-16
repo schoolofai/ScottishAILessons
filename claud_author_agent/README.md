@@ -1,295 +1,131 @@
-# Claude Agent SDK Examples & Documentation
+# SOW Author - Claude Agent SDK Implementation
 
-Complete examples and documentation for building AI agents with the Claude Agent SDK in Python.
+Autonomous pipeline for authoring Schemes of Work (SOW) for Scottish secondary education using Claude Agent SDK.
 
-## 🚀 Quick Start
+## Overview
 
-### 1. Test Basic Agent
+This agent takes a `{subject, level, courseId}` input and produces a complete, validated SOW in the Appwrite database through a 4-subagent pipeline + deterministic Python upserter:
+
+1. **Research Subagent** → Web research → `research_pack_json`
+2. **Course Data Extractor** → Appwrite MCP → `Course_data.txt`
+3. **SOW Author** → Authoring → `authored_sow_json`
+4. **Unified Critic** → Validation (with retry) → `sow_critic_result_json`
+5. **Python Upserter** → Database write → Appwrite `default.Authored_SOW` (deterministic)
+
+## Features
+
+- ✅ **Fully Autonomous**: Subject + level + courseId → complete SOW in database
+- ✅ **Fail-Fast Validation**: Validates courseId exists in database before pipeline execution
+- ✅ **Flat File Architecture**: Simple 4-file workspace for subagent communication
+- ✅ **Quality Validation**: 5-dimension critic with automatic retry (up to 3 attempts)
+- ✅ **Deterministic Database Operations**: Python-based upserting for reliability (no agent variance)
+- ✅ **Cost Tracking**: Per-subagent and total token/cost metrics
+- ✅ **Workspace Persistence**: Optional preservation for debugging
+- ✅ **Hardcoded MVP Fields**: version="1", status="draft" for simplicity
+- ✅ **Scottish Curriculum Compliant**: SQA standards, CfE alignment, Scottish contexts
+
+## Installation
+
+### Prerequisites
+
+- Python 3.11+
+- Claude Agent SDK access
+- Appwrite instance (with MCP server configured)
+- Node.js (for Appwrite MCP server)
+- **Course must exist in `default.courses` collection** with matching subject/level before authoring SOW
+
+### Setup
+
 ```bash
-./run_agent_no_key.sh
+# Install dependencies
+pip install -r requirements.txt
+
+# Configure Appwrite MCP
+cp .mcp.json.example .mcp.json
+# Edit .mcp.json and add your APPWRITE_API_KEY
 ```
 
-### 2. Run Examples
+## Usage
+
+### Method 1: CLI with JSON Input (Recommended)
+
 ```bash
-# File operations
-./venv/bin/python examples/example_file_input.py
+# Create input.json
+cat > input.json << EOF
+{
+  "subject": "mathematics",
+  "level": "national-5",
+  "courseId": "68e262811061bfe64e31"
+}
+EOF
 
-# Subagents
-./venv/bin/python examples/example_subagents.py
-
-# Custom MCP tools
-./venv/bin/python examples/example_mcp_tools.py
-
-# External MCP (Appwrite)
-./venv/bin/python examples/test_appwrite_connection.py
-./venv/bin/python examples/example_external_mcp_appwrite.py
+# Run agent
+source ../venv/bin/activate
+python -m src.sow_author_cli --input input.json
 ```
 
----
+### Method 2: CLI with Command-Line Arguments
 
-## 📚 Documentation
-
-Start here: **[docs/START_HERE.md](docs/START_HERE.md)**
-
-### Core Guides
-- **[START_HERE.md](docs/START_HERE.md)** - Begin your journey here
-- **[QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)** - Quick syntax reference
-- **[SUMMARY.md](docs/SUMMARY.md)** - Research findings and best practices
-
-### Detailed Documentation
-- **[README_EXAMPLES.md](docs/README_EXAMPLES.md)** - Complete guide to all examples
-- **[MCP_EXTERNAL_SERVERS.md](docs/MCP_EXTERNAL_SERVERS.md)** - External MCP server guide
-- **[README_EXTERNAL_MCP.md](docs/README_EXTERNAL_MCP.md)** - Appwrite integration guide
-
----
-
-## 📁 Project Structure
-
-```
-claude_code_sdk/
-├── examples/                          # All example scripts
-│   ├── simple_agent.py               # Basic agent
-│   ├── example_file_input.py         # File operations
-│   ├── example_subagents.py          # Subagent creation
-│   ├── example_mcp_tools.py          # Custom MCP tools
-│   ├── example_comprehensive.py      # All features combined
-│   ├── example_external_mcp_appwrite.py       # Appwrite basic
-│   ├── example_external_mcp_comprehensive.py  # Appwrite advanced
-│   └── test_appwrite_connection.py   # Connection test
-├── docs/                             # All documentation
-│   ├── START_HERE.md                 # Start here!
-│   ├── QUICK_REFERENCE.md            # Quick reference
-│   ├── README_EXAMPLES.md            # Example guide
-│   ├── MCP_EXTERNAL_SERVERS.md       # External MCP guide
-│   ├── README_EXTERNAL_MCP.md        # Appwrite guide
-│   └── SUMMARY.md                    # Research summary
-├── venv/                             # Python virtual environment
-├── .mcp.json                         # MCP server config (in .gitignore)
-├── .mcp.json.template                # Template for setup
-├── .gitignore                        # Git ignore rules
-├── run_agent_no_key.sh              # Test script
-└── README.md                         # This file
+```bash
+source ../venv/bin/activate
+python -m src.sow_author_cli \
+  --subject mathematics \
+  --level national-5 \
+  --courseId 68e262811061bfe64e31
 ```
 
----
+### Method 3: Interactive Mode
 
-## 🎯 What's Included
+```bash
+source ../venv/bin/activate
+python -m src.sow_author_cli
 
-### 1. File Input & Operations
-Learn how to provide files as input to agents and perform file operations.
+# Follow the interactive prompts
+```
 
-**Example:** `examples/example_file_input.py`
+### Method 4: Python API (Programmatic)
 
 ```python
-options = ClaudeAgentOptions(
-    allowed_tools=["Read", "Write", "Glob", "Grep"],
-    cwd="."
+from src.sow_author_claude_client import SOWAuthorClaudeAgent
+
+agent = SOWAuthorClaudeAgent(
+    mcp_config_path=".mcp.json",
+    persist_workspace=True,
+    max_critic_retries=3
+)
+
+result = await agent.execute(
+    subject="mathematics",
+    level="national-5",
+    courseId="68e262811061bfe64e31"
 )
 ```
 
-### 2. Subagents
-Create specialized AI agents for specific tasks with isolated contexts.
+### CLI Options
 
-**Example:** `examples/example_subagents.py`
-
-**Programmatic:**
-```python
-agents={
-    'code-reviewer': {
-        'description': 'Use for code reviews',
-        'prompt': 'You are a senior engineer...',
-        'tools': ['Read', 'Grep']
-    }
-}
-```
-
-**Filesystem:** `.claude/agents/my-agent.md`
-
-### 3. Custom MCP Tools (In-Process)
-Create custom tools with Python functions.
-
-**Example:** `examples/example_mcp_tools.py`
-
-```python
-@tool("greet", "Greet user", {"name": str})
-async def greet(args):
-    return {"content": [{"type": "text", "text": f"Hello {args['name']}!"}]}
-
-server = create_sdk_mcp_server(name="tools", tools=[greet])
-```
-
-### 4. External MCP Servers
-Integrate with external services like Appwrite databases.
-
-**Example:** `examples/example_external_mcp_appwrite.py`
-
-```json
-// .mcp.json
-{
-  "mcpServers": {
-    "appwrite": {
-      "type": "stdio",
-      "command": "uvx",
-      "args": ["mcp-server-appwrite", "--databases"]
-    }
-  }
-}
-```
-
----
-
-## 🔧 Setup
-
-### Prerequisites
-- Python 3.10+
-- Virtual environment (already configured)
-
-### Installation
 ```bash
-# Activate virtual environment
-source venv/bin/activate  # Mac/Linux
-# or
-venv\Scripts\activate  # Windows
+python -m src.sow_author_cli --help
 
-# Install dependencies (already done)
-pip install claude-agent-sdk anyio
+Options:
+  --input JSON_FILE          Path to JSON input file
+  --subject TEXT             SQA subject (e.g., "mathematics")
+  --level TEXT               SQA level (e.g., "national-5")
+  --courseId TEXT            Course identifier
+  --mcp-config PATH          MCP config path (default: .mcp.json)
+  --max-retries N            Critic retry attempts (default: 3)
+  --no-persist-workspace     Delete workspace after execution
+  --log-level LEVEL          Logging level (default: INFO)
 ```
 
-### Appwrite Setup (Optional)
-For external MCP examples:
+### Input Parameters
 
-1. Copy template:
-   ```bash
-   cp .mcp.json.template .mcp.json
-   ```
+- **subject** (required): SQA subject in lowercase with hyphens (e.g., `"mathematics"`, `"application-of-mathematics"`)
+- **level** (required): SQA level in lowercase with hyphens (e.g., `"national-5"`, `"higher"`)
+- **courseId** (required): Course identifier (e.g., `"68e262811061bfe64e31"`)
+  - **Must exist** in `default.courses` collection
+  - **Must match** the subject/level provided
+  - Pipeline will fail fast if courseId not found or mismatched
 
-2. Edit `.mcp.json` with your credentials
-3. Test connection:
-   ```bash
-   ./venv/bin/python examples/test_appwrite_connection.py
-   ```
+## Documentation
 
----
-
-## 📖 Learning Path
-
-### Beginner (30 minutes)
-1. Read [docs/QUICK_REFERENCE.md](docs/QUICK_REFERENCE.md)
-2. Run `./run_agent_no_key.sh`
-3. Run `examples/example_mcp_tools.py`
-
-### Intermediate (2 hours)
-1. Read [docs/README_EXAMPLES.md](docs/README_EXAMPLES.md)
-2. Run all examples in `examples/`
-3. Review generated files
-
-### Advanced (Half day)
-1. Read all docs in `docs/`
-2. Study `examples/example_comprehensive.py`
-3. Build your own custom agent
-
----
-
-## ✨ Key Features
-
-### File Operations
-- Read/write files
-- Search with Glob and Grep
-- Directory access control
-- Multi-file workflows
-
-### Subagents
-- Programmatic definition
-- Filesystem definition
-- Specialized expertise
-- Parallel execution
-- Isolated contexts
-
-### In-Process MCP Tools
-- Custom Python functions
-- Type-safe
-- Fast execution
-- Easy debugging
-
-### External MCP Servers
-- External service integration
-- stdio/HTTP/SSE protocols
-- Community servers
-- Appwrite, databases, APIs
-
----
-
-## 🎓 Common Use Cases
-
-### Code Analysis
-```bash
-./venv/bin/python examples/example_file_input.py
-```
-
-### Specialized Tasks
-```bash
-./venv/bin/python examples/example_subagents.py
-```
-
-### Custom Functionality
-```bash
-./venv/bin/python examples/example_mcp_tools.py
-```
-
-### Database Integration
-```bash
-./venv/bin/python examples/example_external_mcp_appwrite.py
-```
-
----
-
-## 🔐 Security Notes
-
-- `.mcp.json` contains credentials (in .gitignore)
-- Use `.mcp.json.template` for sharing
-- Never commit API keys
-- Use `permission_mode='manual'` for sensitive operations
-
----
-
-## 🌟 Highlights
-
-✅ **Authentication** - Works via Claude Code (no API key needed)
-✅ **File Operations** - Complete file manipulation
-✅ **Subagents** - Specialized task delegation
-✅ **Custom Tools** - In-process and external
-✅ **Appwrite Integration** - Full database operations
-✅ **Tested** - All examples verified working
-✅ **Documented** - Comprehensive guides included
-
----
-
-## 📚 External Resources
-
-- [Claude Agent SDK Docs](https://docs.claude.com/en/api/agent-sdk/overview)
-- [Python SDK GitHub](https://github.com/anthropics/claude-agent-sdk-python)
-- [Building Agents Blog](https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk)
-- [Appwrite MCP](https://appwrite.io/docs/tooling/mcp)
-
----
-
-## 🤝 Getting Help
-
-- **Examples not working?** Check Python version (need 3.10+)
-- **Import errors?** Activate venv: `source venv/bin/activate`
-- **Authentication issues?** Verify Claude Code is installed
-- **Tool not found?** Check tool naming format: `mcp__<server>__<tool>`
-
----
-
-## 🎯 Next Steps
-
-1. **Read** [docs/START_HERE.md](docs/START_HERE.md)
-2. **Run** `./run_agent_no_key.sh`
-3. **Explore** examples in `examples/`
-4. **Study** documentation in `docs/`
-5. **Build** your own agent!
-
----
-
-**Ready to start?** → Open [docs/START_HERE.md](docs/START_HERE.md) and begin! 🚀
+See `tasks/sow-author-claude-sdk-implementation-plan.md` for complete implementation details.

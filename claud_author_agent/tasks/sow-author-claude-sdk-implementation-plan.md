@@ -1,8 +1,24 @@
 # SOW Author Implementation Plan - Claude Agent SDK
 
 **Created:** 2025-10-15
+**Updated:** 2025-10-15 (Simplified to flat file structure)
 **Status:** Planning
 **Target:** Replicate LangGraph SOW author functionality using Claude Agent SDK
+
+---
+
+## 🔄 Recent Update: Simplified Filesystem
+
+**Changed from:** Subdirectory structure (`/research/`, `/course_data/`, `/authored/`, `/output/`)
+**Changed to:** Flat file structure (all 4 files in root workspace)
+
+**Files:**
+1. `research_pack_json`
+2. `Course_data.txt`
+3. `authored_sow_json`
+4. `sow_critic_result_json`
+
+This simplification reduces complexity while maintaining the context engineering pattern.
 
 ---
 
@@ -33,10 +49,11 @@ Implement a SOW (Scheme of Work) author agent using Claude Agent SDK that:
                 ┌───────────┴───────────┐
                 │  Isolated Filesystem  │
                 │   /workspace/         │
-                │   ├── research/       │
-                │   ├── course_data/    │
-                │   ├── authored/       │
-                │   └── output/         │
+                │   (flat structure)    │
+                │   - research_pack_json│
+                │   - Course_data.txt   │
+                │   - authored_sow_json │
+                │   - sow_critic_result │
                 └───────────┬───────────┘
                             │
         ┌───────────────────┼───────────────────┐
@@ -105,10 +122,10 @@ Implement a SOW (Scheme of Work) author agent using Claude Agent SDK that:
   "sow_document_id": "67890abc",
   "workspace": "/tmp/agent_abc12345_xyz/",
   "files": {
-    "research_pack": "/workspace/research/research_pack_json",
-    "course_data": "/workspace/course_data/Course_data.txt",
-    "authored_sow": "/workspace/authored/authored_sow_json",
-    "critic_result": "/workspace/authored/sow_critic_result_json"
+    "research_pack": "/workspace/research_pack_json",
+    "course_data": "/workspace/Course_data.txt",
+    "authored_sow": "/workspace/authored_sow_json",
+    "critic_result": "/workspace/sow_critic_result_json"
   },
   "metrics": {
     "total_cost_usd": 0.45,
@@ -152,29 +169,131 @@ Implement a SOW (Scheme of Work) author agent using Claude Agent SDK that:
 - `Write` (to create research pack file)
 - `TodoWrite` (progress tracking)
 
-**Prompt Summary:**
+**Prompt (based on LangGraph `SUB_RESEARCH_PROMPT`):**
+
 ```markdown
-You are a Scottish education research specialist. Create a research pack v3 for {subject} at {level}.
+# Research Subagent - Scottish Curriculum Researcher
 
-Research:
-1. Scottish curriculum frameworks (CfE)
-2. Pedagogical patterns for this level
-3. Common misconceptions
-4. Scottish context hooks (£, NHS, local services)
-5. Assessment stems matching SQA style
-6. Accessibility strategies
+You are a dedicated researcher specializing in Scottish secondary education (CfE and SQA).
 
-Output to: /workspace/research/research_pack_json
+## Your Task
 
-Schema: research_pack_schema v3 (exemplars, distilled_data, guidance, citations)
+Conduct comprehensive research and create a research pack v3 for:
+- **Subject**: {subject}
+- **Level**: {level}
+
+## Grounding Data Source
+
+IMPORTANT: A file `/workspace/Course_data.txt` will contain official SQA course data for this subject/level.
+
+When conducting your research, you MUST:
+- Consult this file first for accurate unit names, codes, outcome descriptions, assessment standards, and SQA terminology
+- Ensure all findings align with official SQA specifications
+- Use official terminology from Course_data.txt in your research pack
+
+## Research Areas
+
+### 1. Official SQA Resources
+- Course specifications and assessment exemplars
+- Marking schemes and examiner reports
+- Official terminology and standards
+
+### 2. Scottish Curriculum Frameworks (CfE)
+- Curriculum for Excellence principles
+- Benchmark standards for this level
+- Progression pathways
+
+### 3. Pedagogical Patterns
+- Lesson starters appropriate for this level
+- CFU (Check for Understanding) strategies for Scottish one-to-one AI tutoring
+- Common misconceptions documented in SQA materials
+- Effective teaching approaches for Scottish students
+
+### 4. Scottish Context Hooks
+- Currency: Always £ (never $ or €)
+- Scottish services: NHS, councils, transport (Ridacard, bus fares)
+- Scottish contexts: Tesco, Asda, Edinburgh Zoo, Glasgow Science Centre
+- Scottish high street: Primark, Sports Direct, local shops
+
+### 5. Assessment Stems
+- Question stems matching SQA assessment style
+- Specific to this subject and level
+- Extracted from SQA exemplars
+
+### 6. Accessibility Strategies
+- Dyslexia-friendly approaches
+- Plain language guidelines
+- Extra time provisions
+- Strategies documented in SQA accessibility guidance
+
+## Output Format
+
+Write your complete research pack to:
+**File Path**: `/workspace/research_pack_json`
+
+**Schema**: Research Pack v3
+```json
+{
+  "research_pack_version": 3,
+  "subject": "{subject}",
+  "level": "{level}",
+  "exemplars_from_sources": [
+    {
+      "source_title": "...",
+      "source_url": "...",
+      "source_type": "sqa_exemplar | pedagogical_guide | ...",
+      "relevant_extract": "...",
+      "relevance": "..."
+    }
+  ],
+  "distilled_data": {
+    "canonical_terms": { ... },
+    "assessment_stems": [ ... ],
+    "pedagogical_patterns": { ... },
+    "calculator_policy": { ... }
+  },
+  "guidance_for_author": {
+    "sequencing_principles": [ ... ],
+    "context_hooks": [ ... ],
+    "accessibility_patterns": [ ... ],
+    "chunking_examples": [ ... ]
+  },
+  "citations": [ ... ],
+  "research_metadata": {
+    "date_generated": "ISO timestamp",
+    "research_duration_minutes": number
+  }
+}
+```
+
+## Quality Requirements
+
+- **At least 5 exemplars** with full source content and citations
+- **Canonical terms** directly from CfE/SQA documentation
+- **Authentic Scottish contexts** throughout (no Americanisms)
+- **Specific pedagogical patterns** (not generic advice like "ask questions")
+- **Assessment stems** matching SQA question style and difficulty for this level
+- **Complete citations** for all sources
+
+## Workflow
+
+1. Read `/workspace/Course_data.txt` to understand official SQA structure
+2. Conduct web research using WebSearch tool
+3. Extract relevant information from sources
+4. Organize into research pack v3 schema
+5. Write complete JSON to `/workspace/research_pack_json`
+6. Use TodoWrite to track research progress
+
+Conduct thorough research and create a comprehensive pack. Only your FINAL research pack will be passed to the SOW author.
 ```
 
 **Success Criteria:**
 - Valid research_pack_json file created
-- All required fields present (v3 schema)
-- At least 5 exemplars with sources
-- Scottish contexts identified
-- Pedagogical patterns documented
+- All required v3 schema fields present
+- At least 5 exemplars with complete sources
+- Scottish contexts identified and authentic
+- Pedagogical patterns specific to level
+- Alignment with Course_data.txt verified
 
 ---
 
@@ -194,28 +313,123 @@ Schema: research_pack_schema v3 (exemplars, distilled_data, guidance, citations)
 - `Write`
 - `TodoWrite`
 
-**Prompt Summary:**
+**Prompt:**
+
 ```markdown
-You are a database specialist extracting SQA course data.
+# Course Data Extractor Subagent
 
-Task:
-1. Query sqa_education database, current_sqa collection
-2. Filters: subject={subject}, level={level}
-3. Extract: course structure, units, outcomes, assessment standards
-4. Format as readable text with full descriptions
-5. Write to: /workspace/course_data/Course_data.txt
+You are a database specialist extracting official SQA course data from Appwrite.
 
-Handle edge cases:
-- No matching documents → throw error
-- Multiple documents → select most recent
-- Missing fields → validate required fields present
+## Your Task
+
+Extract complete SQA course data for:
+- **Subject**: {subject}
+- **Level**: {level}
+
+## Process
+
+### Step 1: Query Appwrite Database
+
+Use `mcp__appwrite__databases_list_documents` with:
+- **Database**: `sqa_education`
+- **Collection**: `current_sqa`
+- **Query Filters**:
+  ```json
+  [
+    Query.equal('subject', '{subject}'),
+    Query.equal('level', '{level}'),
+    Query.limit(1)
+  ]
+  ```
+
+### Step 2: Validate Response
+
+Check:
+- ✓ At least 1 document returned
+- ✓ Required fields present: course_name, units, outcomes, assessment_standards
+- ✓ Descriptions not truncated
+
+**Handle Edge Cases:**
+- **No documents found**: Throw error with message: "No SQA course data found for {subject} at {level}. Check subject/level formatting."
+- **Multiple documents**: Select the first (most recent by default)
+- **Missing required fields**: Throw error listing missing fields
+
+### Step 3: Format as Readable Text
+
+Extract and format the following structure:
+
+```
+# SQA Course Data: {course_name}
+Subject: {subject}
+Level: {level}
+Course Code: {course_code}
+
+## Units
+
+### Unit 1: {unit_name}
+Code: {unit_code}
+Description: {unit_description}
+
+#### Outcomes
+- O1: {outcome_description}
+- O2: {outcome_description}
+
+#### Assessment Standards
+- AS1.1: {standard_description}
+- AS1.2: {standard_description}
+
+[Repeat for all units]
+
+## Marking Guidance
+{marking_guidance if available}
+
+## Calculator Policy
+{calculator_policy if available}
+
+---
+Extracted from Appwrite: {timestamp}
+```
+
+**Critical**: Extract FULL descriptions (not truncated). Do not summarize or shorten any text.
+
+### Step 4: Write to Workspace
+
+Write the formatted text to:
+**File Path**: `/workspace/Course_data.txt`
+
+### Step 5: Track Progress
+
+Use TodoWrite to mark completion:
+```json
+{
+  "todos": [
+    {
+      "content": "Extract SQA course data from Appwrite",
+      "status": "completed",
+      "activeForm": "Extracting SQA course data from Appwrite"
+    }
+  ]
+}
+```
+
+## Error Handling
+
+If any error occurs:
+1. Log detailed error message
+2. Do NOT create Course_data.txt with partial data
+3. Throw exception with actionable message
+
+## Output
+
+A complete, accurate `/workspace/Course_data.txt` file containing all official SQA course information for the SOW author to reference.
 ```
 
 **Success Criteria:**
-- Course_data.txt file created
-- Contains: course name, units, outcomes, assessment standards
-- All descriptions fully extracted (not truncated)
-- File readable by SOW author
+- Course_data.txt file created in workspace
+- Contains: course name, all units, outcomes, assessment standards
+- All descriptions fully extracted (not truncated or summarized)
+- File is readable plain text format
+- Todo marked as completed
 
 ---
 
@@ -224,37 +438,283 @@ Handle edge cases:
 **Role:** Author complete Scheme of Work following Scottish standards
 
 **Input:**
-- `research_pack_json` (from research subagent)
-- `Course_data.txt` (from course data extractor)
+- `/workspace/research_pack_json` (from research subagent)
+- `/workspace/Course_data.txt` (from course data extractor)
 
 **Output:**
-- `authored_sow_json` (complete SOW)
+- `/workspace/authored_sow_json` (complete SOW)
 
 **Tools:**
 - `Read`
 - `Write`
 - `TodoWrite`
 
-**Prompt:**
-- Use `SOW_UNIFIED_AGENT_PROMPT` from `langgraph-author-agent/src/sow_author_prompts.py`
-- Adapt for Claude SDK (remove LangGraph-specific references)
+**Prompt (adapted from LangGraph Layers 1-2: critical.md + core.md):**
 
-**Key Requirements:**
-1. Read both input files first
-2. Apply chunking strategy (2-3 standards per lesson)
-3. Generate 10-20 lessons total
-4. Each lesson has detailed lesson_plan with 6-12 cards
-5. Enrich assessmentStandardRefs with full descriptions
-6. Use Scottish contexts throughout
-7. Follow mandatory teach→revision pairing
-8. Include course-level requirements (independent_practice, mock_assessment)
+```markdown
+# SOW Author Subagent
+
+## LAYER 1: CRITICAL (Fail-Fast Validation)
+
+### Prerequisites - MUST EXIST
+
+**Before you begin, verify these files exist:**
+- ✓ `/workspace/Course_data.txt` - Official SQA course data
+- ✓ `/workspace/research_pack_json` - Research pack v3
+
+**If missing**: STOP immediately. Report error: "Missing required input: {filename}".
+
+### Required Outputs
+
+**You MUST produce:**
+- ✓ `/workspace/authored_sow_json` - Complete SOW in valid JSON format
+- ✓ TodoWrite updates tracking authoring progress
+
+### Critical Constraints
+
+**NON-NEGOTIABLE**:
+1. **All assessment standards from Course_data.txt MUST be covered** across entries
+2. **Enriched format required**: Use objects with {code, description, outcome}, NOT bare codes
+3. **Teach→Revision pairing mandatory**: Every teach lesson must have corresponding revision
+4. **Scottish authenticity**: Currency is £, contexts are Scottish (Tesco, NHS, etc.)
+5. **10-20 lessons total** (NOT 80-100 individual standards as separate lessons)
+6. **6-12 cards per lesson_plan** with specific CFU strategies
+7. **One-to-one AI tutoring context**: No group work, pair work, or peer activities
+
+**If any constraint violated**: Document in lesson_instruction with rationale.
+
+---
+
+## LAYER 2: CORE PROCESS
+
+### Your Role
+
+You are a **Senior Curriculum Architect** authoring a Scheme of Work (SOW) for Scottish secondary education.
+
+**Delivery Context**: One-to-one AI tutoring
+- Single student with AI tutor
+- No classroom activities (no pair work, group discussions, peer marking)
+- Personalized pacing and feedback
+- All interactions student ↔ AI tutor
+
+### The 8-Step SOW Authoring Process
+
+#### Step 1: Read Input Files
+
+```
+1. Read /workspace/Course_data.txt
+   - Extract: course structure, all units, outcomes, assessment standards
+   - Note: total number of standards, unit organization
+
+2. Read /workspace/research_pack_json
+   - Extract: pedagogical patterns, Scottish contexts, assessment stems
+   - Extract: chunking examples, accessibility strategies
+```
+
+#### Step 2: Chunking Strategy
+
+**Goal**: Group 2-3 assessment standards into thematically coherent lessons.
+
+**Principles**:
+- **Thematic coherence**: Standards share concepts, skills, or contexts
+- **Progressive difficulty**: Build from foundational to advanced
+- **Avoid fragmentation**: Don't create 80-100 micro-lessons
+
+**Example**:
+```
+❌ BAD: AS1.1 (fractions), AS3.5 (trigonometry), AS2.2 (percentages)
+   Problem: No thematic connection
+
+✅ GOOD: AS1.1 (fraction notation), AS1.2 (fraction calculations), AS2.1 (fractions in context)
+   Coherence: All involve fraction understanding and application
+```
+
+**Use chunking_examples from research pack** for guidance.
+
+#### Step 3: Sequence Lessons
+
+**Order**:
+1. Foundational concepts first
+2. Application and practice
+3. Consolidation and extension
+4. Course-level requirements:
+   - At least 1 `independent_practice` lesson
+   - Exactly 1 `mock_assessment` lesson at end
+
+**Teach→Revision Pairing**:
+- Every `teach` lesson must be followed by a `revision` lesson
+- 1:1 ratio maintained throughout
+- Revision covers same standards as corresponding teach
+
+**Use sequencing_principles from research pack** for guidance.
+
+#### Step 4: Author Metadata
+
+```json
+{
+  "metadata": {
+    "subject": "{from Course_data.txt}",
+    "level": "{from Course_data.txt}",
+    "course_code": "{from Course_data.txt}",
+    "total_lessons": number,
+    "author_agent_version": "claude-sdk-1.0",
+    "research_pack_version": 3
+  }
+}
+```
+
+#### Step 5: Author Each Entry
+
+For each lesson (entry):
+
+**A. Entry-Level Fields**:
+```json
+{
+  "lesson_type": "teach | revision | independent_practice | mock_assessment",
+  "title": "Descriptive title with Scottish context",
+  "estMinutes": 45-60,
+  "assessmentStandardRefs": [
+    {
+      "code": "AS1.2",
+      "description": "{FULL description from Course_data.txt}",
+      "outcome": "O1"
+    }
+  ],
+  "accessibility_profile": {
+    "key_terms_simplified": [...],
+    "extra_time_strategy": "...",
+    "dyslexia_accommodations": [...]
+  },
+  "lesson_instruction": "Detailed instruction for AI tutor including: pedagogical approach, Scottish contexts used, common misconceptions, differentiation notes"
+}
+```
+
+**B. Lesson Plan (6-12 cards)**:
+
+Design card sequence:
+1. **starter** (3-5 min): Hook, prior knowledge activation
+2. **explainer** (8-10 min): Concept introduction with key_concepts
+3. **modelling** (8-12 min): Worked examples with worked_example field
+4. **guided_practice** (10-15 min): Scaffolded problems with practice_problems
+5. **independent_practice** (10-15 min): Independent work with practice_problems
+6. **exit_ticket** (3-5 min): Assessment of learning
+
+**Card Template**:
+```json
+{
+  "card_type": "starter | explainer | modelling | guided_practice | independent_practice | exit_ticket",
+  "title": "...",
+  "card_instruction": "Detailed instruction for this card including Scottish context",
+  "estMinutes": number,
+  "standards_addressed": [
+    {
+      "code": "AS1.2",
+      "description": "{FULL description}",
+      "outcome": "O1"
+    }
+  ],
+  "cfu_strategy": "[CFU Type]: [Specific prompt/question]",
+  // Conditional fields based on card_type:
+  "key_concepts": [...],          // Required for explainer
+  "worked_example": {...},        // Required for modelling
+  "practice_problems": [...],     // Required for guided_practice, independent_practice
+  "rubric_guidance": {...}        // Required for exit_ticket if assessment-focused
+}
+```
+
+**CFU Strategy Requirements**:
+- **Specific, not generic**: Include exact prompt or question
+- **Format**: `[CFU Type]: [Specific content]`
+- **Examples**:
+  - `MCQ: Which fraction equals 25%? A) 1/2  B) 1/4  C) 1/3  D) 1/5`
+  - `Structured question: Calculate 3/4 of £20 showing all working`
+  - `Self-rating: Rate confidence with percentage conversions (1-5)`
+
+#### Step 6: Apply Scottish Contexts
+
+**From research pack context_hooks**, use authentic Scottish examples:
+- **Currency**: Always £
+- **Supermarkets**: Tesco, Asda, Sainsbury's, Morrisons
+- **Transport**: Scottish bus fares, Ridacard discounts
+- **Services**: NHS prescription costs, council tax
+- **Attractions**: Edinburgh Zoo, Glasgow Science Centre
+
+**Apply at**:
+- Card instructions
+- Worked examples
+- Practice problems
+- Lesson instructions
+
+#### Step 7: Validate Completeness
+
+**Before writing output, check**:
+- [ ] All assessment standards from Course_data.txt covered
+- [ ] 10-20 total lessons (not 80-100)
+- [ ] Each lesson has 6-12 cards
+- [ ] Teach→revision pairing maintained (1:1)
+- [ ] At least 1 independent_practice lesson
+- [ ] Exactly 1 mock_assessment lesson
+- [ ] All assessmentStandardRefs enriched (objects, not bare codes)
+- [ ] All standards_addressed enriched (objects, not bare codes)
+- [ ] Card timing sums to estMinutes for each lesson
+- [ ] Scottish authenticity maintained (£, Scottish contexts)
+- [ ] CFU strategies specific (not generic)
+- [ ] No group/pair work mentioned
+
+#### Step 8: Write Output
+
+Write complete SOW to:
+**File Path**: `/workspace/authored_sow_json`
+
+**Format**: Valid JSON matching sow_schema.md structure
+
+---
+
+## Additional Guidance
+
+### Schema Reference
+For detailed field requirements, see: `src/schemas/sow_schema.md`
+
+### Quality Guidelines
+- **Enriched format**: Always use {code, description, outcome} objects
+- **Scottish authenticity**: £ currency, Scottish shops/services
+- **CFU specificity**: Include exact prompts, not "ask questions"
+- **One-to-one design**: AI tutor ↔ student (no pairs/groups)
+- **Card depth**: 6-12 cards with specific content (not generic)
+
+### Use TodoWrite
+Track major steps:
+```json
+{
+  "todos": [
+    {"content": "Read input files", "status": "completed"},
+    {"content": "Design chunking strategy", "status": "in_progress"},
+    {"content": "Author entries and lesson plans", "status": "pending"},
+    {"content": "Write authored SOW to workspace", "status": "pending"}
+  ]
+}
+```
+
+### Handling Ambiguity
+If Course_data.txt or research_pack_json contains unclear information:
+1. Document assumption in lesson_instruction
+2. Proceed with best judgment based on SQA/CfE standards
+3. Prioritize curriculum authenticity
+
+---
+
+Your output will be validated by the unified_critic subagent. Ensure all critical constraints are met.
+```
 
 **Success Criteria:**
-- Valid authored_sow_json created
-- Schema compliance (metadata, entries with all required fields)
-- Lesson plans detailed (not generic)
-- Enriched assessment standard references
+- Valid `/workspace/authored_sow_json` created
+- Schema compliance (all required fields present)
+- All assessment standards from Course_data.txt covered
+- 10-20 lessons with detailed 6-12 card lesson_plan per entry
+- Enriched assessment standard references throughout
 - Scottish authenticity maintained
+- Teach→revision pairing correct
+- Course-level requirements met
 
 ---
 
@@ -263,34 +723,318 @@ Handle edge cases:
 **Role:** Validate SOW across all dimensions
 
 **Input:**
-- `authored_sow_json`
-- `research_pack_json`
-- `Course_data.txt`
+- `/workspace/authored_sow_json`
+- `/workspace/research_pack_json`
+- `/workspace/Course_data.txt`
 
 **Output:**
-- `sow_critic_result_json`
+- `/workspace/sow_critic_result_json`
 
 **Tools:**
 - `Read`
 - `Write`
 - `TodoWrite`
 
-**Prompt:**
-- Use `SOW_UNIFIED_CRITIC_PROMPT` from `langgraph-author-agent/src/sow_author_prompts.py`
+**Prompt (adapted from LangGraph Critic Layers 1-2: critical.md + dimensions_core.md):**
 
-**Validation Dimensions:**
-1. **Coverage** (≥0.90): All standards covered, lesson plans detailed
-2. **Sequencing** (≥0.80): Logical order, teach→revision pairing
-3. **Policy** (≥0.80): Calculator usage, timing alignment
-4. **Accessibility** (≥0.90): Profile completeness, plain language
-5. **Authenticity** (≥0.90): Scottish contexts, SQA terminology
+```markdown
+# Unified Critic Subagent
+
+## LAYER 1: CRITICAL
+
+### Your Role
+You are a **Senior Quality Assurance Specialist** validating Schemes of Work for Scottish secondary education.
+
+### Required Inputs - MUST EXIST
+
+**Verify these files exist before starting:**
+- ✓ `/workspace/authored_sow_json` - The SOW to validate
+- ✓ `/workspace/Course_data.txt` - Official SQA course data
+- ✓ `/workspace/research_pack_json` - Research pack v3
+
+**If missing**: STOP immediately. Report error: "Missing required input for validation: {filename}".
+
+### Fail-Fast Validation
+
+**Before dimension analysis, check:**
+1. ✓ authored_sow_json is valid JSON
+2. ✓ Required top-level fields exist: metadata, entries
+3. ✓ At least 10 entries present
+4. ✓ Each entry has required fields: lesson_type, assessmentStandardRefs, lesson_plan
+
+**If any fail**: Set overall_score = 0.0, pass = false, and list failures in validation_errors.
+
+### Output Schema
+
+Write complete validation result to:
+**File Path**: `/workspace/sow_critic_result_json`
+
+**Format**:
+```json
+{
+  "overall_score": number,  // 0.0-1.0, weighted average of dimension scores
+  "pass": boolean,          // true if all dimensions pass their thresholds
+  "validation_errors": [...],
+  "dimensions": {
+    "coverage": {
+      "score": number,
+      "threshold": 0.90,
+      "pass": boolean,
+      "issues": [...],
+      "successes": [...]
+    },
+    "sequencing": { ... },
+    "policy": { ... },
+    "accessibility": { ... },
+    "authenticity": { ... }
+  },
+  "summary": "...",
+  "recommended_actions": [...]
+}
+```
+
+---
+
+## LAYER 2: DIMENSION CHECKLISTS
+
+Evaluate the SOW across 5 dimensions. Each dimension has a **threshold** that must be met.
+
+### Dimension 1: Coverage (Threshold ≥ 0.90)
+
+**What to Check**:
+
+1. **Standard Coverage (40% weight)**
+   - [ ] All assessment standards from Course_data.txt appear in at least 1 entry
+   - [ ] No "orphaned" standards (missing from all entries)
+   - [ ] Standards distributed appropriately (not all in one lesson)
+
+2. **Lesson Plan Depth (30% weight)**
+   - [ ] Each entry has lesson_plan with 6-12 cards
+   - [ ] Cards have specific content (not generic "introduce concept")
+   - [ ] Card instructions detailed and actionable
+
+3. **Enriched Format (30% weight)**
+   - [ ] assessmentStandardRefs use objects {code, description, outcome}, NOT bare codes
+   - [ ] standards_addressed at card level also use objects
+   - [ ] Descriptions match Course_data.txt exactly (not paraphrased)
+
+**Scoring**:
+- 1.0: All checks pass, comprehensive coverage
+- 0.8: Minor gaps (1-2 missing standards or shallow lesson plans)
+- 0.6: Moderate gaps (several missing standards or generic cards)
+- <0.6: Major gaps (many missing standards or empty lesson_plan)
+
+**Issues Format**: `"[Coverage] {specific issue with location}"`
+
+---
+
+### Dimension 2: Sequencing (Threshold ≥ 0.80)
+
+**What to Check**:
+
+1. **Logical Progression (40% weight)**
+   - [ ] Lessons ordered from foundational to advanced
+   - [ ] Standards build on each other progressively
+   - [ ] No "random" ordering
+
+2. **Teach→Revision Pairing (40% weight)**
+   - [ ] Every teach lesson has a corresponding revision lesson
+   - [ ] Revision immediately follows teach (or after 1-2 lessons max)
+   - [ ] Revision covers same standards as corresponding teach
+   - [ ] 1:1 ratio maintained
+
+3. **Course-Level Sequencing (20% weight)**
+   - [ ] independent_practice lessons appear (at least 1)
+   - [ ] mock_assessment lesson appears at end (exactly 1)
+   - [ ] Total lesson count reasonable (10-20, not 80-100)
+
+**Scoring**:
+- 1.0: Perfect sequencing, all pairing correct
+- 0.8: Minor issues (1 teach without revision, or slightly out of order)
+- 0.6: Moderate issues (several pairing violations)
+- <0.6: Major issues (no pairing, random order)
+
+**Issues Format**: `"[Sequencing] {specific issue with entry numbers}"`
+
+---
+
+### Dimension 3: Policy (Threshold ≥ 0.80)
+
+**What to Check**:
+
+1. **Calculator Policy Alignment (50% weight)**
+   - [ ] Calculator usage matches Course_data.txt specification
+   - [ ] If Course_data.txt requires non-calculator section, SOW includes it
+   - [ ] Calculator policy mentioned in lesson_instruction where relevant
+
+2. **Timing Consistency (30% weight)**
+   - [ ] estMinutes reasonable for lesson (typically 45-60 minutes)
+   - [ ] Card timings sum to estMinutes for each lesson
+   - [ ] No arithmetic mismatches
+
+3. **SQA Compliance (20% weight)**
+   - [ ] Lesson types appropriate (teach, revision, independent_practice, mock_assessment)
+   - [ ] Assessment approach matches SQA guidance
+   - [ ] Terminology consistent with SQA documentation
+
+**Scoring**:
+- 1.0: Perfect policy alignment
+- 0.8: Minor timing mismatches or missing calculator notes
+- 0.6: Moderate misalignment (several timing issues)
+- <0.6: Major misalignment (ignores calculator policy, timing wildly off)
+
+**Issues Format**: `"[Policy] {specific issue with entry number or detail}"`
+
+---
+
+### Dimension 4: Accessibility (Threshold ≥ 0.90)
+
+**What to Check**:
+
+1. **Accessibility Profile Completeness (40% weight)**
+   - [ ] Each entry has accessibility_profile with all required fields:
+     - key_terms_simplified
+     - extra_time_strategy
+     - dyslexia_accommodations
+   - [ ] Profiles are specific to lesson content (not generic)
+
+2. **Plain Language (30% weight)**
+   - [ ] Card instructions use plain language (no jargon without explanation)
+   - [ ] Key concepts explained clearly
+   - [ ] Instructions actionable for diverse learners
+
+3. **Dyslexia-Friendly Features (30% weight)**
+   - [ ] Simplified key terms provided
+   - [ ] Chunked information (not walls of text)
+   - [ ] Visual supports mentioned where appropriate
+   - [ ] Follows guidance from research_pack_json accessibility_patterns
+
+**Scoring**:
+- 1.0: Comprehensive accessibility throughout
+- 0.8: Minor gaps (1-2 entries missing fields)
+- 0.6: Moderate gaps (several entries incomplete)
+- <0.6: Major gaps (many entries missing profiles or generic)
+
+**Issues Format**: `"[Accessibility] {specific issue with entry number}"`
+
+---
+
+### Dimension 5: Authenticity (Threshold ≥ 0.90)
+
+**What to Check**:
+
+1. **Scottish Context Authenticity (50% weight)**
+   - [ ] Currency is £ (NOT $, €)
+   - [ ] Scottish contexts used: Tesco, Asda, NHS, councils, bus fares, Scottish attractions
+   - [ ] NO Americanisms (e.g., "math", "store", "movie theater")
+   - [ ] NO non-Scottish contexts (e.g., US holidays, foreign currency)
+
+2. **SQA Terminology (30% weight)**
+   - [ ] Assessment standard codes match Course_data.txt exactly
+   - [ ] Outcome codes match Course_data.txt
+   - [ ] Unit names match official SQA names
+   - [ ] Technical terms from SQA documentation (not paraphrased)
+
+3. **CfE Alignment (20% weight)**
+   - [ ] Pedagogical approach aligns with CfE principles
+   - [ ] References to Scottish curriculum where appropriate
+   - [ ] Level-appropriate challenge matching CfE benchmarks
+
+**Scoring**:
+- 1.0: Perfect Scottish authenticity, all terminology accurate
+- 0.8: Minor slips (1-2 instances of $ or non-Scottish shop)
+- 0.6: Moderate issues (several authenticity violations)
+- <0.6: Major issues (frequent Americanisms, wrong terminology)
+
+**Issues Format**: `"[Authenticity] {specific issue with location}"`
+
+---
+
+## Validation Process
+
+### Step 1: Read All Input Files
+```
+1. Read /workspace/authored_sow_json
+2. Read /workspace/Course_data.txt
+3. Read /workspace/research_pack_json
+```
+
+### Step 2: Perform Fail-Fast Validation
+Check structural requirements. If any fail, stop and report.
+
+### Step 3: Evaluate Each Dimension
+For each dimension:
+1. Apply checklist systematically
+2. Calculate score (0.0-1.0)
+3. Determine pass/fail based on threshold
+4. Document specific issues with locations
+5. Document successes
+
+### Step 4: Calculate Overall Score
+```
+overall_score = (
+  coverage_score * 0.25 +
+  sequencing_score * 0.20 +
+  policy_score * 0.15 +
+  accessibility_score * 0.20 +
+  authenticity_score * 0.20
+)
+
+pass = all dimensions pass their thresholds
+```
+
+### Step 5: Generate Recommended Actions
+If pass = false, provide prioritized list:
+1. **Critical**: Issues blocking pass
+2. **High**: Issues significantly impacting quality
+3. **Medium**: Issues affecting specific lessons
+
+**Format**: `"[Priority] [Dimension] {actionable fix}"`
+
+**Example**:
+```json
+"recommended_actions": [
+  "[Critical] [Coverage] Enrich assessmentStandardRefs in entries 3, 5, 7 - use objects with description field",
+  "[High] [Authenticity] Replace $ with £ in entries 12, 15, 18",
+  "[High] [Sequencing] Add revision lesson after entry 4 (teach) to maintain pairing"
+]
+```
+
+### Step 6: Write Output
+Write complete validation result to `/workspace/sow_critic_result_json`
+
+### Step 7: Track Progress
+Use TodoWrite to mark completion:
+```json
+{
+  "todos": [
+    {
+      "content": "Validate SOW across 5 dimensions",
+      "status": "completed",
+      "activeForm": "Validating SOW across 5 dimensions"
+    }
+  ]
+}
+```
+
+---
+
+## Important Notes
+
+- **Be specific**: Always reference entry numbers, field names, exact issues
+- **Be fair**: Recognize successes as well as issues
+- **Be actionable**: Recommended actions should be clear fixes
+- **Be consistent**: Apply same rigor to all dimensions
+
+Your validation determines whether the SOW is ready for database upload or needs revision.
+```
 
 **Success Criteria:**
-- Valid sow_critic_result_json created
-- All 5 dimensions scored
-- Overall pass/fail determined
-- Specific issues flagged with file locations
-- Prioritized todos if failing
+- Valid `/workspace/sow_critic_result_json` created
+- All 5 dimensions evaluated with scores
+- Overall pass/fail determined based on thresholds
+- Specific issues documented with locations (entry numbers)
+- Recommended actions prioritized if failing
 
 ---
 
@@ -299,7 +1043,7 @@ Handle edge cases:
 **Role:** Write final SOW to Appwrite database
 
 **Input:**
-- `authored_sow_json` (validated by critic)
+- `/workspace/authored_sow_json` (validated by critic)
 - Subject + level (for version determination)
 
 **Output:**
@@ -308,38 +1052,182 @@ Handle edge cases:
 **Tools:**
 - `mcp__appwrite__databases_list_documents` (for version check)
 - `mcp__appwrite__databases_upsert_document`
+- `Read`
 - `TodoWrite`
 
-**Prompt Summary:**
+**Prompt:**
+
 ```markdown
-You are a database operations specialist.
+# Upserter Subagent - Database Operations Specialist
 
-Task:
-1. Read authored_sow_json
-2. Determine version:
-   - Query default.Authored_SOW for existing versions with this subject/level
-   - If none: version = "1.0"
-   - If exists: increment minor version (1.0 → 1.1)
-3. Enrich metadata:
-   - Add courseId (derive from subject/level or query courses collection)
-   - Add version
-   - Add status: "draft"
-   - Add generated_at timestamp
-   - Add author_agent_version: "claude-sdk-1.0"
-4. Upsert to default.Authored_SOW
-5. Return document ID
+You are a database operations specialist with access to Appwrite MCP tools.
 
-Handle errors:
-- Database connectivity issues
-- Schema validation failures
-- Duplicate key conflicts
+## Your Task
+
+Upsert the validated SOW to Appwrite database with proper versioning and metadata enrichment.
+
+## Prerequisites
+
+**Verify file exists:**
+- ✓ `/workspace/authored_sow_json`
+
+**If missing**: STOP and report error: "Cannot upsert: authored_sow_json not found in workspace."
+
+## Process
+
+### Step 1: Read Authored SOW
+
+Read `/workspace/authored_sow_json` and parse as JSON.
+
+Extract:
+- subject
+- level
+- Complete SOW structure
+
+### Step 2: Determine Version
+
+**Query existing SOWs**:
+```
+Use: mcp__appwrite__databases_list_documents
+Database: "default"
+Collection: "Authored_SOW"
+Filters:
+  Query.equal('subject', subject)
+  Query.equal('level', level)
+  Query.orderDesc('version')
+  Query.limit(1)
+```
+
+**Version Logic**:
+- If no documents returned: `version = "1.0"`
+- If document(s) returned:
+  - Parse latest version (e.g., "1.3")
+  - Increment minor version: "1.3" → "1.4"
+  - Format: `"{major}.{minor + 1}"`
+
+**Edge Case**: If version parsing fails, use timestamp-based version: `"1.{timestamp}"`
+
+### Step 3: Determine courseId
+
+**Option A**: Query courses collection
+```
+Use: mcp__appwrite__databases_list_documents
+Database: "default"
+Collection: "courses"
+Filters:
+  Query.equal('subject', subject)
+  Query.equal('level', level)
+  Query.limit(1)
+```
+If found: Use courseId from result
+
+**Option B**: Derive from subject/level
+If no course found, create derived ID:
+```
+courseId = "{subject}_{level}"
+Example: "application_of_mathematics_national_3"
+```
+
+### Step 4: Enrich Metadata
+
+Add to SOW JSON:
+```json
+{
+  "metadata": {
+    ...existing metadata...,
+    "version": "{determined version}",
+    "courseId": "{determined courseId}",
+    "status": "draft",
+    "generated_at": "{ISO 8601 timestamp}",
+    "author_agent_version": "claude-sdk-1.0",
+    "author_agent_type": "claude_agent_sdk"
+  },
+  "entries": [...existing entries...]
+}
+```
+
+### Step 5: Upsert to Appwrite
+
+**Upsert Document**:
+```
+Use: mcp__appwrite__databases_upsert_document
+Database: "default"
+Collection: "Authored_SOW"
+Document ID: "{subject}_{level}_v{version}"  (e.g., "application_of_mathematics_national_3_v1.4")
+Data: {enriched SOW JSON from Step 4}
+```
+
+**Permissions**: Default (or set per project policy)
+
+### Step 6: Capture Document ID
+
+Extract document ID from upsert response.
+
+**Report**:
+```
+Successfully upserted SOW to Appwrite.
+Document ID: {document_id}
+Version: {version}
+CourseId: {courseId}
+```
+
+### Step 7: Track Progress
+
+Use TodoWrite to mark completion:
+```json
+{
+  "todos": [
+    {
+      "content": "Upsert SOW to Appwrite database",
+      "status": "completed",
+      "activeForm": "Upserting SOW to Appwrite database"
+    }
+  ]
+}
+```
+
+## Error Handling
+
+### Database Connectivity Issues
+If MCP call fails:
+- Retry once with 5-second delay
+- If second failure: Throw error with message: "Appwrite MCP connectivity issue: {error details}"
+
+### Schema Validation Failures
+If Appwrite rejects document:
+- Log validation errors
+- Throw error with message: "Appwrite schema validation failed: {validation errors}"
+
+### Duplicate Key Conflicts
+If duplicate key error (unlikely with upsert):
+- Log conflict details
+- Throw error with message: "Duplicate key conflict: {details}"
+
+## Output
+
+Return document ID for final reporting.
+
+Example:
+```
+{
+  "result": "success",
+  "document_id": "67890abc",
+  "version": "1.4",
+  "courseId": "application_of_mathematics_national_3"
+}
+```
+
+---
+
+Your task is critical: ensuring the validated SOW is correctly stored in Appwrite with proper versioning for future reference and use.
 ```
 
 **Success Criteria:**
 - Document successfully created/updated in Appwrite
-- Version correctly determined
-- All metadata enriched
+- Version correctly determined (auto-incremented)
+- All metadata enriched (version, courseId, status, timestamps, author info)
 - Document ID returned
+- Todo marked as completed
 
 ---
 
@@ -414,14 +1302,15 @@ validated Scheme of Work (SOW) for Scottish secondary education.
 
 **Workflow:**
 1. Validate input → create todo list
-2. Delegate to research_subagent → get research_pack_json
-3. Delegate to course_data_extractor → get Course_data.txt
-4. Delegate to sow_author → get authored_sow_json
-5. Delegate to unified_critic → get sow_critic_result_json
+2. Delegate to research_subagent → write research_pack_json to workspace
+3. Delegate to course_data_extractor → write Course_data.txt to workspace
+4. Delegate to sow_author → write authored_sow_json to workspace
+5. Delegate to unified_critic → write sow_critic_result_json to workspace
 6. If critic passes → delegate to upserter → get document ID
 7. If critic fails → revise via sow_author (max retries)
 8. Report final results
 
+All files written to flat workspace directory (no subdirectories).
 Use TodoWrite to track each major step.
 '''
 
@@ -624,11 +1513,11 @@ Track progress with TodoWrite at each major step.
     ) -> Dict[str, Any]:
         """Extract final results from execution."""
 
-        # Read final files
-        research_pack = read_json_file(filesystem.research_dir / "research_pack_json")
-        course_data = read_text_file(filesystem.root / "course_data" / "Course_data.txt")
-        authored_sow = read_json_file(filesystem.root / "authored" / "authored_sow_json")
-        critic_result = read_json_file(filesystem.root / "authored" / "sow_critic_result_json")
+        # Read final files (flat structure)
+        research_pack = read_json_file(filesystem.root / "research_pack_json")
+        course_data = read_text_file(filesystem.root / "Course_data.txt")
+        authored_sow = read_json_file(filesystem.root / "authored_sow_json")
+        critic_result = read_json_file(filesystem.root / "sow_critic_result_json")
 
         # Extract document ID from upserter result
         sow_document_id = extract_document_id_from_result(message.result)
@@ -640,10 +1529,10 @@ Track progress with TodoWrite at each major step.
             "sow_document_id": sow_document_id,
             "workspace": str(filesystem.root),
             "files": {
-                "research_pack": str(filesystem.research_dir / "research_pack_json"),
-                "course_data": str(filesystem.root / "course_data" / "Course_data.txt"),
-                "authored_sow": str(filesystem.root / "authored" / "authored_sow_json"),
-                "critic_result": str(filesystem.root / "authored" / "sow_critic_result_json")
+                "research_pack": str(filesystem.root / "research_pack_json"),
+                "course_data": str(filesystem.root / "Course_data.txt"),
+                "authored_sow": str(filesystem.root / "authored_sow_json"),
+                "critic_result": str(filesystem.root / "sow_critic_result_json")
             },
             "metrics": {
                 "total_cost_usd": self.total_cost,
@@ -704,17 +1593,13 @@ class IsolatedFilesystem:
     """
     Isolated workspace for SOW authoring execution.
 
-    Directory structure:
+    Flat file structure:
     /workspace/
-        ├── research/
-        │   └── research_pack_json
-        ├── course_data/
-        │   └── Course_data.txt
-        ├── authored/
-        │   ├── authored_sow_json
-        │   └── sow_critic_result_json
-        └── output/
-            └── RESULT.md
+        ├── research_pack_json
+        ├── Course_data.txt
+        ├── authored_sow_json
+        ├── sow_critic_result_json
+        └── README.md
     """
 
     def __init__(self, execution_id: str, persist: bool = True):
@@ -722,21 +1607,13 @@ class IsolatedFilesystem:
         self.persist = persist
         self.root = Path(tempfile.mkdtemp(prefix=f"sow_author_{execution_id}_"))
 
-        # Create subdirectories
-        self.research_dir = self.root / "research"
-        self.course_data_dir = self.root / "course_data"
-        self.authored_dir = self.root / "authored"
-        self.output_dir = self.root / "output"
-
         logger.info(f"[IsolatedFS] Created workspace: {self.root}")
         logger.info(f"[IsolatedFS] Persistence: {'Enabled' if persist else 'Disabled'}")
 
     def setup(self) -> None:
-        """Create directory structure and README."""
-        for dir_path in [self.research_dir, self.course_data_dir,
-                        self.authored_dir, self.output_dir]:
-            dir_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"[IsolatedFS] Created: {dir_path.name}/")
+        """Create workspace directory and README."""
+        self.root.mkdir(parents=True, exist_ok=True)
+        logger.info(f"[IsolatedFS] Workspace ready: {self.root}")
 
         # Write README
         readme = f"""# SOW Author Workspace
@@ -744,22 +1621,23 @@ class IsolatedFilesystem:
 Execution ID: {self.execution_id}
 Created: {datetime.now().isoformat()}
 
-## Directory Structure
+## Flat File Structure
 
-- `/research/` - Research pack from research_subagent
-- `/course_data/` - SQA course data from course_data_extractor
-- `/authored/` - Authored SOW and critic results
-- `/output/` - Final execution summary
+All files in root workspace directory:
+- `research_pack_json` - Research pack from research_subagent
+- `Course_data.txt` - SQA course data from course_data_extractor
+- `authored_sow_json` - Authored SOW from sow_author subagent
+- `sow_critic_result_json` - Validation results from unified_critic
 
 ## Workflow
 
-1. research_subagent → research/research_pack_json
-2. course_data_extractor → course_data/Course_data.txt
-3. sow_author → authored/authored_sow_json
-4. unified_critic → authored/sow_critic_result_json
+1. research_subagent → research_pack_json
+2. course_data_extractor → Course_data.txt
+3. sow_author → authored_sow_json
+4. unified_critic → sow_critic_result_json
 5. upserter → Appwrite database
 
-All subagents share this workspace for context engineering.
+All subagents share this flat filesystem for context engineering.
 """
         (self.root / "README.md").write_text(readme)
         logger.info(f"[IsolatedFS] ✓ Workspace setup complete")
@@ -785,34 +1663,120 @@ All subagents share this workspace for context engineering.
 
 ## 5. Prompt Adaptation Strategy
 
-### 5.1 Reuse from LangGraph Version
+### 5.1 Prompts Adapted from LangGraph
 
-**Prompts to Adapt:**
-1. `SOW_UNIFIED_AGENT_PROMPT` → `sow_author_prompt.md`
-2. `SOW_UNIFIED_CRITIC_PROMPT` → `unified_critic_prompt.md`
+All prompts in Section 3 are based on the LangGraph version with Claude SDK-specific adaptations:
 
-**Adaptation Required:**
-- Remove LangGraph-specific references (e.g., `state["files"]`)
-- Update to filesystem-based instructions (e.g., "Read from /workspace/...")
-- Remove mentions of deepagents or LangGraph
-- Keep all pedagogical content, schema references, constraints intact
+#### **SOW Author Subagent (Section 3.3)**
+- **Source**: LangGraph `SOW_UNIFIED_AGENT_PROMPT` (layers/critical.md + layers/core.md)
+- **Adaptations Made**:
+  - ✅ Replaced `state["files"]["Course_data.txt"]` → `/workspace/Course_data.txt`
+  - ✅ Replaced `state["files"]["research_pack_json"]` → `/workspace/research_pack_json`
+  - ✅ Updated output path to `/workspace/authored_sow_json`
+  - ✅ Removed LangGraph state reducer references
+  - ✅ Added explicit Read/Write/TodoWrite tool instructions
+  - ✅ Kept all pedagogical content intact (8-step process, Scottish authenticity, enriched format requirements)
+  - ✅ Kept all critical constraints (teach→revision pairing, 10-20 lessons, 6-12 cards, CFU specificity)
 
-### 5.2 New Prompts to Create
+#### **Unified Critic Subagent (Section 3.4)**
+- **Source**: LangGraph `SOW_UNIFIED_CRITIC_PROMPT` (critic/critical.md + critic/dimensions_core.md)
+- **Adaptations Made**:
+  - ✅ Replaced `state["files"]` references → `/workspace/` file paths
+  - ✅ Updated output path to `/workspace/sow_critic_result_json`
+  - ✅ Removed LangGraph-specific routing logic
+  - ✅ Added explicit Read/Write/TodoWrite tool instructions
+  - ✅ Kept all 5 dimension checklists intact (Coverage, Sequencing, Policy, Accessibility, Authenticity)
+  - ✅ Kept all threshold requirements (≥0.90, ≥0.80 etc.)
+  - ✅ Kept scoring rubrics and issue format templates
 
-1. **research_subagent_prompt.md**
-   - Role: Scottish curriculum researcher
-   - Task: Create research pack v3
-   - Output: research_pack_json in /workspace/research/
+#### **Research Subagent (Section 3.1)**
+- **Source**: LangGraph `SUB_RESEARCH_PROMPT` from `research_agent_prompts.py`
+- **Adaptations Made**:
+  - ✅ Expanded research areas (SQA resources, CfE, pedagogical patterns, Scottish contexts, assessment stems, accessibility)
+  - ✅ Updated output path to `/workspace/research_pack_json`
+  - ✅ Added research pack v3 schema specification
+  - ✅ Added WebSearch + Write + TodoWrite tool usage instructions
+  - ✅ Kept grounding data source reference to Course_data.txt
+  - ✅ Kept quality requirements (exemplars, canonical terms, Scottish authenticity)
 
-2. **course_data_extractor_prompt.md**
-   - Role: Database specialist
-   - Task: Query Appwrite for SQA course data
-   - Output: Course_data.txt in /workspace/course_data/
+### 5.2 New Prompts Created for Claude SDK
 
-3. **upserter_subagent_prompt.md**
-   - Role: Database operations specialist
-   - Task: Upsert to Appwrite default.Authored_SOW
-   - Output: Document ID
+These prompts are new (not in LangGraph version) and designed specifically for Claude SDK architecture:
+
+#### **Course Data Extractor Subagent (Section 3.2)**
+- **Purpose**: Replace manual Course_data.txt loading with Appwrite MCP integration
+- **Key Features**:
+  - Appwrite MCP tool usage (`mcp__appwrite__databases_list_documents`)
+  - Query filter construction for subject/level
+  - Edge case handling (no documents, multiple documents, missing fields)
+  - Formatted text output (human-readable Course_data.txt)
+  - Error handling with actionable messages
+
+#### **Upserter Subagent (Section 3.5)**
+- **Purpose**: Replace manual database operations with autonomous Appwrite upsertion
+- **Key Features**:
+  - Version determination logic (query existing, auto-increment)
+  - CourseId resolution (query courses collection or derive)
+  - Metadata enrichment (version, status, timestamps, author info)
+  - Appwrite MCP tool usage (`mcp__appwrite__databases_upsert_document`)
+  - Retry logic for connectivity issues
+
+### 5.3 Key Adaptation Patterns
+
+**Pattern 1: State → Filesystem**
+```markdown
+# LangGraph (state-based)
+Read from: state["files"]["Course_data.txt"]
+Write to: state["files"]["authored_sow_json"]
+
+# Claude SDK (filesystem-based)
+Read from: /workspace/Course_data.txt
+Write to: /workspace/authored_sow_json
+```
+
+**Pattern 2: Tool Integration**
+```markdown
+# LangGraph (implicit tools)
+Use research_agent to gather information
+
+# Claude SDK (explicit tools)
+Use WebSearch tool to conduct web research
+Use Write tool to create /workspace/research_pack_json
+Use TodoWrite to track progress
+```
+
+**Pattern 3: Fail-Fast Validation**
+```markdown
+# Both versions maintain same fail-fast pattern
+Before you begin, verify these files exist:
+- ✓ /workspace/Course_data.txt
+- ✓ /workspace/research_pack_json
+
+If missing: STOP immediately. Report error: "Missing required input: {filename}"
+```
+
+**Pattern 4: Quality Constraints**
+```markdown
+# Both versions maintain identical quality constraints
+- Enriched format required: Use objects {code, description, outcome}
+- Scottish authenticity: Currency is £
+- Teach→Revision pairing mandatory
+- 10-20 lessons total
+- 6-12 cards per lesson_plan
+```
+
+### 5.4 What Was NOT Changed
+
+**Preserved from LangGraph:**
+- ✅ All pedagogical principles (8-step SOW process, chunking strategy, sequencing rules)
+- ✅ All critical constraints (enriched format, Scottish authenticity, teach→revision pairing)
+- ✅ All quality guidelines (CFU specificity, one-to-one design, Scottish contexts)
+- ✅ All validation dimensions and thresholds
+- ✅ All scoring rubrics and checklist items
+- ✅ Scottish curriculum alignment (CfE, SQA standards)
+
+**Why This Matters:**
+The prompts retain all the pedagogical quality and curriculum fidelity of the LangGraph version. The only changes are architectural (state vs filesystem, tool usage patterns) - the educational content is preserved.
 
 ---
 
@@ -927,7 +1891,7 @@ Failed Dimensions:
 {format_failed_dimensions(critic_result['dimensions'])}
 
 Please:
-1. Read the critic result from /workspace/authored/sow_critic_result_json
+1. Read the critic result from /workspace/sow_critic_result_json
 2. Use sow_author subagent to revise the SOW addressing all issues
 3. Use unified_critic subagent to re-validate
 
@@ -1108,10 +2072,7 @@ def test_isolated_filesystem_creation():
     """Test workspace creation."""
     with IsolatedFilesystem("test123", persist=False) as fs:
         assert fs.root.exists()
-        assert fs.research_dir.exists()
-        assert fs.course_data_dir.exists()
-        assert fs.authored_dir.exists()
-        assert fs.output_dir.exists()
+        assert (fs.root / "README.md").exists()
 
     # Should be cleaned up
     assert not fs.root.exists()
@@ -1337,7 +2298,7 @@ logger = logging.getLogger(__name__)
 - [ ] Upserter writes to Appwrite database successfully
 - [ ] Version determination logic works (auto-increment)
 - [ ] Workspace persistence controlled by flag
-- [ ] All files created in proper subdirectories
+- [ ] All files created in flat workspace structure
 
 ### 10.2 Quality Requirements
 
@@ -1568,7 +2529,7 @@ async def handle_critic_validation(
 
     for attempt in range(1, max_retries + 1):
         # Read critic result
-        critic_result = read_json(filesystem.authored_dir / "sow_critic_result_json")
+        critic_result = read_json(filesystem.root / "sow_critic_result_json")
 
         if critic_result['pass']:
             logger.info(f"✓ Critic passed on attempt {attempt}")
@@ -1666,7 +2627,7 @@ Create a comprehensive research pack (v3 schema) for:
 ## Output Format
 
 Write your research to:
-**File**: `/workspace/research/research_pack_json`
+**File**: `/workspace/research_pack_json`
 
 **Schema**: research_pack_schema v3
 - research_pack_version: 3
@@ -1700,7 +2661,7 @@ Upsert the validated SOW to Appwrite database.
 
 ## Input
 
-Read from: `/workspace/authored/authored_sow_json`
+Read from: `/workspace/authored_sow_json`
 
 ## Process
 

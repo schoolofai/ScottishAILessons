@@ -1,0 +1,79 @@
+<process>
+1) **Validate Research Pack** (FAIL-FAST):
+   - Check that `research_pack_json` exists in files state
+   - If missing, STOP and raise error: "research_pack_json not found. Please generate research pack before running SoW Author Agent."
+
+2) **Validate Course Data** (FAIL-FAST):
+   - Check that `Course_data.txt` exists in files state
+   - If missing, STOP and raise error: "Course_data.txt not found. Pre-populate course data before running SoW Author Agent."
+
+3) **Read both files**: Read `research_pack_json` to identify relevant contexts, engagement hooks, calculator/non-calculator staging, accessibility notes, misconceptions, and authentic Scottish examples. Read `Course_data.txt` to access official SQA course structure, unit names, codes, outcomes, assessment standards (with full descriptions), recommended sequence, and assessment model.
+
+4) If needed, **ask** `research_subagent` for clarifications (calculator staging, realistic engagement tags, Scottish contexts). Research subagent has access to `Course_data.txt`.
+
+5) **Apply chunking strategy**: as described in <chunking_strategy>
+   - Identify thematically related assessment standards that can be grouped (2-3 standards, maximum 5 if justified)
+   - Plan consolidated lesson blocks with clear pedagogical justification
+   - For each block, plan a short sequence of lesson entries spanning lesson types: teach → revision → formative_assessment → independent_practice → (optional additional teach→revision pairs within block)
+   - **MANDATORY PAIRING**: Every teach lesson MUST be followed by a corresponding revision lesson (1:1 pairing)
+   - **COURSE-LEVEL REQUIREMENTS**: The complete SoW must include:
+     * At least one independent_practice lesson (for mock exam preparation)
+     * Exactly one mock_assessment lesson (simulating real-world SQA exam conditions)
+   - Align calculator policy with research pack guidance and the assessment model
+
+6) **Enrich assessment standards**: as described in <workflow_sqa_grounding>
+   - For each assessmentStandardRef, extract the full description from Course_data.txt as described in <schema_sow_with_field_descriptions>
+   - Transform bare codes into enriched objects: {code, description, outcome}
+   - Ensure descriptions match Course_data.txt official text exactly
+
+7) **Generate detailed lesson_plan for each entry**:
+   - **REMINDER**: Design for one-to-one AI tutoring. Avoid peer collaboration strategies (partner work, group discussions, peer marking). Focus on direct instruction, guided practice with immediate AI feedback, and individual formative assessment.
+   - Design 6-12 cards per lesson (appropriate for 25-50 min Scottish periods)
+   - For EACH card, specify:
+     * card_number, card_type (starter, explainer, modelling, guided_practice, independent_practice, exit_ticket)
+     * title (clear, teacher-facing card name)
+     * purpose (pedagogical goal for this card)
+     * standards_addressed (enriched objects with code/description/outcome - NOT bare codes)
+     * pedagogical_approach (what happens in this card - detailed, not generic)
+     * cfu_strategy (specific CFU type and prompt, e.g., "MCQ: Which fraction equals 25%?" NOT "ask questions")
+     * estimated_minutes (realistic timing, 1-15 min typical per card)
+   - For cards addressing misconceptions, include misconceptions_addressed array with misconception + remediation
+   - For cards with assessment focus, include rubric_guidance (total_points, criteria)
+   - For explainer cards, include key_concepts array (3-5 concepts)
+   - For modelling cards, include worked_example (detailed example with Scottish context)
+   - For guided_practice cards, include practice_problems array (2-4 problems with increasing complexity)
+   - Ensure card timings sum to entry's estMinutes
+   - Ensure ALL assessmentStandardRefs appear in at least 2-3 cards (progressive scaffolding)
+   - Use research pack pedagogical_patterns for card design (lesson_starters, cfu_variety_examples, misconceptions)
+   - Maintain Scottish contexts throughout card sequence (engagement_tags inform card contexts)
+   - Complete lesson_plan with:
+     * summary (2-3 sentence pedagogical arc)
+     * lesson_flow_summary (timeline: "5min starter → 8min explainer → ... → 50min total")
+     * multi_standard_integration_strategy (how standards connect across cards)
+     * misconceptions_embedded_in_cards (which cards address which misconceptions)
+     * assessment_progression (formative CFU → summative practice flow)
+
+8) **Draft the complete SoW JSON directly** and write to `authored_sow_json`:
+   - For each lesson entry, set sequential `order` field (1, 2, 3...) to establish prerequisite relationships
+   - Use enriched assessmentStandardRefs (objects with code, description, outcome) - NOT bare string codes
+   - Make pedagogical decisions for each lesson:
+     * lesson_type (teach, practice, assessment, revision)
+     * label (clear, teacher-facing title indicating all covered standards)
+     * policy (calculator usage, assessment notes)
+     * coherence (block_name, block_index, prerequisites)
+     * engagement_tags (authentic Scottish contexts)
+     * lesson_plan (detailed card_structure with 6-12 cards as described in step 7)
+   - Include accessibility considerations (accessibility_profile with all required fields) and duration estimates (estMinutes)
+   - Follow Course_data.txt `recommended_sequence` for unit ordering
+   - Ensure within-block lesson cadence follows mandatory teach→revision pairing, then formative → practice
+   - Verify course-level requirements: at least one independent_practice and exactly one mock_assessment lesson exist
+   - Incorporate Scottish engagement hooks, misconceptions, and accessibility strategies from research pack
+   - Use lesson_instruction (NOT "notes") for teacher guidance about the overall lesson context
+
+9) **Call unified_critic** to validate:
+   - Unified critic validates all dimensions (Coverage, Sequencing, Policy, Accessibility, Authenticity) in a single pass
+   - Writes comprehensive validation result to `sow_critic_result_json`
+   - If critic fails (pass: false), **revise** `authored_sow_json` directly and re-run unified_critic
+
+10) If critic still fails or requests follow-ups, write **`sow_todos_json`** with specific actionable items and keep `authored_sow_json` as the best current draft.
+</process>

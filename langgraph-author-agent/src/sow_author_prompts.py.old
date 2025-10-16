@@ -1,328 +1,225 @@
-"""Prompt templates for the Scheme of Work (SoW) Author Agent system.
+"""Prompt templates for the Scheme of Work (SoW) Author Agent system."""
 
-This module provides assembly functions for SOW author and critic prompts,
-organized into semantic layers with inspection utilities.
-"""
-
-import json
 import os
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Literal
-
+from typing import Literal
 
 # =============================================================================
-# SHARED UTILITY: File Loading with Error Handling (DRY)
+# DYNAMIC PROMPT ASSEMBLY
 # =============================================================================
 
-def _load_layer_file(filepath: Path, layer_name: str) -> str:
-    """Load a single layer file with proper error handling.
-
-    Args:
-        filepath: Path to the layer file
-        layer_name: Human-readable name for error messages
-
-    Returns:
-        File content as string
-
-    Raises:
-        FileNotFoundError: If layer file not found (FAIL-FAST - no fallbacks)
+def assemble_sow_prompt(
+    mode: Literal['default', 'schema', 'full', 'first_time'] = 'default'
+) -> str:
     """
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            return f.read()
-    except FileNotFoundError:
-        raise FileNotFoundError(
-            f"FATAL: Layer file not found: {filepath}\n"
-            f"Layer: {layer_name}\n"
-            f"Ensure all layer files are present in src/prompts/"
-        )
-
-
-# =============================================================================
-# SOW AUTHOR PROMPT ASSEMBLY (Single Full Mode - No Progressive Disclosure)
-# =============================================================================
-
-def assemble_sow_prompt(save_snapshot: bool = False) -> str:
-    """Assemble complete SOW author prompt from organized layer files.
-
-    This function loads ALL 5 layers to preserve the full ~3000 token content
-    from SOW_UNIFIED_AGENT_PROMPT. No progressive disclosure - organizational
-    refactoring only.
-
-    Layer Structure:
-        1. role_and_context.txt - Role, inputs, outputs, research pack fields
-        2. core_process.txt - 10-step authoring process
-        3. schemas_embedded.txt - Complete SOW JSON schema (embedded inline)
-        4. constraints_and_workflows.txt - Chunking, subagents, workflows, constraints
-        5. quality_guidelines.txt - Quality tips and best practices
+    Dynamically assemble SOW author prompt from layered components.
 
     Args:
-        save_snapshot: If True, save assembled prompt to .prompt_snapshots/
+        mode: Prompt assembly mode
+            - 'default': Layers 1-2 (~340 tokens) - for familiar agents
+            - 'schema': Layers 1-3 (~440 tokens) - includes schema refs
+            - 'full': Layers 1-4 (~540 tokens) - includes quality guidelines
+            - 'first_time': All layers + explicit READ instructions (~1000+ tokens)
 
     Returns:
-        Complete assembled prompt string (~3000 tokens)
+        Assembled prompt string
 
-    Raises:
-        FileNotFoundError: If any layer file is missing (FAIL-FAST)
+    Token Budget by Mode:
+        - default: ~340 tokens (Layers 1-2)
+        - schema: ~440 tokens (Layers 1-3)
+        - full: ~540 tokens (Layers 1-4)
+        - first_time: ~1000+ tokens (All layers + schema READs)
 
     Example:
-        >>> prompt = assemble_sow_prompt()
-        >>> # Use directly in agent system prompt
+        >>> prompt = assemble_sow_prompt(mode='default')
+        >>> # Use for routine SOW authoring
 
-        >>> prompt_with_snapshot = assemble_sow_prompt(save_snapshot=True)
-        >>> # Saves to .prompt_snapshots/sow_author_YYYYMMDD_HHMMSS.txt
+        >>> prompt = assemble_sow_prompt(mode='full')
+        >>> # Use after critic failures or quality-focused runs
     """
-    base_dir = Path(__file__).parent / 'prompts' / 'sow_author'
+    # Determine base directory (src/prompts/layers/)
+    base_dir = Path(__file__).parent / 'prompts' / 'layers'
 
-    # Define all layers in order (no modes - load everything)
-    layers = [
-        ('1_role_and_context.txt', 'SOW Author Role & Context'),
-        ('2_core_process.txt', 'SOW Author Core Process'),
-        ('3_schemas_embedded.txt', 'SOW Schema (Embedded)'),
-        ('4_constraints_and_workflows.txt', 'SOW Constraints & Workflows'),
-        ('5_quality_guidelines.txt', 'SOW Quality Guidelines'),
-    ]
-
-    # Load all layers (FAIL-FAST if any missing)
-    assembled_parts = []
-    for filename, layer_name in layers:
-        filepath = base_dir / filename
-        content = _load_layer_file(filepath, layer_name)
-        assembled_parts.append(content)
-
-    # Assemble with double newlines for readability
-    assembled_prompt = '\n\n'.join(assembled_parts)
-
-    # Optional snapshot save
-    if save_snapshot or os.getenv('DEBUG_PROMPTS') == '1':
-        _save_prompt_snapshot(
-            prompt_content=assembled_prompt,
-            prompt_type='sow_author',
-            metadata={'layer_count': len(layers), 'approx_tokens': len(assembled_prompt.split()) * 1.3}
-        )
-
-    return assembled_prompt
-
-
-# =============================================================================
-# CRITIC PROMPT ASSEMBLY (Single Full Mode - No Progressive Disclosure)
-# =============================================================================
-
-def assemble_critic_prompt(save_snapshot: bool = False) -> str:
-    """Assemble complete Critic prompt from organized layer files.
-
-    This function loads ALL 8 layers to preserve the full content from
-    SOW_UNIFIED_CRITIC_PROMPT. No progressive disclosure - organizational
-    refactoring only.
-
-    Layer Structure:
-        1. role_and_context.txt - Role, inputs, outputs
-        2. validation_process.txt - 5-step validation process
-        3. dimension_coverage.txt - Dimension 1: Coverage validation
-        4. dimension_sequencing.txt - Dimension 2: Sequencing validation
-        5. dimension_policy.txt - Dimension 3: Policy validation
-        6. dimension_accessibility.txt - Dimension 4: Accessibility validation
-        7. dimension_authenticity.txt - Dimension 5: Authenticity validation
-        8. scoring_and_quality.txt - Scoring aggregation & quality tips
-
-    Args:
-        save_snapshot: If True, save assembled prompt to .prompt_snapshots/
-
-    Returns:
-        Complete assembled prompt string
-
-    Raises:
-        FileNotFoundError: If any layer file is missing (FAIL-FAST)
-
-    Example:
-        >>> prompt = assemble_critic_prompt()
-        >>> # Use directly in critic agent system prompt
-    """
-    base_dir = Path(__file__).parent / 'prompts' / 'critic'
-
-    # Define all layers in order (no modes - load everything)
-    layers = [
-        ('1_role_and_context.txt', 'Critic Role & Context'),
-        ('2_validation_process.txt', 'Critic Validation Process'),
-        ('3_dimension_coverage.txt', 'Critic Dimension: Coverage'),
-        ('4_dimension_sequencing.txt', 'Critic Dimension: Sequencing'),
-        ('5_dimension_policy.txt', 'Critic Dimension: Policy'),
-        ('6_dimension_accessibility.txt', 'Critic Dimension: Accessibility'),
-        ('7_dimension_authenticity.txt', 'Critic Dimension: Authenticity'),
-        ('8_scoring_and_quality.txt', 'Critic Scoring & Quality'),
-    ]
-
-    # Load all layers (FAIL-FAST if any missing)
-    assembled_parts = []
-    for filename, layer_name in layers:
-        filepath = base_dir / filename
-        content = _load_layer_file(filepath, layer_name)
-        assembled_parts.append(content)
-
-    # Assemble with double newlines
-    assembled_prompt = '\n\n'.join(assembled_parts)
-
-    # Optional snapshot save
-    if save_snapshot or os.getenv('DEBUG_PROMPTS') == '1':
-        _save_prompt_snapshot(
-            prompt_content=assembled_prompt,
-            prompt_type='critic',
-            metadata={'layer_count': len(layers), 'approx_tokens': len(assembled_prompt.split()) * 1.3}
-        )
-
-    return assembled_prompt
-
-
-# =============================================================================
-# INSPECTION UTILITIES (DRY - Shared Across All Prompts)
-# =============================================================================
-
-def _save_prompt_snapshot(
-    prompt_content: str,
-    prompt_type: Literal['sow_author', 'critic'],
-    metadata: Optional[dict] = None
-) -> Path:
-    """Save assembled prompt to snapshot directory with metadata.
-
-    Snapshots are saved to src/prompts/.prompt_snapshots/ with timestamp.
-    This directory should be added to .gitignore.
-
-    Args:
-        prompt_content: Full assembled prompt string
-        prompt_type: Type of prompt ('sow_author' or 'critic')
-        metadata: Optional metadata dict (layer count, token estimate, etc.)
-
-    Returns:
-        Path to saved snapshot file
-    """
-    snapshot_dir = Path(__file__).parent / 'prompts' / '.prompt_snapshots'
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
-
-    # Generate timestamped filename
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{prompt_type}_{timestamp}.txt"
-    filepath = snapshot_dir / filename
-
-    # Prepare metadata header
-    metadata_lines = [
-        f"# Prompt Snapshot: {prompt_type}",
-        f"# Generated: {datetime.now().isoformat()}",
-        f"# Character count: {len(prompt_content)}",
-    ]
-    if metadata:
-        for key, value in metadata.items():
-            metadata_lines.append(f"# {key}: {value}")
-    metadata_header = '\n'.join(metadata_lines) + '\n\n' + ('=' * 80) + '\n\n'
-
-    # Write snapshot
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(metadata_header)
-        f.write(prompt_content)
-
-    return filepath
-
-
-def compare_prompts(
-    prompt_type: Literal['sow_author', 'critic'],
-    show_diff: bool = False
-) -> dict:
-    """Compare assembled prompt against legacy prompt.
-
-    Useful for validating that refactoring preserves all content.
-
-    Args:
-        prompt_type: Which prompt to compare ('sow_author' or 'critic')
-        show_diff: If True, print detailed character-by-character diff
-
-    Returns:
-        Comparison metrics dict with keys:
-            - assembled_length: Character count of assembled prompt
-            - legacy_length: Character count of legacy prompt
-            - match: Boolean indicating exact match
-            - diff_chars: Number of differing characters (if not exact match)
-    """
-    # Assemble new prompt
-    if prompt_type == 'sow_author':
-        assembled = assemble_sow_prompt()
-        legacy = SOW_UNIFIED_AGENT_PROMPT_LEGACY
-    elif prompt_type == 'critic':
-        assembled = assemble_critic_prompt()
-        legacy = SOW_UNIFIED_CRITIC_PROMPT_LEGACY
-    else:
-        raise ValueError(f"Invalid prompt_type: {prompt_type}")
-
-    # Calculate metrics
-    match = (assembled == legacy)
-    diff_chars = sum(1 for a, b in zip(assembled, legacy) if a != b) if not match else 0
-
-    metrics = {
-        'assembled_length': len(assembled),
-        'legacy_length': len(legacy),
-        'match': match,
-        'diff_chars': diff_chars,
+    # Define layers to load based on mode
+    layers_map = {
+        'default': ['critical.md', 'core.md'],
+        'schema': ['critical.md', 'core.md', 'schema_ref.md'],
+        'full': ['critical.md', 'core.md', 'schema_ref.md', 'quality.md'],
+        'first_time': ['critical.md', 'core.md', 'schema_ref.md', 'quality.md']
     }
 
-    # Optional detailed diff
-    if show_diff and not match:
-        print(f"\n{'=' * 80}")
-        print(f"DIFF ANALYSIS: {prompt_type}")
-        print(f"{'=' * 80}")
-        print(f"Assembled length: {metrics['assembled_length']} chars")
-        print(f"Legacy length: {metrics['legacy_length']} chars")
-        print(f"Differing characters: {metrics['diff_chars']}")
-        print(f"{'=' * 80}\n")
+    layers_to_load = layers_map.get(mode, layers_map['default'])
 
-    return metrics
+    # Load and concatenate layers
+    assembled_parts = []
+
+    for layer_file in layers_to_load:
+        layer_path = base_dir / layer_file
+        try:
+            with open(layer_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                assembled_parts.append(content)
+        except FileNotFoundError:
+            # Fallback: Layer file not found, skip
+            print(f"Warning: Layer file not found: {layer_path}")
+            continue
+
+    # For first_time mode, add explicit schema READ instructions
+    if mode == 'first_time':
+        schema_instructions = """
+
+# Schema Reference Instructions (First-Time Mode)
+
+Since this is your first time authoring, READ the following schema files for complete details:
+
+1. **SOW Schema**: READ `src/schemas/sow_schema.md`
+   - Complete structure for authored_sow_json
+   - Field requirements and validation rules
+   - Enriched format examples
+
+2. **Lesson Card Schema**: READ `src/schemas/lesson_card_schema.md`
+   - Detailed card_structure requirements
+   - Card types and conditional fields
+   - CFU strategy examples
+
+3. **Research Pack Schema**: READ `src/schemas/research_pack_schema.md`
+   - Understanding research_pack_json structure
+   - Extracting pedagogical patterns
+   - Using Scottish context hooks
+
+After reading schemas, proceed with SOW authoring using the core process.
+"""
+        assembled_parts.append(schema_instructions)
+
+    # Join all parts with double newlines
+    assembled_prompt = '\n\n'.join(assembled_parts)
+
+    return assembled_prompt
 
 
-def preview_prompt(
-    prompt_type: Literal['sow_author', 'critic'],
-    lines: int = 50
-) -> None:
-    """Preview assembled prompt in console (first N lines).
+# =============================================================================
+# PRE-ASSEMBLED PROMPTS (for backwards compatibility)
+# =============================================================================
 
-    Useful for quick inspection without opening files.
+# Default mode: Layers 1-2 (~ 340 tokens)
+SOW_AGENT_PROMPT_DEFAULT = assemble_sow_prompt(mode='default')
+
+# Schema mode: Layers 1-3 (~440 tokens)
+SOW_AGENT_PROMPT_SCHEMA = assemble_sow_prompt(mode='schema')
+
+# Full mode: Layers 1-4 (~540 tokens)
+SOW_AGENT_PROMPT_FULL = assemble_sow_prompt(mode='full')
+
+# First-time mode: All layers + schema READs (~1000+ tokens)
+SOW_AGENT_PROMPT_FIRST_TIME = assemble_sow_prompt(mode='first_time')
+
+
+# =============================================================================
+# CRITIC PROMPT ASSEMBLY
+# =============================================================================
+
+def assemble_critic_prompt(
+    mode: Literal['default', 'full', 'detailed'] = 'default'
+) -> str:
+    """
+    Dynamically assemble Critic prompt from layered components.
 
     Args:
-        prompt_type: Which prompt to preview ('sow_author' or 'critic')
-        lines: Number of lines to display
+        mode: Prompt assembly mode
+            - 'default': Layers 1-2 (~370 tokens) - lightweight dimension summaries
+            - 'full': Layers 1-2 + scoring guidance (~420 tokens)
+            - 'detailed': All layers + detailed dimension files (~1500+ tokens)
+
+    Returns:
+        Assembled critic prompt string
+
+    Token Budget by Mode:
+        - default: ~370 tokens (Critical + Dimensions Core)
+        - full: ~420 tokens (+ scoring guidance)
+        - detailed: ~1500+ tokens (+ all dimension detail files)
+
+    Example:
+        >>> prompt = assemble_critic_prompt(mode='default')
+        >>> # Use for routine SOW validation
+
+        >>> prompt = assemble_critic_prompt(mode='detailed')
+        >>> # Use when agent needs extensive validation guidance
     """
-    if prompt_type == 'sow_author':
-        prompt = assemble_sow_prompt()
-    elif prompt_type == 'critic':
-        prompt = assemble_critic_prompt()
-    else:
-        raise ValueError(f"Invalid prompt_type: {prompt_type}")
+    # Determine base directory (src/prompts/critic/)
+    base_dir = Path(__file__).parent / 'prompts' / 'critic'
+    dimensions_dir = base_dir / 'dimensions'
 
-    prompt_lines = prompt.split('\n')
-    preview_lines = prompt_lines[:lines]
+    # Define layers to load based on mode
+    layers_map = {
+        'default': ['critical.md', 'dimensions_core.md'],
+        'full': ['critical.md', 'dimensions_core.md'],
+        'detailed': ['critical.md', 'dimensions_core.md']
+    }
 
-    print(f"\n{'=' * 80}")
-    print(f"PROMPT PREVIEW: {prompt_type} (first {lines} lines)")
-    print(f"Total lines: {len(prompt_lines)}")
-    print(f"Total characters: {len(prompt)}")
-    print(f"{'=' * 80}\n")
-    print('\n'.join(preview_lines))
-    if len(prompt_lines) > lines:
-        print(f"\n... ({len(prompt_lines) - lines} more lines)")
-    print(f"\n{'=' * 80}\n")
+    layers_to_load = layers_map.get(mode, layers_map['default'])
+
+    # Load and concatenate layers
+    assembled_parts = []
+
+    for layer_file in layers_to_load:
+        layer_path = base_dir / layer_file
+        try:
+            with open(layer_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                assembled_parts.append(content)
+        except FileNotFoundError:
+            # Fallback: Layer file not found, skip
+            print(f"Warning: Critic layer file not found: {layer_path}")
+            continue
+
+    # For detailed mode, add all dimension validation files
+    if mode == 'detailed':
+        dimension_files = [
+            'coverage.md',
+            'sequencing.md',
+            'policy.md',
+            'accessibility.md',
+            'authenticity.md'
+        ]
+
+        detailed_section = "\n\n# Detailed Dimension Validation\n\n"
+        assembled_parts.append(detailed_section)
+
+        for dim_file in dimension_files:
+            dim_path = dimensions_dir / dim_file
+            try:
+                with open(dim_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    assembled_parts.append(content)
+            except FileNotFoundError:
+                print(f"Warning: Dimension file not found: {dim_path}")
+                continue
+
+    # Join all parts with double newlines
+    assembled_prompt = '\n\n'.join(assembled_parts)
+
+    return assembled_prompt
+
+
+# =============================================================================
+# PRE-ASSEMBLED CRITIC PROMPTS (for backwards compatibility)
+# =============================================================================
+
+# Default mode: Layers 1-2 (~370 tokens)
+CRITIC_PROMPT_DEFAULT = assemble_critic_prompt(mode='default')
+
+# Full mode: Layers 1-2 + scoring guidance (~420 tokens)
+CRITIC_PROMPT_FULL = assemble_critic_prompt(mode='full')
+
+# Detailed mode: All layers + dimension files (~1500+ tokens)
+CRITIC_PROMPT_DETAILED = assemble_critic_prompt(mode='detailed')
 
 
 # =============================================================================
 # ACTIVE PROMPTS - USE THESE IN PRODUCTION
 # =============================================================================
 
-# Assemble prompts on module import (cached for performance)
-SOW_AGENT_PROMPT = assemble_sow_prompt()
-CRITIC_PROMPT = assemble_critic_prompt()
-
-
-# =============================================================================
-# LEGACY PROMPTS - KEPT FOR REFERENCE AND COMPARISON
-# =============================================================================
-
-SOW_UNIFIED_AGENT_PROMPT_LEGACY = """<role>
+SOW_UNIFIED_AGENT_PROMPT = """<role>
 You are the **SoW Author DeepAgent**. Your job is to read the `research_pack_json` (produced by the Research DeepAgent) and `Course_data.txt` (official SQA course data), then **directly author** a publishable Scheme of Work (SoW) for a single SQA course + level. You write the SoW JSON directly to `authored_sow_json` following the enriched schema in <schema_sow_with_field_descriptions>. Your output must be realistic for Scottish classrooms, reflect CfE/SQA-aligned practice, and be ready for the Lesson DeepAgent to consume.
 The Sow will have 10-20 lessons combining 2-3 related assessment standards into unified, thematically coherent lessons.
 The Sow should cover all the assessment standards from Course_data.txt.
@@ -705,7 +602,7 @@ The **SoW JSON** you must write to `authored_sow_json` has this shape:
 </quality_tips>
 """
 
-SOW_UNIFIED_CRITIC_PROMPT_LEGACY = """<role>
+SOW_UNIFIED_CRITIC_PROMPT = """<role>
 You are the **Unified SoW Critic**. Your job is to comprehensively validate all aspects of the authored Scheme of Work (`authored_sow_json`) in a single pass. You evaluate five dimensions: Coverage, Sequencing, Policy, Accessibility, and Authenticity. Each dimension has specific thresholds and criteria. Your output provides dimensional scores, identified issues, and actionable todos.
 </role>
 

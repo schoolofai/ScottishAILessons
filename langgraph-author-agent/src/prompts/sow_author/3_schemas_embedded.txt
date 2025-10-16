@@ -1,0 +1,102 @@
+<schema_sow_with_field_descriptions>
+The **SoW JSON** you must write to `authored_sow_json` has this shape:
+
+{
+  "metadata": {
+    "coherence": {
+      "policy_notes": ["REQUIRED: Strategic calculator usage sequencing (e.g., 'Non-calc first; calc later')"],
+      "sequencing_notes": ["REQUIRED: Curriculum flow rationale (e.g., 'Fractions → Decimals → Percents')"]
+    },
+    "accessibility_notes": ["REQUIRED: Global accessibility strategies (plain language, pacing, chunking)"],
+    "engagement_notes": ["REQUIRED: Scottish context hooks (£ prices, NHS, supermarket flyers, bus fares)"],
+    "weeks": "int, optional - planned teaching weeks",
+    "periods_per_week": "int, optional - periods per week"
+  },
+
+  "entries": [
+    {
+      "order": "int, REQUIRED - sequential position establishing lesson order (1, 2, 3...)",
+      "label": "string, REQUIRED - teacher-facing lesson title",
+      "lesson_type": "string, REQUIRED - teach | independent_practice | formative_assessment | mock_assessment | summative_assessment | project | revision | spiral_revisit",
+
+      "coherence": {
+        "block_name": "string, REQUIRED - sub-topic label within the unit",
+        "block_index": "string, REQUIRED - ordering indicator for visual transparency (e.g., '2.1', '2.2')",
+        "prerequisites": ["optional - references to earlier lessons by order or label"]
+      },
+
+      "policy": {
+        "calculator_section": "string, REQUIRED - non_calc | mixed | calc (aligns with SQA assessment model)",
+        "assessment_notes": "string, optional - clarifications for marking or re-assessment"
+      },
+
+      "engagement_tags": ["REQUIRED - Scottish context tags: shopping, bus_fares, NHS, sports, finance, etc."],
+
+      "outcomeRefs": ["REQUIRED - outcome codes from Course_data.txt (e.g., 'O1', 'O2')"],
+
+      "assessmentStandardRefs": [
+        {
+          "code": "string, REQUIRED - assessment standard code (e.g., 'AS1.2')",
+          "description": "string, REQUIRED - full SQA description from Course_data.txt",
+          "outcome": "string, REQUIRED - parent outcome reference (e.g., 'O1')"
+        }
+      ],
+
+      "lesson_plan": {
+        "summary": "string, REQUIRED - 2-3 sentence overview of lesson pedagogical arc",
+
+        "card_structure": [
+          {
+            "card_number": "int, REQUIRED - sequential position (1, 2, 3...)",
+            "card_type": "string, REQUIRED - starter | explainer | modelling | guided_practice | independent_practice | exit_ticket",
+            "title": "string, REQUIRED - clear, teacher-facing card title",
+            "purpose": "string, REQUIRED - pedagogical goal for this card",
+            "standards_addressed": [
+              {
+                "code": "string, REQUIRED - assessment standard code (e.g., 'AS1.2')",
+                "description": "string, REQUIRED - full SQA description from Course_data.txt",
+                "outcome": "string, REQUIRED - parent outcome reference (e.g., 'O1')"
+              },
+              "CRITICAL: Use enriched objects with code/description/outcome, NOT bare codes",
+              "Rationale: Lesson Author needs full descriptions to generate assessment-aligned CFU questions and rubrics"
+            ],
+            "pedagogical_approach": "string, REQUIRED - detailed description of what happens in this card",
+            "key_concepts": ["array, optional - for explainer cards, list 3-5 key concepts"],
+            "worked_example": "string, optional - for modelling cards, detailed worked example with Scottish context",
+            "practice_problems": ["array, optional - for guided_practice cards, 2-4 problems with increasing complexity"],
+            "cfu_strategy": "string, REQUIRED - specific CFU type and prompt (e.g., 'MCQ: Which fraction equals 25%?')",
+            "misconceptions_addressed": [
+              {
+                "misconception": "string, optional - common student error",
+                "remediation": "string - correction strategy"
+              }
+            ],
+            "rubric_guidance": {
+              "total_points": "int, optional - total marks for this card's CFU",
+              "criteria": [
+                {"description": "string - criterion", "points": "int - marks"}
+              ]
+            },
+            "assessment_focus": "string, optional - for cards addressing multiple standards, which is primary vs secondary",
+            "estimated_minutes": "int, REQUIRED - realistic timing for this card (1-15 minutes typical)"
+          }
+        ],
+
+        "lesson_flow_summary": "string, REQUIRED - timeline showing card sequence and cumulative timing (e.g., '5min starter → 8min explainer → 10min modelling → 50 min total')",
+        "multi_standard_integration_strategy": "string, REQUIRED (for chunked lessons) - how multiple standards connect across cards",
+        "misconceptions_embedded_in_cards": ["array, REQUIRED - list which cards address which misconceptions"],
+        "assessment_progression": "string, REQUIRED - how assessment builds from formative CFU to summative practice"
+      },
+
+      "accessibility_profile": {
+        "dyslexia_friendly": "boolean, REQUIRED - emphasize dyslexia-friendly design",
+        "plain_language_level": "string, REQUIRED - target reading level (e.g., 'CEFR_B1')",
+        "extra_time": "boolean, REQUIRED - flag for extended time provision"
+      },
+
+      "estMinutes": "int, REQUIRED - estimated duration (25-50 minutes typical for Scottish periods)",
+      "lesson_instruction": "string, REQUIRED - clear instruction detailing lesson structure and teacher guidance"
+    }
+  ]
+}
+</schema_sow_with_field_descriptions>

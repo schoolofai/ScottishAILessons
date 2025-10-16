@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "appwrite": {
+      "type": "stdio",
+      "command": "env",
+      "args": [
+        "APPWRITE_PROJECT_ID=68adb98e0020be2e134f",
+        "env",
+        "APPWRITE_API_KEY=standard_929c5f632b2d4e1e4e787dddb6e4fa2dfc185d1ed56c573ed8e8b563790cfa6bf2b380eb0ab45875053a1c69c00e970e34e4bb9d21f076149e3ea04b7b22bf38427d9e05c74c3c7168618f5894b628a3c76c0987f7a4926ed853640637da1eb0e799a1a7b85ddc44933d2b6318e9a93fc9e14ab9bec7b1b579233adc7f490acd",
+        "env",
+        "APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1",
+        "uvx",
+        "mcp-server-appwrite",
+        "--databases"
+      ],
+      "env": {}
+    }
+  }
+}

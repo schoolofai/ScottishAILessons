@@ -1,0 +1,71 @@
+<dimension_1_coverage>
+## Dimension 1: Coverage (Threshold ≥0.90)
+
+**Purpose**: Evaluate breadth and depth of coverage for all official SQA units, outcomes, and assessment standards.
+
+**Criteria**:
+- Does the SoW cover ALL official units from Course_data.txt (`course_structure.units[]`)?
+- Does the SoW address ALL official outcomes from Course_data.txt (`outcomes[]`)?
+- Are ALL assessment standards from Course_data.txt represented (either individually or within consolidated lesson blocks)?
+- **CHUNKING ACCEPTANCE**: Accept that 2-3 (or up to 5) standards can be consolidated into unified lessons with thematic coherence.
+- For each consolidated lesson block, is there a **multi-lesson sequence** that includes:
+  * Mandatory teach→revision pairing (every teach lesson followed by revision lesson)
+  * formative_assessment → independent_practice after teach→revision pairs
+- **COURSE-LEVEL LESSON TYPE VALIDATION**:
+  * Does the SoW include at least one independent_practice lesson? (for mock exam prep)
+  * Does the SoW include exactly one mock_assessment lesson? (for real exam simulation)
+- **ENRICHED FORMAT**: Are assessmentStandardRefs objects (NOT bare strings) with code, description (from Course_data.txt), and outcome fields?
+- **LESSON PLAN DEPTH**: Does every entry have lesson_plan with detailed card_structure (6-12 cards)?
+  * Are card fields complete (card_number, card_type, title, purpose, standards_addressed, pedagogical_approach, cfu_strategy, estimated_minutes)?
+  * Do cards use enriched standards_addressed (code/description/outcome objects - NOT bare codes)?
+  * For chunked lessons, do cards progressively scaffold ALL consolidated standards?
+  * Are CFU strategies specific (not generic "ask questions")?
+  * Do card timings sum to estMinutes?
+- Does the SoW touch all major themes identified in the research pack?
+- Are there enough entries for the intended time window (should be ~10-20 lessons, NOT 80-100)?
+- Is there a realistic balance of lesson_type values?
+- Are prerequisites and progression realistic?
+
+**Process**:
+1) Check coverage of ALL units
+2) Check coverage of ALL outcomes
+3) Check coverage of ALL assessment standards (accepting chunking/consolidation):
+   - Each standard must appear in at least one entry's assessmentStandardRefs array
+   - For each consolidated lesson block, confirm lesson sequence exists
+4) Validate enriched format (assessmentStandardRefs are objects with code, description, outcome)
+5) **NEW**: Validate lesson_plan presence and depth for EACH entry:
+   - Extract lesson_plan.card_structure array
+   - Count cards (must be 6-12 for realistic lesson)
+   - For each card:
+     * Verify all required fields present
+     * Verify standards_addressed uses enriched objects (code/description/outcome) - NOT bare codes
+     * Verify pedagogical_approach is detailed, not generic
+     * Verify cfu_strategy is specific (not "ask questions")
+     * Check misconceptions_addressed if relevant card type
+   - Aggregate standards_addressed across all cards in lesson_plan
+   - Compare to entry's assessmentStandardRefs: all standards must appear in at least 2-3 cards
+   - Verify card timings sum to estMinutes (allow 5-min tolerance)
+6) Check breadth: major themes from research pack represented
+7) Check quantity: ~10-20 lessons (not 80-100)
+8) Check balance: lesson_type cadence is varied
+9) Validate lesson type requirements:
+   - Count teach lessons vs revision lessons (must be 1:1 ratio)
+   - Verify each teach lesson is paired with a revision lesson (teach→revision)
+   - Count independent_practice lessons (must be ≥1 at course level)
+   - Count mock_assessment lessons (must be exactly 1 at course level)
+
+**Issues to Flag**:
+- Missing units, outcomes, or assessment standards
+- Incomplete lesson sequences for consolidated blocks
+- Bare string codes instead of enriched objects (entry-level OR card-level)
+- **NEW**: Shallow lesson plans (< 6 cards per entry)
+- **NEW**: Missing or incomplete card fields (card_number, title, standards_addressed, etc.)
+- **NEW**: Cards using bare codes in standards_addressed instead of enriched objects
+- **NEW**: Poor standard mapping (cards don't address all consolidated standards)
+- **NEW**: Unrealistic timing (cards sum to 15min for a 50min lesson)
+- **NEW**: Generic CFU strategies ("ask questions" instead of specific prompts)
+- Insufficient lesson count or imbalanced lesson types
+- **NEW**: Teach→revision pairing violated (teach lesson without corresponding revision)
+- **NEW**: Missing course-level independent_practice lesson (required for mock exam prep)
+- **NEW**: Missing or multiple mock_assessment lessons (must be exactly 1)
+</dimension_1_coverage>

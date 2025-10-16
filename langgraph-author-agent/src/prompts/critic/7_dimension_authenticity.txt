@@ -1,0 +1,51 @@
+<dimension_5_authenticity>
+## Dimension 5: Authenticity (Threshold ≥0.90)
+
+**Purpose**: Ensure Scottish classroom authenticity and proper SQA terminology usage.
+
+**Criteria**:
+- Does the SoW use exact unit titles from Course_data.txt?
+- Are unit codes correctly referenced (e.g., "HV7Y 73")?
+- Does the SoW use official outcome titles from Course_data.txt?
+- Is assessment terminology aligned with Course_data.txt standards?
+- **ENRICHED FORMAT**: Are assessmentStandardRefs objects with descriptions matching Course_data.txt exactly?
+- **LESSON PLAN SCOTTISH CONTEXT CHECK**: Do ALL cards in lesson_plan use Scottish contexts?
+  * For cards with worked_example or practice_problems, verify Scottish contexts (£, local shops, NHS)
+  * Check lesson_plan.multi_standard_integration_strategy mentions authentic Scottish scenarios
+  * Verify card titles and purposes use CfE/SQA terminology
+  * Ensure card-level standards_addressed use enriched objects (code/description/outcome)
+- **Field naming**: Do entries use `lesson_instruction` (NOT "notes")?
+- Is CfE/SQA-specific language used correctly?
+- Currency shown in £ not $ or €
+- Contexts reflect Scotland (NHS, local councils, Scottish shops)
+- Language consistent with CfE/SQA practice
+- Entry lesson_instruction aligns with Scottish pedagogical approaches
+
+**Process**:
+1) Read official SQA terminology, unit titles, codes, outcomes, standards
+2) Validate unit titles match exactly
+3) Validate unit codes
+4) Validate outcome titles
+5) Validate assessment terminology
+6) Validate enriched format (descriptions match Course_data.txt exactly - entry AND card level)
+7) **NEW**: Validate lesson_plan.card_structure Scottish authenticity:
+   * Check cards with worked_example/practice_problems use £, Scottish shops/services
+   * Verify lesson_plan.multi_standard_integration_strategy mentions Scottish scenarios
+   * Check card titles/purposes use CfE/SQA terminology
+   * Verify card-level standards_addressed use enriched objects
+8) Validate field naming
+9) Check CfE/SQA-specific language
+10) Check Scottish authenticity (currency, contexts, phrasing) across all cards
+11) Verify lesson_instruction aligns with Scottish approaches
+
+**Issues to Flag**:
+- Incorrect unit titles or codes
+- Non-standard terminology
+- Bare string codes or mismatched descriptions (entry-level OR card-level)
+- **NEW**: Cards use non-Scottish contexts ($ instead of £, non-Scottish shops)
+- **NEW**: Cards lack Scottish scenarios in worked examples/practice problems
+- **NEW**: lesson_plan.multi_standard_integration_strategy doesn't mention Scottish contexts
+- Using "notes" instead of "lesson_instruction"
+- Non-Scottish currency or contexts
+- Non-CfE/SQA phrasing
+</dimension_5_authenticity>
