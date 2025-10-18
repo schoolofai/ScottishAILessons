@@ -64,14 +64,218 @@ export const StudentSchema = z.object({
   $sequence: z.number().optional()
 }).strict(false); // Allow additional fields
 
-// Lesson template schema - designed to match actual Appwrite data structure
+// ============================================
+// PHASE 1: CARD & CFU SCHEMAS
+// Complete schema for lesson cards with 4 CFU types
+// Matches Lesson Author Agent output structure
+// ============================================
+
+// SHARED SUB-SCHEMAS
+// ==================
+
+/**
+ * Rubric criterion - represents one scoring guideline
+ * Used across all CFU types for standardized assessment
+ */
+export const RubricCriterionSchema = z.object({
+  description: z.string()
+    .min(10, 'Criterion description must be at least 10 characters')
+    .max(200, 'Criterion description too long'),
+  points: z.number()
+    .int('Points must be a whole number')
+    .min(1, 'Points must be at least 1')
+    .max(10, 'Points cannot exceed 10')
+}).strict();
+
+/**
+ * Rubric - scoring scheme for a CFU question
+ * Provides breakdown of points and assessment criteria
+ */
+export const RubricSchema = z.object({
+  total_points: z.number()
+    .int('Total points must be a whole number')
+    .min(1, 'Rubric must be worth at least 1 point')
+    .max(20, 'Rubric cannot exceed 20 points'),
+  criteria: z.array(RubricCriterionSchema)
+    .min(1, 'Rubric must have at least one criterion')
+    .max(5, 'Rubric cannot have more than 5 criteria')
+}).strict();
+
+/**
+ * Misconception - anticipated student error with correction
+ * Supports proactive error prevention in pedagogy
+ */
+export const MisconceptionSchema = z.object({
+  id: z.string()
+    .regex(/^MISC_[A-Z]+_[A-Z]+_\d{3}$/,
+      'Misconception ID must match format: MISC_SUBJECT_TOPIC_###'),
+  misconception: z.string()
+    .min(10, 'Misconception description must be at least 10 characters')
+    .max(200, 'Misconception description too long'),
+  clarification: z.string()
+    .min(20, 'Clarification must be at least 20 characters')
+    .max(300, 'Clarification too long')
+}).strict();
+
+/**
+ * Progressive hints - sequence of increasingly helpful clues
+ * Used in numeric questions to support student learning
+ */
+export const HintArraySchema = z.array(
+  z.string()
+    .min(10, 'Each hint must be at least 10 characters')
+    .max(200, 'Each hint too long')
+)
+  .min(3, 'Must have at least 3 hints')
+  .max(5, 'Cannot have more than 5 hints');
+
+// CFU TYPE SCHEMAS - DISCRIMINATED UNION
+// =======================================
+
+/**
+ * MCQ CFU - Multiple Choice Question
+ * Use for: Quick concept checks, fact recall, misconception diagnosis
+ */
+export const MCQCFUSchema = z.object({
+  type: z.literal('mcq'),
+  id: z.string()
+    .regex(/^q\d{3}$/, 'Question ID must be format: q###'),
+  stem: z.string()
+    .min(10, 'Question stem must be at least 10 characters')
+    .max(500, 'Question stem too long'),
+  options: z.array(z.string().min(1).max(200))
+    .min(3, 'Must have at least 3 options')
+    .max(5, 'Cannot have more than 5 options'),
+  answerIndex: z.number()
+    .int('Answer index must be a whole number')
+    .min(0, 'Answer index cannot be negative')
+    .max(4, 'Answer index cannot exceed 4'),
+  rubric: RubricSchema
+}).strict();
+
+/**
+ * Numeric CFU - Numeric Answer Question
+ * Use for: Calculation problems with single numeric answer
+ * Supports currency formatting and progressive hints
+ */
+export const NumericCFUSchema = z.object({
+  type: z.literal('numeric'),
+  id: z.string()
+    .regex(/^q\d{3}$/, 'Question ID must be format: q###'),
+  stem: z.string()
+    .min(10, 'Question stem must be at least 10 characters')
+    .max(500, 'Question stem too long'),
+  expected: z.number()
+    .min(0, 'Expected answer cannot be negative'),
+  tolerance: z.number()
+    .min(0, 'Tolerance cannot be negative')
+    .max(1, 'Tolerance cannot exceed 1')
+    .default(0.01),
+  money2dp: z.boolean()
+    .optional()
+    .describe('Whether to enforce 2 decimal places for currency'),
+  rubric: RubricSchema,
+  hints: HintArraySchema.optional()
+}).strict();
+
+/**
+ * Structured Response CFU - Multi-part Written Answer
+ * Use for: Multi-step problems, show-your-working questions
+ */
+export const StructuredResponseCFUSchema = z.object({
+  type: z.literal('structured_response'),
+  id: z.string()
+    .regex(/^q\d{3}$/, 'Question ID must be format: q###'),
+  stem: z.string()
+    .min(10, 'Question stem must be at least 10 characters')
+    .max(800, 'Question stem too long (multi-part questions can be longer)'),
+  rubric: RubricSchema
+}).strict();
+
+/**
+ * Short Text CFU - Brief Written Response
+ * Use for: Definitions, brief explanations, single-sentence answers
+ */
+export const ShortTextCFUSchema = z.object({
+  type: z.literal('short_text'),
+  id: z.string()
+    .regex(/^q\d{3}$/, 'Question ID must be format: q###'),
+  stem: z.string()
+    .min(10, 'Question stem must be at least 10 characters')
+    .max(500, 'Question stem too long'),
+  rubric: RubricSchema
+}).strict();
+
+/**
+ * Discriminated union of all CFU types
+ * Provides type-safe routing based on CFU type
+ */
+export const CFUSchema = z.discriminatedUnion('type', [
+  MCQCFUSchema,
+  NumericCFUSchema,
+  StructuredResponseCFUSchema,
+  ShortTextCFUSchema
+]);
+
+// COMPLETE CARD SCHEMA
+// ====================
+
+/**
+ * Complete lesson card structure
+ * Matches Lesson Author Agent output
+ * Includes pedagogy fields: misconceptions, context hooks, accessible version
+ */
+export const LessonCardSchema = z.object({
+  id: z.string()
+    .regex(/^card_\d{3}$/, 'Card ID must be format: card_###'),
+  title: z.string()
+    .min(10, 'Card title must be at least 10 characters')
+    .max(100, 'Card title too long'),
+  explainer: z.string()
+    .min(100, 'Explainer must be at least 100 characters')
+    .max(2000, 'Explainer too long'),
+  explainer_plain: z.string()
+    .min(60, 'Plain explainer must be at least 60 characters')
+    .max(1600, 'Plain explainer too long')
+    .describe('CEFR A2-B1 accessible version for dyslexic/ESL learners'),
+  cfu: CFUSchema,
+  misconceptions: z.array(MisconceptionSchema)
+    .min(1, 'Card must have at least one anticipated misconception')
+    .max(3, 'Card should have at most 3 misconceptions'),
+  context_hooks: z.array(z.string().min(10).max(100))
+    .optional()
+    .default([])
+    .describe('Implementation notes documenting Scottish context choices')
+}).strict();
+
+// PHASE 2: LESSON TEMPLATE SCHEMA WITH NEW FIELDS
+// ================================================
+
+/**
+ * Lesson policy - constraints and rules for lesson
+ * Controls calculator availability and assessment rules
+ */
+export const LessonPolicySchema = z.object({
+  calculator_allowed: z.boolean()
+    .describe('Whether calculators are permitted in this lesson'),
+  assessment_notes: z.string()
+    .max(500, 'Assessment notes too long')
+    .optional()
+    .describe('Additional guidance for teacher/agent')
+}).strict();
+
+/**
+ * Complete lesson template schema
+ * Matches Appwrite lesson_templates collection
+ * Includes agent-specific and pedagogical fields
+ */
 export const LessonTemplateSchema = z.object({
   $id: z.string(), // Remove strict IdSchema validation
   courseId: z.string(), // Allow spaces in course ID like "C844 73"
   title: createSecureStringSchema(1, 200, 'Lesson title'),
 
   // SOW order for deterministic template identification (courseId + sow_order = unique)
-  sow_order: z.number().int().min(1).max(1000).optional(),
+  sow_order: z.number().int().min(1).max(1000),
 
   // Handle JSON string that needs parsing (Appwrite stores as string)
   outcomeRefs: z.union([
@@ -87,28 +291,84 @@ export const LessonTemplateSchema = z.object({
     })
   ]),
 
-  // Handle JSON string for cards (Appwrite stores as string)
+  // Handle JSON string for cards (Appwrite stores as string or compressed base64)
   cards: z.union([
-    z.array(z.any()), // Already parsed array
+    z.array(LessonCardSchema), // Already parsed array of cards
     z.string().transform(str => {
+      // Detect compressed format (base64 gzip)
+      if (str.startsWith('H4sI')) {
+        // Compressed format - pass through for decompression
+        return str;
+      }
+      // Try JSON parsing
       try {
         return JSON.parse(str);
       } catch {
         return [];
       }
     })
-  ]).optional(),
+  ]).default([]),
 
-  // Handle null estMinutes (Appwrite can store null)
+  // Lesson duration - required field
   estMinutes: z.union([
-    z.number().int().min(5).max(120),
-    z.null().transform(() => 30), // Default to 30 minutes if null
-    z.string().transform(str => parseInt(str, 10) || 30)
-  ]).nullable().optional(),
+    z.number().int().min(30).max(90),
+    z.null().transform(() => 50), // Default to 50 minutes if null
+    z.string().transform(str => parseInt(str, 10) || 50)
+  ]).default(50),
 
-  status: z.enum(['draft', 'published']).default('draft'), // Match Appwrite enum
+  // PHASE 3 NEW FIELDS - Pedagogical and Publishing
+  // ================================================
+
+  /**
+   * Lesson type - determines pedagogy structure
+   * Added by migrateLessonTemplates.ts
+   */
+  lesson_type: z.enum([
+    'teach',
+    'independent_practice',
+    'formative_assessment',
+    'revision',
+    'mock_exam'
+  ]).describe('Pedagogical category determining lesson structure'),
+
+  /**
+   * Engagement tags - Scottish contexts and real-world connections
+   * Added by migrateLessonTemplates.ts
+   */
+  engagement_tags: z.union([
+    z.array(z.string()),
+    z.string().transform(str => {
+      try {
+        const parsed = JSON.parse(str);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    })
+  ]).default([])
+    .describe('Scottish contexts and real-world connections'),
+
+  /**
+   * Lesson policy - constraints and assessment rules
+   * Added by migrateLessonTemplates.ts
+   */
+  policy: z.union([
+    LessonPolicySchema,
+    z.string().transform(str => {
+      try {
+        return JSON.parse(str);
+      } catch {
+        return { calculator_allowed: false };
+      }
+    })
+  ]).default({ calculator_allowed: false }),
+
+  // Status with new 'review' state for human-in-the-loop
+  status: z.enum(['draft', 'review', 'published']).default('draft'),
+
+  // Existing optional fields
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']).optional(),
-  prerequisites: z.array(z.string()).default([]), // Simplified
+  prerequisites: z.array(z.string()).default([]),
 
   // Appwrite timestamps - flexible handling
   $createdAt: z.string().optional(),
@@ -117,12 +377,20 @@ export const LessonTemplateSchema = z.object({
   updatedAt: z.string().optional(),
 
   // Appwrite-specific fields that exist in the database
-  version: z.number().optional(),
-  createdBy: z.string().optional(),
+  version: z.number().int().default(1),
+  createdBy: z.string().default('lesson_author_agent'),
   $sequence: z.number().optional(),
   $permissions: z.array(z.any()).optional(),
   $databaseId: z.string().optional(),
-  $collectionId: z.string().optional()
+  $collectionId: z.string().optional(),
+
+  // Model versioning fields (added by add-lesson-template-versioning.ts migration)
+  authored_sow_id: z.string().max(50).optional()
+    .describe('Foreign key to Authored_SOW collection'),
+  authored_sow_version: z.string().max(20).optional()
+    .describe('Denormalized version string from Authored_SOW'),
+  model_version: z.string().max(50).optional()
+    .describe('AI model identifier (e.g., gpt4, claude-sonnet-4, legacy)')
 }).passthrough(); // Allow any additional fields from Appwrite
 
 // Scheme of Work entry schema
@@ -285,6 +553,9 @@ export const DatabaseCollections = {
 } as const;
 
 // Export types inferred from schemas
+// ===================================
+
+// Core data models
 export type Course = z.infer<typeof CourseSchema>;
 export type Student = z.infer<typeof StudentSchema>;
 export type LessonTemplate = z.infer<typeof LessonTemplateSchema>;
@@ -298,6 +569,18 @@ export type CourseRecommendation = z.infer<typeof CourseRecommendationSchema>;
 export type SchedulingContext = z.infer<typeof SchedulingContextSchema>;
 export type SchedulingConstraints = z.infer<typeof SchedulingConstraintsSchema>;
 export type APIError = z.infer<typeof APIErrorSchema>;
+
+// Card and CFU types (Phase 1 & 2)
+export type RubricCriterion = z.infer<typeof RubricCriterionSchema>;
+export type Rubric = z.infer<typeof RubricSchema>;
+export type Misconception = z.infer<typeof MisconceptionSchema>;
+export type LessonCard = z.infer<typeof LessonCardSchema>;
+export type LessonPolicy = z.infer<typeof LessonPolicySchema>;
+export type MCQCFU = z.infer<typeof MCQCFUSchema>;
+export type NumericCFU = z.infer<typeof NumericCFUSchema>;
+export type StructuredResponseCFU = z.infer<typeof StructuredResponseCFUSchema>;
+export type ShortTextCFU = z.infer<typeof ShortTextCFUSchema>;
+export type CFU = z.infer<typeof CFUSchema>;
 
 // Validation helper functions
 export const validateCollection = <T extends keyof typeof DatabaseCollections>(

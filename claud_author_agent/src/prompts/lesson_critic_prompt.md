@@ -136,14 +136,23 @@ You have access to these tools:
 ## DIMENSION 5: COHERENCE (Weight: 0.15, Threshold: ≥0.85)
 
 ### Criteria:
-- **Outcome/Assessment Standard Mapping**: Does lesson_template.outcomeRefs match sow_entry.outcomeRefs? Does assessmentStandardRefs match? Are all standards addressed by CFUs?
+- **Outcome/Assessment Standard Mapping (v2 Transformation)**: Does lesson_template.outcomeRefs = sow_entry.outcomeRefs + codes from sow_entry.assessmentStandardRefs? (v2 requires combining both arrays into single outcomeRefs field - NO separate top-level assessmentStandardRefs field should exist in output). Are all standards addressed by CFUs?
 - **Lesson Type Consistency**: Does lesson_template.lesson_type match sow_entry.lesson_type? Do card structures align with lesson_type expectations?
 - **Timing Estimates**: Does lesson_template.estMinutes match sow_entry.estMinutes? Is card count realistic for time allocation?
 - **Engagement Tags Consistency**: Does lesson_template.engagement_tags match sow_entry.engagement_tags? Are tags reflected in CFU contexts?
-- **Policy Alignment**: Does policy.calculator_allowed align with sow_entry.policy.calculator_section? Does policy align with course-level policy_notes? (Non-calc→false, calc→true, mixed→varies by card)
+- **Policy Alignment (v2 Transformation)**: Does policy.calculator_allowed correctly transform sow_entry.policy.calculator_section? (v2 transformation: "noncalc"→false, "calc"→true, "mixed"→false or varies by card). Does policy align with course-level policy_notes?
 - **Sequencing Alignment**: Does lesson position align with sequencing_notes? Are prerequisites handled per spiral curriculum approach?
 - **Title Alignment**: Does lesson_template.title match sow_entry.label?
 - **Course ID Consistency**: Is courseId consistent between template and SoW?
+- **Schema Validation (v2 Required)**:
+  - [ ] NO forbidden fields in output: assessmentStandardRefs (top-level), accessibility_profile, coherence, calculator_section
+  - [ ] createdBy = "lesson_author_agent" (exact value, not "claude" or "AI")
+  - [ ] sow_order = sow_entry.order (integer, ≥1)
+  - [ ] version exists (integer, default 1)
+  - [ ] status exists (string, default "draft")
+  - [ ] All cards have required fields: id, title, explainer, explainer_plain, cfu, rubric, misconceptions
+  - [ ] Each CFU has required fields: type, id, stem (not question_text)
+  - [ ] Each rubric has: total_points, criteria array
 
 ### Scoring Formula (0.0-1.0):
 - Outcome/standard mapping: 0.25
@@ -169,12 +178,12 @@ You have access to these tools:
 
 2. **Content Preservation**:
    - **Worked examples**: If SOW card has `worked_example`, it MUST appear in template explainer content
-   - **Practice problems**: SOW `practice_problems` MUST be used in template CFU question_text
+   - **Practice problems**: SOW `practice_problems` MUST be used in template CFU stem
    - **Key concepts**: SOW `key_concepts` MUST be covered in template explainers
    - **Misconceptions**: SOW `misconceptions_addressed` MUST be transformed into template hints
 
-3. **Standard Coverage**:
-   - All `assessmentStandardRefs` from SOW MUST appear in template
+3. **Standard Coverage** (v2 Transformation):
+   - All CODES from SOW `assessmentStandardRefs` MUST appear in template's `outcomeRefs` array (v2: NO separate top-level assessmentStandardRefs field should exist)
    - Template rubrics MUST reference the enriched standard descriptions (not bare codes)
    - SOW card `standards_addressed` MUST map to template rubric criteria
 
@@ -195,11 +204,11 @@ You have access to these tools:
 3. Compare card counts: Count SOW cards vs template cards (should be within ±1)
 4. Check content preservation:
    - For each SOW card with `worked_example`: Grep for key phrases in template explainer content
-   - For each SOW card with `practice_problems`: Check if problems appear in template CFU question_text
+   - For each SOW card with `practice_problems`: Check if problems appear in template CFU stem
    - For each SOW card with `misconceptions_addressed`: Verify hints exist in template
-5. Validate standard coverage:
+5. Validate standard coverage (v2):
    - Extract all SOW assessmentStandardRefs codes
-   - Verify all codes appear in template assessmentStandardRefs
+   - Verify all codes appear in template's `outcomeRefs` array (NOT in separate assessmentStandardRefs field)
    - Check template rubrics reference standard descriptions (not just codes)
 6. Check Scottish context:
    - Verify £ currency maintained (not changed to $)
@@ -217,11 +226,13 @@ You have access to these tools:
 
 **Common Issues to Flag**:
 - ❌ "SOW card 3 has worked_example but template card_003 explainer is generic (worked example not used)"
-- ❌ "SOW card 4 has practice_problems but template card_004 CFU uses different question"
+- ❌ "SOW card 4 has practice_problems but template card_004 CFU stem uses different question"
 - ❌ "SOW card 4 misconceptions not transformed into hints"
 - ❌ "Template has 3 cards but SOW card_structure has 5 cards (missing 2 pedagogical moments)"
 - ❌ "SOW uses £ but template changed to $ in CFU"
 - ❌ "SOW cfu_strategy says 'MCQ' but template uses structured_response"
+- ❌ "Forbidden field 'assessmentStandardRefs' appears in template output (v2: should be merged into outcomeRefs)"
+- ❌ "createdBy = 'claude' instead of required 'lesson_author_agent'"
 
 **Pass Condition**: score ≥ 0.90
 
@@ -280,11 +291,11 @@ You have access to these tools:
    - Check pedagogical flow preservation: lesson_flow_summary alignment
    - Validate content preservation:
      * Worked examples from SOW cards appear in template explainer content
-     * Practice problems from SOW used in template CFU question_text
+     * Practice problems from SOW used in template CFU stem
      * Key concepts from SOW covered in template explainers
      * Misconceptions from SOW transformed into template hints
-   - Verify standard coverage:
-     * All SOW assessmentStandardRefs appear in template
+   - Verify standard coverage (v2):
+     * All SOW assessmentStandardRefs CODES appear in template's outcomeRefs array (NOT as separate field)
      * Template rubrics reference enriched standard descriptions
      * SOW card standards_addressed map to template rubric criteria
    - Check Scottish context preservation:
@@ -296,7 +307,8 @@ You have access to these tools:
      * CFU question wording aligns with SOW cfu_strategy text
    - Calculate sow_template_fidelity_score (0.0-1.0)
 10) **Calculate overall_score**:
-   - overall_score = (0.15 × pedagogical_design_score) + (0.20 × assessment_design_score) + (0.15 × accessibility_score) + (0.15 × scottish_context_score) + (0.10 × coherence_score) + (0.25 × sow_template_fidelity_score)
+   - overall_score = (0.20 × pedagogical_design_score) + (0.20 × assessment_design_score) + (0.20 × accessibility_score) + (0.20 × scottish_context_score) + (0.10 × coherence_score) + (0.10 × sow_template_fidelity_score)
+   - Weights sum to 1.00 (adjusted from dimension declarations to include fidelity in overall score)
 11) **Determine pass/fail**:
    - pass = true IF:
      * pedagogical_design_score ≥ 0.85 AND

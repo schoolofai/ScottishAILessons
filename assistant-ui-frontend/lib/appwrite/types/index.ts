@@ -30,6 +30,112 @@ export interface Enrollment {
   status: 'active' | 'completed' | 'withdrawn';
 }
 
+// ============================================
+// PHASE 1-3: CARD & CFU TYPE INTERFACES
+// Complete TypeScript types for cards and CFUs
+// ============================================
+
+/**
+ * Rubric criterion - one scoring guideline
+ */
+export interface RubricCriterion {
+  description: string;
+  points: number;
+}
+
+/**
+ * Rubric - scoring scheme for assessment
+ */
+export interface Rubric {
+  total_points: number;
+  criteria: RubricCriterion[];
+}
+
+/**
+ * Misconception - anticipated student error with correction
+ */
+export interface Misconception {
+  id: string; // Format: MISC_SUBJECT_TOPIC_###
+  misconception: string;
+  clarification: string;
+}
+
+/**
+ * Multiple Choice Question CFU
+ */
+export interface MCQCFU {
+  type: 'mcq';
+  id: string;
+  stem: string;
+  options: string[];
+  answerIndex: number;
+  rubric: Rubric;
+}
+
+/**
+ * Numeric Answer CFU with hints and currency support
+ */
+export interface NumericCFU {
+  type: 'numeric';
+  id: string;
+  stem: string;
+  expected: number;
+  tolerance: number;
+  money2dp?: boolean;
+  rubric: Rubric;
+  hints?: string[];
+}
+
+/**
+ * Structured (multi-part) Response CFU
+ */
+export interface StructuredResponseCFU {
+  type: 'structured_response';
+  id: string;
+  stem: string;
+  rubric: Rubric;
+}
+
+/**
+ * Short Text Response CFU
+ */
+export interface ShortTextCFU {
+  type: 'short_text';
+  id: string;
+  stem: string;
+  rubric: Rubric;
+}
+
+/**
+ * Union of all CFU types
+ */
+export type CFU = MCQCFU | NumericCFU | StructuredResponseCFU | ShortTextCFU;
+
+/**
+ * Complete lesson card structure
+ * Includes pedagogy fields: misconceptions, context hooks, accessible version
+ */
+export interface LessonCard {
+  id: string;
+  title: string;
+  explainer: string;
+  explainer_plain: string; // CEFR A2-B1 accessible version
+  cfu: CFU;
+  misconceptions: Misconception[];
+  context_hooks?: string[];
+}
+
+/**
+ * Lesson policy - constraints and rules
+ */
+export interface LessonPolicy {
+  calculator_allowed: boolean;
+  assessment_notes?: string;
+}
+
+/**
+ * Complete lesson template
+ */
 export interface LessonTemplate {
   $id: string;
   $createdAt: string;
@@ -37,56 +143,43 @@ export interface LessonTemplate {
   templateId: string;
   title: string;
   courseId: string;
-  outcomeRefs: string; // JSON string - Phase 3: now contains {outcomes, assessmentStandards}
-  cards: string; // JSON string
+  outcomeRefs: string; // JSON string
+  cards: string; // JSON string (or compressed base64)
   version: number;
-  status: 'draft' | 'published' | 'archived';
+  sow_order: number;
+  status: 'draft' | 'review' | 'published';
+  createdBy: string;
+  estMinutes: number;
 
-  // NEW FIELDS - Phase 3 MVP2.5
-  lesson_type?: string; // 'teach' | 'independent_practice' | etc
-  estMinutes?: number;
-  engagement_tags?: string; // JSON array of authentic context tags
-  policy?: string; // JSON object - contains calculator_section, assessment_notes, accessibility
+  // Phase 3 MVP2.5 fields
+  lesson_type: 'teach' | 'independent_practice' | 'formative_assessment' | 'revision' | 'mock_exam';
+  engagement_tags: string; // JSON array of context tags
+  policy: string; // JSON object with calculator_allowed, assessment_notes
+
+  // Model versioning fields
+  authored_sow_id?: string;
+  authored_sow_version?: string;
+  model_version?: string;
 }
 
-export interface LessonCard {
-  id: string;
-  title: string;
-  explainer: string;
-  example?: string[];
-  cfu: {
-    type: "numeric" | "mcq";
-    id: string;
-    stem: string;
-    expected?: number | string;
-    tolerance?: number;
-    options?: string[];
-    answerIndex?: number;
-  };
-}
-
+/**
+ * Lesson snapshot - runtime lesson state with all data
+ * Used during teaching session
+ */
 export interface LessonSnapshot {
   title: string;
   outcomeRefs: Array<{ unit: string; outcome: string; label: string }>;
-  assessmentStandardRefs?: string[]; // NEW - Phase 3
-  cards: LessonCard[];
+  assessmentStandardRefs?: string[];
+  cards: LessonCard[]; // Now uses complete LessonCard type with all CFU types
   templateVersion?: number;
-  courseId?: string; // Added for teaching context
-  lessonTemplateId?: string; // Added for teaching context
+  courseId?: string;
+  lessonTemplateId?: string;
 
-  // NEW FIELDS - Phase 3 MVP2.5
-  lesson_type?: string;
-  estMinutes?: number;
-  engagement_tags?: string[];
-  policy?: {
-    calculator_section?: 'calc' | 'non_calc' | 'mixed';
-    assessment_notes?: string;
-    accessibility?: {
-      dyslexia_friendly?: boolean;
-      plain_language_level?: string;
-      extra_time?: boolean;
-    };
-  };
+  // Phase 3 MVP2.5 required fields
+  lesson_type: 'teach' | 'independent_practice' | 'formative_assessment' | 'revision' | 'mock_exam';
+  estMinutes: number;
+  engagement_tags: string[];
+  policy: LessonPolicy;
 }
 
 export interface Session {

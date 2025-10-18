@@ -31,8 +31,8 @@ class LessonAuthorClaudeAgent:
 
     Pipeline execution (3 subagents):
     2. Research Subagent → Answers clarifications with Scottish context (WebSearch/WebFetch)
-    3. Lesson Author → Creates lesson_template.json (main authoring agent)
-    4. Combined Lesson Critic → Validates across 6 dimensions (with retry)
+    3. Lesson Author v2 → Creates lesson_template.json (main authoring agent)
+    4. Combined Lesson Critic v2 → Validates transformation fidelity + schema compliance (with retry)
 
     Post-processing (Python):
     5. Lesson Upserter → Writes to default.lesson_templates (Python utility)
@@ -105,11 +105,11 @@ class LessonAuthorClaudeAgent:
             ),
             "lesson_author": AgentDefinition(
                 description="Lesson author for creating complete lesson templates",
-                prompt=(prompts_dir / "lesson_author_prompt.md").read_text()
+                prompt=(prompts_dir / "lesson_author_prompt_v2.md").read_text()
             ),
             "combined_lesson_critic": AgentDefinition(
-                description="Combined lesson critic for validating lesson quality across 6 dimensions",
-                prompt=(prompts_dir / "lesson_critic_prompt.md").read_text()
+                description="Combined lesson critic v2 for validating transformation fidelity and schema compliance",
+                prompt=(prompts_dir / "lesson_critic_prompt_v2.md").read_text()
             )
         }
 
@@ -463,8 +463,13 @@ Execute the following workflow with 3 available subagents:
   * "What is the I-We-You pedagogy progression for teaching mathematics?"
   * "Find exemplar National 5 mock exam question structures"
 
-### 4. Combined Lesson Critic (with retry loop)
-- **Task**: Validate lesson across 6 dimensions
+### 4. Combined Lesson Critic v2 (with retry loop)
+- **Task**: Validate transformation fidelity (75%) and schema compliance (GATE)
+- **Validation Strategy**:
+  - **Schema Gate**: Hard pass/fail on v2 schema requirements (ANY violation = instant fail)
+  - **Dimension 1**: SOW-Template Fidelity (75% weight, ≥0.90 threshold) - Did lesson author preserve ALL SOW content?
+  - **Dimension 2**: Basic Quality Checks (25% weight, ≥0.80 threshold) - Minimum quality requirements met?
+  - **Focus**: Trust SOW author's pedagogy, validate transformation completeness + schema correctness
 - **Inputs**:
   - `/workspace/lesson_template.json` (from step 2)
   - `/workspace/sow_entry_input.json` (pre-loaded)

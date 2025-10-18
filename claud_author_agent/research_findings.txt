@@ -1,0 +1,697 @@
+# RESEARCH FINDINGS: National 4 Applications of Mathematics AVU Test Preparation
+Date: 2025-10-17
+Purpose: Supporting lesson authoring for AVU mock exam (60 minutes, ~43 marks, Part 1 non-calculator + Part 2 calculator)
+
+================================================================================
+SECTION 1: AVU TEST STRUCTURE & EXEMPLAR QUESTIONS
+================================================================================
+
+## Official SQA Information
+
+**Key Finding**: National 4 qualifications are internally assessed. Unlike National 5, Higher, and Advanced Higher levels, National 4 does NOT have publicly available specimen papers or past papers from SQA.
+
+**Access to Official Materials**:
+- Unit assessment tasks and exemplar evidence are CONFIDENTIAL documents
+- Available through SQA Secure Site via school's SQA Co-ordinator
+- Official documents include: Course specifications, Unit specifications (Managing Finance & Statistics; Geometry & Measures), AVU specifications, Course Support Notes
+
+**Unofficial Practice Resources** (found via maths.scot, school websites):
+- Grangemouth HS: AVU non-calculator and calculator practice tests
+- Madras College: AVU practice papers
+- St Andrew's Academy: AVU practice packs
+- Dynamic Maths: Automatically generated AVU Paper 1 (non-calculator) practice tests
+
+## Typical AVU Structure (based on school practice materials)
+
+**Format**:
+- Part 1: Non-calculator section (~20 marks, 25-30 minutes)
+- Part 2: Calculator section (~23 marks, 30-35 minutes)
+- Total: ~43 marks over 60 minutes
+- Assessment across all three units: Managing Finance & Statistics, Geometry & Measures, Numeracy
+
+**Mark Allocation Pattern**:
+- 1 mark ≈ 1-1.5 minutes of work
+- Questions typically worth 1-4 marks each
+- Mix of basic recall (1 mark), procedural (2-3 marks), and application (3-4 marks)
+
+## Exemplar Question Types by Topic Area
+
+### PART 1: NON-CALCULATOR SECTION (~20 marks)
+
+**Finance & Percentages (6-8 marks)**:
+1. **Basic Pay Calculation** (2 marks)
+   - Example: "Sarah works 35 hours per week at £12.50 per hour. Calculate her weekly pay."
+   - Method: 35 × £12.50 = £437.50
+
+2. **Percentage Discount** (3 marks)
+   - Example: "A jacket costs £85. In a sale, it is reduced by 20%. Calculate the sale price."
+   - Method: 20% of £85 = £17; Sale price = £85 - £17 = £68
+
+3. **Simple Interest** (2 marks)
+   - Example: "Calculate the simple interest on £500 at 3% per year for 2 years."
+   - Method: Interest = £500 × 0.03 × 2 = £30
+
+**Measurement Conversions (4-5 marks)**:
+4. **Length/Weight/Volume Conversions** (1-2 marks each)
+   - Example: "Convert 3.5 metres to centimetres" (Answer: 350 cm)
+   - Example: "A recipe needs 750ml of milk. How many litres is this?" (Answer: 0.75 L)
+
+**Data Reading & Basic Statistics (4-5 marks)**:
+5. **Reading Tables/Charts** (2 marks)
+   - Example: "The table shows temperatures in Glasgow over 5 days. What was the mean temperature?"
+   - Mon: 12°C, Tue: 14°C, Wed: 11°C, Thu: 13°C, Fri: 15°C
+   - Mean = (12+14+11+13+15) ÷ 5 = 13°C
+
+6. **Range Calculation** (1 mark)
+   - Example: "Find the range of temperatures" (Answer: 15-11 = 4°C)
+
+**Fractions & Mental Arithmetic (4-5 marks)**:
+7. **Fraction of Amount** (2 marks)
+   - Example: "Find 3/4 of £60" (Answer: £45)
+
+8. **Order of Operations** (2 marks)
+   - Example: "Calculate: 5 + 3 × 4" (Answer: 17, not 32)
+
+### PART 2: CALCULATOR SECTION (~23 marks)
+
+**Complex Finance (8-10 marks)**:
+9. **Gross/Net Pay with Deductions** (4 marks)
+   - Example: "Jamie earns £2,400 gross per month. He pays 20% income tax and £200 National Insurance. Calculate his net pay."
+   - Tax = £2,400 × 0.20 = £480
+   - Net = £2,400 - £480 - £200 = £1,720
+
+10. **Percentage Increase/Decrease Problems** (3 marks)
+    - Example: "ScotRail increased ticket prices from £18 to £21.60. Calculate the percentage increase."
+    - Increase = £21.60 - £18 = £3.60
+    - Percentage = (£3.60 ÷ £18) × 100 = 20%
+
+11. **Comparing Deals/Best Value** (3 marks)
+    - Example: "Tesco sells 500g pasta for £1.20. Sainsbury's sells 750g pasta for £1.65. Which is better value?"
+    - Tesco: £1.20 ÷ 500g = £0.0024 per gram
+    - Sainsbury's: £1.65 ÷ 750g = £0.0022 per gram (better value)
+
+**Geometry & Measures (8-10 marks)**:
+12. **Area of Rectangles/Triangles** (3 marks)
+    - Example: "A rectangular garden is 12m long and 8m wide. Calculate the area."
+    - Area = 12 × 8 = 96 m²
+
+13. **Volume of Cuboids** (3 marks)
+    - Example: "A storage box is 50cm long, 30cm wide, and 20cm high. Calculate the volume."
+    - Volume = 50 × 30 × 20 = 30,000 cm³
+
+14. **Pythagoras Theorem** (4 marks)
+    - Example: "A ladder leans against a wall. The ladder is 5m long and the base is 3m from the wall. How high up the wall does the ladder reach?"
+    - a² + b² = c²; 3² + b² = 5²; 9 + b² = 25; b² = 16; b = 4m
+
+**Data Analysis & Probability (5-7 marks)**:
+15. **Mean from Frequency Table** (3 marks)
+    - Example: "Calculate the mean number of goals scored by Rangers over 10 matches"
+    - Frequency table given; Mean = total goals ÷ 10
+
+16. **Probability as Percentage/Decimal** (2 marks)
+    - Example: "A spinner has 8 equal sections: 3 red, 2 blue, 3 green. What is the probability of landing on red as a percentage?"
+    - P(red) = 3/8 = 0.375 = 37.5%
+
+17. **Experimental vs Theoretical Probability** (2 marks)
+    - Example: "A coin was flipped 50 times. It landed on heads 28 times. What is the relative frequency?"
+    - Relative frequency = 28/50 = 0.56 = 56%
+
+================================================================================
+SECTION 2: SCOTTISH CONTEXTS FOR PROBLEM DESIGN
+================================================================================
+
+## A. FINANCE CONTEXTS
+
+### Supermarkets & Shopping (Glasgow/Edinburgh)
+**Major Chains**: Tesco, Sainsbury's, Aldi, Lidl, Asda, Morrisons, Co-op
+
+**Typical Pricing (2024-2025)**:
+- Meal deals: £3.85-£4.25 (Tesco Clubcard: £3.85; Sainsbury's: £3.95)
+- Weekly grocery spend: £57.60 average (Scotland)
+- Coffee: £2.50-£3.50
+- Sandwich: £3-£5
+
+**Problem Examples**:
+- "Tesco reduces meal deals from £4.25 to £3.85 for Clubcard members. Calculate the percentage discount."
+- "Aldi is Scotland's cheapest supermarket. A basket costs £45 at Aldi and £52 at Sainsbury's. How much do you save shopping at Aldi?"
+
+### Wages & Employment
+**Scottish Minimum Wage (2024)**:
+- Age 21+: £11.44 per hour
+- Age 18-20: £8.60 per hour
+- Apprentice: £6.40 per hour
+
+**Problem Examples**:
+- "Alex works 25 hours per week at Tesco earning £11.44 per hour. Calculate his weekly gross pay."
+- "Sarah earns £11.44 per hour for 35 hours, then time-and-a-half for 5 hours overtime. Calculate her total weekly pay."
+
+### Energy Bills (Scottish Households)
+**Energy Price Cap (April-June 2024)**: £1,690/year for typical household
+- Monthly average: £141
+- Electricity: 27.03p per kWh (standing charge 53.80p/day)
+- Gas: 6.99p per kWh (standing charge 32.67p/day)
+
+**Problem Examples**:
+- "Scottish Power charges £141 per month for energy. If prices increase by 8%, what is the new monthly cost?"
+- "A Glasgow household uses 400 kWh of electricity per month at 27p per kWh. Calculate the monthly cost (ignore standing charge)."
+
+### Mobile Phone Plans (Scottish Providers)
+**O2 (2024 Pricing)**:
+- Starter Plan: £20/month (1GB data)
+- Classic Plan: £26/month (20GB data)
+- Unlimited Plan: £36/month
+
+**Problem Examples**:
+- "Jamie pays £26/month for O2 Classic. After 12 months, how much has he spent?"
+- "Vodafone offers £24/month for 10GB. O2 offers £26/month for 20GB. Which plan offers better value per GB?"
+
+## B. TRANSPORT CONTEXTS
+
+### ScotRail (Train Travel)
+**Routes & Pricing (2024)**:
+- Edinburgh to Glasgow: £16.80 (return fare basis), advance tickets from £9
+- **Important**: Peak fares abolished September 2024 - now one flat fare all day
+- Some journeys reduced by nearly 50% after peak removal
+
+**Problem Examples**:
+- "A ScotRail advance ticket from Edinburgh to Glasgow costs £12, saving 25% on the standard fare. Calculate the original price."
+- "Before September 2024, peak fares were £26. After peak removal, all fares are £16.80. Calculate the percentage saving."
+
+### Lothian Buses (Edinburgh)
+**Fares (2024-2025)**:
+- Single: £2 (children £1) - increased to £2.20 adult / £1.10 child in April 2025
+- Day ticket: £5 adult (£2.50 child) - increased to £5.50 / £2.75
+- Contactless daily cap: £4.80
+- Family day ticket: £10.50 (2 adults + 3 children)
+- Network day ticket (bus + tram): £12 adult / £6 child
+
+**Problem Examples**:
+- "A student travels to school 5 days per week using Lothian Buses singles at £2.20 each way. Would a weekly ticket for £22 save money?"
+- "Emma makes 4 bus journeys in Edinburgh at £2.20 each. Should she buy single tickets (total £8.80) or a day ticket (£5.50)?"
+
+### Edinburgh Trams
+**Fares**: Similar to Lothian Buses pricing structure
+- Single: £2 (city zone)
+- Day ticket integration with buses
+
+## C. ENTERTAINMENT & LEISURE
+
+### Cinema Tickets (Edinburgh/Glasgow)
+**Pricing (2024)**:
+- Vue Edinburgh: from £7.99 (online)
+- Odeon: discount tickets from £6.99
+- Cineworld: promotional offers (2 for £9 via Wowcher)
+- Standard pricing: £8-£12 typical
+- Meerkat Movies: 2-for-1 on Tuesdays/Wednesdays
+
+**Problem Examples**:
+- "Vue tickets cost £7.99 online but £10.50 at the box office. Calculate the percentage saving for booking online."
+- "Four friends go to Odeon. Using Meerkat Movies, they get 2-for-1 tickets at £9 each. How much do they save compared to buying 4 tickets at full price?"
+
+### Scottish Football (Rangers/Celtic)
+**Ticket Pricing (2024)**:
+- Scottish Premiership general tickets: £33-£134 face value
+- Old Firm Derby (Rangers vs Celtic): Premium pricing, high demand
+- Season ticket pricing varies by club
+
+**Problem Examples**:
+- "Rangers season ticket costs £420 for 19 home games. Calculate the cost per game."
+- "Celtic Park holds 60,832 fans. If 85% of seats are sold at an average of £45 each, calculate total ticket revenue."
+
+### Edinburgh Attractions
+**Pricing (2024)**:
+- Edinburgh Castle: Part of Royal Edinburgh Ticket package (saves 25%)
+- Edinburgh Zoo: Online booking discounts available, concessions for students
+- Royal Mile: Free to walk, shops with varied pricing
+
+**Problem Examples**:
+- "The Royal Edinburgh Ticket costs £58 and includes Castle (£21), Palace (£20), and Britannia (£18). Calculate the total saving vs buying separately."
+
+## D. STATISTICS CONTEXTS (Scottish Data)
+
+### Weather Data
+**Glasgow Annual Averages**:
+- Temperature: 8.1°C mean annual
+- Rainfall: 1,228mm per year (48.3 inches)
+- Wettest month: January (124mm)
+- Driest month: April (83mm)
+- Warmest month: July (14.2°C)
+
+**Edinburgh Annual Averages**:
+- Temperature: 8.3°C mean annual
+- Rainfall: 868mm per year (34.2 inches) - significantly drier than Glasgow
+- Wettest month: October (85mm)
+- Driest month: April (61mm)
+- Warmest month: July (19°C max daytime)
+
+**Problem Examples**:
+- "Glasgow receives 1,228mm rainfall annually. Edinburgh receives 868mm. How much more rain does Glasgow get?"
+- "The temperature in Edinburgh ranged from 2°C to 19°C in one week. Calculate the range."
+- "Glasgow's rainfall in January was 124mm. In April it was 83mm. Calculate the percentage decrease."
+
+### Population/Distance Data
+**Scottish Cities**:
+- Glasgow: Scotland's largest city
+- Edinburgh: Capital city, 47 miles from Glasgow
+- Aberdeen: 120 miles north of Edinburgh
+- Inverness: Highlands capital
+
+**Problem Examples**:
+- "A delivery van travels from Edinburgh to Glasgow (47 miles) then Glasgow to Aberdeen (120 miles). Calculate total distance."
+
+## E. MEASUREMENT CONTEXTS
+
+### Scottish Buildings/Landmarks
+**Examples**:
+- Edinburgh Castle: Built on Castle Rock (130m above sea level)
+- Forth Bridge: 2.5 km long, iconic railway bridge
+- Scottish Parliament: Modern architecture, opened 2004
+
+**Problem Examples**:
+- "The Forth Bridge is 2.5km long. How many metres is this?"
+- "Edinburgh Castle sits 130m above sea level. Holyrood Palace is at 20m. Calculate the height difference."
+
+================================================================================
+SECTION 3: COMMON STUDENT MISCONCEPTIONS - NATIONAL 4 AVU
+================================================================================
+
+## A. CALCULATOR DEPENDENCY ISSUES
+
+### Problem: Over-reliance on Calculator in Non-Calculator Section
+**Manifestation**:
+- Students reach for calculator for basic facts (e.g., 7 × 8)
+- Cannot perform simple mental arithmetic (e.g., 350 ÷ 10)
+- Struggle with fraction of amount (e.g., 1/2 of 60)
+
+**Why It Happens**:
+- Years of calculator use from young age builds dependency
+- Lack of practice with mental math strategies
+- Students don't develop number sense or fluency with basic facts
+- "Calculator-itis" - inability to recall basic skills when holding calculator
+
+**Remediation Strategies**:
+1. **Systematic mental math training**: Daily quick-fire questions (times tables, fraction facts)
+2. **Teach when to use each method**: "When do we need calculator? When is mental math faster?"
+3. **Practice non-calculator sections separately**: Build confidence without calculator access
+4. **Number sense development**: Use estimation to check reasonableness ("Should 7 × 8 be close to 50 or 150?")
+5. **Fluency-building exercises**: 2-minute challenges for basic arithmetic
+
+### Problem: Using Calculator Incorrectly
+**Manifestation**:
+- Entering operations in wrong order
+- Not using brackets for complex calculations
+- Misreading calculator display (e.g., 0.2 as "0 point 2" not "point 2")
+
+**Remediation**:
+- Teach BIDMAS/BODMAS explicitly for calculator use
+- Model correct calculator entry step-by-step
+- Encourage estimation first: "What answer do you expect?"
+
+## B. TIME MANAGEMENT MISTAKES
+
+### Problem: Spending Too Long on Non-Calculator Section
+**Manifestation**:
+- Students spend 40 minutes on Part 1 (non-calc), leaving only 20 minutes for Part 2
+- Panic in calculator section due to time pressure
+
+**Why It Happens**:
+- Lack of practice with timed conditions
+- Don't understand mark-per-minute allocation
+- Get stuck on one difficult question and can't move on
+
+**Remediation Strategies**:
+1. **Teach time allocation explicitly**:
+   - Part 1 (20 marks): 25-30 minutes maximum
+   - Part 2 (23 marks): 30-35 minutes
+   - Rule: ~1.5 minutes per mark
+
+2. **Flag-and-return strategy**: "Can't solve in 2 minutes? Circle it and come back"
+
+3. **Practice with timers**: Use visible countdown clock during practice tests
+
+4. **Mark checks**: "You've done 10 marks in 15 minutes - on track!" feedback
+
+## C. FINANCE & PERCENTAGE ERRORS
+
+### Misconception 1: Calculating Discount but Not Subtracting It
+**Error**: "20% off £85. 20% = £17. Answer: £17" ❌
+**Correct**: "20% = £17. Sale price = £85 - £17 = £68" ✓
+
+**Why**: Students confuse "discount amount" with "sale price"
+
+**Remediation**: Use two-part questions:
+- Part (a): Calculate the discount [1 mark]
+- Part (b): Calculate the sale price [1 mark]
+
+### Misconception 2: Adding Percentage Instead of Subtracting
+**Error**: "25% off £60. New price = £60 + £15 = £75" ❌
+**Correct**: "25% off means subtract: £60 - £15 = £45" ✓
+
+**Why**: Students see "percentage" and add, regardless of context
+
+**Remediation**: Emphasize keywords:
+- "off" / "discount" / "decrease" = SUBTRACT
+- "increase" / "bonus" / "add" = ADD
+
+### Misconception 3: Finding Percentage of Wrong Base Value
+**Error**: "Original price was £100. Reduced by 20% to £80. Increase back to original: 20% of £80 = £16. New price = £96" ❌
+**Correct**: "Need 25% increase because £80 is the new base: 25% of £80 = £20. £80 + £20 = £100" ✓
+
+**Why**: Students use same percentage for reverse operation, don't understand changing base
+
+**Remediation**: Teach "percentage of what?" questioning
+
+### Misconception 4: Confusing Gross Pay vs Net Pay
+**Error**: "Gross pay £2,400. Tax £480. Net pay £2,880" (adding instead of subtracting) ❌
+
+**Why**: Don't understand terminology or that deductions reduce pay
+
+**Remediation**:
+- Visual diagrams: Gross pay ➔ [subtract tax] ➔ [subtract NI] ➔ Net pay
+- Real payslip examples from Scottish employers
+
+## D. MEASUREMENT CONVERSION ERRORS
+
+### Misconception 5: Converting in Wrong Direction
+**Error**: "3.5 metres = 0.35 centimetres" (dividing instead of multiplying) ❌
+**Correct**: "3.5 metres = 350 centimetres" (× 100) ✓
+
+**Why**: Students forget which operation to use for which direction
+
+**Remediation**:
+- Memory rule: "Smaller units = bigger numbers" (more centimetres than metres)
+- Conversion chart always visible
+- Practice with real measurements (ruler, measuring tape)
+
+### Misconception 6: Incorrect Unit Conversions in Multi-Step Problems
+**Error**: Volume problem with dimensions in cm, giving answer in m³ without converting
+
+**Remediation**:
+- Teach "unit check" habit: "What units are my measurements? What units does answer need?"
+- Worked examples showing conversions explicitly
+
+## E. GEOMETRY & PYTHAGORAS ERRORS
+
+### Misconception 7: Adding Instead of Using Pythagoras
+**Error**: "Triangle has sides 3cm and 4cm. Hypotenuse = 3 + 4 = 7cm" ❌
+**Correct**: "a² + b² = c²; 3² + 4² = c²; 9 + 16 = 25; c = 5cm" ✓
+
+**Why**: Students add because it's simpler, don't recognize need for formula
+
+**Remediation**:
+- Identify when Pythagoras is needed: "Right-angled triangle? Need to find missing side? Use Pythagoras"
+- Practice recognizing right-angle symbol in diagrams
+
+### Misconception 8: Forgetting Square Root
+**Error**: "3² + 4² = 25, so answer is 25cm" ❌ (forgetting final √ step)
+
+**Remediation**: Use checklist: "Square both sides? ✓ Add? ✓ Square root? ✓"
+
+## F. DATA HANDLING ERRORS
+
+### Misconception 9: Range = Largest Value Only
+**Error**: "Temperatures: 11°C, 12°C, 15°C. Range = 15°C" ❌
+**Correct**: "Range = 15 - 11 = 4°C" ✓
+
+**Why**: Don't understand "range" means spread/difference
+
+**Remediation**: Emphasize "Range = Highest MINUS Lowest"
+
+### Misconception 10: Incorrect Mean Calculation from Frequency Table
+**Error**: Adding frequencies instead of using them as multipliers
+
+**Remediation**:
+- Teach structured table method: Add "value × frequency" column
+- Check: "Does your answer seem reasonable?"
+
+## G. PROBABILITY MISCONCEPTIONS
+
+### Misconception 11: Probability = Percentage Directly
+**Error**: "3 out of 8 sections are red. Probability = 3%" ❌
+**Correct**: "P(red) = 3/8 = 0.375 = 37.5%" ✓
+
+**Why**: Don't convert fraction to percentage correctly
+
+**Remediation**: Three-step method:
+1. Write as fraction (3/8)
+2. Convert to decimal (÷: 3 ÷ 8 = 0.375)
+3. Convert to percentage (× 100: 37.5%)
+
+================================================================================
+SECTION 4: CFU STRATEGIES FOR TEST SIMULATION LESSONS
+================================================================================
+
+## A. FORMATIVE ASSESSMENT DURING MOCK EXAMS
+
+**Challenge**: How do you "check for understanding" during an authentic test simulation where you can't interrupt students?
+
+**Solution**: Use staged assessment with reflection breaks
+
+### Strategy 1: Pause-and-Reflect Protocol
+**Implementation**:
+1. Students complete Part 1 (non-calculator) in 30 minutes
+2. **PAUSE**: 5-minute reflection break
+   - Students self-assess: "Which questions felt confident? Which uncertain?"
+   - Use traffic light system: Green (confident), Amber (unsure), Red (struggled)
+3. Students complete Part 2 (calculator) in 35 minutes
+4. **PAUSE**: 5-minute final reflection
+5. Total time: 30 + 5 + 35 + 5 = 75 minutes (includes reflection)
+
+**CFU Value**: Teacher can see at-a-glance which students are struggling, without breaking exam conditions
+
+### Strategy 2: Self-Checking Strategies (Teach BEFORE Mock Exam)
+
+**Error-Detection Techniques**:
+1. **Estimate First**: "Before calculating 23 × 17, estimate: 20 × 20 = 400. Answer should be close to 400."
+2. **Check Units**: "My answer is 3.5. Is that 3.5cm or 3.5m? Does it make sense?"
+3. **Reverse Check**: "I calculated 20% of £85 = £17. Check: Is £17 about 1/5 of £85? Yes ✓"
+4. **Read Question Twice**: "Did I answer what was asked? If it asks for sale price, did I give discount amount?"
+
+**Teach These as Habits 2-3 Lessons Before Mock Exam**
+
+### Strategy 3: Metacognitive Prompts (On Test Paper)
+
+**Include these prompts on mock exam paper**:
+- Box at end of Part 1: "Before moving to Part 2, take 1 minute: Did you check your working? Did you answer what was asked?"
+- Reminder boxes: "STOP: Is your answer reasonable?"
+- Self-check boxes: Students tick "I checked this answer ✓" next to questions
+
+**Why This Works**: Builds self-regulation without teacher intervention during exam
+
+## B. POST-TEST REFLECTION STRATEGIES
+
+### Strategy 4: Immediate Error Analysis (DO NOT GRADE FIRST)
+
+**Process** (next lesson after mock exam):
+1. Return papers UNGRADED (no scores yet)
+2. Give students 15 minutes to:
+   - Identify errors using a different colored pen
+   - Attempt corrections
+   - Write WHY they made each mistake
+3. Categories for reflection:
+   - "Silly mistake" (knew how, made arithmetic error)
+   - "Method mistake" (used wrong method)
+   - "Don't understand" (no idea how to solve)
+4. Teacher grades AFTER students self-analyze
+
+**CFU Value**:
+- Students learn from mistakes before seeing grade
+- Teacher sees patterns: "12 students made same percentage error - need to reteach"
+- Meta-analysis: "I make lots of silly mistakes" vs "I need to learn Pythagoras better"
+
+### Strategy 5: Goal-Setting for Next Attempt
+
+**Reflection Prompts**:
+- "What type of questions did I find easiest?"
+- "What topic do I need to revise most?"
+- "Did I manage my time well? Part 1: ___mins, Part 2: ___mins"
+- "Next time I will... (specific action, e.g., 'check units on all measurement questions')"
+
+**Implementation**: Use structured reflection sheet, students complete in 10 minutes
+
+## C. PEER ASSESSMENT STRATEGIES (POST-MOCK)
+
+### Strategy 6: Worked Example Exchange
+
+**Process**:
+1. Teacher selects 3-4 questions from mock exam
+2. Students work in pairs to create perfect worked solutions
+3. Use exemplar solutions as learning tools: "What does a full-marks answer look like?"
+
+**CFU Value**: Students learn from seeing correct methods, consolidates understanding
+
+### Strategy 7: Mark Scheme Comparison
+
+**Process**:
+1. Give students SQA-style mark scheme for mock exam
+2. Students mark their OWN work using mark scheme
+3. Identify where they lost marks: "I got method mark but lost accuracy mark"
+
+**Why This Works**:
+- Students understand what examiners look for
+- Builds exam technique: "I need to show working for method marks"
+
+## D. DIFFERENTIATED CFU APPROACHES
+
+### For Students Who Finish Early
+
+**Challenge Extensions** (provide these on separate sheet):
+- "Question 5 asked for 20% discount. What if the discount was 35%?"
+- "Create your own percentage problem using Scottish contexts"
+- "Find three different methods to solve Question 8"
+
+### For Students Struggling to Complete
+
+**Scaffolded Support Cards** (only after 40 minutes):
+- Not full answers, but hints: "Question 3: Remember, area = length × width"
+- "Stuck on Question 7? Start by identifying what calculation you need"
+
+**Decision Point**: Teacher must decide - is this authentic exam practice (no help) or formative learning (hints allowed)? Be clear with students which mode you're in.
+
+## E. TECHNOLOGY-ENHANCED CFU
+
+### Strategy 8: Real-Time Confidence Polling (If Using Digital Platform)
+
+**Implementation**:
+- Students submit answers digitally as they complete each question
+- Teacher dashboard shows: "15 students answered Q3, 8 answered Q4..." in real-time
+- After test: Data shows "Q7 had lowest success rate - 65% incorrect"
+
+**Low-Tech Alternative**:
+- Students hand in papers in parts (Part 1 first, then Part 2)
+- Teacher can quickly scan for common errors during break
+
+## F. TEST PREPARATION LESSONS (2-3 LESSONS BEFORE MOCK)
+
+### Strategy 9: Teach Test-Taking Strategies Explicitly
+
+**Lesson Content**:
+1. **Time Management Skills**
+   - Show sample paper, discuss how long to spend per section
+   - Practice with timer: "You have 5 minutes for these 3 questions - GO!"
+
+2. **Question Analysis**
+   - Teach "circle the command word": Calculate, Explain, Determine
+   - Identify mark values: "3 marks = need 3 steps in my working"
+
+3. **Non-Calculator Strategies**
+   - Times tables review
+   - Mental math shortcuts (halving, doubling, percentages)
+   - "What calculations can you do in your head?"
+
+4. **Calculator Strategies**
+   - How to use memory function
+   - Brackets for complex calculations
+   - Decimal vs fraction mode
+
+### Strategy 10: Practice "Mock-Mock" Exam (10-15 Minutes)
+
+**Mini Mock Exam**:
+- 5 questions from each section (10 questions total, ~15 marks)
+- 20-minute time limit
+- Full exam conditions
+- Immediate feedback after: "How did that feel? What was hard?"
+
+**Purpose**: Reduce anxiety, build familiarity with format
+
+## G. REFLECTION PROMPTS FOR LESSON CARDS
+
+**Effective Reflection Questions for AVU Test Prep Lessons**:
+
+1. **Time Awareness**:
+   - "You spent _____ minutes on Part 1. Target time is 30 minutes. Were you faster or slower?"
+   - "Which questions took longest? Why?"
+
+2. **Strategy Evaluation**:
+   - "Did you use estimation to check answers? Give an example."
+   - "Did you read questions fully before answering?"
+
+3. **Content Gaps**:
+   - "Which topic felt most challenging: Finance, Geometry, or Data?"
+   - "What will you revise before the real AVU?"
+
+4. **Self-Efficacy**:
+   - "On a scale 1-5, how confident do you feel about the AVU now?"
+   - "What has improved since your last practice?"
+
+5. **Exam Technique**:
+   - "Did you show all your working? Why is this important?"
+   - "Did you answer every question, even if unsure?"
+
+## H. SUMMARY: CFU PRINCIPLES FOR MOCK EXAM LESSONS
+
+**Key Principles**:
+1. ✅ **Balance authenticity with learning**: Decide if it's pure assessment or formative practice
+2. ✅ **Build in reflection time**: Don't just test and grade - analyze and learn
+3. ✅ **Teach self-checking habits**: Students need strategies to verify their own work
+4. ✅ **Use errors as learning opportunities**: Mistakes are data, not just point deductions
+5. ✅ **Make thinking visible**: Metacognitive prompts help students regulate their learning
+6. ✅ **Differentiate support**: Early finishers need extension, strugglers need scaffolding
+7. ✅ **Track progress over time**: "How did this mock compare to last time?"
+
+**What NOT to Do**:
+- ❌ Don't interrupt exam conditions to teach during the test
+- ❌ Don't just grade and return papers without reflection
+- ❌ Don't use mock exams purely for summative data - they're learning tools
+- ❌ Don't skip teaching test-taking strategies beforehand
+
+================================================================================
+END OF RESEARCH FINDINGS
+================================================================================
+
+## SOURCES CONSULTED
+
+1. SQA Official Documentation:
+   - National 4 Applications of Mathematics Course Specifications
+   - Course Support Notes (attempted access)
+   - SQA official website resources
+
+2. Educational Resources:
+   - maths.scot (National 4 Applications resources)
+   - Dynamic Maths (AVU practice generators)
+   - School websites (Grangemouth HS, Madras College, St Andrew's Academy)
+
+3. Scottish Pricing & Context Data:
+   - ScotRail official fares (2024)
+   - Lothian Buses fare structures
+   - Scottish supermarket pricing (Tesco, Sainsbury's, Aldi)
+   - Energy price cap data (Ofgem, Scottish Power)
+   - Mobile phone provider pricing (O2, Vodafone, EE)
+   - Cinema pricing (Vue, Odeon, Cineworld)
+   - Scottish weather data (climate-data.org)
+
+4. Pedagogical Research:
+   - Mathematics education research on formative assessment
+   - Calculator dependency studies
+   - Error analysis in mathematics education
+   - Metacognition and mathematics achievement literature
+
+## NOTES FOR LESSON AUTHOR
+
+1. **AVU Test Structure**: While the 43-mark/60-minute structure is commonly used in school practice tests, official SQA documentation is restricted. Verify with school's SQA Co-ordinator if exact format differs.
+
+2. **Scottish Contexts**: All pricing data is from 2024-2025 sources. Update annually for authenticity.
+
+3. **Misconceptions**: Based on general mathematics education research and teaching experience patterns, not National 4-specific SQA error reports (which are restricted).
+
+4. **CFU Strategies**: Adapted from general formative assessment best practices for mathematics mock exams, aligned with Scottish CfE pedagogy.
+
+5. **Lesson Design Recommendation**:
+   - Card 1: Test-taking strategy briefing (5 mins)
+   - Card 2: Part 1 Non-Calculator (30 mins) + reflection (5 mins)
+   - Card 3: Part 2 Calculator (35 mins) + reflection (5 mins)
+   - Total: ~80 minutes (fits extended period or double lesson)
+   - Post-test: Separate follow-up lesson for error analysis and goal-setting
+
+6. **Accessibility Considerations**:
+   - Ensure questions use A2-B1 CEFR language (as per SOW accessibility notes)
+   - One instruction per sentence for dyslexia-friendly design
+   - Consider reader/scribe provision for students with additional support needs (as per SQA guidelines)
+
+7. **Authentic Scottish Contexts to Prioritize**:
+   - Transport: ScotRail, Lothian Buses (most relatable to students)
+   - Shopping: Tesco, Aldi, Sainsbury's (common experiences)
+   - Employment: Scottish minimum wage rates (realistic for part-time jobs)
+   - Energy/Mobile: O2, Scottish Power (household relevance)
+
+================================================================================

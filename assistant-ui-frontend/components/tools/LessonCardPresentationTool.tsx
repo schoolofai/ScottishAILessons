@@ -23,14 +23,33 @@ type LessonCardPresentationArgs = {
     id: string;
     title: string;
     explainer: string;
-    examples?: string[];
-    cfu: {
+    explainer_plain: string;
+    misconceptions: Array<{
       id: string;
-      type: string;
-      question: string;
+      misconception: string;
+      clarification: string;
+    }>;
+    context_hooks?: string[];
+    cfu: {
+      type: "mcq" | "numeric" | "structured_response" | "short_text";
+      id: string;
+      stem: string;
+      // MCQ fields
       options?: string[];
       answerIndex?: number;
-      expected?: string;
+      // Numeric fields
+      expected?: number;
+      tolerance?: number;
+      money2dp?: boolean;
+      hints?: string[];
+      // All CFU types have rubric
+      rubric: {
+        total_points: number;
+        criteria: Array<{
+          description: string;
+          points: number;
+        }>;
+      };
     };
   };
   card_index: number;
@@ -62,6 +81,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
+    const [hintIndex, setHintIndex] = useState(0);
 
     // Update CurrentCardContext with card data for context-aware chat
     useEffect(() => {
@@ -221,11 +241,11 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               Your Turn to Answer
             </h3>
 
-            {cfu_type === "mcq" && card_data.cfu.options ? (
-              // Multiple Choice Question
+            {/* MCQ - Multiple Choice Question */}
+            {card_data.cfu.type === "mcq" && card_data.cfu.options && (
               <div className="space-y-4">
                 <Label className="text-base font-medium">
-                  {card_data.cfu.question}
+                  {card_data.cfu.stem}
                 </Label>
                 <RadioGroup
                   value={selectedMCQOption}
@@ -234,12 +254,12 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 >
                   {card_data.cfu.options.map((option, index) => (
                     <div key={index} className="flex items-center space-x-3">
-                      <RadioGroupItem 
-                        value={option} 
+                      <RadioGroupItem
+                        value={option}
                         id={`option-${index}`}
                       />
-                      <Label 
-                        htmlFor={`option-${index}`} 
+                      <Label
+                        htmlFor={`option-${index}`}
                         className="text-base cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
                       >
                         {String.fromCharCode(65 + index)}. {option}
@@ -248,17 +268,65 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   ))}
                 </RadioGroup>
               </div>
-            ) : (
-              // Text Input Question
+            )}
+
+            {/* Numeric Question */}
+            {card_data.cfu.type === "numeric" && (
               <div className="space-y-4">
-                <Label htmlFor="student-answer" className="text-base font-medium">
-                  {card_data.cfu.question}
+                <Label htmlFor="numeric-answer" className="text-base font-medium">
+                  {card_data.cfu.stem}
                 </Label>
-                <Input
-                  id="student-answer"
+                <div className="flex gap-2">
+                  <Input
+                    id="numeric-answer"
+                    type="number"
+                    value={studentAnswer}
+                    onChange={(e) => setStudentAnswer(e.target.value)}
+                    placeholder={card_data.cfu.money2dp ? "0.00" : "Enter number"}
+                    className="text-base flex-1"
+                    step={card_data.cfu.money2dp ? "0.01" : "any"}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleSubmitAnswer();
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Structured Response - Multi-part Written Answer */}
+            {card_data.cfu.type === "structured_response" && (
+              <div className="space-y-4">
+                <Label htmlFor="structured-answer" className="text-base font-medium whitespace-pre-line">
+                  {card_data.cfu.stem}
+                </Label>
+                <textarea
+                  id="structured-answer"
                   value={studentAnswer}
                   onChange={(e) => setStudentAnswer(e.target.value)}
-                  placeholder="Type your answer here..."
+                  placeholder="Show your working for each part. Write your complete answer."
+                  className="w-full p-3 border rounded-lg text-base font-mono min-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-500">
+                  Max points: {card_data.cfu.rubric.total_points}
+                </p>
+              </div>
+            )}
+
+            {/* Short Text Question */}
+            {card_data.cfu.type === "short_text" && (
+              <div className="space-y-4">
+                <Label htmlFor="short-text-answer" className="text-base font-medium">
+                  {card_data.cfu.stem}
+                </Label>
+                <Input
+                  id="short-text-answer"
+                  value={studentAnswer}
+                  onChange={(e) => setStudentAnswer(e.target.value)}
+                  placeholder="Brief answer (1-2 sentences)"
+                  maxLength={200}
                   className="text-base"
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -270,13 +338,50 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             )}
 
-            {/* Hint section */}
-            {showHint && (
-              <div className="mt-4 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-                <h4 className="font-medium text-yellow-800 mb-1">Hint:</h4>
-                <p className="text-sm text-yellow-700">
-                  Look at the examples provided above. Try to identify the pattern or method used.
-                </p>
+            {/* Progressive Hints - for numeric CFU */}
+            {card_data.cfu.type === "numeric" && card_data.cfu.hints && card_data.cfu.hints.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {!showHint ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowHint(true)}
+                    className="w-full"
+                  >
+                    💡 Show Hint ({hintIndex + 1}/{card_data.cfu.hints.length})
+                  </Button>
+                ) : (
+                  <div className="p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                    <h4 className="font-medium text-yellow-800 mb-1">Hint {hintIndex + 1}:</h4>
+                    <p className="text-sm text-yellow-700 mb-2">
+                      {card_data.cfu.hints[hintIndex]}
+                    </p>
+                    {hintIndex < card_data.cfu.hints.length - 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setHintIndex(hintIndex + 1)}
+                        className="text-xs"
+                      >
+                        Next Hint →
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Misconceptions - Common Student Errors */}
+            {card_data.misconceptions && card_data.misconceptions.length > 0 && (
+              <div className="mt-4 p-3 bg-amber-50 border-l-4 border-amber-400 rounded">
+                <h4 className="font-medium text-amber-800 mb-2">⚠️ Common Mistakes to Avoid:</h4>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  {card_data.misconceptions.slice(0, 2).map((misc, idx) => (
+                    <li key={idx} className="flex gap-2">
+                      <span>•</span>
+                      <span>{misc.misconception}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
@@ -290,16 +395,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             >
               Skip Card
             </Button>
-            
-            {!showHint && (
-              <Button
-                variant="secondary"
-                onClick={handleRequestHint}
-              >
-                Show Hint
-              </Button>
-            )}
-            
+
             <Button
               onClick={handleSubmitAnswer}
               disabled={!studentAnswer.trim() && !selectedMCQOption}
