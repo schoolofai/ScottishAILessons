@@ -151,7 +151,7 @@ class LessonAuthorClaudeAgent:
 
         # Validate SOW entry exists (FAIL FAST)
         logger.info(f"Validating SOW entry exists for courseId '{courseId}' at order {order}...")
-        sow_entry = await self._validate_sow_entry_exists(courseId, order)
+        sow_entry, sow_metadata = await self._validate_sow_entry_exists(courseId, order)
 
         logger.info(f"Starting lesson authoring pipeline: {sow_entry.get('label', 'N/A')}")
 
@@ -269,7 +269,10 @@ class LessonAuthorClaudeAgent:
                     courseId=courseId,
                     order=order,
                     execution_id=self.execution_id,
-                    mcp_config_path=str(self.mcp_config_path)
+                    mcp_config_path=str(self.mcp_config_path),
+                    # NEW: Pass SOW reference fields for model versioning
+                    authored_sow_id=sow_metadata["authored_sow_id"],
+                    authored_sow_version=sow_metadata["authored_sow_version"]
                 )
 
                 logger.info(f"Lesson template upserted successfully: {appwrite_document_id}")
@@ -299,7 +302,7 @@ class LessonAuthorClaudeAgent:
         self,
         courseId: str,
         order: int
-    ) -> Dict[str, Any]:
+    ) -> tuple[Dict[str, Any], Dict[str, Any]]:
         """Validate that SOW entry exists for courseId at given order.
 
         Note: Only published SOWs (status='published') are validated. Draft SOWs
@@ -310,7 +313,9 @@ class LessonAuthorClaudeAgent:
             order: Lesson order number in SOW entries
 
         Returns:
-            SOW entry dictionary
+            Tuple of (sow_entry, sow_metadata) where:
+                - sow_entry: SOW entry dictionary
+                - sow_metadata: Dict with 'authored_sow_id' and 'authored_sow_version'
 
         Raises:
             ValueError: If published SOW not found or order invalid
@@ -358,7 +363,15 @@ class LessonAuthorClaudeAgent:
 
             logger.info(f"  ✓ SOW entry found at order {order}: {entry.get('label', 'N/A')}")
 
-            return entry
+            # Extract SOW metadata for model versioning
+            sow_metadata = {
+                "authored_sow_id": sow_doc.get("$id", ""),
+                "authored_sow_version": sow_doc.get("version", "v1.0")  # Fallback to 'v1.0'
+            }
+
+            logger.info(f"  ✓ SOW metadata extracted: id={sow_metadata['authored_sow_id']}, version={sow_metadata['authored_sow_version']}")
+
+            return entry, sow_metadata
 
         except ValueError:
             raise  # Re-raise validation errors

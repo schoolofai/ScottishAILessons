@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const protectedRoutes = ['/chat', '/dashboard', '/session'];
+const protectedRoutes = ['/chat', '/dashboard', '/session', '/admin'];
 const authRoutes = ['/login', '/signup', '/reset-password'];
 
 export function middleware(request: NextRequest) {

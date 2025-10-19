@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useLogout } from '@/hooks/useLogout';
-import { GraduationCap } from 'lucide-react';
+import { useIsAdmin } from '@/lib/utils/adminCheck';
+import { GraduationCap, Settings } from 'lucide-react';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { logout, isLoading } = useLogout();
+  const { isAdmin } = useIsAdmin();
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -55,6 +58,22 @@ export function Header() {
               <div className="px-4 py-2 text-sm text-gray-500 border-b border-gray-100">
                 Signed in as User
               </div>
+
+              {/* Admin Panel Link */}
+              {isAdmin && (
+                <>
+                  <Link
+                    href="/admin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Admin Panel
+                  </Link>
+                  <div className="border-b border-gray-100" />
+                </>
+              )}
+
               <button
                 onClick={handleLogout}
                 disabled={isLoading}

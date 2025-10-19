@@ -49,6 +49,12 @@ Write your unified critique to `/workspace/sow_critic_result.json` with this sha
 {
   "pass": boolean,
   "overall_score": 0.0-1.0,
+
+  "schema_gate": {
+    "pass": boolean,
+    "failed_checks": ["array of schema violations if pass=false"]
+  },
+
   "validation_errors": [],
   "dimensions": {
     "coverage": {
@@ -107,47 +113,404 @@ Write your unified critique to `/workspace/sow_critic_result.json` with this sha
 
 ## <validation_process>
 
-### Overall Process
+### Overall Process (Schema Gate FIRST - Blocking)
 
-**Step 0: Fail-Fast Validation** (REQUIRED):
+**Step 0: File Existence Check** (REQUIRED):
 1. Check that `/workspace/Course_data.txt` exists using Read tool
    - If missing, return fail-fast response with validation_errors
-   - **NOTE**: Course_data.txt (raw JSON format) is created via Python extraction BEFORE agent execution (no subagent needed)
-2. Check that `/workspace/authored_sow.json` is valid JSON
-   - If invalid, return fail-fast response
-3. Check required top-level fields exist: metadata, entries
+2. Check that `/workspace/authored_sow.json` exists using Read tool
    - If missing, return fail-fast response
-4. Check at least 10 entries present
-   - If fewer, return fail-fast response
-5. Check each entry has required fields: lesson_type, assessmentStandardRefs, lesson_plan
-   - If missing, list failures in validation_errors
 
 **Step 1: Read Required Files**:
 - Use Read tool: `Read(file_path="/workspace/Course_data.txt")` and `Read(file_path="/workspace/authored_sow.json")`
 - Parse and validate JSON structures
 
-**Step 2: Validate Each Dimension** (in order):
+**Step 2: 🔴 RUN SCHEMA GATE FIRST** (BLOCKING - BEFORE DIMENSIONS):
+- Execute schema gate validation (see <schema_gate_blocking_validation>)
+- Check enriched format at entry level (code/description/outcome objects)
+- Check enriched format at card level (standards_addressed objects)
+- Check CFU strategies are specific (not generic)
+- Check metadata fields are complete
+- Check card structure completeness
+- If `schema_gate.pass == false`:
+  * Set `overall pass = false`
+  * Populate `schema_gate` field with failed_checks
+  * **SKIP to Step 7** (write result WITHOUT dimensional scoring)
+  * Do NOT evaluate dimensions
+
+**Step 3: Validate Each Dimension** (ONLY if schema gate passes):
 1. Coverage
 2. Sequencing
 3. Policy
 4. Accessibility
 5. Authenticity
 
-**Step 3: Calculate Overall Score**:
+**Step 4: Calculate Overall Score** (ONLY if schema gate passes):
 - Use weighted average of dimensional scores
 - Suggested: `(coverage + sequencing + policy + accessibility + authenticity) / 5`
 - Alternative: `(coverage * 0.25 + sequencing * 0.20 + policy * 0.15 + accessibility * 0.20 + authenticity * 0.20)`
 
-**Step 4: Determine Overall Pass/Fail**:
+**Step 5: Determine Overall Pass/Fail** (ONLY if schema gate passes):
 - ALL dimensions must pass their individual thresholds
 - If any dimension fails, overall pass = false
 
-**Step 5: Compile Feedback and Todos**:
+**Step 6: Compile Feedback and Todos** (ONLY if schema gate passes):
 - Write comprehensive narrative covering all dimensions
 - Create prioritized todos tagged by dimension
 - Format recommended_actions as `"[Priority] [Dimension] {actionable fix}"`
 
+**Step 7: Write Result to `/workspace/sow_critic_result.json`**:
+- Include `schema_gate` field (whether pass or fail)
+- If schema_gate failed: result contains gate failures, no dimensional scores
+- If schema_gate passed: result contains both gate and dimensional scores
+
 </validation_process>
+
+---
+
+## 🔴 <schema_gate_blocking_validation>
+
+## SCHEMA GATE: SOW Schema Compliance (BLOCKING VALIDATION - RUNS FIRST)
+
+**Purpose**: Hard validation of SOW schema requirements. **ANY failure = instant FAIL**. This gate BLOCKS dimensional scoring.
+
+**Execution Order**: This gate runs **BEFORE** dimensional scoring. If gate fails, dimensions are NOT evaluated.
+
+---
+
+### Gate Output Fields (in critic_result.json)
+
+```json
+"schema_gate": {
+  "pass": true|false,
+  "failed_checks": ["list of specific violations if pass=false"]
+}
+```
+
+---
+
+### Schema Gate Validation Steps
+
+#### Step 1: Check Enriched Format at Entry Level
+
+For EACH entry in `sow_json["entries"]`:
+
+1. Check `assessmentStandardRefs` is an **array** (not object or string)
+2. Check array is **non-empty**
+3. For EACH item in assessmentStandardRefs:
+   - Check it's an **OBJECT** (NOT a bare string like "AS1.2")
+   - Check it has **`code`** field (string, required)
+   - Check it has **`description`** field (string, required)
+   - Check it has **`outcome`** field (string, required)
+   - **Verify description matches Course_data.txt EXACTLY** (no paraphrasing):
+     * Extract official description from Course_data.txt for this code
+     * Compare with SoW description character-for-character
+     * Flag if different (e.g., "Expected: '...', Got: '...'")
+
+**FAIL Examples**:
+```json
+// ❌ BARE STRING (fails gate)
+"assessmentStandardRefs": ["AS1.2", "AS1.3"]
+
+// ❌ MISSING DESCRIPTION (fails gate)
+"assessmentStandardRefs": [{"code": "AS1.2", "outcome": "O1"}]
+
+// ❌ PARAPHRASED DESCRIPTION (fails gate)
+"assessmentStandardRefs": [{
+  "code": "AS1.2",
+  "description": "Add fractions with common denominators",  // Wrong!
+  "outcome": "O1"
+}]
+
+// ❌ MISMATCHED OUTCOME (fails gate)
+"assessmentStandardRefs": [{
+  "code": "AS1.2",
+  "description": "Add and subtract fractions by expressing them with a common denominator...",
+  "outcome": "O99"  // Wrong outcome reference
+}]
+```
+
+---
+
+#### Step 2: Check Enriched Format at Card Level
+
+For EACH entry AND EACH card in `lesson_plan.card_structure`:
+
+1. Check `standards_addressed` is an **array**
+2. If array is non-empty, for EACH item:
+   - Check it's an **OBJECT** (NOT bare string)
+   - Check it has `code`, `description`, `outcome` fields
+   - **Verify description matches Course_data.txt EXACTLY**
+
+**FAIL Examples**:
+```json
+// ❌ BARE CODE (fails gate)
+"standards_addressed": ["AS1.2"]
+
+// ❌ PARTIALLY ENRICHED (fails gate)
+"standards_addressed": [{"code": "AS1.2"}]
+
+// ❌ PARAPHRASED DESCRIPTION (fails gate)
+"standards_addressed": [{
+  "code": "AS1.2",
+  "description": "Add fractions",  // Too short, doesn't match SQA exactly
+  "outcome": "O1"
+}]
+```
+
+---
+
+#### Step 3: Check CFU Strategies Are Specific (Not Generic)
+
+For EACH card in `lesson_plan.card_structure`:
+
+1. Check `cfu_strategy` field exists (string, required)
+2. Convert to lowercase
+3. Check it does **NOT contain** generic phrases:
+   - ❌ "ask questions"
+   - ❌ "check understanding"
+   - ❌ "assess knowledge"
+   - ❌ "student response"
+   - ❌ "ask"
+   - ❌ "test"
+   - ❌ "evaluate"
+
+**FAIL Examples**:
+```json
+// ❌ GENERIC (fails gate)
+"cfu_strategy": "Ask questions to check understanding"
+"cfu_strategy": "Assess student knowledge"
+"cfu_strategy": "ask"
+
+// ✅ SPECIFIC (passes gate)
+"cfu_strategy": "MCQ: Which fraction equals 25%? A) 1/4 B) 1/2 C) 1/3 D) 2/4"
+"cfu_strategy": "Numeric: A box costs £12. It's reduced by 1/3. How much is the discount?"
+"cfu_strategy": "Structured: Calculate (a) discount amount (b) final price when £20 reduced by 3/5"
+```
+
+---
+
+#### Step 4: Check Required Metadata Fields
+
+1. Check `metadata` object exists
+2. Check `metadata.coherence` object with `policy_notes` array (non-empty)
+3. Check `metadata.coherence.sequencing_notes` array (non-empty)
+4. Check `metadata.accessibility_notes` array (non-empty)
+5. Check `metadata.engagement_notes` array (non-empty)
+
+**FAIL Examples**:
+```json
+// ❌ MISSING FIELDS (fails gate)
+"metadata": {}  // Missing all required fields
+
+// ❌ MISSING ARRAYS (fails gate)
+"metadata": {
+  "coherence": {
+    "policy_notes": ["..."]
+    // missing sequencing_notes
+  }
+}
+
+// ❌ EMPTY ARRAYS (fails gate)
+"metadata": {
+  "coherence": {
+    "policy_notes": [],  // Empty!
+    "sequencing_notes": []  // Empty!
+  }
+}
+```
+
+---
+
+#### Step 5: Check Card Structure Completeness
+
+For EACH card:
+
+1. Check all required fields present: `card_number`, `card_type`, `title`, `purpose`, `pedagogical_approach`, `cfu_strategy`, `estimated_minutes`
+2. Check `card_type` is valid enum: starter|explainer|modelling|guided_practice|independent_practice|exit_ticket
+3. Check card timings (when summed) equal entry `estMinutes` (within ±2 minutes acceptable)
+
+**FAIL Examples**:
+```json
+// ❌ MISSING FIELD (fails gate)
+{
+  "card_number": 1,
+  "title": "Intro",
+  // missing cfu_strategy
+}
+
+// ❌ INVALID CARD TYPE (fails gate)
+"card_type": "practice_and_test"  // Not in allowed list
+
+// ❌ TIMING MISMATCH (fails gate)
+// Entry estMinutes: 50
+// Cards total: 5+5+8+10+2 = 30 minutes  // ❌ Too short
+```
+
+---
+
+### Schema Gate Validation Process (Pseudo-code)
+
+```python
+def validate_schema_gate(sow_json, course_data):
+    failed_checks = []
+
+    # STEP 1: Enriched format at entry level
+    entries = sow_json.get("entries", [])
+    for entry_idx, entry in enumerate(entries):
+        entry_num = entry_idx + 1
+
+        # Check metadata (only for first entry, then skip)
+        if entry_idx == 0:
+            if not sow_json.get("metadata"):
+                failed_checks.append("Missing required field: metadata")
+            else:
+                meta = sow_json["metadata"]
+                if not meta.get("coherence"):
+                    failed_checks.append("Missing: metadata.coherence")
+                elif not meta["coherence"].get("policy_notes") or not meta["coherence"].get("sequencing_notes"):
+                    failed_checks.append("Missing: metadata.coherence.[policy_notes|sequencing_notes]")
+                if not meta.get("accessibility_notes"):
+                    failed_checks.append("Missing: metadata.accessibility_notes")
+                if not meta.get("engagement_notes"):
+                    failed_checks.append("Missing: metadata.engagement_notes")
+
+        # Check assessmentStandardRefs enriched format
+        refs = entry.get("assessmentStandardRefs", [])
+        if not isinstance(refs, list):
+            failed_checks.append(f"Entry {entry_num}: assessmentStandardRefs must be array")
+        elif len(refs) == 0:
+            failed_checks.append(f"Entry {entry_num}: assessmentStandardRefs is empty")
+        else:
+            for ref_idx, ref in enumerate(refs):
+                ref_num = ref_idx + 1
+
+                # Check if bare string
+                if isinstance(ref, str):
+                    failed_checks.append(
+                        f"Entry {entry_num}, ref {ref_num}: BARE STRING '{ref}' - "
+                        f"must be object with {code, description, outcome}"
+                    )
+                    continue
+
+                # Check required fields
+                if "code" not in ref:
+                    failed_checks.append(f"Entry {entry_num}, ref {ref_num}: Missing 'code'")
+                if "description" not in ref:
+                    failed_checks.append(f"Entry {entry_num}, ref {ref_num}: Missing 'description'")
+                if "outcome" not in ref:
+                    failed_checks.append(f"Entry {entry_num}, ref {ref_num}: Missing 'outcome'")
+
+                # Check description matches Course_data.txt
+                if "code" in ref and "description" in ref:
+                    code = ref["code"]
+                    description = ref["description"]
+                    official_desc = get_official_description(course_data, code)
+
+                    if official_desc and description != official_desc:
+                        failed_checks.append(
+                            f"Entry {entry_num}, code '{code}': Description mismatch. "
+                            f"Expected: '{official_desc}', Got: '{description}'"
+                        )
+
+        # STEP 2: Check lesson_plan
+        lesson_plan = entry.get("lesson_plan", {})
+        cards = lesson_plan.get("card_structure", [])
+
+        if len(cards) < 6 or len(cards) > 12:
+            failed_checks.append(f"Entry {entry_num}: Card count {len(cards)} outside range [6, 12]")
+
+        total_minutes = 0
+
+        for card_idx, card in enumerate(cards):
+            card_num = card_idx + 1
+
+            # Check required fields
+            for field in ["card_number", "card_type", "title", "purpose", "pedagogical_approach", "cfu_strategy", "estimated_minutes"]:
+                if field not in card:
+                    failed_checks.append(f"Entry {entry_num}, Card {card_num}: Missing '{field}'")
+
+            # Check card_type is valid
+            if "card_type" in card:
+                if card["card_type"] not in ["starter", "explainer", "modelling", "guided_practice", "independent_practice", "exit_ticket"]:
+                    failed_checks.append(f"Entry {entry_num}, Card {card_num}: Invalid card_type '{card['card_type']}'")
+
+            # STEP 3: Check CFU strategy is specific
+            if "cfu_strategy" in card:
+                cfu_lower = card["cfu_strategy"].lower()
+                generic_patterns = ["ask questions", "check understanding", "assess", "ask "]
+                if any(pattern in cfu_lower for pattern in generic_patterns):
+                    failed_checks.append(
+                        f"Entry {entry_num}, Card {card_num}: Generic cfu_strategy '{card['cfu_strategy']}' - "
+                        f"must be SPECIFIC (e.g., 'MCQ: ...' or 'Numeric: ...')"
+                    )
+
+            # Track timing
+            if "estimated_minutes" in card:
+                total_minutes += card["estimated_minutes"]
+
+            # STEP 2.5: Check card-level enriched format for standards_addressed
+            standards = card.get("standards_addressed", [])
+            for std_idx, std in enumerate(standards):
+                std_num = std_idx + 1
+
+                # Check if bare string
+                if isinstance(std, str):
+                    failed_checks.append(
+                        f"Entry {entry_num}, Card {card_num}, standard {std_num}: "
+                        f"BARE STRING '{std}' - must be object with {code, description, outcome}"
+                    )
+                    continue
+
+                # Check required fields
+                if isinstance(std, dict):
+                    if "code" not in std or "description" not in std or "outcome" not in std:
+                        failed_checks.append(
+                            f"Entry {entry_num}, Card {card_num}, standard {std_num}: "
+                            f"Missing field in enriched object"
+                        )
+                    # Verify description matches
+                    if "code" in std and "description" in std:
+                        code = std["code"]
+                        description = std["description"]
+                        official_desc = get_official_description(course_data, code)
+                        if official_desc and description != official_desc:
+                            failed_checks.append(
+                                f"Entry {entry_num}, Card {card_num}, code '{code}': "
+                                f"Description mismatch in standards_addressed"
+                            )
+
+        # Check timing totals
+        if "estMinutes" in entry:
+            if abs(total_minutes - entry["estMinutes"]) > 2:
+                failed_checks.append(
+                    f"Entry {entry_num}: Card timings total {total_minutes} "
+                    f"but estMinutes is {entry['estMinutes']}"
+                )
+
+    # Return result
+    return {
+        "pass": len(failed_checks) == 0,
+        "failed_checks": failed_checks
+    }
+```
+
+---
+
+### Gate Result
+
+**If `schema_gate.pass == true`**:
+- Proceed to dimensional scoring (Coverage, Sequencing, Policy, Accessibility, Authenticity)
+
+**If `schema_gate.pass == false`**:
+- Set `overall pass = false`
+- Add failed_checks list to result
+- **SKIP dimensional scoring** (do not evaluate dimensions)
+- Write result immediately with gate failures
+
+---
+
+</schema_gate_blocking_validation>
 
 ---
 

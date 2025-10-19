@@ -81,7 +81,9 @@ async def upsert_lesson_template(
     courseId: str,
     order: int,
     execution_id: str,
-    mcp_config_path: str
+    mcp_config_path: str,
+    authored_sow_id: str = "",
+    authored_sow_version: str = "v1.0"
 ) -> str:
     """Upsert lesson template to Appwrite lesson_templates collection.
 
@@ -89,6 +91,7 @@ async def upsert_lesson_template(
     - Compresses cards field using gzip + base64
     - Queries by (courseId, sow_order) for uniqueness
     - Updates if exists, creates if new
+    - Includes SOW reference fields for model versioning
 
     Args:
         lesson_template_path: Path to lesson_template.json file
@@ -96,6 +99,8 @@ async def upsert_lesson_template(
         order: Lesson order (stored as sow_order)
         execution_id: Unique execution identifier
         mcp_config_path: Path to MCP config
+        authored_sow_id: Foreign key to Authored_SOW document (optional)
+        authored_sow_version: Version string from Authored_SOW (default: 'v1.0')
 
     Returns:
         Document ID (string)
@@ -163,8 +168,14 @@ async def upsert_lesson_template(
         "outcomeRefs": json.dumps(template.get("outcomeRefs", [])),
         "engagement_tags": json.dumps(template.get("engagement_tags", [])),
         "policy": json.dumps(template.get("policy", {})),
-        "cards": compressed_cards  # Compressed, not JSON string
+        "cards": compressed_cards,  # Compressed, not JSON string
+        # NEW: SOW reference fields for model versioning and traceability
+        "authored_sow_id": authored_sow_id,
+        "authored_sow_version": authored_sow_version
     }
+
+    # Log SOW references for traceability
+    logger.info(f"SOW References: authored_sow_id='{authored_sow_id}', authored_sow_version='{authored_sow_version}'")
 
     # Step 5: Upsert (update if exists, create if new)
     if existing_docs and len(existing_docs) > 0:

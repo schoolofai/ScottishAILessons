@@ -257,4 +257,58 @@ export class LessonDriver extends BaseDriver {
       throw this.handleError(error, 'delete session');
     }
   }
+
+  /**
+   * [ADMIN] Get lesson templates by courseId for admin review (all statuses)
+   */
+  async getTemplatesByCourseIdForAdmin(courseId: string): Promise<LessonTemplate[]> {
+    if (!courseId || courseId.length === 0) {
+      throw new Error('Course ID is required');
+    }
+
+    try {
+      return await this.list<LessonTemplate>('lesson_templates', [
+        Query.equal('courseId', courseId),
+        Query.orderAsc('sow_order')
+      ]);
+    } catch (error) {
+      throw this.handleError(error, `get templates by courseId for admin: ${courseId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Get lesson templates by authored_sow_id for admin review (SOW-specific templates)
+   * Returns only lesson templates that were generated from this specific SOW
+   * Replaces courseId-based filtering to ensure SOW lineage and model versioning
+   */
+  async getTemplatesByAuthoredSOWId(sowId: string): Promise<LessonTemplate[]> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required');
+    }
+
+    try {
+      return await this.list<LessonTemplate>('lesson_templates', [
+        Query.equal('authored_sow_id', sowId),
+        Query.orderAsc('sow_order')
+      ]);
+    } catch (error) {
+      throw this.handleError(error, `get templates by authored_sow_id for admin: ${sowId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Publish a lesson template
+   * Updates template status to published
+   */
+  async publishTemplate(templateId: string): Promise<void> {
+    if (!templateId || templateId.length === 0) {
+      throw new Error('Template ID is required for publishing');
+    }
+
+    try {
+      await this.update<LessonTemplate>('lesson_templates', templateId, { status: 'published' });
+    } catch (error) {
+      throw this.handleError(error, `publish template ${templateId}`);
+    }
+  }
 }

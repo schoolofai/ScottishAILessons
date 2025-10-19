@@ -93,4 +93,72 @@ export class AuthoredSOWDriver extends BaseDriver {
       throw this.handleError(error, `get SOW version ${version} for course ${courseId}`);
     }
   }
+
+  /**
+   * [ADMIN] Get all SOWs with all statuses for admin review
+   * Used in admin panel to display draft, review, and published SOWs
+   */
+  async getAllSOWsForAdmin(): Promise<Array<AuthoredSOWData & { $id: string; $createdAt?: string; $updatedAt?: string }>> {
+    try {
+      const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
+        Query.orderDesc('$createdAt')
+      ]);
+
+      return records.map(r => ({
+        $id: r.$id,
+        courseId: r.courseId,
+        version: r.version,
+        status: r.status,
+        entries: JSON.parse(r.entries),
+        metadata: JSON.parse(r.metadata),
+        accessibility_notes: r.accessibility_notes,
+        $createdAt: r.$createdAt,
+        $updatedAt: r.$updatedAt
+      }));
+    } catch (error) {
+      throw this.handleError(error, 'get all SOWs for admin');
+    }
+  }
+
+  /**
+   * [ADMIN] Get SOW by document ID (not courseId)
+   * Used to retrieve specific SOW for detailed review
+   */
+  async getSOWById(sowId: string): Promise<AuthoredSOWData & { $id: string }> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required');
+    }
+
+    try {
+      const record = await this.get<AuthoredSOW>(this.COLLECTION_ID, sowId);
+
+      return {
+        $id: record.$id,
+        courseId: record.courseId,
+        version: record.version,
+        status: record.status,
+        entries: JSON.parse(record.entries),
+        metadata: JSON.parse(record.metadata),
+        accessibility_notes: record.accessibility_notes
+      };
+    } catch (error) {
+      throw this.handleError(error, `get SOW by ID ${sowId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Publish a specific SOW
+   * Updates SOW status from draft/review to published
+   */
+  async publishSOW(sowId: string): Promise<void> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required for publishing');
+    }
+
+    try {
+      await this.update<AuthoredSOW>(this.COLLECTION_ID, sowId, { status: 'published' });
+    } catch (error) {
+      throw this.handleError(error, `publish SOW ${sowId}`);
+    }
+  }
 }

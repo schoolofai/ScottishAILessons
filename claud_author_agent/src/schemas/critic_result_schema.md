@@ -5,7 +5,12 @@
 ```json
 {
   "overall_score": "float - 0.0 to 1.0",
-  "pass": "boolean - true if all dimensions pass thresholds",
+  "pass": "boolean - true if schema_gate AND all dimensions pass thresholds",
+
+  "schema_gate": {
+    "pass": "boolean - true if schema validation passes, false if schema violations detected",
+    "failed_checks": ["array of specific schema violations (empty if pass=true)"]
+  },
 
   "validation_errors": [
     "array of structural validation errors (empty if none)"
@@ -83,4 +88,19 @@ overall_score = (
 )
 ```
 
-Pass = ALL dimensions pass their individual thresholds
+Pass = schema_gate.pass == true AND ALL dimensions pass their individual thresholds
+
+## Schema Gate Validation
+
+The `schema_gate` field validates the SOW before dimensional scoring:
+
+**schema_gate.pass = true** when:
+- All assessmentStandardRefs are enriched objects (code, description, outcome) - NOT bare strings
+- All card-level standards_addressed are enriched objects - NOT bare codes
+- All descriptions match Course_data.txt EXACTLY (no paraphrasing)
+- All CFU strategies are SPECIFIC (not "ask questions", "check understanding", etc.)
+- All required metadata fields present and non-empty
+- All card structures are complete and valid
+- Card timings sum to estMinutes (within ±2 minutes)
+
+**schema_gate.pass = false** when ANY validation check fails, blocking dimensional scoring
