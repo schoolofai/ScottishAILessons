@@ -1,0 +1,437 @@
+"""JSON Validation Tool for Lesson Templates using Pydantic.
+
+Provides fast-fail validation with detailed error messages before files reach the upserter.
+Prevents silent failures by catching JSON syntax errors and schema violations early.
+
+Usage:
+    Tool name: mcp__validator__validate_lesson_template
+    Args: {"file_path": "lesson_template.json"}
+
+Returns:
+    - Success: {"is_valid": true, "message": "✅ Validation passed", ...}
+    - Failure: {"is_valid": false, "error_type": "...", "errors": [...]}
+"""
+
+import json
+from pathlib import Path
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import BaseModel, Field, field_validator, ValidationError, ConfigDict
+
+from claude_agent_sdk import tool, create_sdk_mcp_server
+
+
+# ═══════════════════════════════════════════════════════════════
+# Configuration Constants
+# ═══════════════════════════════════════════════════════════════
+
+# Maximum number of detailed errors to return (prevents token overflow)
+MAX_ERRORS_DETAILED = 10
+
+# Maximum length for input values when included in error responses
+MAX_INPUT_VALUE_LENGTH = 100
+
+
+# ═══════════════════════════════════════════════════════════════
+# Pydantic Models for Lesson Template Schema
+# ═══════════════════════════════════════════════════════════════
+
+class LessonTemplateCard(BaseModel):
+    """Schema for individual lesson cards (pedagogical units).
+
+    Each card contains learning content, formative assessment (CFU),
+    and optional fields for scaffolding and context.
+    """
+
+    model_config = ConfigDict(extra="allow")  # Allow additional fields
+
+    card_number: int = Field(..., ge=1, description="Sequential card number (1-indexed)")
+    card_type: str = Field(..., description="Pedagogical card type")
+    title: str = Field(..., min_length=10, max_length=150, description="Card title")
+    purpose: Optional[str] = Field(None, description="Learning purpose of this card")
+
+    # CFU (Check For Understanding) - required for validation
+    cfu: Optional[Dict[str, Any]] = Field(None, description="Formative assessment object")
+
+    @field_validator('card_type')
+    @classmethod
+    def validate_card_type(cls, v):
+        """Validate card_type is one of the allowed pedagogical types."""
+        allowed_types = {
+            "starter",
+            "explainer",
+            "direct_instruction",
+            "guided_practice",
+            "independent_practice",
+            "formative_check",
+            "worked_example",
+            "challenge",
+            "reflection"
+        }
+
+        if v not in allowed_types:
+            raise ValueError(
+                f"Invalid card_type: '{v}'. "
+                f"Must be one of: {', '.join(sorted(allowed_types))}"
+            )
+        return v
+
+    @field_validator('cfu')
+    @classmethod
+    def validate_cfu_structure(cls, v):
+        """Validate CFU has required cfu_type field if present."""
+        if v is not None:
+            if not isinstance(v, dict):
+                raise ValueError("cfu must be an object/dict")
+
+            if 'cfu_type' not in v:
+                raise ValueError("cfu object must contain 'cfu_type' field")
+
+            # Validate cfu_type enum
+            allowed_cfu_types = {'mcq', 'numeric', 'structured_response', 'short_text', 'open_ended_short_answer'}
+            if v['cfu_type'] not in allowed_cfu_types:
+                raise ValueError(
+                    f"Invalid cfu_type: '{v['cfu_type']}'. "
+                    f"Must be one of: {', '.join(sorted(allowed_cfu_types))}"
+                )
+
+        return v
+
+
+class LessonTemplate(BaseModel):
+    """Complete lesson template schema for Scottish secondary education.
+
+    Validates core required fields while allowing flexibility for optional/extended fields.
+    Follows Scottish Qualifications Authority (SQA) standards and Curriculum for Excellence.
+    """
+
+    model_config = ConfigDict(extra="allow")  # Allow additional optional fields
+
+    # ═══ Core Required Fields ═══
+    courseId: str = Field(..., pattern=r'^course_[a-zA-Z0-9]+$', description="Course identifier")
+    title: Optional[str] = Field(None, description="Lesson title (may use 'label' instead)")
+    label: Optional[str] = Field(None, description="Alternative lesson title field")
+    outcomeRefs: List[str] = Field(..., min_length=1, description="SQA outcome codes")
+    lesson_type: str = Field(..., description="Pedagogical category")
+    estMinutes: int = Field(..., ge=30, le=120, description="Estimated duration in minutes")
+    sow_order: int = Field(..., ge=1, description="Sequential position in SOW (1-indexed)")
+
+    # ═══ Optional Metadata Fields ═══
+    createdBy: Optional[str] = Field("claude_agent_sdk", description="Agent identifier")
+    version: Optional[int] = Field(1, ge=1, description="Template version number")
+    status: Optional[str] = Field("draft", description="Publication state")
+
+    # ═══ Context and Engagement ═══
+    engagement_tags: List[str] = Field(default_factory=list, description="Scottish contexts")
+    policy: Dict[str, Any] = Field(default_factory=dict, description="Lesson constraints")
+
+    # ═══ Card Array ═══
+    cards: List[LessonTemplateCard] = Field(..., min_length=1, description="Learning cards")
+
+    @field_validator('title', mode='before')
+    @classmethod
+    def validate_title_or_label(cls, v, info):
+        """Ensure either 'title' or 'label' is provided."""
+        # Access all data via info.data
+        label = info.data.get('label') if hasattr(info, 'data') else None
+
+        if not v and not label:
+            raise ValueError("Either 'title' or 'label' must be provided")
+
+        # Use 'label' if 'title' is missing
+        if not v and label:
+            return label
+
+        # Validate length if title exists
+        if v and (len(v) < 10 or len(v) > 150):
+            raise ValueError(f"title/label must be 10-150 characters, got {len(v)}")
+
+        return v
+
+    @field_validator('lesson_type')
+    @classmethod
+    def validate_lesson_type(cls, v):
+        """Validate lesson_type is one of the allowed pedagogical categories."""
+        allowed_types = {
+            "teach",
+            "independent_practice",
+            "formative_assessment",
+            "revision",
+            "mock_exam"
+        }
+
+        if v not in allowed_types:
+            raise ValueError(
+                f"Invalid lesson_type: '{v}'. "
+                f"Must be one of: {', '.join(sorted(allowed_types))}"
+            )
+        return v
+
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Validate status is one of the allowed workflow states."""
+        if v is not None:
+            allowed_statuses = {"draft", "review", "published"}
+            if v not in allowed_statuses:
+                raise ValueError(
+                    f"Invalid status: '{v}'. "
+                    f"Must be one of: {', '.join(sorted(allowed_statuses))}"
+                )
+        return v
+
+    @field_validator('cards')
+    @classmethod
+    def validate_card_count(cls, v, info):
+        """Validate card count matches lesson_type requirements."""
+        lesson_type = info.data.get('lesson_type') if hasattr(info, 'data') else None
+        count = len(v)
+
+        # Define card count ranges for each lesson type
+        ranges = {
+            "teach": (3, 4),
+            "independent_practice": (3, 5),
+            "formative_assessment": (2, 6),
+            "revision": (4, 8),
+            "mock_exam": (8, 15)
+        }
+
+        if lesson_type in ranges:
+            min_cards, max_cards = ranges[lesson_type]
+            if not (min_cards <= count <= max_cards):
+                raise ValueError(
+                    f"lesson_type '{lesson_type}' requires {min_cards}-{max_cards} cards, "
+                    f"got {count}"
+                )
+
+        # Validate card numbers are sequential
+        expected = 1
+        for card in v:
+            if card.card_number != expected:
+                raise ValueError(
+                    f"Card numbers must be sequential starting from 1. "
+                    f"Expected card_number {expected}, got {card.card_number}"
+                )
+            expected += 1
+
+        return v
+
+
+# ═══════════════════════════════════════════════════════════════
+# Helper Functions
+# ═══════════════════════════════════════════════════════════════
+
+def _format_validation_errors(pydantic_errors: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Format Pydantic validation errors with token limits.
+
+    Args:
+        pydantic_errors: List of error dictionaries from Pydantic ValidationError.errors()
+
+    Returns:
+        Dictionary with formatted errors, limited to MAX_ERRORS_DETAILED items
+        to prevent token overflow in MCP tool responses.
+
+    Note:
+        - Excludes input_value for complex types (dict, list) to reduce token count
+        - Only includes truncated input_value for primitive types (str, int, float, bool)
+        - Adds truncation notice when total errors exceed MAX_ERRORS_DETAILED
+    """
+    total_errors = len(pydantic_errors)
+    detailed_errors = []
+
+    # Process first MAX_ERRORS_DETAILED errors only
+    for error in pydantic_errors[:MAX_ERRORS_DETAILED]:
+        # Build field path (e.g., "cards.0.card_type")
+        field_path = ".".join(str(loc) for loc in error['loc'])
+
+        # Build concise error object (exclude input_value by default)
+        error_info = {
+            "field": field_path,
+            "error": error['msg'],
+            "type": error['type']
+        }
+
+        # Optional: Include truncated input ONLY for primitive types
+        # SKIP for dicts/lists/objects to prevent token overflow
+        input_val = error.get('input')
+        if input_val is not None and isinstance(input_val, (str, int, float, bool)):
+            input_str = str(input_val)
+            if len(input_str) > MAX_INPUT_VALUE_LENGTH:
+                error_info["input_value"] = input_str[:MAX_INPUT_VALUE_LENGTH] + "..."
+            else:
+                error_info["input_value"] = input_val
+
+        detailed_errors.append(error_info)
+
+    # Build response with error summary
+    response = {
+        "is_valid": False,
+        "error_type": "SCHEMA_VALIDATION_ERROR",
+        "message": f"Found {total_errors} validation error(s)",
+        "errors_shown": len(detailed_errors),
+        "total_errors": total_errors,
+        "errors": detailed_errors,
+        "fix_suggestions": [
+            "Check that all required fields are present",
+            "Verify enum values (lesson_type, card_type, cfu_type, status)",
+            "Ensure card count matches lesson_type requirements",
+            "Validate courseId format (must start with 'course_')",
+            "Check that outcomeRefs is not empty",
+            "Ensure card_number values are sequential starting from 1"
+        ]
+    }
+
+    # Add truncation notice if errors were limited
+    if total_errors > MAX_ERRORS_DETAILED:
+        response["truncation_notice"] = (
+            f"Showing first {MAX_ERRORS_DETAILED} of {total_errors} errors. "
+            f"Fix these errors and re-validate to see remaining issues."
+        )
+
+    return response
+
+
+# ═══════════════════════════════════════════════════════════════
+# Custom Tool Implementation
+# ═══════════════════════════════════════════════════════════════
+
+@tool(
+    "validate_lesson_template",
+    "Validate lesson_template.json against Pydantic schema with detailed error reporting",
+    {"file_path": str}
+)
+async def validate_lesson_template(args):
+    """Validate lesson template JSON file using Pydantic models.
+
+    Args:
+        args: Dictionary with 'file_path' key pointing to JSON file
+
+    Returns:
+        Tool response with validation results:
+        - Success: is_valid=True with template details
+        - Failure: is_valid=False with detailed error list
+
+    Error Types:
+        - JSON_SYNTAX_ERROR: Invalid JSON format (missing commas, quotes, etc.)
+        - SCHEMA_VALIDATION_ERROR: Valid JSON but violates Pydantic schema
+        - FILE_NOT_FOUND: File does not exist at given path
+    """
+    file_path = args["file_path"]
+
+    try:
+        # Read and parse JSON file
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # Validate with Pydantic
+        template = LessonTemplate(**data)
+
+        # Success response
+        return {
+            "content": [{
+                "type": "text",
+                "text": json.dumps({
+                    "is_valid": True,
+                    "message": "✅ Validation passed",
+                    "details": {
+                        "title": template.title or template.label,
+                        "card_count": len(template.cards),
+                        "lesson_type": template.lesson_type,
+                        "courseId": template.courseId,
+                        "sow_order": template.sow_order
+                    }
+                }, indent=2)
+            }]
+        }
+
+    except json.JSONDecodeError as e:
+        # JSON parsing error - syntax issue
+        error_msg = {
+            "is_valid": False,
+            "error_type": "JSON_SYNTAX_ERROR",
+            "message": f"Invalid JSON syntax at line {e.lineno}, column {e.colno}",
+            "details": {
+                "error": str(e.msg),
+                "position": f"line {e.lineno}, column {e.colno}",
+                "char_position": e.pos
+            },
+            "fix_suggestions": [
+                "Check for missing commas between fields",
+                "Remove any inline comments (JSON doesn't support comments)",
+                "Ensure all strings are properly quoted",
+                "Check for trailing commas (not allowed in JSON)",
+                "Validate JSON structure with a JSON linter"
+            ]
+        }
+        return {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(error_msg, indent=2)
+            }],
+            "isError": True
+        }
+
+    except ValidationError as e:
+        # Pydantic validation errors - schema violation
+        # Use helper function to format errors with token limits
+        error_msg = _format_validation_errors(e.errors())
+
+        return {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(error_msg, indent=2)
+            }],
+            "isError": True
+        }
+
+    except FileNotFoundError:
+        # File doesn't exist
+        error_msg = {
+            "is_valid": False,
+            "error_type": "FILE_NOT_FOUND",
+            "message": f"File not found: {file_path}",
+            "details": {
+                "file_path": file_path,
+                "absolute_path": str(Path(file_path).absolute())
+            },
+            "fix_suggestions": [
+                "Check that the file path is correct",
+                "Ensure the file has been written before validation",
+                "Verify you're in the correct working directory"
+            ]
+        }
+        return {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(error_msg, indent=2)
+            }],
+            "isError": True
+        }
+
+    except Exception as e:
+        # Unexpected error
+        error_msg = {
+            "is_valid": False,
+            "error_type": "UNEXPECTED_ERROR",
+            "message": f"Unexpected error during validation: {type(e).__name__}",
+            "details": str(e)
+        }
+        return {
+            "content": [{
+                "type": "text",
+                "text": json.dumps(error_msg, indent=2)
+            }],
+            "isError": True
+        }
+
+
+# ═══════════════════════════════════════════════════════════════
+# Create MCP Server
+# ═══════════════════════════════════════════════════════════════
+
+validation_server = create_sdk_mcp_server(
+    name="lesson-validator",
+    version="1.0.0",
+    tools=[validate_lesson_template]
+)
+
+# Tool naming convention: mcp__lesson-validator__validate_lesson_template

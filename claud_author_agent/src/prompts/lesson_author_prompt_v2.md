@@ -383,17 +383,419 @@ Transform SoW `lesson_plan.card_structure` into lesson template `cards`:
 - Use SOW `worked_example`, `practice_problems`, `misconceptions_addressed` fields
 - Create CFU types based on SOW `cfu_strategy`
 
-### Step 4: Draft lesson_template.json
-Using Write tool, create valid JSON with:
-- All required fields from <output> section
-- No forbidden fields
-- All transformations applied
-- 3-15 cards depending on lesson_type
+### Step 4: Fill in the Blank Lesson Template **CARD-BY-CARD**
 
-**CRITICAL**: Before Write tool invocation:
-- Verify all required fields present
-- Verify no forbidden fields (assessmentStandardRefs, accessibility_profile, coherence, calculator_section)
-- Verify transformations applied (especially outcomeRefs combination)
+**IMPORTANT**: A blank `lesson_template.json` has already been pre-generated in your workspace with correct schema structure based on the SOW entry. This blank template has:
+
+✅ **Correct number of cards** (matching SOW card_structure)
+✅ **Correct card IDs** (card_001, card_002, etc.)
+✅ **Correct CFU IDs and types** (CFU_001, CFU_002, with proper type-specific fields)
+✅ **Correct field names** (id, explainer, explainer_plain, cfu.type, rubric, misconceptions)
+✅ **Empty content fields** - you must fill them in **ONE CARD AT A TIME**
+
+---
+
+## 🚨 CRITICAL: Edit Tool ONLY - No Write Tool 🚨
+
+**Your Task**: Use the **Edit tool** to fill in the blank template **ONE CARD AT A TIME**.
+
+**DO NOT use Write tool to rewrite the entire file** - this causes schema errors and wastes tokens.
+
+---
+
+### ❌ ANTI-PATTERN - DO NOT DO THIS
+
+```python
+# Reading blank template and then Writing entire new file
+blank = Read("lesson_template.json")
+complete_template = {
+    "courseId": "...",
+    "title": "...",
+    "cards": [...]  # Recreate entire structure from scratch
+}
+Write("lesson_template.json", json.dumps(complete_template))  # ← WRONG!
+```
+
+**Why this fails**:
+- Introduces schema errors (wrong field names, missing IDs)
+- Wastes tokens generating entire JSON structure
+- Loses the correct card IDs and CFU types already in blank template
+
+---
+
+### ✅ CORRECT PATTERN - DO THIS
+
+```python
+# Edit specific fields one at a time in the existing blank template
+Edit(
+    file_path="lesson_template.json",
+    old_string='"id": "card_001",\n      "title": "",',
+    new_string='"id": "card_001",\n      "title": "Energy in Our Homes: Where Does It Come From?",'
+)
+```
+
+**Why this works**:
+- Preserves correct schema structure
+- Only changes content, not structure
+- Incremental and verifiable
+- Prevents schema errors
+
+---
+
+## Card-by-Card Workflow (FOLLOW EXACTLY)
+
+### Phase 1: Setup and Planning
+
+**Step 1.1** - Read blank template structure:
+```
+Read tool: "lesson_template.json"
+```
+Note: How many cards exist (e.g., 6 cards: card_001 through card_006)
+
+**Step 1.2** - Read SOW entry requirements:
+```
+Read tool: "sow_entry_input.json"
+```
+Note: Card details from `lesson_plan.card_structure` array
+
+**Step 1.3** - Create TodoWrite task list:
+```
+TodoWrite:
+  - "Fill card_001 (all 8 fields)"
+  - "Fill card_002 (all 8 fields)"
+  - "Fill card_003 (all 8 fields)"
+  ... (one task per card)
+  - "Validate complete template"
+```
+
+---
+
+### Phase 2: Fill Each Card (Repeat for EVERY card)
+
+For **EACH CARD** (card_001, card_002, etc.), fill ALL 8 required fields in order:
+
+#### Field 1: Fill `title`
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"id": "card_001",\n      "title": "",'
+  new_string: '"id": "card_001",\n      "title": "Energy in Our Homes: Where Does It Come From?",'
+```
+
+#### Field 2: Fill `explainer` (with LaTeX if needed)
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"title": "Energy in Our Homes: Where Does It Come From?",\n      "explainer": "",'
+  new_string: '"title": "Energy in Our Homes: Where Does It Come From?",\n      "explainer": "Let\'s start by thinking about energy in our homes. Display images of Scottish homes with heating systems, lights, kettles, and other appliances.\\n\\n**Question for you**: What uses energy in your home?\\n\\nLook at this simplified electricity bill from Scottish Power. All this electricity has to come from somewhere - but where?\\n\\nToday we\'ll explore the sources of energy that power our homes and learn to make accurate scientific statements about them.",'
+```
+
+**LaTeX Note**: Use `$...$` for inline math, `$$...$$` for display math. Escape backslashes in JSON strings.
+
+#### Field 3: Fill `explainer_plain` (no LaTeX)
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"explainer": "...",\n      "explainer_plain": "",'
+  new_string: '"explainer": "...",\n      "explainer_plain": "Let\'s start by thinking about energy in our homes. Display images of Scottish homes with heating systems, lights, kettles, and other appliances. Question for you: What uses energy in your home? Look at this simplified electricity bill from Scottish Power. All this electricity has to come from somewhere - but where? Today we\'ll explore the sources of energy that power our homes and learn to make accurate scientific statements about them.",'
+```
+
+#### Field 4: Fill `cfu.stem` (the question)
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"id": "CFU_001",\n        "stem": "",'
+  new_string: '"id": "CFU_001",\n        "stem": "Which of these uses the most energy in a typical Scottish home?",'
+```
+
+#### Field 5: Fill CFU type-specific fields
+
+**For MCQ** (has `options` and `answerIndex`):
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"options": [\n          "",\n          "",\n          "",\n          ""\n        ],\n        "answerIndex": 0'
+  new_string: '"options": [\n          "Heating",\n          "Lighting",\n          "TV",\n          "Phone charging"\n        ],\n        "answerIndex": 0'
+```
+
+**For short_answer** (has `expected`):
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"stem": "...",\n        "expected": ""'
+  new_string: '"stem": "...",\n        "expected": "Wind and solar are renewable because they replenish naturally. Coal and natural gas are non-renewable because they take millions of years to form."'
+```
+
+**For numeric** (has `expected` and `tolerance`):
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"expected": 0.0,\n        "tolerance": 0.1'
+  new_string: '"expected": 42.5,\n        "tolerance": 0.5'
+```
+
+**For true_false** (has `expected` boolean):
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"stem": "...",\n        "expected": true'
+  new_string: '"stem": "...",\n        "expected": false'
+```
+
+#### Field 6: Fill `rubric` (criteria and total_points)
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"rubric": {\n        "total_points": 0,\n        "criteria": []\n      },'
+  new_string: '"rubric": {\n        "total_points": 4,\n        "criteria": [\n          {\n            "criterion": "Correctly identifies energy-using appliances in Scottish homes",\n            "points": 2\n          },\n          {\n            "criterion": "Recognizes electricity must be generated from sources",\n            "points": 2\n          }\n        ]\n      },'
+```
+
+**CRITICAL**: `total_points` MUST equal sum of all `criteria[].points`. Validator will reject if mismatch.
+
+#### Field 7: Fill `misconceptions` array
+
+```
+Edit tool:
+  file_path: "lesson_template.json"
+  old_string: '"misconceptions": []'
+  new_string: '"misconceptions": [\n        {\n          "id": "MISC_PHYSICS_ENERGY_001",\n          "description": "Students think electricity is stored in walls or sockets",\n          "remediation": "Clarify that electricity is generated at power stations and transmitted through wires to homes in real-time. Show diagram: power station → transmission lines → local transformer → home. Explain sockets are endpoints of a circuit, not storage."\n        }\n      ]'
+```
+
+**Misconception ID Format**: `MISC_[SUBJECT]_[TOPIC]_NNN`
+- Subject: PHYSICS, MATHEMATICS, CHEMISTRY, etc. (uppercase)
+- Topic: ENERGY, FRACTIONS, ALGEBRA, etc. (uppercase)
+- NNN: 001, 002, 003, etc. (3 digits, zero-padded)
+
+#### Field 8: Mark card complete in TodoWrite
+
+```
+TodoWrite: Mark "Fill card_001 (all 8 fields)" as completed
+```
+
+---
+
+### ═══════════════════════════════════════════════
+### CARD COMPLETION CHECKLIST (Before Moving to Next Card)
+### ═══════════════════════════════════════════════
+
+For the card you just edited, verify ALL fields filled:
+
+- [x] `title` - not empty string, describes card purpose
+- [x] `explainer` - pedagogically rich content (with LaTeX if needed)
+- [x] `explainer_plain` - same content without LaTeX
+- [x] `cfu.stem` - clear, specific question
+- [x] `cfu` type-specific fields - options (MCQ), expected (short_answer/numeric/true_false), tolerance (numeric)
+- [x] `rubric.criteria` - at least 1 criterion, points sum equals total_points
+- [x] `rubric.total_points` - NOT 0, equals sum of criteria points
+- [x] `misconceptions` - at least 1 misconception with correct ID format, description, remediation
+
+**IF ANY FIELD IS EMPTY OR WRONG**: Use Edit tool to fix it NOW before moving to next card.
+
+---
+
+### Repeat Phase 2 for EVERY Card
+
+After completing card_001, move to card_002 and repeat ALL 8 field edits.
+
+Continue until ALL cards in blank template are filled.
+
+---
+
+### Phase 3: Final Validation
+
+After ALL cards filled:
+
+**Step 3.1** - Run validation tool:
+```
+Tool: mcp__validator__validate_lesson_template
+Args: {"file_path": "lesson_template.json"}
+```
+
+**Step 3.2** - Check result:
+- If `is_valid: true` → ✅ Proceed to Step 5 (critic review)
+- If `is_valid: false` → ❌ Fix errors using Edit tool (NOT Write tool)
+
+**Step 3.3** - Fix validation errors (if any):
+```
+Read validation errors
+For each error:
+  Use Edit tool to fix the specific field
+Re-run validation
+Repeat until is_valid: true
+```
+
+**Step 3.4** - Mark validation complete in TodoWrite:
+```
+TodoWrite: Mark "Validate complete template" as completed
+```
+
+---
+
+## Summary: Key Rules
+
+1. **Never use Write tool** to rewrite entire lesson_template.json
+2. **Always use Edit tool** to change specific fields
+3. **Fill ONE CARD AT A TIME** - complete all 8 fields before moving to next card
+4. **Use TodoWrite** to track progress (one task per card)
+5. **Verify checklist** before marking card complete
+6. **Validate ONLY AFTER** all cards filled (not after each card)
+7. **Fix validation errors** with Edit tool, not Write tool
+
+### Step 4.5: Validate JSON Schema (REQUIRED)
+
+**CRITICAL**: Immediately after writing `lesson_template.json`, validate it using the JSON validation tool.
+
+**Process**:
+1. **Call the validation tool**:
+   ```
+   Tool: mcp__validator__validate_lesson_template
+   Args: {"file_path": "lesson_template.json"}
+   ```
+
+2. **Check validation result**:
+   - **If `is_valid: true`**: ✅ Proceed to Step 5 (critic review)
+   - **If `is_valid: false`**: ❌ Fix ALL errors before proceeding
+
+3. **Fix-Validate Loop** (if validation fails):
+   - Read the detailed error list from validation result
+   - Use Edit tool to fix EACH error in `lesson_template.json`
+   - Re-run validation tool
+   - Repeat until `is_valid: true`
+
+4. **DO NOT proceed to critic review** until validation passes
+
+**Common JSON Errors Caught by Validator (v2.0.0)**:
+
+**JSON Syntax Errors**:
+- Missing commas between fields
+- Inline comments like `"field": "value" [comment here]` (NOT allowed in JSON)
+- Trailing commas
+- Unquoted keys or string values
+
+**Schema Validation Errors (OUTPUT Schema)**:
+- Invalid `lesson_type` (must be: teach, independent_practice, formative_assessment, revision, mock_exam)
+- Wrong card count for lesson_type (e.g., teach needs 3-4 cards, mock_exam needs 8-15)
+- Missing required OUTPUT fields:
+  * Template-level: courseId, title OR label, outcomeRefs, lesson_type, estMinutes, sow_order, cards
+  * Card-level: id, title, explainer, explainer_plain, cfu, rubric, misconceptions
+- Invalid `courseId` format (must start with "course_")
+- Empty `outcomeRefs` array
+- **CFU field name error**: Using `cfu_type` instead of `type` ❌
+- Non-sequential card IDs (must be card_001, card_002, card_003 with no gaps)
+
+**v2.0.0 Deep Validation Errors**:
+- **CFU Missing Required Fields**:
+  * MCQ missing: `answerIndex`, `options`, `rubric`, `stem`
+  * Numeric missing: `expected`, `tolerance`, `money2dp`, `rubric`
+  * All CFU types must have `type` field (NOT `cfu_type`)
+- **Rubric Sum Mismatch**: Criteria points don't sum to total_points
+  * Example: total_points=3 but criteria sum to 2
+- **Misconception ID Format**: Must match `MISC_[SUBJECT]_[TOPIC]_NNN`
+  * Example: `MISC_MATHS_FRACTIONS_001`
+- **Card ID Format**: Must be sequential (card_001, card_002, card_003)
+  * No gaps or duplicates allowed
+
+**Error Limit (Important for Iterative Fixing)**:
+The validator returns a MAXIMUM of 10 detailed errors per validation call.
+
+**Response fields**:
+- `errors_shown`: Number of errors included in response (max 10)
+- `total_errors`: Total number of errors found
+- `truncation_notice`: Message when total_errors > 10
+
+**Example with >10 errors**:
+```json
+{
+  "is_valid": false,
+  "error_type": "SCHEMA_VALIDATION_ERROR",
+  "message": "Found 23 validation error(s)",
+  "errors_shown": 10,
+  "total_errors": 23,
+  "errors": [/* first 10 errors with field paths and messages */],
+  "truncation_notice": "Showing first 10 of 23 errors. Fix these errors and re-validate to see remaining issues."
+}
+```
+
+**Workflow for >10 errors**:
+1. Read first 10 errors from validation response
+2. Fix ALL 10 errors using Edit tool
+3. Re-run validation tool
+4. Repeat until `is_valid: true`
+
+This is expected behavior - don't be discouraged by large error counts.
+Fix them systematically in batches of 10.
+
+**Example v2.0.0 Validation Failure Response**:
+```json
+{
+  "is_valid": false,
+  "error_type": "SCHEMA_VALIDATION_ERROR",
+  "message": "Found 4 validation error(s)",
+  "errors_shown": 4,
+  "total_errors": 4,
+  "errors": [
+    {
+      "field": "cards.0.cfu",
+      "error": "cfu object must contain 'type' field",
+      "type": "value_error"
+    },
+    {
+      "field": "cards.1.cfu.answerIndex",
+      "error": "Field required",
+      "type": "missing"
+    },
+    {
+      "field": "cards.2.rubric.criteria",
+      "error": "Sum of criteria points (2.0) does not equal total_points (3.0)",
+      "type": "value_error"
+    },
+    {
+      "field": "cards.3.misconceptions.0.id",
+      "error": "String should match pattern '^MISC_[A-Z]+_[A-Z_]+_\\d{3}$'",
+      "type": "string_pattern_mismatch",
+      "input_value": "MISC_001"
+    }
+  ],
+  "fix_suggestions": [
+    "Check that all required fields are present",
+    "Verify CFU uses 'type' field (NOT 'cfu_type')",
+    "Ensure card IDs are sequential (card_001, card_002, ...)",
+    "Validate rubric: total_points must equal sum of criteria points",
+    "Check misconception ID format: MISC_[SUBJECT]_[TOPIC]_NNN",
+    "Verify CFU type-specific fields (e.g., MCQ needs answerIndex)",
+    "Ensure lesson_type enum is valid",
+    "Check courseId format (must start with 'course_')",
+    "Verify card count matches lesson_type requirements"
+  ]
+}
+```
+
+**Key Differences from Previous Validator**:
+1. ❌ OLD: Checked `cfu_type` field → ✅ NEW: Checks `type` field
+2. ❌ OLD: Shallow CFU validation → ✅ NEW: Deep type-specific validation
+3. ❌ OLD: No rubric validation → ✅ NEW: Validates criteria sum
+4. ❌ OLD: No misconception validation → ✅ NEW: Validates ID format
+5. ❌ OLD: Checked SOW input fields → ✅ NEW: Validates OUTPUT schema fields
+```
+
+**How to Fix Validation Errors**:
+1. Use Edit tool to fix each field mentioned in errors array
+2. For enum errors: Check allowed values and use exact match
+3. For card count errors: Add/remove cards to match lesson_type requirements
+4. For JSON syntax errors: Remove inline comments, fix commas, check quotes
+5. Re-validate after each fix until `is_valid: true`
+
+**Benefits of Validation**:
+- ✅ Catches errors BEFORE they reach upserter (fast-fail)
+- ✅ Prevents silent failures from invalid JSON
+- ✅ Provides detailed field-level error messages
+- ✅ Enables self-correction through structured error feedback
+- ✅ Saves tokens by avoiding critic evaluation of invalid files
 
 ### Step 5: Quality Assurance (Critique Loop)
 Delegate to `combined_lesson_critic` subagent (see <subagents>):

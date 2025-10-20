@@ -19,6 +19,7 @@ from .utils.validation import validate_lesson_author_input
 from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
 from .utils.compression import decompress_json_gzip_base64
+from .tools.json_validator_tool import validation_server
 
 logger = logging.getLogger(__name__)
 
@@ -213,13 +214,74 @@ class LessonAuthorClaudeAgent:
                         mcp_config = json.load(f).get('mcpServers', {})
                     logger.info(f"Loaded MCP config with servers: {list(mcp_config.keys())}")
 
+                # ═══════════════════════════════════════════════════════════════
+                # Register MCP Tools for Lesson Author Agent
+                # ═══════════════════════════════════════════════════════════════
+                # ONLY register validator MCP tool - Appwrite MCP excluded.
+                #
+                # Why Appwrite MCP Not Needed:
+                # - SOW entry and Course_data.txt are PRE-EXTRACTED by Python utilities
+                #   (sow_extractor.py, course_data_extractor.py use Appwrite MCP directly)
+                # - Lesson author agent works with FILES in workspace, not database queries
+                # - Removes ~5,000-10,000 tokens per execution (50+ unused Appwrite tools)
+                #
+                # JSON Validation Tool (v2.0.0):
+                # - Validates OUTPUT schema (cards have: id, explainer, explainer_plain, rubric, misconceptions)
+                # - Deep CFU validation (MCQ needs answerIndex, numeric needs expected/tolerance)
+                # - Rubric sum validation (criteria points must equal total_points)
+                # - Misconception ID format validation (MISC_[SUBJECT]_[TOPIC]_NNN)
+                # - Card ID sequential validation (card_001, card_002, no gaps)
+                # - Error limit: Returns max 10 detailed errors per validation
+                #
+                # Tool Name: mcp__validator__validate_lesson_template
+                # Documentation: docs/guides/json-validation-tool.md
+                # Implementation: src/tools/json_validator_tool.py
+                # ═══════════════════════════════════════════════════════════════
+                mcp_servers_for_lesson_author = {
+                    "validator": validation_server  # JSON validation tool (v2.0.0)
+                    # Appwrite MCP intentionally excluded - not used by lesson author
+                }
+                logger.info("Registered validator MCP tool for lesson author (Appwrite MCP excluded - not needed)")
+
+                # ═══════════════════════════════════════════════════════════════
+                # Generate Blank Lesson Template (NO AGENT)
+                # ═══════════════════════════════════════════════════════════════
+                # Creates empty lesson_template.json with correct schema structure
+                # based on sow_entry_input.json. Agent will fill in content using
+                # Write tool. This prevents schema structure errors.
+                # ═══════════════════════════════════════════════════════════════
+                logger.info("Generating blank lesson_template.json...")
+
+                from .utils.blank_template_generator import generate_blank_template_file
+
+                sow_input_path = workspace_path / "sow_entry_input.json"
+                blank_template_path = workspace_path / "lesson_template.json"
+
+                if not sow_input_path.exists():
+                    error_msg = f"SOW entry input not found: {sow_input_path}"
+                    logger.error(f"❌ {error_msg}")
+                    raise FileNotFoundError(error_msg)
+
+                generate_blank_template_file(
+                    sow_input_path=str(sow_input_path),
+                    output_path=str(blank_template_path),
+                    course_id=courseId
+                )
+
+                logger.info(f"✅ Blank lesson_template.json ready at: {blank_template_path}")
+                logger.info("   Python generation complete - no LLM tokens used")
+
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
                 options = ClaudeAgentOptions(
                     model='claude-sonnet-4-5',
                     agents=self._get_subagent_definitions(),
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
-                    mcp_servers=mcp_config,  # Pass dict, not path
-                    allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task', 'WebSearch', 'WebFetch'],
+                    mcp_servers=mcp_servers_for_lesson_author,  # Only validator MCP (Appwrite excluded)
+                    allowed_tools=[
+                        'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
+                        'WebSearch', 'WebFetch',
+                        'mcp__validator__validate_lesson_template'  # JSON validation tool
+                    ],
                     max_turns=500  # High limit to ensure agent can complete complex lesson authoring work
                 )
 

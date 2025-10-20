@@ -55,6 +55,8 @@ Write your comprehensive critique to `critic_result.json` using the Write tool w
 
 **Purpose**: Hard validation of v2 schema requirements. ANY failure = instant FAIL regardless of fidelity score.
 
+Always use the Tool: mcp__validator__validate_lesson_template tool to test schema. Analyse the output if the validation fails and use the details in the critic_result.json file. 
+
 ### Required Top-Level Fields (Detailed Specifications)
 
 #### `courseId` (string, REQUIRED)
@@ -587,14 +589,14 @@ Each card in the `cards` array must have:
 **Criteria**:
 - **Metadata consistency**: title, lesson_type, estMinutes match SOW entry
 - **Outcome combination correct**: outcomeRefs = SOW outcomeRefs + SOW assessmentStandardRefs codes
-- **Card count reasonable**: Card count matches lesson_type expectations (teach: 3-4, independent_practice: 3-4, formative_assessment: 2-3, revision: 3, mock_exam: 8-15)
+- **Card count preservation**: Card count matches SOW design (template card count should be within ±1 of SOW card_structure count, unless SOW explicitly justifies different count)
 
 **Validation**:
 1. Compare template.title vs SOW.label
 2. Compare template.lesson_type vs SOW.lesson_type
 3. Compare template.estMinutes vs SOW.estMinutes (±5)
 4. Verify outcomeRefs combination
-5. Check card count matches lesson_type
+5. Check card count matches SOW design (within ±1 acceptable)
 
 ---
 
@@ -606,6 +608,56 @@ Each card in the `cards` array must have:
 </evaluation_framework>
 
 <process>
+
+0) **PRE-VALIDATION CHECK** (REQUIRED FIRST STEP):
+   **CRITICAL**: Before evaluating quality, ensure the file is structurally valid using the JSON validation tool (v2.0.0).
+
+   **Process**:
+   1. Call validation tool:
+      ```
+      Tool: mcp__validator__validate_lesson_template
+      Args: {"file_path": "lesson_template.json"}
+      ```
+
+   2. Check validation result:
+      - **If `is_valid: true`**: ✅ Proceed with quality evaluation (steps 1-8)
+      - **If `is_valid: false`**: ❌ STOP immediately and write critic_result.json
+
+   3. **Important - Error Limit**: The validator returns max 10 detailed errors per call.
+      - Check `errors_shown` vs `total_errors` in response
+      - If `total_errors > 10`, there's a `truncation_notice` field
+      - This is expected behavior - lesson_author will fix-validate iteratively
+
+   4. If validation FAILS:
+      - Write `critic_result.json` with:
+        ```json
+        {
+          "pass": false,
+          "overall_score": 0.0,
+          "reason": "SCHEMA_VALIDATION_FAILED - JSON structure is invalid",
+          "validation_errors": {
+            "errors_shown": 10,
+            "total_errors": 23,
+            "errors": [/* first 10 errors from validator */],
+            "truncation_notice": "Showing first 10 of 23 errors..."
+          },
+          "dimensional_scores": {},
+          "recommendations": [
+            "Fix JSON errors shown in validation_errors (10 of 23 total)",
+            "Re-run validation tool after fixes to see remaining errors",
+            "Common v2.0.0 issues: Using 'cfu_type' instead of 'type', missing rubric criteria sum",
+            "Check card IDs are sequential (card_001, card_002, ...)",
+            "Verify misconception IDs match format: MISC_[SUBJECT]_[TOPIC]_NNN",
+            "Then re-run critic for quality evaluation"
+          ]
+        }
+        ```
+      - STOP - do not proceed with quality evaluation
+      - The lesson author will fix schema issues and re-run
+
+   **Rationale**: No point evaluating pedagogical quality if the JSON structure is invalid.
+   Fast-fail on schema issues to enable quick self-correction. The 10 error limit
+   encourages iterative fixing and prevents token overflow in error responses.
 
 1) **Read required files**:
    - `lesson_template.json` (REQUIRED - throw error if missing)
