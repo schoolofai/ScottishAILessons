@@ -27,6 +27,8 @@
     "migrate:lesson-versioning": "tsx scripts/migrations/add-lesson-template-versioning.ts",
     "backfill:lesson-versioning": "tsx scripts/backfill-lesson-versioning.ts",
     "cleanup:legacy-templates": "tsx scripts/cleanupLegacyTemplates.ts",
+    "migrate:compress-sow-entries": "tsx scripts/migrateCompressAuthoredSOWs.ts",
+    "migrate:compress-sow-entries:dry-run": "tsx scripts/migrateCompressAuthoredSOWs.ts --dry-run",
     "test:parallel": "playwright test --workers=4",
     "test:serial": "playwright test --workers=1",
     "test:jest": "jest",

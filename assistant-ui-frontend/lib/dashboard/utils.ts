@@ -25,6 +25,7 @@ export function transformCoursesForNavigation(courses: Course[]): CourseData[] {
   return courses.map((course: Course) => ({
     id: course.courseId, // Use courseId instead of $id to preserve space format
     subject: course.subject.toLowerCase(),
+    level: course.level,
     title: course.subject.charAt(0).toUpperCase() + course.subject.slice(1),
     progress: Math.floor(Math.random() * 100), // Mock progress - replace with real data
     enrolled: true, // Mock enrollment - replace with real enrollment check

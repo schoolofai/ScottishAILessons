@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 export interface CourseData {
   id: string;
   subject: string;
+  level: string;
   title: string;
   progress: number;
   enrolled: boolean;
@@ -142,7 +143,9 @@ export function CourseNavigationTabs({
             onFocus={() => setFocusedTab(course.id)}
           >
             <div className="flex items-center gap-2">
-              <span>{course.subject}</span>
+              <span className="capitalize">
+                {course.subject.replace(/-/g, ' ')} - {course.level.replace(/-/g, ' ')}
+              </span>
               {course.overdueLessons && course.overdueLessons > 0 && (
                 <Badge
                   variant="destructive"

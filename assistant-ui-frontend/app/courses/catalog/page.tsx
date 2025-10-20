@@ -6,6 +6,7 @@ import { CourseCard } from '@/components/courses/CourseCard';
 import { CourseFilterBar } from '@/components/courses/CourseFilterBar';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap, ArrowLeft } from 'lucide-react';
+import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
 
 export default function CourseCatalogPage() {
   const router = useRouter();
@@ -33,8 +34,24 @@ export default function CourseCatalogPage() {
       const databases = new Databases(client);
       const account = new Account(client);
 
-      // Get all courses
-      const coursesResult = await databases.listDocuments('default', 'courses');
+      // Get all courses (increase limit to load all 117 courses, not just default 25)
+      const coursesResult = await databases.listDocuments('default', 'courses', [
+        Query.limit(500)
+      ]);
+
+      // ═══════════════════════════════════════════════════════════════
+      // NEW: Filter courses to only those with published SOWs
+      // ═══════════════════════════════════════════════════════════════
+      const sowDriver = new AuthoredSOWDriver(databases);
+      const publishedCourseIds = await sowDriver.getPublishedCourseIds();
+
+      const coursesWithPublishedSOWs = coursesResult.documents.filter(
+        (course: any) => publishedCourseIds.has(course.courseId)
+      );
+
+      console.log(
+        `[Catalog] Filtered ${coursesResult.documents.length} courses to ${coursesWithPublishedSOWs.length} with published SOWs`
+      );
 
       // Get student enrollments
       try {
@@ -56,7 +73,8 @@ export default function CourseCatalogPage() {
         console.log('User not logged in, showing public catalog');
       }
 
-      setCourses(coursesResult.documents);
+      // Use filtered courses instead of all courses
+      setCourses(coursesWithPublishedSOWs);
     } catch (error) {
       console.error('Failed to load courses:', error);
     } finally {

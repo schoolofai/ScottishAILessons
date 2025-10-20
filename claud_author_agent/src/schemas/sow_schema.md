@@ -1,6 +1,24 @@
 # SOW Schema - Authored SOW JSON Structure
 
-## Complete Schema for `authored_sow.json`
+**⚠️ DEPRECATION NOTICE (2025-10-19)**
+
+This file is a **legacy reference** kept for backwards compatibility.
+
+**CANONICAL SCHEMA LOCATION**: `/claud_author_agent/docs/schema/authored_sow_schema.md`
+
+For current development and all new implementations, use the canonical schema documentation which includes:
+- Complete field descriptions with AI-friendly explanations
+- Enriched reference structures with detailed examples
+- All forbidden patterns with detailed reasoning
+- Validation rules with comprehensive explanations
+- Pre-write validation checklist
+- Complete worked examples showing valid entries
+
+This legacy file may become outdated. For accurate, up-to-date schema requirements, always reference the canonical schema file.
+
+---
+
+## Complete Schema for `authored_sow.json` (Legacy Reference)
 
 ```json
 {

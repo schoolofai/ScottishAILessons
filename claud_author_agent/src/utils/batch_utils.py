@@ -13,6 +13,7 @@ import logging
 from typing import Dict, Any, List, Optional
 
 from .appwrite_mcp import list_appwrite_documents
+from .compression import decompress_json_gzip_base64
 
 logger = logging.getLogger(__name__)
 
@@ -54,13 +55,17 @@ async def fetch_sow_entries(
 
     sow_doc = sow_docs[0]
 
-    # Parse entries field (may be JSON string)
+    # Parse entries field (handles compressed and uncompressed formats)
+    # Supports: TypeScript "gzip:" prefix, Python legacy raw base64, and uncompressed JSON
     entries = sow_doc.get('entries', [])
     if isinstance(entries, str):
         try:
-            entries = json.loads(entries)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse SOW entries JSON: {e}")
+            entries = decompress_json_gzip_base64(entries)
+        except ValueError as e:
+            raise ValueError(
+                f"Failed to decompress/parse SOW entries for courseId '{courseId}': {e}. "
+                f"The entries field may be corrupted or in an unsupported format."
+            )
 
     if not entries:
         raise ValueError(f"SOW document has no entries for courseId '{courseId}'")

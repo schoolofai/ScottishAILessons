@@ -1,5 +1,6 @@
 import { Query } from 'node-appwrite';
 import { ServerBaseDriver } from './ServerBaseDriver';
+import { compressJSON } from '../../lib/appwrite/utils/compression';
 
 /**
  * Authored_SOW data structure from langgraph-author-agent output
@@ -76,7 +77,7 @@ export class ServerAuthoredSOWDriver extends ServerBaseDriver {
         courseId: data.courseId,
         version: data.version,
         status: data.status,
-        entries: JSON.stringify(data.entries),
+        entries: compressJSON(data.entries),  // Compress using gzip+base64
         metadata: JSON.stringify(data.metadata),
         accessibility_notes: data.accessibility_notes || ''
       };
@@ -98,7 +99,7 @@ export class ServerAuthoredSOWDriver extends ServerBaseDriver {
       const docData: any = {};
 
       if (data.status) docData.status = data.status;
-      if (data.entries) docData.entries = JSON.stringify(data.entries);
+      if (data.entries) docData.entries = compressJSON(data.entries);  // Compress using gzip+base64
       if (data.metadata) docData.metadata = JSON.stringify(data.metadata);
       if (data.accessibility_notes !== undefined) docData.accessibility_notes = data.accessibility_notes;
 

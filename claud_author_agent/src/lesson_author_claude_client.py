@@ -18,6 +18,7 @@ from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_lesson_author_input
 from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
+from .utils.compression import decompress_json_gzip_base64
 
 logger = logging.getLogger(__name__)
 
@@ -218,10 +219,11 @@ class LessonAuthorClaudeAgent:
                     agents=self._get_subagent_definitions(),
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
                     mcp_servers=mcp_config,  # Pass dict, not path
-                    allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task', 'WebSearch', 'WebFetch']
+                    allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task', 'WebSearch', 'WebFetch'],
+                    max_turns=500  # High limit to ensure agent can complete complex lesson authoring work
                 )
 
-                logger.info(f"Agent configured with permission_mode='bypassPermissions' + WebSearch/WebFetch enabled")
+                logger.info(f"Agent configured with permission_mode='bypassPermissions' + WebSearch/WebFetch enabled + max_turns=500")
 
                 # Execute pipeline (3 subagents: research_subagent, lesson_author, combined_lesson_critic)
                 async with ClaudeSDKClient(options) as client:
@@ -346,10 +348,18 @@ class LessonAuthorClaudeAgent:
 
             logger.info(f"  ✓ SOW document found: {courseId}")
 
-            # Parse entries field (may be JSON string or already parsed)
+            # Parse entries field (handles compressed and uncompressed formats)
+            # Supports: TypeScript "gzip:" prefix, Python legacy raw base64, and uncompressed JSON
             entries = sow_doc.get('entries', [])
             if isinstance(entries, str):
-                entries = json.loads(entries)
+                try:
+                    entries = decompress_json_gzip_base64(entries)
+                except ValueError as e:
+                    logger.error(f"Failed to decompress entries field: {e}")
+                    raise ValueError(
+                        f"Cannot parse entries field for courseId '{courseId}': {e}. "
+                        f"The entries field may be corrupted or in an unsupported format."
+                    )
 
             # Find entry with matching order
             entry = next((e for e in entries if e.get('order') == order), None)
@@ -476,7 +486,7 @@ Execute the following workflow with 3 available subagents:
   * "What is the I-We-You pedagogy progression for teaching mathematics?"
   * "Find exemplar National 5 mock exam question structures"
 
-### 4. Combined Lesson Critic v2 (with retry loop)
+### 4. Combined Lesson Critic v2 (iterate until pass)
 - **Task**: Validate transformation fidelity (75%) and schema compliance (GATE)
 - **Validation Strategy**:
   - **Schema Gate**: Hard pass/fail on v2 schema requirements (ANY violation = instant fail)
@@ -490,11 +500,11 @@ Execute the following workflow with 3 available subagents:
 - **Output**: `/workspace/critic_result.json`
 - **Delegate to**: @combined_lesson_critic
 - **Logic**:
-  - If overall_pass = false and attempt < {self.max_critic_retries}:
+  - If overall_pass = false:
     - Pass feedback to yourself for revision
     - Revise lesson_template.json
     - Re-run @combined_lesson_critic
-  - If overall_pass = true OR max attempts reached: proceed to completion
+  - If overall_pass = true: proceed to completion
 
 ## Cost Tracking
 After each subagent execution, use TodoWrite to log:

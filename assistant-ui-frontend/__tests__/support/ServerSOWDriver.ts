@@ -1,6 +1,7 @@
 import { Query } from 'node-appwrite';
 import { ServerBaseDriver } from './ServerBaseDriver';
 import type { AuthoredSOWData, AuthoredSOWEntry, AuthoredSOWMetadata } from '../../lib/appwrite/types';
+import { decompressJSON } from '../../lib/appwrite/utils/compression';
 
 export interface StudentCustomizations {
   entries?: {
@@ -73,8 +74,8 @@ export class ServerSOWDriver extends ServerBaseDriver {
         );
       }
 
-      // Step 4: Parse Authored_SOW data
-      const authoredEntries: AuthoredSOWEntry[] = JSON.parse(authoredSOW.entries || '[]');
+      // Step 4: Parse Authored_SOW data (decompress entries, parse metadata)
+      const authoredEntries: AuthoredSOWEntry[] = decompressJSON(authoredSOW.entries) || [];
       const authoredMetadata: AuthoredSOWMetadata = JSON.parse(authoredSOW.metadata || '{}');
 
       // Step 5: Parse customizations

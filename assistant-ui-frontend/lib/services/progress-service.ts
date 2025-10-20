@@ -6,6 +6,7 @@
  */
 
 import { Databases, Query } from 'appwrite';
+import { decompressJSON } from '../appwrite/utils/compression';
 
 // ============================================================================
 // Types & Interfaces
@@ -109,7 +110,7 @@ export async function getCourseProgress(
       sowv2.source_authored_sow_id
     );
 
-    const sowEntries = JSON.parse(authoredSOW.entries);
+    const sowEntries = decompressJSON(authoredSOW.entries) || [];
     const totalLessons = sowEntries.length;
 
     console.log('[Progress Service] Total lessons from Authored_SOW:', totalLessons);

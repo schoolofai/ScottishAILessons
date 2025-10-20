@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Dict, Any, Tuple
 
 from .appwrite_mcp import list_appwrite_documents
+from .compression import decompress_json_gzip_base64
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +67,18 @@ async def extract_sow_entry_to_workspace(
 
     sow_doc = sow_docs[0]
 
-    # Parse entries field (may be JSON string or already parsed)
+    # Parse entries field (handles compressed and uncompressed formats)
+    # Supports: TypeScript "gzip:" prefix, Python legacy raw base64, and uncompressed JSON
     entries = sow_doc.get('entries', [])
     if isinstance(entries, str):
-        entries = json.loads(entries)
+        try:
+            entries = decompress_json_gzip_base64(entries)
+        except ValueError as e:
+            logger.error(f"Failed to decompress entries field: {e}")
+            raise ValueError(
+                f"Cannot parse entries field for courseId '{courseId}': {e}. "
+                f"The entries field may be corrupted or in an unsupported format."
+            )
 
     # Find entry with matching order
     entry = next((e for e in entries if e.get('order') == order), None)

@@ -31,13 +31,13 @@ VALID_LEVELS = [
 def validate_input_schema(input_data: Dict[str, Any]) -> tuple[bool, str]:
     """Validate SOW Author input data schema and format.
 
-    Checks that input contains required fields (subject, level, courseId) and that
-    values match expected SQA database format.
+    Checks that input contains required field (courseId) and that value is properly formatted.
+    Subject and level are automatically fetched from the database based on courseId.
 
     Note: This is for SOW Author. For Lesson Author, use validate_lesson_author_input().
 
     Args:
-        input_data: Dictionary containing subject, level, and courseId
+        input_data: Dictionary containing courseId
 
     Returns:
         Tuple of (is_valid: bool, error_message: str)
@@ -45,49 +45,62 @@ def validate_input_schema(input_data: Dict[str, Any]) -> tuple[bool, str]:
 
     Example:
         >>> validate_input_schema({
-        ...     "subject": "mathematics",
-        ...     "level": "national-5",
         ...     "courseId": "course_c84874"
         ... })
         (True, "")
 
         >>> validate_input_schema({"subject": "invalid"})
-        (False, "Missing required field: level")
+        (False, "Missing required field: courseId")
     """
-    # Check required fields
-    if "subject" not in input_data:
-        return False, "Missing required field: subject"
-
-    if "level" not in input_data:
-        return False, "Missing required field: level"
-
+    # Check required field
     if "courseId" not in input_data:
         return False, "Missing required field: courseId"
 
-    subject = input_data["subject"]
-    level = input_data["level"]
     course_id = input_data["courseId"]
 
-    # Validate types
-    if not isinstance(subject, str):
-        return False, f"Field 'subject' must be string, got {type(subject).__name__}"
-
-    if not isinstance(level, str):
-        return False, f"Field 'level' must be string, got {type(level).__name__}"
-
+    # Validate type
     if not isinstance(course_id, str):
         return False, f"Field 'courseId' must be string, got {type(course_id).__name__}"
-
-    # Validate format (must be lowercase with hyphens)
-    if not subject.islower() or " " in subject:
-        return False, f"Invalid subject format: '{subject}'. Expected lowercase with hyphens (e.g., 'application-of-mathematics')"
-
-    if not level.islower() or " " in level:
-        return False, f"Invalid level format: '{level}'. Expected lowercase with hyphens (e.g., 'national-5')"
 
     # Validate courseId format (must start with "course_")
     if not course_id.startswith("course_"):
         return False, f"Invalid courseId format: '{course_id}'. Expected format: 'course_*' (e.g., 'course_c84874')"
+
+    logger.info(f"Input validation passed: courseId='{course_id}'")
+    return True, ""
+
+
+def validate_fetched_subject_level(subject: str, level: str) -> tuple[bool, str]:
+    """Validate subject and level fetched from database.
+
+    Checks that fetched values are in expected format and logs warnings if
+    they don't match known SQA subjects/levels.
+
+    Args:
+        subject: SQA subject from database (e.g., 'mathematics')
+        level: SQA level from database (e.g., 'national-5')
+
+    Returns:
+        Tuple of (is_valid: bool, error_message: str)
+        If valid, error_message is empty string.
+
+    Example:
+        >>> validate_fetched_subject_level("mathematics", "national-5")
+        (True, "")
+    """
+    # Validate types
+    if not isinstance(subject, str):
+        return False, f"Fetched subject must be string, got {type(subject).__name__}"
+
+    if not isinstance(level, str):
+        return False, f"Fetched level must be string, got {type(level).__name__}"
+
+    # Validate format (must be lowercase with hyphens)
+    if not subject.islower() or " " in subject:
+        return False, f"Invalid subject format from database: '{subject}'. Expected lowercase with hyphens (e.g., 'application-of-mathematics')"
+
+    if not level.islower() or " " in level:
+        return False, f"Invalid level format from database: '{level}'. Expected lowercase with hyphens (e.g., 'national-5')"
 
     # Validate against known values (warning if not in list, but don't fail)
     if subject not in VALID_SUBJECTS:
@@ -96,22 +109,8 @@ def validate_input_schema(input_data: Dict[str, Any]) -> tuple[bool, str]:
     if level not in VALID_LEVELS:
         logger.warning(f"Level '{level}' not in known levels: {VALID_LEVELS}")
 
-    logger.info(f"Input validation passed: subject='{subject}', level='{level}', courseId='{course_id}'")
+    logger.info(f"Fetched data validation passed: subject='{subject}', level='{level}'")
     return True, ""
-
-
-def validate_subject_level_courseid(subject: str, level: str, course_id: str) -> tuple[bool, str]:
-    """Validate subject, level, and courseId directly (convenience function).
-
-    Args:
-        subject: SQA subject (e.g., 'mathematics')
-        level: SQA level (e.g., 'national-5')
-        course_id: Course identifier (e.g., 'course_c84874')
-
-    Returns:
-        Tuple of (is_valid: bool, error_message: str)
-    """
-    return validate_input_schema({"subject": subject, "level": level, "courseId": course_id})
 
 
 def format_subject_display(subject: str) -> str:

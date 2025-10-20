@@ -1,0 +1,229 @@
+{
+    "level_name": "National 3",
+    "level_aliases": [
+        "N3",
+        "Nat 3"
+    ],
+    "qualification": {
+        "title": "National 3 English",
+        "course_code": "C724 73",
+        "scqf": {
+            "level": 3,
+            "credits": 18,
+            "core_skill_auto_cert": "Communication at SCQF level 3"
+        }
+    },
+    "course_structure": {
+        "units": [
+            {
+                "code": "H2WT 73",
+                "title": "English: Understanding Language (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [
+                    {
+                        "id": "1",
+                        "title": "Understand, analyse and evaluate simple written texts",
+                        "assessment_standards": [
+                            {
+                                "code": "1.1",
+                                "desc": "Identifying the main idea",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must demonstrate the ability to identify the main idea in simple written texts. Assessors should look for evidence that the candidate can articulate the central point or theme, rather than simply retrieving information verbatim. Responses should show understanding in the candidate's own words."
+                            },
+                            {
+                                "code": "1.2",
+                                "desc": "Showing awareness of language choice",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must select and comment on at least two features of language from the text. Assessors should ensure that centre-devised materials provide sufficient opportunity for candidates to demonstrate this. Comments should show a basic awareness of how language is used, not just identification."
+                            }
+                        ]
+                    },
+                    {
+                        "id": "2",
+                        "title": "Understand, analyse and evaluate simple spoken language",
+                        "assessment_standards": [
+                            {
+                                "code": "2.1",
+                                "desc": "Identifying the main idea",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must demonstrate the ability to identify the main idea in simple spoken language. Assessors should look for evidence that the candidate can articulate the central point or theme, rather than simply retrieving information verbatim. Responses should show understanding in the candidate's own words."
+                            },
+                            {
+                                "code": "2.2",
+                                "desc": "Showing awareness of language choice",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must select and comment on at least two features of language from the spoken activity. Assessors should ensure that centre-devised materials provide sufficient opportunity for candidates to demonstrate this. Comments should show a basic awareness of how language is used, not just identification."
+                            }
+                        ]
+                    }
+                ],
+                "unit_marking_guidance": "This unit is internally assessed on a pass/fail basis. Assessors should use professional judgement to determine the most appropriate ways to generate evidence. Evidence can be gathered in combination with other outcomes or units. Assessment should focus on the candidate's ability to understand, analyse, and evaluate simple written and spoken texts. Ensure that assessment standards 1.1, 1.2, 2.1, and 2.2 are fully addressed, providing opportunities for candidates to demonstrate understanding in their own words and comment on at least two features of language. Do not assess 'audience and purpose' as this requirement was removed in 2017."
+            },
+            {
+                "code": "H2WV 73",
+                "title": "English: Producing Language (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [
+                    {
+                        "id": "1",
+                        "title": "Produce simple written texts",
+                        "assessment_standards": [
+                            {
+                                "code": "1.1",
+                                "desc": "Selecting ideas and content, using a simple format and structure, appropriate to purpose and audience",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must select appropriate ideas and content for a simple written text, demonstrating a basic understanding of format, structure, purpose, and audience. Assessors should look for evidence of planning (e.g., mind maps, peer discussion) and a coherent, simple structure. Do not award marks for outdated assessment standards like 1.3, which was removed in 2017-18."
+                            },
+                            {
+                                "code": "1.2",
+                                "desc": "Applying knowledge of language in terms of language choice and technical accuracy",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must apply basic knowledge of language, including appropriate word choice and technical accuracy (grammar, punctuation, spelling) in their written texts. Assessors should focus on the clarity and simplicity of expression. Judgements should adhere strictly to SQA criteria; avoid adding additional criteria that may lead to over-severity in marking."
+                            }
+                        ]
+                    },
+                    {
+                        "id": "2",
+                        "title": "Participate actively in simple spoken activities",
+                        "assessment_standards": [
+                            {
+                                "code": "2.1",
+                                "desc": "Selecting ideas and content, using a simple format and structure, appropriate to purpose and audience",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must select appropriate ideas and content for a simple spoken activity, demonstrating a basic understanding of format, structure, purpose, and audience. Assessors should look for clear, simple communication of ideas. Evidence can be gathered from various spoken opportunities, not just one event."
+                            },
+                            {
+                                "code": "2.2",
+                                "desc": "Applying knowledge of language in terms of language choice",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must apply basic knowledge of language, including appropriate word choice, in their spoken activities. Assessors should note the clarity and simplicity of expression. Detailed checklists should include specific examples of words and phrases used by the candidate to evidence how this standard is met."
+                            },
+                            {
+                                "code": "2.3",
+                                "desc": "Communicating meaning at first hearing",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must communicate meaning effectively and clearly at first hearing in simple spoken activities. Assessors should confirm that the message is easily understood by the listener without requiring significant clarification."
+                            },
+                            {
+                                "code": "2.4",
+                                "desc": "Using some aspects of non-verbal communication",
+                                "skills_list": [],
+                                "marking_guidance": "Candidates must use some appropriate non-verbal communication (e.g., eye contact, gestures, posture) to support their spoken message. Assessors should observe and record instances where non-verbal cues enhance communication."
+                            }
+                        ]
+                    }
+                ],
+                "unit_marking_guidance": "This unit is internally assessed on a pass/fail basis. Assessors should use professional judgement to determine the most appropriate ways to generate evidence. Evidence can be gathered in combination with other outcomes or units. For talking, detailed checklists must include specific examples of words and phrases used by the candidate to demonstrate how assessment standards are met. Ensure that all outcomes for the unit are included for complete evidence. Judgements for writing should not be overly severe due to additional, unrequired criteria."
+            },
+            {
+                "code": "H23W 73",
+                "title": "Literacy (National 3)",
+                "scqf_credits": 6,
+                "outcomes": [],
+                "unit_marking_guidance": "This unit is internally assessed on a pass/fail basis. The purpose of this Unit is to develop learners' reading, writing, listening and talking skills in a variety of forms relevant for learning, life and work. Candidates should demonstrate the ability to understand simple ideas and information presented orally and in writing, and to communicate ideas and information orally and in writing with technical accuracy. When assessing reading and listening, ensure candidates have opportunities to select and comment on at least two features of language (similar to English: Understanding Language AS 1.2 and 2.2). For writing, effective centre-devised assessments should allow for personalisation and choice of topic and genre. Ensure that all assessment standards can be fully met by candidates in centre-devised materials."
+            }
+        ],
+        "added_value_unit": {
+            "present": false
+        },
+        "recommended_sequence": [],
+        "delivery_notes": [
+            "Units can be delivered on an individual basis or by using other approaches which combine the assessment for more than one Unit.",
+            "The Course lends itself to the integration of assessment of the two Units: English: Understanding Language and English: Producing Language. Lessons or groups of lessons can integrate the two Units by using Understanding Language as a stimulus for Producing Language.",
+            "Learners seeking to produce language can use texts studied in the Understanding Language Unit as a source or model for their writing or talking.",
+            "Assessment and Course design should make the most of opportunities to bring together all four Outcomes (listening, talking, reading, writing) in learning experiences, for example, using media texts or local/topical issues as stimuli.",
+            "The Outcomes of the Literacy Unit may be overtaken at the same time as those of other Units of the Course, particularly when writing is functional and reading is of information text."
+        ]
+    },
+    "assessment_model": {
+        "exam_papers": [],
+        "coursework_present": true,
+        "coursework_type": "Unit assessment (internal)",
+        "coursework_notes": "All Units are internally assessed on a pass/fail basis within centres. SQA provides rigorous external quality assurance, including external verification, to ensure assessment judgments are consistent and meet national standards. National 3 Courses are not graded. Assessment evidence can be gathered in combination with other Outcomes or Units. Centres must ensure they use the most up-to-date assessment materials and unit assessment support packs. When devising own assessments, centres must ensure all assessment standards can be fully met by candidates. SQA offers a free prior verification service for centre-devised assessments.",
+        "avu_present": false
+    },
+    "marking_guidance": {
+        "provided": true,
+        "guidance": "Overall Marking Philosophy for National 3 English:\nNational 3 English is internally assessed on a pass/fail basis for each mandatory Unit. The course is not graded. Assessment judgements must be valid, reliable, and consistent with national standards. Assessors should focus on whether candidates have met the specified assessment standards for each outcome within the Units, rather than applying additional, unrequired criteria.\n\nIssues → Examples → Instructions to Markers:\n\nIssue: Incomplete Unit Submissions\nExamples: A candidate for the Producing Language Unit has submitted only writing evidence, but not talking evidence. Another candidate has submitted evidence for some, but not all, outcomes within a unit.\nInstructions: When completing verification sample forms, centres must enter a pass or fail based on the candidate's *current submitted evidence*. Do not automatically mark as a 'fail' if an outcome is not yet completed; this constitutes 'interim evidence'. If all outcomes for a unit are included, it is complete evidence.\n\nIssue: Insufficient Opportunity to Meet Assessment Standards (Reading & Listening)\nExamples: Centre-devised assessments for Understanding Language or Literacy Units ask candidates to simply retrieve information for AS 1.1/2.1. Assessments do not provide opportunities for candidates to select and comment on at least two features of language for AS 1.2/2.2.\nInstructions: For AS 1.1 and 2.1, questions must require candidates to demonstrate understanding in their *own words*, not just retrieve information. For AS 1.2 and 2.2, centre-devised materials *must* offer candidates the opportunity to select and comment on at least two examples of language. Ensure the demand of the assessment is appropriate for SCQF level 3.\n\nIssue: Use of Obsolete Assessment Standards\nExamples: Centre-devised materials or outdated unit assessment support packs still require candidates to comment on 'audience and purpose' for reading/listening, or include AS 1.3 for writing.\nInstructions: Following revisions in 2017, 'audience and purpose' is no longer a requirement for assessment standards 1.1 and 2.1 in Understanding Language. Assessment Standard 1.3 for writing was removed in 2017-18. Centres *must* use the most up-to-date SQA assessment materials and unit assessment support packs and *not* assess these removed standards.\n\nIssue: Lack of Detail in Talking Assessment Evidence\nExamples: Checklists for spoken activities are too broad, lacking specific examples of language used by the candidate. Submissions do not provide sufficient evidence of how assessment standards for talking have been met.\nInstructions: For talking assessments (e.g., Producing Language Outcome 2), detailed checklists *must* include specific examples of words and phrases used by the candidate within their presentation or discussion. This provides clear evidence of how assessment standards are met and supports verification.\n\nIssue: Overly Severe Marking for Writing\nExamples: Centres have amended their internal judging evidence tables to include additional criteria not required by SQA, leading to candidates being judged too harshly.\nInstructions: Adhere strictly to SQA's published assessment criteria. Do *not* introduce additional criteria that are not part of the official unit specification or assessment standards. Judgements should be based solely on the required evidence for a pass at National 3.\n\nIssue: Support Exceeding 'Reasonable Assistance'\nExamples: Teachers provide candidates with significant scaffolding, sentence starts, or model paragraphs for assessment tasks.\nInstructions: Teachers and lecturers *can* clarify how to approach the assessment and guide candidates in producing their response. They *may* prompt candidates to clarify requirements. However, they *must not* direct candidates as to any specific response, provide specific advice on how to improve responses, or offer model answers. Significant scaffolding, sentence starts, or model paragraphs are *not* considered reasonable assistance at this level.\n\nIssue: Ineffective Internal Verification\nExamples: Centres do not provide an overview of their internal verification procedures, or documentation lacks clear annotation of candidate scripts.\nInstructions: Centres *must* review their internal verification processes to ensure effectiveness. Good practice includes using SQA's Internal Verification Toolkit. Submissions for verification should include clear annotation on candidate scripts by individual assessors and detailed assessment commentaries. A record of professional dialogue between assessors and verifiers is highly recommended to illustrate discussions and support verification."
+    },
+    "cfe_alignment": {
+        "levels": [],
+        "es_os": [],
+        "benchmarks": []
+    },
+    "documents": {
+        "course_specification": [
+            {
+                "title": "N3 English Course Specification",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/CfE_CourseSpec_N3_Languages_English.pdf",
+                "year": 2014,
+                "filetype": "pdf"
+            },
+            {
+                "title": "English Producing Language (National 3) Unit Specification",
+                "url": "https://www.sqa.org.uk/files/nu/CfE_Unit_N3_English_ProducingLanguage.pdf",
+                "year": 2017,
+                "filetype": "pdf"
+            },
+            {
+                "title": "English Understanding Language (National 3) Unit Specification",
+                "url": "https://www.sqa.org.uk/files/nu/CfE_Unit_N3_English_UnderstandingLanguage.pdf",
+                "year": 2017,
+                "filetype": "pdf"
+            }
+        ],
+        "specimen_papers": [],
+        "past_papers": [],
+        "marking_instructions": [],
+        "coursework_tasks": [],
+        "general_documents": [
+            {
+                "title": "National 3 English Course and Unit Support Notes",
+                "url": "https://www.sqa.org.uk/files_ccc/CfE_CourseUnitSupportNotes_N3_Languages_English.pdf",
+                "year": 2012,
+                "filetype": "pdf"
+            }
+        ],
+        "course_reports": [
+            {
+                "title": "English and Literacy Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-english-literacy-qvsr-round-1-round-2-2025.pdf",
+                "year": 2025,
+                "filetype": "pdf"
+            },
+            {
+                "title": "English and Communication Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-english-and-communication-qvsr-round-1-round-2-2024.pdf",
+                "year": 2024,
+                "filetype": "pdf"
+            },
+            {
+                "title": "English and Communication Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/files_ccc/nq-english-communication-qvsr-round-1-2023.pdf",
+                "year": 2023,
+                "filetype": "pdf"
+            },
+            {
+                "title": "English and Communication Qualification Verification Summary Report",
+                "url": "https://www.sqa.org.uk/sqa/files_ccc/nq-english-and-communication-qvsr-round-1-2022.pdf",
+                "year": 2022,
+                "filetype": "pdf"
+            }
+        ],
+        "formulae_support": [],
+        "assignments": []
+    },
+    "provenance": {
+        "source_pages": [
+            "https://www.sqa.org.uk/sqa/files_ccc/CfE_CourseSpec_N3_Languages_English.pdf",
+            "https://www.sqa.org.uk/files/nu/CfE_Unit_N3_English_ProducingLanguage.pdf",
+            "https://www.sqa.org.uk/files/nu/CfE_Unit_N3_English_UnderstandingLanguage.pdf",
+            "https://www.sqa.org.uk/files_ccc/CfE_CourseUnitSupportNotes_N3_Languages_English.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-english-literacy-qvsr-round-1-round-2-2025.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-english-and-communication-qvsr-round-1-round-2-2024.pdf",
+            "https://www.sqa.org.uk/files_ccc/nq-english-communication-qvsr-round-1-2023.pdf",
+            "https://www.sqa.org.uk/sqa/files_ccc/nq-english-and-communication-qvsr-round-1-2022.pdf"
+        ],
+        "last_verified": "2024-07-29T12:00:00Z"
+    }
+}

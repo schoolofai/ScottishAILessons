@@ -1,6 +1,7 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { AuthoredSOW, AuthoredSOWData } from '../types';
+import { decompressJSON } from '../utils/compression';
 
 /**
  * Frontend AuthoredSOW driver for client-side operations
@@ -32,12 +33,38 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: JSON.parse(record.entries),
+        entries: decompressJSON(record.entries),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };
     } catch (error) {
       throw this.handleError(error, `get published SOW for course ${courseId}`);
+    }
+  }
+
+  /**
+   * Get all courseIds that have published SOWs
+   * Used to filter the courses catalog to only show courses with lesson structures
+   * Returns a Set for O(1) lookup performance
+   */
+  async getPublishedCourseIds(): Promise<Set<string>> {
+    try {
+      const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
+        Query.equal('status', 'published'),
+        Query.limit(500) // Reasonable limit for production courses
+      ]);
+
+      const courseIds = new Set<string>();
+      records.forEach(record => {
+        if (record.courseId) {
+          courseIds.add(record.courseId);
+        }
+      });
+
+      console.log(`[AuthoredSOWDriver] Found ${courseIds.size} courses with published SOWs`);
+      return courseIds;
+    } catch (error) {
+      throw this.handleError(error, 'get published course IDs');
     }
   }
 
@@ -55,7 +82,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: r.courseId,
         version: r.version,
         status: r.status,
-        entries: JSON.parse(r.entries),
+        entries: decompressJSON(r.entries),
         metadata: JSON.parse(r.metadata),
         accessibility_notes: r.accessibility_notes
       }));
@@ -85,7 +112,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: JSON.parse(record.entries),
+        entries: decompressJSON(record.entries),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };
@@ -109,7 +136,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: r.courseId,
         version: r.version,
         status: r.status,
-        entries: JSON.parse(r.entries),
+        entries: decompressJSON(r.entries),
         metadata: JSON.parse(r.metadata),
         accessibility_notes: r.accessibility_notes,
         $createdAt: r.$createdAt,
@@ -137,7 +164,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: JSON.parse(record.entries),
+        entries: decompressJSON(record.entries),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };

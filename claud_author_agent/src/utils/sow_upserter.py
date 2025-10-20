@@ -1,12 +1,15 @@
 """SOW upserter module - deterministic Python-based database persistence.
 
 Handles upserting of authored SOWs to Appwrite database after agent completion.
+Includes compression of large entries field to fit within Appwrite's 100k char limit.
 """
 
 import json
 import logging
 from pathlib import Path
 from typing import Dict, Any
+
+from .compression import compress_json_gzip_base64, get_compression_stats
 
 logger = logging.getLogger(__name__)
 
@@ -127,14 +130,17 @@ async def upsert_sow_to_appwrite(
     logger.info(f"  Final string length: {len(accessibility_notes)} chars")
     logger.info(f"  Preview: {accessibility_notes[:200]}...")
 
-    # Stringify entries array
-    entries_str = json.dumps(sow_data["entries"])
+    # Compress entries array using gzip+base64 (fits within Appwrite's 100k char limit)
+    entries_compressed = compress_json_gzip_base64(sow_data["entries"])
 
-    # Stringify metadata object
+    # Calculate compression stats for logging
+    entries_stats = get_compression_stats(sow_data["entries"])
+
+    # Stringify metadata object (keep uncompressed for admin readability)
     metadata_str = json.dumps(sow_data["metadata"])
 
     logger.info(f"✓ Data transformation complete")
-    logger.info(f"  Entries JSON size: {len(entries_str)} chars")
+    logger.info(f"  Entries: {entries_stats['original']} → {entries_stats['compressed']} chars ({entries_stats['savings']} reduction)")
     logger.info(f"  Metadata JSON size: {len(metadata_str)} chars")
 
     # Step 4: Build document
@@ -142,7 +148,7 @@ async def upsert_sow_to_appwrite(
         "courseId": course_id,
         "version": "1",  # Hardcoded for MVP
         "status": "draft",  # Hardcoded for MVP
-        "entries": entries_str,
+        "entries": entries_compressed,  # Compressed using gzip+base64
         "metadata": metadata_str,
         "accessibility_notes": accessibility_notes
     }
@@ -162,7 +168,7 @@ async def upsert_sow_to_appwrite(
     logger.info(f"  courseId: {document_data['courseId']}")
     logger.info(f"  version: {document_data['version']}")
     logger.info(f"  status: {document_data['status']}")
-    logger.info(f"  entries size: {len(document_data['entries'])} chars")
+    logger.info(f"  entries size: {len(document_data['entries'])} chars (compressed)")
     logger.info(f"  metadata size: {len(document_data['metadata'])} chars")
 
     # Log accessibility_notes as it will be sent
@@ -208,7 +214,7 @@ async def upsert_sow_to_appwrite(
         if "size" in str(e).lower() or "length" in str(e).lower() or "limit" in str(e).lower():
             logger.error(f"⚠️  This looks like a field size issue!")
             logger.error(f"  Field sizes being sent:")
-            logger.error(f"    - entries: {len(document_data['entries'])} chars")
+            logger.error(f"    - entries: {len(document_data['entries'])} chars (compressed)")
             logger.error(f"    - metadata: {len(document_data['metadata'])} chars")
             if isinstance(document_data['accessibility_notes'], str):
                 logger.error(f"    - accessibility_notes: {len(document_data['accessibility_notes'])} chars")

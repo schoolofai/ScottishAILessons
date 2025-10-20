@@ -1,6 +1,7 @@
 import { Query, ID } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { AuthoredSOWData, AuthoredSOWEntry, AuthoredSOWMetadata } from '../types';
+import { decompressJSON } from '../utils/compression';
 
 // REMOVED: SOWEntry interface - entries now come from Authored_SOW via dereference
 
@@ -78,8 +79,8 @@ export class SOWDriver extends BaseDriver {
         );
       }
 
-      // Step 3: Parse Authored_SOW data
-      const authoredEntries: AuthoredSOWEntry[] = JSON.parse(authoredSOW.entries || '[]');
+      // Step 3: Parse Authored_SOW data (decompress entries, parse metadata)
+      const authoredEntries: AuthoredSOWEntry[] = decompressJSON(authoredSOW.entries) || [];
       const authoredMetadata: AuthoredSOWMetadata = JSON.parse(authoredSOW.metadata || '{}');
 
       console.log('[SOWDriver Debug] Dereferenced curriculum:', {

@@ -30,16 +30,16 @@ def load_input_from_json(json_path: str) -> Dict[str, str]:
 
     Expected JSON format:
     {
-        "subject": "mathematics",
-        "level": "national-5",
         "courseId": "course_c84874"
     }
+
+    Note: Subject and level are automatically fetched from default.courses collection.
 
     Args:
         json_path: Path to JSON input file
 
     Returns:
-        Dictionary with subject, level, courseId
+        Dictionary with courseId
 
     Raises:
         FileNotFoundError: If JSON file not found
@@ -56,64 +56,40 @@ def load_input_from_json(json_path: str) -> Dict[str, str]:
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in input file: {e}")
 
-    # Validate required fields
-    required_fields = ["subject", "level", "courseId"]
-    missing_fields = [field for field in required_fields if field not in data]
-
-    if missing_fields:
+    # Validate required field
+    if "courseId" not in data:
         raise ValueError(
-            f"Missing required fields in JSON input: {', '.join(missing_fields)}. "
-            f"Expected: {', '.join(required_fields)}"
+            "Missing required field in JSON input: courseId. "
+            "Expected format: {\"courseId\": \"course_c84874\"}"
         )
 
-    return {
-        "subject": data["subject"],
-        "level": data["level"],
-        "courseId": data["courseId"]
-    }
+    return {"courseId": data["courseId"]}
 
 
 def interactive_input() -> Dict[str, str]:
     """Prompt user for input parameters interactively.
 
     Returns:
-        Dictionary with subject, level, courseId
+        Dictionary with courseId
     """
     print("=" * 70)
     print("SOW Author - Interactive Input")
     print("=" * 70)
     print()
-    print("Please provide the following information:")
+    print("Please provide the Course ID:")
     print()
 
-    # Subject input with examples
-    print("Subject (e.g., 'mathematics', 'application-of-mathematics'):")
-    subject = input("  > ").strip()
-
-    if not subject:
-        raise ValueError("Subject cannot be empty")
-
-    # Level input with examples
-    print("\nLevel (e.g., 'national-4', 'national-5', 'higher'):")
-    level = input("  > ").strip()
-
-    if not level:
-        raise ValueError("Level cannot be empty")
-
     # Course ID input with examples
-    print("\nCourse ID - courseId field value (e.g., 'course_c84474'):")
+    print("Course ID (e.g., 'course_c84474'):")
     print("  (Must exist in default.courses collection)")
+    print("  (Subject and level will be automatically fetched from the database)")
     course_id = input("  > ").strip()
 
     if not course_id:
         raise ValueError("Course ID cannot be empty")
 
     print()
-    return {
-        "subject": subject,
-        "level": level,
-        "courseId": course_id
-    }
+    return {"courseId": course_id}
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -130,18 +106,15 @@ Examples:
   # JSON file input
   python -m src.sow_author_cli --input input.json
 
-  # Command-line arguments
-  python -m src.sow_author_cli \\
-    --subject mathematics \\
-    --level national-5 \\
-    --courseId course_c84474
+  # Command-line argument (courseId only)
+  python -m src.sow_author_cli --courseId course_c84474
 
   # Interactive mode (no arguments)
   python -m src.sow_author_cli
 
   # Custom configuration
   python -m src.sow_author_cli \\
-    --input input.json \\
+    --courseId course_c84474 \\
     --mcp-config .mcp.json \\
     --max-retries 5 \\
     --no-persist-workspace
@@ -154,24 +127,14 @@ Examples:
         '--input',
         type=str,
         metavar='JSON_FILE',
-        help='Path to JSON file containing subject, level, and courseId'
+        help='Path to JSON file containing courseId'
     )
 
     # Direct parameter input
     parser.add_argument(
-        '--subject',
-        type=str,
-        help='SQA subject (e.g., "mathematics", "application-of-mathematics")'
-    )
-    parser.add_argument(
-        '--level',
-        type=str,
-        help='SQA level (e.g., "national-5", "higher")'
-    )
-    parser.add_argument(
         '--courseId',
         type=str,
-        help='Course identifier (must exist in default.courses)'
+        help='Course identifier (must exist in default.courses; subject/level auto-fetched)'
     )
 
     # Configuration options
@@ -206,8 +169,6 @@ Examples:
 
 
 async def run_agent(
-    subject: str,
-    level: str,
     courseId: str,
     mcp_config_path: str = ".mcp.json",
     max_critic_retries: int = 3,
@@ -217,9 +178,7 @@ async def run_agent(
     """Run the SOW Author agent with given parameters.
 
     Args:
-        subject: SQA subject
-        level: SQA level
-        courseId: Course identifier
+        courseId: Course identifier (subject/level auto-fetched from database)
         mcp_config_path: Path to MCP config
         max_critic_retries: Maximum critic retry attempts
         persist_workspace: Whether to preserve workspace
@@ -233,13 +192,13 @@ async def run_agent(
     print("=" * 70)
     print()
     print("Input Parameters:")
-    print(f"  Subject:       {subject}")
-    print(f"  Level:         {level}")
     print(f"  Course ID:     {courseId}")
     print(f"  MCP Config:    {mcp_config_path}")
     print(f"  Max Retries:   {max_critic_retries}")
     print(f"  Persist WS:    {persist_workspace}")
     print(f"  Log Level:     {log_level}")
+    print()
+    print("Note: Subject and level will be automatically fetched from database")
     print()
     print("=" * 70)
     print()
@@ -252,12 +211,8 @@ async def run_agent(
         log_level=log_level
     )
 
-    # Execute pipeline
-    result = await agent.execute(
-        subject=subject,
-        level=level,
-        courseId=courseId
-    )
+    # Execute pipeline (subject/level fetched automatically)
+    result = await agent.execute(courseId=courseId)
 
     return result
 
@@ -318,32 +273,18 @@ async def main() -> int:
             logger.info(f"Loading input from JSON file: {args.input}")
             params = load_input_from_json(args.input)
 
-        elif args.subject and args.level and args.courseId:
-            # Method 2: Command-line arguments
-            logger.info("Using command-line arguments")
-            params = {
-                "subject": args.subject,
-                "level": args.level,
-                "courseId": args.courseId
-            }
+        elif args.courseId:
+            # Method 2: Command-line argument
+            logger.info("Using command-line argument")
+            params = {"courseId": args.courseId}
 
-        elif not any([args.subject, args.level, args.courseId]):
+        else:
             # Method 3: Interactive prompts
             logger.info("No input provided, entering interactive mode")
             params = interactive_input()
 
-        else:
-            # Partial command-line args provided (error)
-            print("❌ ERROR: When using command-line arguments, all three parameters are required:")
-            print("  --subject, --level, --courseId")
-            print()
-            print("Use --help for usage examples")
-            return 1
-
-        # Run agent
+        # Run agent (subject/level fetched automatically)
         result = await run_agent(
-            subject=params["subject"],
-            level=params["level"],
             courseId=params["courseId"],
             mcp_config_path=args.mcp_config,
             max_critic_retries=args.max_retries,
