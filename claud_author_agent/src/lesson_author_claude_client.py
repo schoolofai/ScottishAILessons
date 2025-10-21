@@ -271,6 +271,12 @@ class LessonAuthorClaudeAgent:
                 logger.info(f"✅ Blank lesson_template.json ready at: {blank_template_path}")
                 logger.info("   Python generation complete - no LLM tokens used")
 
+                # ═══════════════════════════════════════════════════════════════
+                # Copy Schema Reference Files to Workspace
+                # ═══════════════════════════════════════════════════════════════
+                logger.info("Copying schema reference files to workspace...")
+                self._copy_schema_files_to_workspace(workspace_path)
+
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
                 options = ClaudeAgentOptions(
                     model='claude-sonnet-4-5',
@@ -282,10 +288,11 @@ class LessonAuthorClaudeAgent:
                         'WebSearch', 'WebFetch',
                         'mcp__validator__validate_lesson_template'  # JSON validation tool
                     ],
-                    max_turns=500  # High limit to ensure agent can complete complex lesson authoring work
+                    max_turns=500,  # High limit to ensure agent can complete complex lesson authoring work
+                    cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
 
-                logger.info(f"Agent configured with permission_mode='bypassPermissions' + WebSearch/WebFetch enabled + max_turns=500")
+                logger.info(f"Agent configured: bypassPermissions + WebSearch/WebFetch + cwd={workspace_path} + max_turns=500")
 
                 # Execute pipeline (3 subagents: research_subagent, lesson_author, combined_lesson_critic)
                 async with ClaudeSDKClient(options) as client:
@@ -454,6 +461,40 @@ class LessonAuthorClaudeAgent:
             )
             logger.error(error_msg)
             raise ValueError(error_msg)
+
+    def _copy_schema_files_to_workspace(self, workspace_path: Path) -> None:
+        """Copy schema reference files to workspace for agent access.
+
+        Args:
+            workspace_path: Path to isolated workspace directory
+
+        The agent operates in an isolated workspace and cannot access source code directories.
+        Pre-copying schema files enables the agent to Read them during execution if needed.
+        """
+        import shutil
+
+        schemas_dir = workspace_path / "schemas"
+        schemas_dir.mkdir(exist_ok=True)
+
+        schema_files = [
+            "lesson_template_schema.md",
+        ]
+
+        source_schemas = Path(__file__).parent / "prompts" / "schemas"
+
+        for schema_file in schema_files:
+            source_path = source_schemas / schema_file
+            dest_path = schemas_dir / schema_file
+
+            if not source_path.exists():
+                error_msg = f"Schema file not found: {source_path}"
+                logger.error(error_msg)
+                raise FileNotFoundError(f"Missing schema file: {schema_file}")
+
+            shutil.copy(source_path, dest_path)
+            logger.debug(f"  Copied: {schema_file}")
+
+        logger.info(f"✅ {len(schema_files)} schema file(s) ready at: {schemas_dir}")
 
     def _build_initial_prompt(
         self,

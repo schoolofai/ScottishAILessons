@@ -140,7 +140,6 @@ export interface LessonTemplate {
   $id: string;
   $createdAt: string;
   $updatedAt: string;
-  templateId: string;
   title: string;
   courseId: string;
   outcomeRefs: string; // JSON string

@@ -332,10 +332,11 @@ class SOWAuthorClaudeAgent:
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
                     mcp_servers={},  # Empty - agents don't use Appwrite (saves 3-5k tokens)
                     allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task', 'WebSearch', 'WebFetch'],
-                    max_turns=500  # High limit to ensure agent can complete complex SOW authoring work
+                    max_turns=500,  # High limit to ensure agent can complete complex SOW authoring work
+                    cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
 
-                logger.info("Agent configured: bypassPermissions + WebSearch/WebFetch + NO MCP (token optimized) + max_turns=500")
+                logger.info(f"Agent configured: bypassPermissions + WebSearch/WebFetch + NO MCP (token optimized) + cwd={workspace_path} + max_turns=500")
 
                 # Execute pipeline (now only 2 subagents: sow_author with WebSearch/WebFetch, critic)
                 async with ClaudeSDKClient(options) as client:
