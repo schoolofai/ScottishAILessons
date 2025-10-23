@@ -43,6 +43,7 @@ class InterruptUnifiedState(UnifiedState, total=False):
     engagement_tags: Optional[List[str]]  # ["real_world_context", "scaffolding", "visual_aids"]
     lesson_policy: Optional[Dict[str, Any]]  # {"calculator_allowed": true}
     sow_order: Optional[int]  # Position in Authored SOW sequence (1-based)
+    est_minutes: Optional[int]  # Estimated lesson duration in minutes
 
     # Enriched outcome data (from course_outcomes via outcomeRefs)
     enriched_outcomes: Optional[List[Dict[str, Any]]]  # Full outcome objects with assessment standards
@@ -51,3 +52,6 @@ class InterruptUnifiedState(UnifiedState, total=False):
     course_subject_display: Optional[str]  # "Mathematics" (Title Case)
     course_level_display: Optional[str]  # "National 3" (Title Case)
     lesson_type_display: Optional[str]  # "Teaching Lesson" (Title Case)
+
+    # Accessibility preferences
+    use_plain_text: Optional[bool]  # Use explainer_plain for dyslexia-friendly content

@@ -84,6 +84,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           session_id: session.$id,
           student_id: session.studentId,
           lesson_snapshot: parsedSnapshot,
+          use_plain_text: false, // TODO: Get from user preferences when implemented
           ...courseCurriculumMetadata, // Add course_subject, course_level, sqa_course_code, course_title
         };
 

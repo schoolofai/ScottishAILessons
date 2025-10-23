@@ -635,3 +635,48 @@ See `tests/mock_lesson_template.json` for a fully-compliant example template wit
 **Version**: 1.0
 **Last Updated**: October 2025
 **Maintained By**: Lesson Author Agent Documentation
+
+
+---
+
+## Field Usage in Teaching Runtime
+
+### Runtime Usage Guidance
+
+- `lesson_type`: Used to tailor pedagogy (teach/independent_practice/formative_assessment/revision) in the teacher prompts.
+- `engagement_tags`: Mapped to concrete teaching strategies in prompts (e.g., scaffolding, visual aids).
+- `policy`: Adds reminders (e.g., calculator allowed) to constrain instruction.
+- `outcomeRefs`: Enriched and summarized to show SQA alignment in prompts.
+- `estMinutes`: Captured in runtime state for analytics (future: pacing/timeouts).
+- `cards[].explainer_plain`: Used when accessibility mode is enabled.
+- `cards[].misconceptions`: Exposed to LLM evaluation to target known error patterns.
+- `cards[].cfu.rubric`: Passed into structured evaluation for rubric-aligned partial credit.
+- `cards[].cfu.hints`: Presented before LLM fallback during retries.
+- `cards[].cfu.tolerance`: Used to pre-validate numeric answers within margin.
+
+### Actively Used Fields
+
+| Field Path | Runtime Usage | Implementation |
+|------------|---------------|----------------|
+| `title` | Lesson context in prompts | `langgraph-agent/src/agent/llm_teacher.py` |
+| `courseId` | Mastery tracking updates | `langgraph-agent/src/agent/teacher_graph_toolcall_interrupt.py` |
+| `lesson_type` | Differentiated pedagogy | `llm_teacher.py:get_lesson_type_pedagogy_guidance` |
+| `engagement_tags` | Teaching strategies block | `llm_teacher.py:format_course_context_for_prompt` |
+| `policy` | Calculator/formula reminders | `llm_teacher.py:format_course_context_for_prompt` |
+| `estMinutes` | Duration logging (analytics) | `graph_interrupt.py`, `teacher_graph_toolcall_interrupt.py` |
+| `outcomeRefs` | SQA alignment summary | `llm_teacher.py:parse_outcome_refs` |
+| `cards[].explainer` | Main teaching content | `llm_teacher.py` |
+| `cards[].explainer_plain` | Accessibility mode content | `llm_teacher.py` |
+| `cards[].misconceptions` | Feedback targeting error patterns | `llm_teacher.py` |
+| `cards[].cfu.rubric` | Rubric-based structured evaluation | `llm_teacher.py` |
+| `cards[].cfu.hints` | Progressive scaffolding in retry flow | `teacher_graph_toolcall_interrupt.py` |
+| `cards[].cfu.tolerance` | Numeric pre-validation | `teacher_graph_toolcall_interrupt.py` |
+
+### Metadata-Only / Authoring Fields
+
+| Field | Purpose | Runtime |
+|-------|---------|---------|
+| `createdBy` | Authoring attribution | Not used at runtime |
+| `version` | Template versioning | Not used at runtime |
+| `status` | Publication workflow | Not used at runtime (filtered upstream) |
+| `context_hooks` | Author notes, context provenance | Not used at runtime |

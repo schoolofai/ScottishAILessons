@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
+import { CourseDriver } from '@/lib/appwrite/driver/CourseDriver';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InlineLoadingSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -18,6 +19,7 @@ export function SOWListView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [courseById, setCourseById] = useState<Record<string, { subject: string; level: string }>>({});
 
   useEffect(() => {
     fetchSOWs();
@@ -30,6 +32,25 @@ export function SOWListView() {
       const driver = new AuthoredSOWDriver();
       const data = await driver.getAllSOWsForAdmin();
       setSOWs(data);
+
+      // Fetch course metadata (subject/level) for unique courseIds in parallel
+      const uniqueCourseIds = Array.from(new Set((data || []).map(s => s.courseId).filter(Boolean)));
+      if (uniqueCourseIds.length > 0) {
+        const courseDriver = new CourseDriver();
+        const courseResults = await Promise.all(
+          uniqueCourseIds.map(id => courseDriver.getCourseByCourseId(id).catch(() => null))
+        );
+
+        const map: Record<string, { subject: string; level: string }> = {};
+        for (const c of courseResults) {
+          if (c && c.courseId) {
+            map[c.courseId] = { subject: c.subject, level: c.level };
+          }
+        }
+        setCourseById(map);
+      } else {
+        setCourseById({});
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load SOWs';
       setError(message);
@@ -128,6 +149,10 @@ export function SOWListView() {
                   <div className="mt-2 space-y-1">
                     <p className="text-sm text-gray-600">
                       <span className="font-medium">Course ID:</span> {sow.courseId}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Subject:</span> {courseById[sow.courseId]?.subject ?? '—'} •{' '}
+                      <span className="font-medium">Level:</span> {courseById[sow.courseId]?.level ?? '—'}
                     </p>
                     <p className="text-sm text-gray-600">
                       <span className="font-medium">Version:</span> {sow.version}

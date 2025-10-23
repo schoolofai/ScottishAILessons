@@ -106,6 +106,28 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
         if isinstance(lesson_snapshot, str):
             lesson_snapshot = json.loads(lesson_snapshot)
 
+        # Extract accessibility preferences
+        use_plain_text = session_context.get("use_plain_text", False)
+        logger.info(f"Accessibility mode: plain_text={use_plain_text}")
+
+        # Validate session context and lesson snapshot (non-fatal)
+        try:
+            from .lesson_template_validator import validate_session_context
+            validation_result = validate_session_context({
+                **session_context,
+                "lesson_snapshot": lesson_snapshot
+            })
+            if not validation_result.is_valid:
+                logger.error(f"Session validation failed with {len(validation_result.errors)} errors")
+                for error in validation_result.errors:
+                    logger.error(f"  - {error}")
+            if validation_result.warnings:
+                logger.warning(f"Session has {len(validation_result.warnings)} warnings")
+                for warning in validation_result.warnings[:5]:
+                    logger.warning(f"  - {warning}")
+        except Exception as e:
+            logger.warning(f"Lesson validator unavailable or failed: {e}")
+
         # Get the last message (student response) if available
         messages = state.get("messages", [])
         student_input = None
@@ -143,6 +165,8 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
             lesson_policy = {}
 
         sow_order = lesson_snapshot.get("sow_order", 0) if lesson_snapshot else 0
+        # Extract estimated minutes for timing awareness
+        est_minutes = lesson_snapshot.get("estMinutes", 50) if lesson_snapshot else 50
 
         # Extract course metadata from session_context if frontend provides it
         # Frontend should fetch this using CourseDriver and pass it in session_context
@@ -193,6 +217,8 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
             "student_response": student_input,
             **interrupt_init,  # Interrupt fields
             **teaching_init,   # Teaching progression fields
+            # Accessibility preferences
+            "use_plain_text": use_plain_text,
             # Curriculum metadata fields
             "course_subject": course_subject,
             "course_level": course_level,
@@ -202,6 +228,7 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
             "engagement_tags": engagement_tags,
             "lesson_policy": lesson_policy,
             "sow_order": sow_order,
+            "est_minutes": est_minutes,
             "enriched_outcomes": enriched_outcomes,
             "course_subject_display": course_subject_display,
             "course_level_display": course_level_display,

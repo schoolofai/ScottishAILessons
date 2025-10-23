@@ -26,6 +26,8 @@ export interface SessionContext {
   course_level?: string;         // e.g., "national-3", "national-4", "national-5"
   sqa_course_code?: string;      // SQA course code if available
   course_title?: string;         // Full course title
+  // Accessibility preferences
+  use_plain_text?: boolean;     // Use explainer_plain for dyslexia-friendly content
 }
 
 export interface MyAssistantProps {

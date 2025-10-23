@@ -42,6 +42,37 @@ except ImportError:
     )
 
 
+def _parse_numeric_response(response: str, money_format: bool = False) -> float:
+    """Parse numeric response, handling currency symbols and formatting.
+    
+    Args:
+        response: Student's numeric response string
+        money_format: If True, round to 2 decimal places
+        
+    Returns:
+        Parsed float value
+        
+    Raises:
+        ValueError: If response cannot be parsed as a number
+    """
+    cleaned = response.strip()
+    
+    # Remove currency symbols
+    cleaned = cleaned.replace("£", "").replace("$", "").replace("€", "")
+    
+    # Remove commas (thousands separator)
+    cleaned = cleaned.replace(",", "")
+    
+    # Parse float
+    value = float(cleaned)
+    
+    # Round to 2dp if money format
+    if money_format:
+        value = round(value, 2)
+    
+    return value
+
+
 def _is_lesson_complete(state: InterruptUnifiedState) -> bool:
     """Check if all cards have been completed."""
     current_index = state.get("current_card_index", 0)
@@ -213,6 +244,12 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
 
         print(f"🚨 COMPLETION DEBUG - Generated lesson completion summary with tool call")
         print(f"🚨 COMPLETION DEBUG - Performance: accuracy={performance_analysis.get('overall_accuracy', 0):.2f}, retry_recommended={performance_analysis.get('retry_recommended', False)}")
+        # Log estimated duration for analytics (actual duration tracking TBD)
+        try:
+            est_minutes = state.get("est_minutes", 50)
+            print(f"📏 DURATION: Estimated lesson duration (estMinutes) = {est_minutes} minutes")
+        except Exception:
+            pass
 
         return {
             "messages": [summary_message, tool_message],
@@ -372,6 +409,59 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     attempts = state.get("attempts", 0) + 1
     max_attempts = state.get("max_attempts", 3)
     
+    # Pre-validate numeric responses BEFORE LLM evaluation
+    cfu_type = cfu.get("type", "")
+    if cfu_type == "numeric":
+        try:
+            # Extract expected answer and tolerance
+            expected_numeric = float(cfu.get("expected", 0))
+            tolerance = float(cfu.get("tolerance", 0.01))
+            money_format = cfu.get("money2dp", False)
+            
+            # Parse student response (handle £, commas, etc.)
+            student_numeric = _parse_numeric_response(student_response, money_format=money_format)
+            
+            # Check tolerance
+            if abs(student_numeric - expected_numeric) <= tolerance:
+                print(f"🚨 NUMERIC PRE-VALIDATION: CORRECT (within tolerance {tolerance})")
+                # Create simple correct evaluation
+                from .llm_teacher import EvaluationResponse
+                evaluation = EvaluationResponse(
+                    is_correct=True,
+                    confidence=1.0,
+                    feedback="Correct!",
+                    reasoning="Numeric answer within acceptable tolerance",
+                    should_progress=True,
+                    partial_credit=1.0
+                )
+                
+                # Skip LLM evaluation, use pre-validation result
+                print(f"🚨 MARK DEBUG - Numeric pre-validation passed, skipping LLM")
+                should_progress = True
+                
+                # Record evidence and continue
+                evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
+                evidence = state.get("evidence", [])
+                evidence.append(evidence_entry)
+                
+                return {
+                    "is_correct": True,
+                    "should_progress": True,
+                    "feedback": "Correct!",
+                    "attempts": attempts,
+                    "evidence": evidence,
+                    "stage": "progress",
+                    "student_response": None
+                }
+            else:
+                print(f"🚨 NUMERIC PRE-VALIDATION: INCORRECT (outside tolerance {tolerance})")
+                # Continue to LLM evaluation for detailed feedback
+                
+        except (ValueError, TypeError) as e:
+            print(f"🚨 NUMERIC PRE-VALIDATION: Parse error, falling back to LLM: {e}")
+            # Continue to LLM evaluation
+    
+    # LLM evaluation for non-numeric or incorrect numeric responses
     evaluation = teacher.evaluate_response_with_structured_output(
         student_response=student_response,
         expected_answer=cfu.get("expected") if cfu.get("type") != "mcq" else cfu.get("options", [])[cfu.get("answerIndex", 0)],
@@ -483,6 +573,38 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     if not current_card:
         print("🚨 RETRY DEBUG - Missing current card, routing to design")
         return {"stage": "design"}
+
+    # Get authored hints from CFU
+    from .llm_teacher import LLMTeacher
+    cfu = current_card.get("cfu", {})
+    authored_hints = cfu.get("hints", [])
+    
+    # Determine feedback source - use authored hints if available
+    if attempts <= len(authored_hints):
+        # Use authored hint (0-indexed)
+        hint_text = authored_hints[attempts - 1]
+        feedback = f"{feedback}\n\n**Hint {attempts}:** {hint_text}"
+        print(f"🚨 RETRY DEBUG - Using authored hint {attempts}/{len(authored_hints)}: {hint_text[:50]}...")
+    else:
+        # Hints exhausted or no hints available - use LLM fallback if needed
+        if not explanation and attempts > len(authored_hints):
+            print(f"🚨 RETRY DEBUG - Hints exhausted ({len(authored_hints)}), generating LLM hint")
+            teacher = LLMTeacher()
+            student_response = state.get("student_response", "")
+            try:
+                llm_hint = teacher.generate_hint_sync_full(
+                    current_card=current_card,
+                    student_response=student_response,
+                    attempt_number=attempts,
+                    state=state
+                )
+                feedback = f"{feedback}\n\n**Hint:** {llm_hint}"
+                print(f"🚨 RETRY DEBUG - Generated LLM hint: {llm_hint[:50]}...")
+            except Exception as e:
+                print(f"🚨 RETRY DEBUG - LLM hint generation failed: {e}")
+                # Continue with existing feedback
+        else:
+            print(f"🚨 RETRY DEBUG - Using existing feedback/explanation")
 
     # Create feedback message with explanation if available
     from langchain_core.messages import AIMessage
