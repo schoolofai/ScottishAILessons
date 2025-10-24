@@ -797,6 +797,55 @@ function logToFile(filePath: string, message: string): void {
 }
 
 /**
+ * Map outcome codes to Appwrite document IDs (NO normalization).
+ *
+ * This function expects the agent to provide exact outcomeId values
+ * from the database context. No normalization or guessing is performed.
+ *
+ * @param databases - Appwrite Databases instance
+ * @param outcomeCodes - List of outcome codes (e.g., ['O1', 'O2'])
+ * @param courseId - Course ID (e.g., 'course_c84473')
+ * @returns List of Appwrite document IDs from course_outcomes collection
+ * @throws Error if any outcome code is not found in the database
+ */
+async function mapOutcomeCodesToDocIds(
+  databases: Databases,
+  outcomeCodes: string[],
+  courseId: string
+): Promise<string[]> {
+  const docIds: string[] = [];
+
+  for (const outcomeCode of outcomeCodes) {
+    console.log(`  Looking up outcome: ${outcomeCode}`);
+
+    // Query exactly as provided - NO normalization
+    const result = await databases.listDocuments(
+      DATABASE_ID,
+      'course_outcomes',
+      [
+        Query.equal('courseId', courseId),
+        Query.equal('outcomeId', outcomeCode),
+        Query.limit(1)
+      ]
+    );
+
+    if (result.documents.length === 0) {
+      throw new Error(
+        `❌ Outcome '${outcomeCode}' not found for course '${courseId}'. ` +
+        `Agent should only use outcome codes from provided context. ` +
+        `Available outcomes should have been listed in the agent's prompt.`
+      );
+    }
+
+    const docId = result.documents[0].$id;
+    docIds.push(docId);
+    console.log(`  ✓ Mapped ${outcomeCode} → ${docId}`);
+  }
+
+  return docIds;
+}
+
+/**
  * Upsert lesson template to lesson_templates collection
  * Lookup by courseId + sow_order + model_version for deterministic updates
  * Enables multiple AI model versions of the same lesson
@@ -841,6 +890,27 @@ async function upsertLessonTemplate(
   // Extract template content (handle both flat and nested structures)
   const template = lessonTemplate.content || lessonTemplate;
 
+  // Map outcome codes to document IDs
+  const outcomeCodes = template.outcomeRefs || [];
+  let outcomeDocIds: string[] = [];
+
+  if (outcomeCodes.length > 0) {
+    console.log(`📋 Mapping ${outcomeCodes.length} outcome codes to document IDs: ${outcomeCodes.join(', ')}`);
+    try {
+      outcomeDocIds = await mapOutcomeCodesToDocIds(databases, outcomeCodes, courseId);
+      console.log(`✓ Mapped outcomes to document IDs: ${outcomeDocIds.join(', ')}`);
+    } catch (error) {
+      console.error(`❌ Failed to map outcome codes: ${error}`);
+      throw new Error(
+        `Failed to map outcome codes ${JSON.stringify(outcomeCodes)} for course ${courseId}. ` +
+        `Ensure course_outcomes are seeded and agent uses correct codes from context. ` +
+        `Original error: ${error}`
+      );
+    }
+  } else {
+    console.log('ℹ️  No outcomeRefs to map');
+  }
+
   const docData = {
     courseId,
     sow_order: sowOrder,
@@ -859,7 +929,7 @@ async function upsertLessonTemplate(
     status: 'draft',
     lesson_type: template.lesson_type || 'teach',
     estMinutes: template.estMinutes || 50,
-    outcomeRefs: JSON.stringify(template.outcomeRefs || []),
+    outcomeRefs: JSON.stringify(outcomeDocIds),  // Store document IDs, not codes
     engagement_tags: JSON.stringify(template.engagement_tags || []),
     policy: JSON.stringify(template.policy || {}),
     cards: compressedCards  // Compressed instead of JSON.stringify
