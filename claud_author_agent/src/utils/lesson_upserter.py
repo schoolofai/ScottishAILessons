@@ -14,7 +14,8 @@ from typing import Dict, Any, Optional
 from .appwrite_mcp import (
     list_appwrite_documents,
     create_appwrite_document,
-    update_appwrite_document
+    update_appwrite_document,
+    map_outcome_codes_to_doc_ids
 )
 
 logger = logging.getLogger(__name__)
@@ -154,7 +155,30 @@ async def upsert_lesson_template(
         mcp_config_path=mcp_config_path
     )
 
-    # Step 4: Prepare document data (match TypeScript field mapping)
+    # Step 4: Map outcome codes to document IDs
+    outcome_codes = template.get("outcomeRefs", [])
+    outcome_doc_ids = []
+
+    if outcome_codes:
+        logger.info(f"Mapping {len(outcome_codes)} outcome codes to document IDs: {outcome_codes}")
+        try:
+            outcome_doc_ids = await map_outcome_codes_to_doc_ids(
+                outcome_codes=outcome_codes,
+                course_id=courseId,
+                mcp_config_path=mcp_config_path
+            )
+            logger.info(f"✓ Mapped outcomes to document IDs: {outcome_doc_ids}")
+        except ValueError as e:
+            logger.error(f"Failed to map outcome codes: {e}")
+            raise ValueError(
+                f"Failed to map outcome codes {outcome_codes} for course {courseId}. "
+                f"Ensure course_outcomes are seeded and agent uses correct codes from context. "
+                f"Original error: {e}"
+            )
+    else:
+        logger.info("No outcomeRefs to map")
+
+    # Step 5: Prepare document data (match TypeScript field mapping)
     doc_data = {
         "courseId": courseId,
         "sow_order": order,
@@ -165,7 +189,7 @@ async def upsert_lesson_template(
         "model_version": "claud_Agent_sdk",  # Track which authoring system generated this
         "lesson_type": template.get("lesson_type", "teach"),
         "estMinutes": template.get("estMinutes", 50),
-        "outcomeRefs": json.dumps(template.get("outcomeRefs", [])),
+        "outcomeRefs": json.dumps(outcome_doc_ids),  # Store document IDs, not codes
         "engagement_tags": json.dumps(template.get("engagement_tags", [])),
         "policy": json.dumps(template.get("policy", {})),
         "cards": compressed_cards,  # Compressed, not JSON string
@@ -177,7 +201,7 @@ async def upsert_lesson_template(
     # Log SOW references for traceability
     logger.info(f"SOW References: authored_sow_id='{authored_sow_id}', authored_sow_version='{authored_sow_version}'")
 
-    # Step 5: Upsert (update if exists, create if new)
+    # Step 6: Upsert (update if exists, create if new)
     if existing_docs and len(existing_docs) > 0:
         # Update existing document
         doc_id = existing_docs[0]["$id"]

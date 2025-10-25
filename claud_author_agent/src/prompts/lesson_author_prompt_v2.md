@@ -25,6 +25,12 @@ Save output tokens for CONTENT, not explanations. Use TodoWrite for progress tra
 - SOW lesson entry with `order`, `label`, `lesson_type`, `lesson_plan.card_structure`, etc.
 - First action: Read this file (throw error if missing)
 
+**REQUIRED**: `Course_outcomes.md`
+- All available course outcomes with exact outcomeId values from database
+- Use ONLY the outcomeId values listed in this file for the outcomeRefs field
+- CRITICAL: Do not invent or guess outcome codes - use exact values from this file
+- If missing: Proceed with empty outcomeRefs array
+
 **OPTIONAL**: `research_pack.json`, `sow_context.json`, `Course_data.txt`
 - Use for exemplars, course context, SQA terminology validation
 - If missing: Proceed using training knowledge (NO warnings/errors)
@@ -36,12 +42,13 @@ Save output tokens for CONTENT, not explanations. Use TodoWrite for progress tra
 | `order` | `sow_order` | Direct copy |
 | `label` | `title` | Direct copy |
 | `lesson_type` | `lesson_type` | Direct copy |
-| `assessmentStandardRefs` | `outcomeRefs` | **COMBINE** with `outcomeRefs` array (extract `.code` values) |
+| `assessmentStandardRefs` | `outcomeRefs` | **COMBINE** with `outcomeRefs` array (extract `.code` values) - **Use ONLY outcomeId values from Course_outcomes.md** |
 | `policy.calculator_section` | `policy.calculator_allowed` | `"calc"` → `true`, `"noncalc"` → `false` |
 | `engagement_tags` | `engagement_tags` | Direct copy |
 | `estMinutes` | `estMinutes` | Direct copy |
 | `accessibility_profile` | (discard) | **INPUT ONLY** - use for CEFR level, then discard |
 | (always set) | `createdBy` | **EXACT**: `"lesson_author_agent"` |
+| `Course_outcomes.md` | `outcomeRefs` | **Select relevant outcomeId values** from available outcomes list |
 
 </inputs>
 
@@ -60,6 +67,8 @@ CFU types: mcq, numeric, structured_response, short_text
 
 **CRITICAL Transformations**:
 1. **Combine Refs**: `outcomeRefs = SOW.outcomeRefs + SOW.assessmentStandardRefs[].code`
+   - **IMPORTANT**: Use ONLY outcomeId values from `Course_outcomes.md` - no invented codes
+   - Validate each code exists in Course_outcomes.md before adding to array
 2. **Extract Order**: `sow_order = SOW.order`
 3. **Transform Calculator**: `calculator_allowed = (SOW.calculator_section == "calc")`
 4. **Set Creator**: `createdBy = "lesson_author_agent"` (exact value, always)
@@ -77,7 +86,8 @@ CFU types: mcq, numeric, structured_response, short_text
 
 ### Step 1: Read Inputs
 1. Read `sow_entry_input.json` (REQUIRED - error if missing)
-2. Optionally read: `research_pack.json`, `sow_context.json`, `Course_data.txt`
+2. Read `Course_outcomes.md` (REQUIRED - contains available outcomeId values for outcomeRefs)
+3. Optionally read: `research_pack.json`, `sow_context.json`, `Course_data.txt`
 
 ### Step 2: Understand Blank Template Structure
 A blank `lesson_template.json` has been pre-generated in your workspace with:
@@ -226,7 +236,7 @@ Task:
 ## Tool Usage Summary
 
 **File Operations**:
-- **Read**: sow_entry_input.json, lesson_template.json, optional files, schemas/lesson_template_schema.md
+- **Read**: sow_entry_input.json, Course_outcomes.md, lesson_template.json, optional files, schemas/lesson_template_schema.md
 - **Edit**: Fill specific fields in lesson_template.json (incremental)
 - **NOT Write**: Never recreate entire lesson_template.json
 

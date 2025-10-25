@@ -30,14 +30,15 @@ class LessonAuthorClaudeAgent:
     Pre-processing (Python):
     0. SOW Entry Extractor → Extracts entry from Authored_SOW (Python utility)
     1. Course Data Extractor → Creates Course_data.txt from Appwrite (Python utility)
+    2. Outcome Context Extractor → Creates Course_outcomes.md with available outcomes (Python utility)
 
     Pipeline execution (3 subagents):
-    2. Research Subagent → Answers clarifications with Scottish context (WebSearch/WebFetch)
-    3. Lesson Author v2 → Creates lesson_template.json (main authoring agent)
-    4. Combined Lesson Critic v2 → Validates transformation fidelity + schema compliance (with retry)
+    3. Research Subagent → Answers clarifications with Scottish context (WebSearch/WebFetch)
+    4. Lesson Author v2 → Creates lesson_template.json (main authoring agent)
+    5. Combined Lesson Critic v2 → Validates transformation fidelity + schema compliance (with retry)
 
     Post-processing (Python):
-    5. Lesson Upserter → Writes to default.lesson_templates (Python utility)
+    6. Lesson Upserter → Maps outcomeRefs to document IDs and writes to default.lesson_templates (Python utility)
 
     Attributes:
         mcp_config_path: Path to .mcp.json configuration file
@@ -205,6 +206,29 @@ class LessonAuthorClaudeAgent:
                 )
 
                 logger.info(f"✅ Course_data.txt ready at: {course_data_path}")
+                logger.info("   Python extraction complete - no LLM tokens used")
+
+                # ═══════════════════════════════════════════════════════════════
+                # PRE-PROCESSING: Extract Course Outcomes Context (NO AGENT)
+                # ═══════════════════════════════════════════════════════════
+                logger.info("Pre-processing: Extracting course outcomes context via Python utility...")
+
+                from .utils.outcome_context_extractor import extract_outcomes_context_to_file
+
+                outcomes_context_path = workspace_path / "Course_outcomes.md"
+
+                outcomes_found = await extract_outcomes_context_to_file(
+                    course_id=courseId,
+                    mcp_config_path=str(self.mcp_config_path),
+                    output_path=str(outcomes_context_path)
+                )
+
+                if outcomes_found:
+                    logger.info(f"✅ Course_outcomes.md ready at: {outcomes_context_path}")
+                    logger.info("   Agent will use exact outcomeId values from this file")
+                else:
+                    logger.warning("⚠️  No outcomes found - agent will proceed without outcome context")
+
                 logger.info("   Python extraction complete - no LLM tokens used")
 
                 # Load MCP config as dict (not path string)

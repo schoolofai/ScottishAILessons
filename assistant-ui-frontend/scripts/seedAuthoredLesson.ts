@@ -312,6 +312,17 @@ async function main() {
       console.log('');
     }
 
+    // Step 3.5: Fetch course outcomes context (REQUIRED for accurate outcomeRefs)
+    console.log('📋 Fetching course outcomes context...');
+    const outcomesContext = await fetchOutcomesContext(databases, courseId);
+    if (outcomesContext) {
+      console.log(`✅ Fetched outcomes context (${outcomesContext.length} characters)`);
+      console.log('   Agent will use exact outcomeId values from database');
+    } else {
+      console.log('⚠️  No outcomes found - agent will proceed with empty outcomeRefs');
+    }
+    console.log('');
+
     // Step 4: Run lesson author agent with retry logic
     console.log('🤖 Invoking lesson_author agent with error recovery...');
     console.log(`   URL: ${LANGGRAPH_URL}`);
@@ -332,6 +343,7 @@ async function main() {
       resourcePack,
       sowMetadata,
       courseData,
+      outcomesContext,
       isMinimal,
       LANGGRAPH_URL,
       logFile
@@ -624,6 +636,7 @@ async function runLessonAuthorAgent(
   resourcePack: any | null,
   sowMetadata: SOWContextMetadata | null,
   courseData: string | null,
+  outcomesContext: string | null,
   isMinimal: boolean,
   langgraphUrl: string,
   logFilePath: string
@@ -652,10 +665,15 @@ async function runLessonAuthorAgent(
       let input: any;
 
       if (attempt === 1) {
-        // Build files object - always include required file
+        // Build files object - always include required files
         const files: Record<string, string> = {
           'sow_entry_input.json': JSON.stringify(sowEntry, null, 2)
         };
+
+        // Add course outcomes context (required for accurate outcomeRefs)
+        if (outcomesContext) {
+          files['Course_outcomes.md'] = outcomesContext;
+        }
 
         // Add optional files only if provided (not in minimal mode)
         if (!isMinimal && courseData) {
@@ -682,10 +700,17 @@ async function runLessonAuthorAgent(
         logToFile(logFilePath, `Injecting input files (minimal mode: ${isMinimal}):`);
         logToFile(logFilePath, `  - sow_entry_input.json: ${JSON.stringify(sowEntry).length} chars`);
 
+        if (outcomesContext) {
+          logToFile(logFilePath, `  - Course_outcomes.md: ${outcomesContext.length} chars`);
+        }
+
         if (isMinimal) {
-          console.log(`   ⚡ MINIMAL MODE: Injecting 1 required file:`);
+          console.log(`   ⚡ MINIMAL MODE: Injecting ${Object.keys(files).length} required file(s):`);
           console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
-          logToFile(logFilePath, '  (Optional files skipped - using training knowledge)');
+          if (outcomesContext) {
+            console.log(`      - Course_outcomes.md (${outcomesContext.length} chars)`);
+          }
+          logToFile(logFilePath, '  (Optional context files skipped - using training knowledge)');
         } else {
           if (courseData) {
             logToFile(logFilePath, `  - Course_data.txt: ${courseData.length} chars`);
@@ -699,6 +724,9 @@ async function runLessonAuthorAgent(
 
           console.log(`   ✅ Injecting ${Object.keys(files).length} input files:`);
           console.log(`      - sow_entry_input.json (${JSON.stringify(sowEntry).length} chars)`);
+          if (outcomesContext) {
+            console.log(`      - Course_outcomes.md (${outcomesContext.length} chars)`);
+          }
           if (courseData) {
             console.log(`      - Course_data.txt (${courseData.length} chars)`);
           }
@@ -797,6 +825,148 @@ function logToFile(filePath: string, message: string): void {
 }
 
 /**
+ * Fetch course outcomes and format as context file for agent.
+ *
+ * Provides the agent with all available outcomes for the course,
+ * ensuring it uses the exact outcomeId values from the database.
+ *
+ * @param databases - Appwrite Databases instance
+ * @param courseId - Course ID (e.g., 'course_c84473')
+ * @returns Formatted markdown string with all outcomes, or null if none found
+ */
+async function fetchOutcomesContext(
+  databases: Databases,
+  courseId: string
+): Promise<string | null> {
+  console.log(`📋 Fetching course outcomes context for course: ${courseId}`);
+
+  const outcomes = await databases.listDocuments(
+    DATABASE_ID,
+    'course_outcomes',
+    [Query.equal('courseId', courseId)]
+  );
+
+  if (outcomes.documents.length === 0) {
+    console.warn(`⚠️  No course outcomes found for course '${courseId}'`);
+    console.warn('   Agent will proceed without outcome context');
+    return null;
+  }
+
+  const lines: string[] = [
+    '# Available Course Outcomes',
+    '',
+    `This course has ${outcomes.documents.length} learning outcomes. Use the exact outcomeId values`,
+    'shown below when specifying outcomeRefs in your lesson template.',
+    '',
+    '---',
+    ''
+  ];
+
+  outcomes.documents.forEach((outcome, idx) => {
+    const outcomeId = outcome.outcomeId || 'UNKNOWN';
+    const outcomeTitle = outcome.outcomeTitle || 'No title';
+    const unitCode = outcome.unitCode || '';
+    const unitTitle = outcome.unitTitle || '';
+
+    lines.push(`## Outcome ${idx + 1}: ${outcomeId}`);
+    lines.push(`**Title:** ${outcomeTitle}`);
+    lines.push('');
+
+    if (unitCode || unitTitle) {
+      lines.push(`**Unit:** ${unitCode} - ${unitTitle}`);
+      lines.push('');
+    }
+
+    // Add assessment standards if available
+    const assessmentStandardsStr = outcome.assessmentStandards || '[]';
+    try {
+      const standards = JSON.parse(assessmentStandardsStr);
+      if (standards && standards.length > 0) {
+        lines.push('**Assessment Standards:**');
+        standards.forEach((standard: any) => {
+          if (standard.code) {
+            lines.push(`- **${standard.code}**: ${standard.desc || ''}`);
+          }
+        });
+        lines.push('');
+      }
+    } catch {
+      // Skip if parse fails
+    }
+
+    lines.push('---');
+    lines.push('');
+  });
+
+  lines.push('');
+  lines.push('## Instructions');
+  lines.push('');
+  lines.push('When creating your lesson template:');
+  lines.push('1. Review the outcomes above');
+  lines.push('2. Select the most relevant outcomeId values for this lesson');
+  lines.push('3. Use ONLY the exact outcomeId values shown (e.g., \'O1\', \'O2\', \'AS1.1\')');
+  lines.push('4. Add them to the outcomeRefs array in your lesson template JSON');
+  lines.push('');
+  lines.push('Example:');
+  lines.push('```json');
+  lines.push('"outcomeRefs": ["O1", "O2"]');
+  lines.push('```');
+  lines.push('');
+
+  console.log(`✅ Fetched ${outcomes.documents.length} outcomes for context`);
+  return lines.join('\n');
+}
+
+/**
+ * Map outcome codes to Appwrite document IDs (NO normalization).
+ *
+ * This function expects the agent to provide exact outcomeId values
+ * from the database context. No normalization or guessing is performed.
+ *
+ * @param databases - Appwrite Databases instance
+ * @param outcomeCodes - List of outcome codes (e.g., ['O1', 'O2'])
+ * @param courseId - Course ID (e.g., 'course_c84473')
+ * @returns List of Appwrite document IDs from course_outcomes collection
+ * @throws Error if any outcome code is not found in the database
+ */
+async function mapOutcomeCodesToDocIds(
+  databases: Databases,
+  outcomeCodes: string[],
+  courseId: string
+): Promise<string[]> {
+  const docIds: string[] = [];
+
+  for (const outcomeCode of outcomeCodes) {
+    console.log(`  Looking up outcome: ${outcomeCode}`);
+
+    // Query exactly as provided - NO normalization
+    const result = await databases.listDocuments(
+      DATABASE_ID,
+      'course_outcomes',
+      [
+        Query.equal('courseId', courseId),
+        Query.equal('outcomeId', outcomeCode),
+        Query.limit(1)
+      ]
+    );
+
+    if (result.documents.length === 0) {
+      throw new Error(
+        `❌ Outcome '${outcomeCode}' not found for course '${courseId}'. ` +
+        `Agent should only use outcome codes from provided context. ` +
+        `Available outcomes should have been listed in the agent's prompt.`
+      );
+    }
+
+    const docId = result.documents[0].$id;
+    docIds.push(docId);
+    console.log(`  ✓ Mapped ${outcomeCode} → ${docId}`);
+  }
+
+  return docIds;
+}
+
+/**
  * Upsert lesson template to lesson_templates collection
  * Lookup by courseId + sow_order + model_version for deterministic updates
  * Enables multiple AI model versions of the same lesson
@@ -841,6 +1011,27 @@ async function upsertLessonTemplate(
   // Extract template content (handle both flat and nested structures)
   const template = lessonTemplate.content || lessonTemplate;
 
+  // Map outcome codes to document IDs
+  const outcomeCodes = template.outcomeRefs || [];
+  let outcomeDocIds: string[] = [];
+
+  if (outcomeCodes.length > 0) {
+    console.log(`📋 Mapping ${outcomeCodes.length} outcome codes to document IDs: ${outcomeCodes.join(', ')}`);
+    try {
+      outcomeDocIds = await mapOutcomeCodesToDocIds(databases, outcomeCodes, courseId);
+      console.log(`✓ Mapped outcomes to document IDs: ${outcomeDocIds.join(', ')}`);
+    } catch (error) {
+      console.error(`❌ Failed to map outcome codes: ${error}`);
+      throw new Error(
+        `Failed to map outcome codes ${JSON.stringify(outcomeCodes)} for course ${courseId}. ` +
+        `Ensure course_outcomes are seeded and agent uses correct codes from context. ` +
+        `Original error: ${error}`
+      );
+    }
+  } else {
+    console.log('ℹ️  No outcomeRefs to map');
+  }
+
   const docData = {
     courseId,
     sow_order: sowOrder,
@@ -859,7 +1050,7 @@ async function upsertLessonTemplate(
     status: 'draft',
     lesson_type: template.lesson_type || 'teach',
     estMinutes: template.estMinutes || 50,
-    outcomeRefs: JSON.stringify(template.outcomeRefs || []),
+    outcomeRefs: JSON.stringify(outcomeDocIds),  // Store document IDs, not codes
     engagement_tags: JSON.stringify(template.engagement_tags || []),
     policy: JSON.stringify(template.policy || {}),
     cards: compressedCards  // Compressed instead of JSON.stringify
