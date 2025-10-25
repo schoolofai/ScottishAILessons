@@ -214,6 +214,17 @@ CRITICAL - CFU Question Handling:
     return guidance_map.get(lesson_type, guidance_map["teach"])
 
 
+class RubricCriterionResult(BaseModel):
+    """Per-criterion rubric evaluation result used in structured output."""
+    description: str = Field(description="Rubric criterion description")
+    points_awarded: float = Field(description="Points awarded for this criterion", ge=0.0)
+    max_points: float = Field(description="Maximum points for this criterion", gt=0.0)
+
+    class Config:
+        # Ensure OpenAI response_format schema has additionalProperties: false
+        extra = 'forbid'
+
+
 class EvaluationResponse(BaseModel):
     """Structured response for LLM-based evaluation."""
     is_correct: bool = Field(description="Whether the student response is correct")
@@ -222,6 +233,10 @@ class EvaluationResponse(BaseModel):
     reasoning: str = Field(description="Internal reasoning for the evaluation decision")
     should_progress: bool = Field(description="Whether to move forward regardless of correctness")
     partial_credit: Optional[float] = Field(default=None, description="Partial credit score (0.0-1.0)", ge=0.0, le=1.0)
+    rubric_breakdown: Optional[List[RubricCriterionResult]] = Field(
+        default=None,
+        description="Per-criterion evaluation breakdown with points awarded"
+    )
 
 
 class LLMTeacher:
@@ -318,6 +333,20 @@ Context:
 - Current Attempt: {attempt_number}
 - Maximum Attempts: {max_attempts}
 - Card Context: {card_context}
+
+Rubric for Evaluation:
+{rubric_text}
+
+When evaluating:
+1. Apply each rubric criterion independently
+2. Award partial credit based on criteria met
+3. Provide criterion-specific reasoning
+4. Sum points from all criteria for partial_credit score (0.0-1.0 scale)
+
+Common Misconceptions for This Question:
+{misconceptions_text}
+
+If the student's error matches a known misconception, reference the provided clarification in your feedback.
 
 Evaluation Guidelines:
 1. For numeric questions: Accept reasonable approximations, alternative formats (fractions, decimals), and contextual answers
@@ -451,11 +480,13 @@ You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
 {policy_reminders}
 
-Create a cohesive greeting that:
+Teach the lesson using the following process in markdown format:
 1. Welcomes the student warmly
 2. Introduces the lesson topic naturally
-3. Seamlessly transitions into presenting the first card
-4. Incorporates the card's explainer and examples if provided
+3. Present Lesson based on the following guidance  
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
 5. Ends with the card's question
 
 Card Details:
@@ -1023,10 +1054,14 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             lesson_type = state.get("lesson_type", "teach") if state else "teach"
             lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
 
+            # Choose explainer based on accessibility mode
+            use_plain_text = state.get("use_plain_text", False) if state else False
+            explainer_text = card.get("explainer_plain" if use_plain_text else "explainer", "")
+
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
+                    explainer=explainer_text,
                     examples=examples,
                     question=question,
                     card_title=card.get("title", ""),
@@ -1115,12 +1150,16 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             lesson_type = state.get("lesson_type", "teach") if state else "teach"
             lesson_type_pedagogy = get_lesson_type_pedagogy_guidance(lesson_type)
 
+            # Choose explainer based on accessibility mode
+            use_plain_text = state.get("use_plain_text", False) if state else False
+            first_explainer = first_card.get("explainer_plain" if use_plain_text else "explainer", "")
+
             response = self.llm.invoke(
                 self.greeting_with_first_card_prompt.format_messages(
                     lesson_title=lesson_snapshot.get("title", "Lesson"),
                     outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
-                    card_explainer=first_card.get("explainer", ""),
+                    card_explainer=first_explainer,
                     card_examples=examples,
                     card_question=first_card.get("cfu", {}).get("stem", ""),
                     lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
@@ -1163,6 +1202,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             question = cfu.get("stem", "") or cfu.get("question", "")
 
             examples = "\n".join(first_card.get("example", []))
+            # Choose explainer based on accessibility mode
+            use_plain_text = state.get("use_plain_text", False) if state else False
+            first_explainer = first_card.get("explainer_plain" if use_plain_text else "explainer", "")
             formatted_options = self._format_mcq_options(options)
 
             # Extract curriculum context if state provided
@@ -1188,7 +1230,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     lesson_title=lesson_snapshot.get("title", "Lesson"),
                     outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
                     card_title=first_card.get("title", ""),
-                    card_explainer=first_card.get("explainer", ""),
+                    card_explainer=first_explainer,
                     card_examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
@@ -1228,6 +1270,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             question = cfu.get("stem", "") or cfu.get("question", "")
 
             examples = "\n".join(card.get("example", []))
+            # Choose explainer based on accessibility mode
+            use_plain_text = state.get("use_plain_text", False) if state else False
+            explainer_text = card.get("explainer_plain" if use_plain_text else "explainer", "")
             formatted_options = self._format_mcq_options(options)
 
             # Extract curriculum context if state provided
@@ -1253,7 +1298,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.mcq_card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
+                    explainer=explainer_text,
                     examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
@@ -1319,6 +1364,14 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             if card_context.get("explainer"):
                 context_summary += f", Explainer: {card_context['explainer'][:100]}..."
 
+            # Extract rubric from CFU
+            rubric = cfu.get("rubric", {})
+            rubric_text = self._format_rubric_for_prompt(rubric)
+
+            # Extract misconceptions from card
+            misconceptions = card_context.get("misconceptions", [])
+            misconceptions_text = self._format_misconceptions_for_prompt(misconceptions)
+
             # Extract curriculum context if state provided
             if state:
                 subject_area = state.get("course_subject_display", "learning")
@@ -1339,6 +1392,8 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                     attempt_number=attempt_number,
                     max_attempts=max_attempts,
                     card_context=context_summary,
+                    rubric_text=rubric_text,
+                    misconceptions_text=misconceptions_text,
                     subject_area=subject_area,
                     level_description=level_description,
                     **curriculum_context
@@ -1479,6 +1534,36 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson summary: {str(e)}"
             ) from e
 
+    def _format_rubric_for_prompt(self, rubric: Dict) -> str:
+        """Format rubric criteria for LLM prompt."""
+        if not rubric or not rubric.get("criteria"):
+            return "No specific rubric provided. Evaluate holistically."
+        
+        total_points = rubric.get("total_points", 1)
+        criteria = rubric.get("criteria", [])
+        
+        lines = [f"Total Points: {total_points}"]
+        for i, criterion in enumerate(criteria, 1):
+            desc = criterion.get("description", "")
+            points = criterion.get("points", 1)
+            lines.append(f"{i}. [{points} pts] {desc}")
+        
+        return "\n".join(lines)
+
+    def _format_misconceptions_for_prompt(self, misconceptions: List[Dict]) -> str:
+        """Format misconceptions for LLM prompt."""
+        if not misconceptions:
+            return "No specific misconceptions documented for this question."
+        
+        lines = []
+        for i, misc in enumerate(misconceptions, 1):
+            misconception_text = misc.get("misconception", "")
+            clarification = misc.get("clarification", "")
+            lines.append(f"{i}. Misconception: {misconception_text}")
+            lines.append(f"   Clarification: {clarification}")
+        
+        return "\n".join(lines)
+
     def _format_performance_analysis(self, analysis: Dict) -> str:
         """Helper to format performance analysis for LLM prompt."""
         lines = []
@@ -1540,4 +1625,66 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             lines.append(f"\nRecent Performance Pattern: {pattern_text}")
         
         return "\n".join(lines)
+
+    def generate_hint_sync_full(
+        self,
+        current_card: Dict,
+        student_response: str,
+        attempt_number: int,
+        state: Optional[Dict] = None
+    ) -> str:
+        """Generate LLM hint when authored hints exhausted.
+        
+        Args:
+            current_card: Current card data
+            student_response: Student's incorrect response
+            attempt_number: Current attempt number
+            state: Optional full state dict with curriculum metadata
+            
+        Returns:
+            Generated hint string
+        """
+        try:
+            hint_prompt = ChatPromptTemplate.from_messages([
+                ("system", """Generate a helpful hint for a {level_description} {subject_area} student.
+                
+{course_context_block}
+
+Card Context: {card_context}
+Question: {question}
+Student's Response: {student_response}
+Attempt Number: {attempt_number}
+
+Provide a progressive hint that:
+1. Does NOT reveal the answer
+2. Guides them toward the correct method
+3. Is encouraging and supportive
+4. References their specific error pattern
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math."""),
+                ("human", "Generate a hint")
+            ])
+            
+            # Extract context
+            curriculum_context = extract_curriculum_context_from_state(state) if state else {}
+            
+            response = self.llm.invoke(
+                hint_prompt.format_messages(
+                    card_context=current_card.get("title", ""),
+                    question=current_card.get("cfu", {}).get("stem", ""),
+                    student_response=student_response,
+                    attempt_number=attempt_number,
+                    subject_area=state.get("course_subject_display", "learning") if state else "learning",
+                    level_description=state.get("course_level_display", "") if state else "",
+                    **curriculum_context
+                )
+            )
+            return response.content
+        except Exception as e:
+            logger.error(f"LLM hint generation failed: {e}")
+            return "Try reviewing the explanation and examples above, then attempt the question again."
 
