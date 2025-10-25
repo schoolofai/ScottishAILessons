@@ -515,8 +515,10 @@ export function EnhancedStudentDashboard() {
     await loadRecommendations(courseId, student);
   }, [student]);
 
-  // Handle lesson start
+  // Handle lesson start with race-condition safe session creation
   const handleStartLesson = async (lessonTemplateId: string) => {
+    const startTime = Date.now();
+
     try {
       // Set loading state for this specific lesson
       setStartingLessonId(lessonTemplateId);
@@ -529,37 +531,98 @@ export function EnhancedStudentDashboard() {
       );
 
       if (!validation.isValid) {
+        const { logger } = await import('@/lib/logger');
+        logger.error('lesson_start_validation_failed', {
+          lessonTemplateId,
+          error: validation.error
+        });
         throw new Error(validation.error);
       }
 
-      debugLog('Starting lesson', {
+      const { logger } = await import('@/lib/logger');
+      logger.info('lesson_start_initiated', {
         lessonTemplateId,
+        courseId: activeCourse,
+        threadId: recommendations?.thread_id,
+        studentId: student.$id
+      });
+
+      // Set up Appwrite client
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+      // Authenticate
+      const cookieFallback = localStorage.getItem('cookieFallback');
+      if (!cookieFallback) {
+        throw new Error('Not authenticated. Please log in again.');
+      }
+
+      const cookieData = JSON.parse(cookieFallback);
+      const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+      const storedSession = cookieData[sessionKey];
+
+      if (!storedSession) {
+        throw new Error('Session expired. Please log in again.');
+      }
+
+      client.setSession(storedSession);
+      const databases = new Databases(client);
+
+      // Create or get active session (race-condition safe)
+      const { createOrGetActiveSession } = await import('@/lib/sessions/session-security');
+
+      const { sessionId, isNew } = await createOrGetActiveSession(databases, {
+        lessonTemplateId,
+        studentId: student.$id,
         courseId: activeCourse,
         threadId: recommendations?.thread_id
       });
 
-      // Use the refactored session manager utility
-      const { createLessonSession } = await import('@/lib/sessions/session-manager');
+      const duration = Date.now() - startTime;
 
-      const newSession = await createLessonSession({
+      logger.info('lesson_start_completed', {
         lessonTemplateId,
-        studentId: student.$id,
-        courseId: activeCourse,
-        threadId: recommendations?.thread_id  // Pass existing thread for continuity
+        sessionId,
+        isNew,
+        duration,
+        action: isNew ? 'created' : 'resumed'
       });
 
-      debugLog('Session created, navigating', { sessionId: newSession.$id });
-
-      // Invalidate recommendations cache since starting a lesson changes the context
+      // Invalidate caches with proper tags
       const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
       cache.invalidate(cacheKey);
-      console.log('[Cache] Invalidated cache after starting lesson:', { cacheKey });
 
-      // Navigate to session page - let AutoStartTrigger handle the rest!
-      router.push(`/session/${newSession.$id}`);
+      // Also invalidate session-related caches
+      cache.invalidate(`sessions:student:${student.$id}`);
+      cache.invalidate(`sessions:lesson:${lessonTemplateId}`);
+
+      logger.info('cache_invalidated', {
+        keys: [cacheKey, `sessions:student:${student.$id}`, `sessions:lesson:${lessonTemplateId}`]
+      });
+
+      // Navigate to session
+      router.push(`/session/${sessionId}`);
     } catch (err) {
-      console.error("Failed to start lesson:", err);
-      setError(formatErrorMessage(err));
+      const duration = Date.now() - startTime;
+      const { logger } = await import('@/lib/logger');
+
+      logger.error('lesson_start_failed', {
+        lessonTemplateId,
+        duration,
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+
+      // Show user-friendly error
+      if (err instanceof Error && err.message.includes('Unauthorized')) {
+        setError('You do not have permission to access this session.');
+      } else if (err instanceof Error && err.message.includes('authenticated')) {
+        setError('Your session has expired. Please log in again.');
+      } else {
+        setError(formatErrorMessage(err));
+      }
+
       // Clear loading state on error
       setStartingLessonId(null);
     }
