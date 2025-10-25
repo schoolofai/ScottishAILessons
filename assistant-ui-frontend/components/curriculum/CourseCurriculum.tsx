@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -11,18 +12,36 @@ import {
   Play,
   Loader2,
   BookOpen,
-  Clock
+  Clock,
+  RotateCcw
 } from 'lucide-react';
 import { Client, Databases, Query } from 'appwrite';
+import { formatDistanceToNow } from 'date-fns';
+import { logger } from '@/lib/logger';
+import { abandonAndRestart } from '@/lib/sessions/session-security';
+import { cache, createCacheKey } from '@/lib/cache';
 
 interface Lesson {
   order: number;
   label: string;
   lessonTemplateId: string;
   lesson_type: string;
-  status?: 'completed' | 'in_progress' | 'not_started' | 'locked';
+  status: 'completed' | 'in_progress' | 'not_started' | 'locked';
   estimatedMinutes?: number;
-  isPublished?: boolean;
+  isPublished: boolean;
+  activeSessionId?: string;
+  completedCount: number;
+  lastActivity?: string;
+  lesson_type_display?: string;
+  engagement_tags?: string[];
+}
+
+interface SessionsByLessonMap {
+  [lessonTemplateId: string]: {
+    activeSession: any | null;
+    completedCount: number;
+    lastActivity?: string;
+  };
 }
 
 interface CourseCurriculumProps {
@@ -38,6 +57,7 @@ export function CourseCurriculum({
   onStartLesson,
   startingLessonId
 }: CourseCurriculumProps) {
+  const router = useRouter();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,37 +168,113 @@ export function CourseCurriculum({
 
       console.log('[CourseCurriculum] Lesson sessions found:', allSessions.length);
 
-      const sessionMap = new Map(
-        allSessions.map((s: any) => [
-          s.lessonTemplateId,
-          s.completionStatus
-        ])
-      );
+      // Build session map with strict security filtering
+      const sessionsByLesson: SessionsByLessonMap = {};
 
-      // Map lesson templates with status
-      const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
-        const sessionStatus = sessionMap.get(template.$id);
-        const isPublished = template.status === 'published';
-        let status: Lesson['status'] = 'not_started';
+      // SECURITY: Filter sessions by current student
+      const studentSessions = allSessions.filter((session: any) => {
+        if (session.studentId !== studentId) {
+          logger.warn('session_with_wrong_studentId_in_dataset', {
+            sessionId: session.$id,
+            expectedStudentId: studentId,
+            foundStudentId: session.studentId
+          });
+          return false;
+        }
+        return true;
+      });
 
-        // If lesson is not published, mark it as locked
-        if (!isPublished) {
-          status = 'locked';
-        } else if (sessionStatus === 'completed') {
-          status = 'completed';
-        } else if (sessionStatus === 'in_progress') {
-          status = 'in_progress';
+      studentSessions.forEach((session: any) => {
+        const lessonId = session.lessonTemplateId;
+
+        if (!sessionsByLesson[lessonId]) {
+          sessionsByLesson[lessonId] = {
+            activeSession: null,
+            completedCount: 0,
+            lastActivity: undefined
+          };
         }
 
+        const lessonSessions = sessionsByLesson[lessonId];
+
+        if (session.status === 'active' || session.status === 'created') {
+          // Validate session data (fail fast)
+          if (!session.startedAt) {
+            logger.error('session_missing_startedAt', {
+              sessionId: session.$id,
+              status: session.status,
+              lessonTemplateId: lessonId
+            });
+            throw new Error(`Corrupted session data: ${session.$id}`);
+          }
+
+          // Keep most recent active session only
+          if (!lessonSessions.activeSession ||
+              new Date(session.startedAt) > new Date(lessonSessions.activeSession.startedAt)) {
+            lessonSessions.activeSession = session;
+            lessonSessions.lastActivity = session.updatedAt || session.startedAt;
+          }
+        } else if (session.status === 'completed') {
+          lessonSessions.completedCount++;
+
+          // Track most recent activity
+          const activityDate = session.completedAt || session.updatedAt;
+          if (!lessonSessions.lastActivity || activityDate > lessonSessions.lastActivity) {
+            lessonSessions.lastActivity = activityDate;
+          }
+        }
+      });
+
+      // Map lessons with status
+      const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
+        const lessonSessions = sessionsByLesson[template.$id];
+        const isPublished = template.status === 'published';
+
+        let status: Lesson['status'] = 'not_started';
+
+        if (!isPublished) {
+          status = 'locked';
+        } else if (lessonSessions?.activeSession) {
+          status = 'in_progress';
+        } else if (lessonSessions?.completedCount > 0) {
+          status = 'completed';
+        }
+
+        // Extract curriculum metadata for richer display
+        let engagement_tags: string[] = [];
+        try {
+          const tags_str = template.engagement_tags || '[]';
+          engagement_tags = typeof tags_str === 'string' ? JSON.parse(tags_str) : tags_str;
+        } catch (e) {
+          logger.warn('failed_to_parse_engagement_tags', { templateId: template.$id });
+        }
+
+        const lesson_type_display = template.lesson_type
+          ? template.lesson_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+          : 'Lesson';
+
         return {
-          order: template.sow_order || index + 1,  // Use sow_order field
+          order: template.sow_order || index + 1,
           label: template.title || `Lesson ${index + 1}`,
           lessonTemplateId: template.$id,
           lesson_type: template.lesson_type || 'teach',
           status,
-          estimatedMinutes: template.estMinutes || 30,  // Use estMinutes field
-          isPublished
+          estimatedMinutes: template.estMinutes || 30,
+          isPublished,
+          activeSessionId: lessonSessions?.activeSession?.$id,
+          completedCount: lessonSessions?.completedCount || 0,
+          lastActivity: lessonSessions?.lastActivity,
+          lesson_type_display,
+          engagement_tags
         };
+      });
+
+      logger.info('lessons_mapped', {
+        totalLessons: lessonsWithStatus.length,
+        inProgress: lessonsWithStatus.filter(l => l.status === 'in_progress').length,
+        completed: lessonsWithStatus.filter(l => l.status === 'completed').length,
+        locked: lessonsWithStatus.filter(l => l.status === 'locked').length,
+        notStarted: lessonsWithStatus.filter(l => l.status === 'not_started').length
       });
 
       setLessons(lessonsWithStatus);
@@ -230,56 +326,150 @@ export function CourseCurriculum({
 
     if (lesson.status === 'locked') {
       return (
-        <Button variant="ghost" size="sm" disabled className="gap-2">
-          <Lock className="h-4 w-4" />
-          Locked
-        </Button>
+        <div className="text-right">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled
+            className="gap-2"
+            aria-label={`${lesson.label} is locked`}
+          >
+            <Lock className="h-4 w-4" aria-hidden="true" />
+            Locked
+          </Button>
+        </div>
       );
     }
 
-    if (lesson.status === 'completed') {
-      return (
+    // Determine button configuration
+    let buttonText = 'Start Lesson';
+    let buttonVariant: 'default' | 'outline' = 'default';
+    let buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
+    let ariaLabel = `Start ${lesson.label}`;
+
+    if (lesson.status === 'in_progress') {
+      buttonText = 'Continue';
+      buttonVariant = 'default';
+      buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
+      ariaLabel = `Continue ${lesson.label}`;
+    } else if (lesson.status === 'completed') {
+      buttonText = 'Retake Lesson';
+      buttonVariant = 'outline';
+      buttonIcon = <RotateCcw className="h-4 w-4" aria-hidden="true" />;
+      ariaLabel = `Retake ${lesson.label}`;
+    }
+
+    // Calculate activity age for warning (7 days = stale)
+    const isStale = lesson.lastActivity &&
+      Date.now() - new Date(lesson.lastActivity).getTime() > 7 * 24 * 60 * 60 * 1000;
+
+    return (
+      <div className="flex flex-col items-end gap-2">
+        {/* Main action button */}
         <Button
-          variant="outline"
+          variant={buttonVariant}
           size="sm"
           onClick={() => onStartLesson(lesson.lessonTemplateId)}
           disabled={isStarting}
-          className="gap-2"
+          className={`gap-2 ${buttonVariant === 'default' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+          aria-label={ariaLabel}
+          aria-busy={isStarting}
         >
           {isStarting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Starting...
             </>
           ) : (
             <>
-              <Play className="h-4 w-4" />
-              Review
+              {buttonIcon}
+              {buttonText}
             </>
           )}
         </Button>
-      );
-    }
 
-    return (
-      <Button
-        size="sm"
-        onClick={() => onStartLesson(lesson.lessonTemplateId)}
-        disabled={isStarting}
-        className="gap-2 bg-blue-600 hover:bg-blue-700"
-      >
-        {isStarting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Starting...
-          </>
-        ) : (
-          <>
-            <Play className="h-4 w-4" />
-            {lesson.status === 'in_progress' ? 'Continue' : 'Start'}
-          </>
+        {/* Activity timestamp for in-progress lessons */}
+        {lesson.status === 'in_progress' && lesson.lastActivity && (
+          <p className={`text-xs ${isStale ? 'text-amber-600' : 'text-gray-500'}`}>
+            Last activity: {formatDistanceToNow(new Date(lesson.lastActivity), { addSuffix: true })}
+          </p>
         )}
-      </Button>
+
+        {/* History link for completed lessons */}
+        {lesson.completedCount > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/lesson-sessions/${lesson.lessonTemplateId}`);
+            }}
+            className="text-xs text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            aria-label={`View ${lesson.completedCount} completed attempts for ${lesson.label}`}
+          >
+            View History ({lesson.completedCount} completed)
+          </button>
+        )}
+
+        {/* "Start Over" link for stale in-progress sessions */}
+        {lesson.status === 'in_progress' && isStale && lesson.activeSessionId && (
+          <button
+            onClick={async (e) => {
+              e.stopPropagation();
+
+              if (!confirm('Abandon current progress and start fresh?\n\nYour current session will be marked as abandoned.')) {
+                return;
+              }
+
+              try {
+                const client = new Client()
+                  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+                  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+
+                // Set session from localStorage
+                const cookieFallback = localStorage.getItem('cookieFallback');
+                if (cookieFallback) {
+                  const cookieData = JSON.parse(cookieFallback);
+                  const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
+                  client.setSession(cookieData[sessionKey]);
+                }
+
+                const databases = new Databases(client);
+
+                const newSessionId = await abandonAndRestart(
+                  databases,
+                  lesson.activeSessionId!,
+                  studentId,
+                  lesson.lessonTemplateId,
+                  courseId,
+                  undefined // threadId not available here
+                );
+
+                // Invalidate cache
+                const cacheKey = createCacheKey('recommendations', studentId, courseId);
+                cache.invalidate(cacheKey);
+
+                logger.info('session_restarted_from_curriculum', {
+                  oldSessionId: lesson.activeSessionId,
+                  newSessionId,
+                  lessonTemplateId: lesson.lessonTemplateId
+                });
+
+                // Navigate to new session
+                router.push(`/session/${newSessionId}`);
+              } catch (err) {
+                logger.error('failed_to_abandon_and_restart', {
+                  lessonTemplateId: lesson.lessonTemplateId,
+                  error: err instanceof Error ? err.message : String(err)
+                });
+                alert('Failed to start over. Please try again.');
+              }
+            }}
+            className="text-xs text-amber-600 hover:underline focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
+            aria-label={`Start ${lesson.label} over from the beginning`}
+          >
+            Start Over
+          </button>
+        )}
+      </div>
     );
   };
 
