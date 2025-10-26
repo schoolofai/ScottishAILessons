@@ -497,3 +497,121 @@ async def delete_appwrite_document(
     except Exception as e:
         logger.error(f"Failed to delete document: {e}")
         raise
+
+
+async def fetch_course_outcomes_context(
+    course_id: str,
+    mcp_config_path: str
+) -> str:
+    """Fetch all course outcomes and format for agent context.
+
+    This provides the agent with all available outcomes for the course,
+    ensuring it uses the exact outcomeId values from the database.
+
+    Args:
+        course_id: Course ID (e.g., 'course_c84473')
+        mcp_config_path: Path to .mcp.json configuration
+
+    Returns:
+        Formatted string with all outcomes for the course
+
+    Raises:
+        Exception: If query fails or no outcomes found
+    """
+    logger.info(f"Fetching course outcomes context for course: {course_id}")
+
+    outcomes = await list_appwrite_documents(
+        database_id="default",
+        collection_id="course_outcomes",
+        queries=[f'equal("courseId", "{course_id}")'],
+        mcp_config_path=mcp_config_path
+    )
+
+    if not outcomes:
+        raise ValueError(
+            f"No course outcomes found for course '{course_id}'. "
+            f"Please ensure outcomes are seeded using migrateCourseOutcomes.ts"
+        )
+
+    context = "Available Course Outcomes:\n\n"
+
+    for outcome in outcomes:
+        outcome_id = outcome.get('outcomeId', 'UNKNOWN')
+        outcome_title = outcome.get('outcomeTitle', 'No title')
+        unit_code = outcome.get('unitCode', '')
+        unit_title = outcome.get('unitTitle', '')
+
+        context += f"- {outcome_id}: {outcome_title}\n"
+
+        if unit_code or unit_title:
+            context += f"  Unit: {unit_code} - {unit_title}\n"
+
+        # Add assessment standards if available
+        assessment_standards_str = outcome.get('assessmentStandards', '[]')
+        try:
+            standards = json.loads(assessment_standards_str)
+            if standards:
+                standard_codes = [s.get('code', '') for s in standards if isinstance(s, dict)]
+                if standard_codes:
+                    context += f"  Assessment Standards: {', '.join(standard_codes)}\n"
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        context += "\n"
+
+    logger.info(f"✓ Fetched {len(outcomes)} outcomes for context")
+    return context
+
+
+async def map_outcome_codes_to_doc_ids(
+    outcome_codes: list,
+    course_id: str,
+    mcp_config_path: str
+) -> list:
+    """Map outcome codes to Appwrite document IDs (NO normalization).
+
+    This function expects the agent to provide exact outcomeId values
+    from the database context. No normalization or guessing is performed.
+
+    Args:
+        outcome_codes: List of outcome codes (e.g., ['O1', 'O2'])
+        course_id: Course ID (e.g., 'course_c84473')
+        mcp_config_path: Path to .mcp.json configuration
+
+    Returns:
+        List of Appwrite document IDs from course_outcomes collection
+
+    Raises:
+        ValueError: If any outcome code is not found in the database
+    """
+    logger.info(f"Mapping {len(outcome_codes)} outcome codes to document IDs")
+
+    doc_ids = []
+
+    for outcome_code in outcome_codes:
+        logger.info(f"  Looking up outcome: {outcome_code}")
+
+        # Query exactly as agent provided it - NO normalization
+        result = await list_appwrite_documents(
+            database_id="default",
+            collection_id="course_outcomes",
+            queries=[
+                f'equal("courseId", "{course_id}")',
+                f'equal("outcomeId", "{outcome_code}")'
+            ],
+            mcp_config_path=mcp_config_path
+        )
+
+        if not result:
+            raise ValueError(
+                f"❌ Outcome '{outcome_code}' not found for course '{course_id}'. "
+                f"Agent should only use outcome codes from provided context. "
+                f"Available outcomes should have been listed in the agent's prompt."
+            )
+
+        doc_id = result[0]["$id"]
+        doc_ids.append(doc_id)
+        logger.info(f"  ✓ Mapped {outcome_code} → {doc_id}")
+
+    logger.info(f"✓ Successfully mapped all {len(doc_ids)} outcomes")
+    return doc_ids
