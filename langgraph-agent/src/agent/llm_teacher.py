@@ -225,11 +225,12 @@ def get_lesson_type_pedagogy_guidance(lesson_type: str) -> str:
     guidance_map = {
         "teach": """
 TEACHING APPROACH (Teach Lesson):
-- Use the EXPLAINER and EXAMPLES to teach the concept from first principles
+- Use the EXPLAINER and QUESTION to teach the concept from first principles
 - Build understanding step-by-step using the provided teaching materials
 - Assume minimal prior knowledge - explain thoroughly using the explainer content
 - Take time to work through the provided examples in detail
 - Focus on conceptual clarity before presenting the question
+- At the end of the lesson, the student should be able to answer the question themselves, so cover all the key concepts and examples in the explainer and question.
 
 CRITICAL - CFU Question Handling:
 - The Question/CFU is for ASSESSMENT - DO NOT solve it or give away the answer
@@ -340,10 +341,7 @@ Student name: {student_name}"""),
 Progress: You are on card {card_number} of {total_cards} in this lesson.
 
 IMPORTANT CONTINUATION GUIDELINES:
-- DO NOT include a greeting (student was already greeted at the start)
-- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
-- Reference that you're continuing the lesson naturally
-- Keep it conversational and encouraging
+- DO NOT include a greeting or progress indication
 
 {lesson_type_pedagogy}
 
