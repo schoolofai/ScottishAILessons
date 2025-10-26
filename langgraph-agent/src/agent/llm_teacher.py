@@ -30,6 +30,82 @@ def parse_outcome_refs(outcome_refs_data):
     return []
 
 
+def _format_sqa_alignment_summary(enriched_outcomes: Optional[List[Dict]]) -> str:
+    """Format enriched outcomes with detailed assessment standards for teaching guidance.
+
+    Transforms generic outcome data into actionable teaching information by exposing:
+    - Unit context (title and code)
+    - Assessment standards with codes (e.g., 2.1, 2.2)
+    - Skills being assessed
+    - Marking guidance for teachers
+
+    Args:
+        enriched_outcomes: List of CourseOutcome dictionaries from course_outcomes collection
+
+    Returns:
+        Formatted multi-line string for LLM system prompts
+    """
+    if not enriched_outcomes:
+        return ""
+
+    lines = ["SQA Learning Outcomes:"]
+    lines.append("━" * 60)
+
+    for outcome in enriched_outcomes[:3]:  # Limit to first 3 for prompt brevity
+        outcome_id = outcome.get("outcomeId", "")
+        unit_code = outcome.get("unitCode", "")
+        unit_title = outcome.get("unitTitle", "")
+
+        # Show unit context for geographical orientation
+        if unit_title and unit_code:
+            lines.append(f"\nUnit: {unit_title} [{unit_code}]")
+
+        # Parse assessment standards JSON (the actually useful teaching data!)
+        assessment_standards_json = outcome.get("assessmentStandards", "[]")
+        try:
+            standards = json.loads(assessment_standards_json) if isinstance(assessment_standards_json, str) else []
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse assessmentStandards for outcome {outcome_id}")
+            standards = []
+
+        if outcome_id and standards:
+            lines.append(f"\nOutcome {outcome_id} Assessment Standards:")
+
+            for standard in standards:
+                code = standard.get("code", "")
+                desc = standard.get("desc", "")
+                skills = standard.get("skills_list", [])
+                marking = standard.get("marking_guidance", "")
+
+                if code and desc:
+                    # Main assessment standard description
+                    lines.append(f"  • {code}: {desc}")
+
+                    # Show skills being assessed (truncate if too long)
+                    if skills:
+                        if isinstance(skills, list):
+                            skills_text = ", ".join(skills)
+                        else:
+                            skills_text = str(skills)
+
+                        if len(skills_text) > 80:
+                            skills_text = skills_text[:77] + "..."
+                        lines.append(f"    ↳ Skills: {skills_text}")
+
+                    # Show marking guidance (truncate if too long)
+                    if marking:
+                        marking_short = marking if len(marking) <= 100 else marking[:97] + "..."
+                        lines.append(f"    ↳ Marking: {marking_short}")
+
+        elif outcome_id:
+            # Fallback: Show generic outcome title if no standards available
+            outcome_title = outcome.get("outcomeTitle", "")
+            if outcome_title:
+                lines.append(f"\nOutcome {outcome_id}: {outcome_title[:80]}...")
+
+    return "\n".join(lines)
+
+
 def format_course_context_for_prompt(
     course_subject_display: Optional[str],
     course_level_display: Optional[str],
@@ -101,21 +177,10 @@ def format_course_context_for_prompt(
 
     policy_reminders = "\n".join(policy_lines) if policy_lines else ""
 
-    # Build SQA alignment summary
-    sqa_lines = []
-    if enriched_outcomes:
-        sqa_lines.append("SQA Learning Outcomes Covered:")
-        for outcome in enriched_outcomes[:3]:  # Limit to first 3 for brevity
-            outcome_ref = outcome.get("outcomeRef", "")
-            outcome_title = outcome.get("outcomeTitle", "")
-            assessment_standards = outcome.get("assessmentStandards", [])
-
-            if outcome_ref and outcome_title:
-                sqa_lines.append(f"- {outcome_ref}: {outcome_title[:60]}...")
-                if assessment_standards:
-                    sqa_lines.append(f"  ({len(assessment_standards)} assessment standards)")
-
-    sqa_alignment_summary = "\n".join(sqa_lines) if sqa_lines else ""
+    # Build SQA alignment summary using the enhanced formatter
+    # This now shows detailed assessment standards with skills and marking guidance
+    # instead of just generic outcome titles
+    sqa_alignment_summary = _format_sqa_alignment_summary(enriched_outcomes)
 
     return {
         "tutor_role_description": tutor_role,

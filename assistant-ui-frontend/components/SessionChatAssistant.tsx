@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { MyAssistant, SessionContext } from "./MyAssistant";
 import { useAppwrite, SessionDriver } from "@/lib/appwrite";
 import { CourseDriver } from "@/lib/appwrite/driver/CourseDriver";
+import { CourseOutcomesDriver } from "@/lib/appwrite/driver/CourseOutcomesDriver";
+import { enrichOutcomeRefs } from "@/lib/sessions/outcome-enrichment";
 import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
 import { Client } from "@langchain/langgraph-sdk";
@@ -80,12 +82,33 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           console.warn('SessionChatAssistant - No courseId found in lesson_snapshot');
         }
 
+        // Enrich outcomes if outcomeRefs available
+        let enrichedOutcomes = [];
+        if (courseId && parsedSnapshot.outcomeRefs?.length > 0) {
+          try {
+            console.log('SessionChatAssistant - Enriching outcomes for:', parsedSnapshot.outcomeRefs);
+            const outcomeDriver = createDriver(CourseOutcomesDriver);
+            enrichedOutcomes = await enrichOutcomeRefs(
+              parsedSnapshot.outcomeRefs,
+              courseId,
+              outcomeDriver
+            );
+            console.log('SessionChatAssistant - Enriched outcomes count:', enrichedOutcomes.length);
+          } catch (outcomeError) {
+            console.error('SessionChatAssistant - Failed to enrich outcomes:', outcomeError);
+            // Continue without enriched outcomes - it's optional
+          }
+        } else {
+          console.log('SessionChatAssistant - Skipping outcome enrichment (no courseId or outcomeRefs)');
+        }
+
         const context: SessionContext = {
           session_id: session.$id,
           student_id: session.studentId,
           lesson_snapshot: parsedSnapshot,
           use_plain_text: false, // TODO: Get from user preferences when implemented
           ...courseCurriculumMetadata, // Add course_subject, course_level, sqa_course_code, course_title
+          enriched_outcomes: enrichedOutcomes, // Add enriched CourseOutcome objects
         };
 
         console.log('SessionChatAssistant - Loading context:', context);
