@@ -62,7 +62,7 @@ def _generate_lesson_content(state: SimpleTeachingState) -> str:
         if cfu_type == "mcq":
             message_obj = teacher.present_mcq_card_sync_full(current_card)
         else:
-            message_obj = teacher.present_card_sync_full(current_card)
+            message_obj = teacher.present_card_sync_full(current_card, lesson_snapshot)
     
     return message_obj.content
 

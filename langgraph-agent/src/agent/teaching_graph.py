@@ -89,12 +89,12 @@ def _generate_first_card_message(teacher, lesson_snapshot: dict, current_card: d
         return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card)
 
 
-def _generate_subsequent_card_message(teacher, current_card: dict, cfu_type: str):
+def _generate_subsequent_card_message(teacher, lesson_snapshot: dict, current_card: dict, cfu_type: str):
     """Generate message for subsequent cards."""
     if cfu_type == "mcq":
         return teacher.present_mcq_card_sync_full(current_card)
     else:
-        return teacher.present_card_sync_full(current_card)
+        return teacher.present_card_sync_full(current_card, lesson_snapshot)
 
 
 def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, current_index: int, cfu_type: str):
@@ -102,7 +102,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
     if current_index == 0:
         return _generate_first_card_message(teacher, lesson_snapshot, current_card, cfu_type)
     else:
-        return _generate_subsequent_card_message(teacher, current_card, cfu_type)
+        return _generate_subsequent_card_message(teacher, lesson_snapshot, current_card, cfu_type)
 
 
 def _create_delivery_state(state: UnifiedState, current_card: dict, current_index: int, message_obj) -> Dict:

@@ -225,17 +225,11 @@ def get_lesson_type_pedagogy_guidance(lesson_type: str) -> str:
     guidance_map = {
         "teach": """
 TEACHING APPROACH (Teach Lesson):
-- Use the EXPLAINER and QUESTION to teach the concept from first principles
+- Use the EXPLAINER o teach the concept from first principles
 - Build understanding step-by-step using the provided teaching materials
 - Assume minimal prior knowledge - explain thoroughly using the explainer content
-- Take time to work through the provided examples in detail
-- Focus on conceptual clarity before presenting the question
-- At the end of the lesson, the student should be able to answer the question themselves, so cover all the key concepts and examples in the explainer and question.
+- At the end of the lesson, the student should be able to answer the question themselves, so cover all the key concepts and examples in the explainer and question.""",
 
-CRITICAL - CFU Question Handling:
-- The Question/CFU is for ASSESSMENT - DO NOT solve it or give away the answer
-- After teaching with explainer/examples, present the CFU question for the student to answer
-- Let the student demonstrate their understanding by solving the CFU themselves""",
 
         "independent_practice": """
 TEACHING APPROACH (Independent Practice):
@@ -334,28 +328,27 @@ Student name: {student_name}"""),
         ])
         
         self.card_presentation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Present this {subject_area} concept conversationally to a {level_description} student.
+            ("system", """You are a {tutor_role_description}.
+You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
+<Teaching Process>
+Teach the lesson using the following process in markdown format:
+1. Welcomes the student warmly
+2. Introduces the lesson topic naturally
+3. Present Lesson based on the following guidance  
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+</Teaching Process>
 
-Progress: You are on card {card_number} of {total_cards} in this lesson.
-
-IMPORTANT CONTINUATION GUIDELINES:
-- DO NOT include a greeting or progress indication
-
-{lesson_type_pedagogy}
-
-Context: {card_context}
-Explainer: {explainer}
-Examples: {examples}
-Question: {question}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Make it feel like friendly tutoring with clear progress indication.
-End with the question naturally in the conversation. Make sure to include the question for the student to answer.
+<card context>
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
@@ -533,16 +526,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{lesson_type_pedagogy}
-
-{engagement_guidance}
-
-{policy_reminders}
-
+<Teaching Process>
 Teach the lesson using the following process in markdown format:
 1. Welcomes the student warmly
 2. Introduces the lesson topic naturally
@@ -550,15 +534,16 @@ Teach the lesson using the following process in markdown format:
    - {lesson_type_pedagogy}
    - {engagement_guidance}
    - {policy_reminders}
-5. Ends with the card's question
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+</Teaching Process>
 
+<card context>
 Card Details:
 - Title: {card_title}
 - Explainer: {card_explainer}
-- Examples: {card_examples}
-- Question: {card_question}
-
-Make it feel like one natural conversation flow, not separate sections.
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
@@ -572,41 +557,25 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{lesson_type_pedagogy}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Create a cohesive greeting that:
+<Teaching Process>
+Teach the lesson using the following process in markdown format:
 1. Welcomes the student warmly
 2. Introduces the lesson topic naturally
-3. Seamlessly transitions into presenting the first card
-4. Incorporates the card's explainer and examples if provided
-5. Ends with a properly formatted multiple choice question
+3. Present Lesson based on the following guidance - use <card context> to create lesson content. 
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+</Teaching Process>
 
+<card context>
 Card Details:
 - Title: {card_title}
 - Explainer: {card_explainer}
-- Examples: {card_examples}
-- Question: {mcq_question}
-- Options: {mcq_options}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-Format the multiple choice question as:
-**Question**: {mcq_question}
-
-1. [First option]
-2. [Second option]
-3. [Third option]
-etc.
-
-Please respond with the number of your choice (1, 2, 3, etc.).
-
-Make it feel like one natural conversation flow with a clear, structured question at the end.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
@@ -619,37 +588,28 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
         self.mcq_card_presentation_prompt = ChatPromptTemplate.from_messages([
             ("system", """Present this multiple choice question conversationally to a {level_description} {subject_area} student.
 
-{course_context_block}
+<Teaching Process>
 
-Progress: You are on card {card_number} of {total_cards} in this lesson.
-
+Teach the lesson using the following process in markdown format:
+1. Start the lesson by showing progress like - "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}..."
+2. Introduces the lesson topic naturally
+3. Present Lesson based on the following guidance  
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
 IMPORTANT CONTINUATION GUIDELINES:
 - DO NOT include a greeting (student was already greeted at the start)
-- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
-- Reference that you're continuing the lesson naturally
-- Keep it conversational and encouraging
+</Teaching Process>
 
-{lesson_type_pedagogy}
+<card context>
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-{engagement_guidance}
-
-Context: {card_context}
-Explainer: {explainer}
-Examples: {examples}
-Question: {mcq_question}
-Options: {mcq_options}
-
-Create a smooth transition and explanation, then format the question as:
-**Question**: {mcq_question}
-
-1. [First option]
-2. [Second option]
-3. [Third option]
-etc.
-
-Please respond with the number of your choice (1, 2, 3, etc.).
-
-Make it feel like friendly tutoring with clear progress indication and a clearly structured question.
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
@@ -1083,35 +1043,34 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson completion message: {str(e)}"
             ) from e
 
-    def present_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
+    def present_card_sync_full(self, card: Dict[str, Any], lesson_snapshot: Dict, state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
         """Present lesson card conversationally (sync version) - returns full response object.
 
         Args:
             card: Card data
+            lesson_snapshot: Lesson snapshot data containing lesson metadata
             state: Optional full state dict with curriculum metadata
             card_index: Zero-indexed position of current card (default: 0)
             total_cards: Total number of cards in lesson (default: 1)
         """
         try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
+            # Extract lesson metadata
+            lesson_title = lesson_snapshot.get("title", "Lesson")
+            outcome_refs = ", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", [])))
 
             # Extract curriculum context if state provided
             curriculum_context = {}
             if state:
                 curriculum_context = extract_curriculum_context_from_state(state)
-                # Also extract subject_area and level_description for card presentation
-                subject_area = state.get("course_subject_display", "learning")
-                level_description = state.get("course_level_display", "")
             else:
                 # Fallback to default values if no state
                 curriculum_context = {
+                    "tutor_role_description": "friendly, encouraging tutor",
                     "course_context_block": "",
                     "engagement_guidance": "",
-                    "policy_reminders": ""
+                    "policy_reminders": "",
+                    "sqa_alignment_summary": ""
                 }
-                subject_area = "learning"
-                level_description = ""
 
             # Extract lesson_type and generate pedagogy guidance
             lesson_type = state.get("lesson_type", "teach") if state else "teach"
@@ -1123,17 +1082,13 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
 
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=explainer_text,
-                    examples=examples,
-                    question=question,
+                    lesson_title=lesson_title,
+                    outcome_refs=outcome_refs,
                     card_title=card.get("title", ""),
-                    card_number=card_index + 1,  # Convert to 1-indexed for display
-                    total_cards=total_cards,
-                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
-                    subject_area=subject_area,
-                    level_description=level_description,
-                    **curriculum_context
+                    card_explainer=explainer_text,
+                    lesson_type_pedagogy=lesson_type_pedagogy,
+                    **curriculum_context  # Includes: tutor_role_description, course_context_block,
+                                         # engagement_guidance, policy_reminders, sqa_alignment_summary
                 )
             )
             return response
@@ -1142,6 +1097,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"LLM call failed in present_card_sync_full: {e}",
                 extra={
                     "card_title": card.get("title", "unknown"),
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
                     "has_explainer": bool(card.get("explainer")),
                     "has_examples": bool(card.get("example")),
                     "has_question": bool(card.get("cfu", {}).get("stem")),
@@ -1152,7 +1108,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 }
             )
             raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
+                f"Failed to present lesson card '{card.get('title', 'unknown')}' for lesson '{lesson_snapshot.get('title', 'unknown')}': {str(e)}"
             ) from e
 
     def greet_with_first_card_sync(self, lesson_snapshot: Dict, first_card: Dict[str, Any]) -> str:

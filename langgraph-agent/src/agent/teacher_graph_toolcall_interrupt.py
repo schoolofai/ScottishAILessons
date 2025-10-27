@@ -111,7 +111,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
         else:
             return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card, state)
     else:
-        # Subsequent cards - pass state AND progress information for curriculum context
+        # Subsequent cards - pass lesson_snapshot, state AND progress information for curriculum context
         if cfu_type == "mcq":
             return teacher.present_mcq_card_sync_full(
                 current_card,
@@ -122,6 +122,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
         else:
             return teacher.present_card_sync_full(
                 current_card,
+                lesson_snapshot,  # Add lesson_snapshot parameter
                 state,
                 card_index=current_index,
                 total_cards=total_cards

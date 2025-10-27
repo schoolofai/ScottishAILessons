@@ -135,11 +135,11 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
         else:
             return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card)
     else:
-        # Subsequent cards
+        # Subsequent cards - pass lesson_snapshot for context
         if cfu_type == "mcq":
             return teacher.present_mcq_card_sync_full(current_card)
         else:
-            return teacher.present_card_sync_full(current_card)
+            return teacher.present_card_sync_full(current_card, lesson_snapshot)
 
 
 def design_node_interrupt(state: InterruptUnifiedState) -> Dict:
