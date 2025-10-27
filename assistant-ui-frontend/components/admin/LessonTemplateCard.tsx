@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { LessonDriver } from '@/lib/appwrite/driver/LessonDriver';
 import { decompressCards } from '@/lib/appwrite/utils/compression';
 import { JsonViewer } from './JsonViewer';
@@ -10,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, AlertCircle } from 'lucide-react';
+import { ChevronDown, AlertCircle, Edit } from 'lucide-react';
 import type { LessonTemplate } from '@/lib/appwrite/types';
 
 interface LessonTemplateCardProps {
@@ -23,6 +24,7 @@ interface LessonTemplateCardProps {
  * Shows JSON and markdown preview, allows publishing
  */
 export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<'json' | 'markdown'>('json');
   const [publishing, setPublishing] = useState(false);
@@ -102,9 +104,21 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
             </div>
           </CollapsibleTrigger>
 
-          {/* Status Badge and Publish Button (Outside Trigger) */}
+          {/* Status Badge, Edit Cards, and Publish Button (Outside Trigger) */}
           <div className="flex gap-2 items-center flex-shrink-0 ml-4">
             <Badge variant={getStatusVariant(template.status)}>{template.status}</Badge>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/admin/lesson/${template.$id}`);
+              }}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Cards
+            </Button>
 
             {template.status !== 'published' && (
               <Button

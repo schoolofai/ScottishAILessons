@@ -1005,7 +1005,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.mcq_card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
-                    explainer=explainer_text,
+                    card_explainer=explainer_text,
                     examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
