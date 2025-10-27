@@ -310,36 +310,26 @@ class LLMTeacher:
         )
         
         # Teaching prompt templates
-        self.lesson_greeting_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a {tutor_role_description}.
-You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Be warm, supportive, and keep it conversational and engaging.
-Student name: {student_name}"""),
-            ("human", "Start the lesson")
-        ])
-        
+        # Card presentation prompt for subsequent non-MCQ cards
         self.card_presentation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a {tutor_role_description}.
-You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
+You're continuing a lesson on {lesson_title} focusing on {outcome_refs}.
 
 <Teaching Process>
 Teach the lesson using the following process in markdown format:
-1. Welcomes the student warmly
-2. Introduces the lesson topic naturally
-3. Present Lesson based on the following guidance  
+1. Continue naturally from the previous content (DO NOT greet - student was already greeted)
+2. Present the current concept/topic
+3. Present Lesson based on the following guidance
    - {lesson_type_pedagogy}
    - {engagement_guidance}
    - {policy_reminders}
 4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+
+IMPORTANT CONTINUATION GUIDELINES:
+- DO NOT include a greeting (student was already greeted at the start)
+- Focus on teaching the current card's concept clearly
+- Connect naturally to what was learned previously
 </Teaching Process>
 
 <card context>
@@ -357,25 +347,7 @@ IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these e
 Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Present this card: {card_title}")
         ])
-        
-        self.feedback_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're evaluating a {level_description} {subject_area} student's response.
 
-{course_context_block}
-
-Question: {question}
-Expected Answer: {expected}
-Student Answer: {student_response}
-Attempt Number: {attempt}
-Is Correct: {is_correct}
-
-{engagement_guidance}
-
-Provide encouraging, specific feedback. If incorrect, give a helpful hint for attempt 2,
-more guidance for attempt 3. Always be positive and constructive."""),
-            ("human", "Give feedback on this response")
-        ])
-        
         self.structured_evaluation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are evaluating a {level_description} {subject_area} student's response with structured output.
 
@@ -619,236 +591,14 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("human", "Present this MCQ card: {card_title}")
         ])
 
-    async def greet_student(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
-        """Generate welcoming lesson introduction."""
-        try:
-            response = await self.llm.ainvoke(
-                self.lesson_greeting_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    student_name=student_name
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_student: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "student_name": student_name,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson greeting: {str(e)}"
-            ) from e
 
-    async def present_card(self, card: Dict[str, Any]) -> str:
-        """Present lesson card conversationally."""
-        try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            response = await self.llm.ainvoke(
-                self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
-                    examples=examples,
-                    question=question,
-                    card_title=card.get("title", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in present_card: {e}",
-                extra={
-                    "card_title": card.get("title", "unknown"),
-                    "has_content": bool(card),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
-            ) from e
 
-    async def evaluate_response(
-        self, 
-        student_response: str,
-        expected_answer: Any,
-        card_context: Dict,
-        attempt_number: int,
-        is_correct: bool
-    ) -> str:
-        """Generate contextual feedback for student response."""
-        try:
-            response = await self.llm.ainvoke(
-                self.feedback_prompt.format_messages(
-                    question=card_context["cfu"]["stem"],
-                    expected=str(expected_answer),
-                    student_response=student_response,
-                    attempt=attempt_number,
-                    is_correct=is_correct
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in evaluate_response: {e}",
-                extra={
-                    "student_response": student_response,
-                    "expected_answer": expected_answer,
-                    "attempt_number": attempt_number,
-                    "is_correct": is_correct,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate feedback: {str(e)}"
-            ) from e
 
-    async def transition_to_next(
-        self, 
-        completed_card: Dict, 
-        next_card: Optional[Dict],
-        progress_context: Dict
-    ) -> str:
-        """Generate transition between lesson cards."""
-        if not next_card:
-            return await self.complete_lesson(completed_card, progress_context)
-            
-        try:
-            response = await self.llm.ainvoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in transition_to_next: {e}",
-                extra={
-                    "completed_card_title": completed_card.get("title", "unknown"),
-                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate transition: {str(e)}"
-            ) from e
 
-    async def complete_lesson(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
-        """Generate lesson completion message."""
-        try:
-            response = await self.llm.ainvoke(
-                self.completion_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "the lesson"),
-                    completed_cards=progress_context.get("cards_completed", 0),
-                    progress_summary=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in complete_lesson: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "cards_completed": progress_context.get("cards_completed", 0),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson completion message: {str(e)}"
-            ) from e
     
     # Synchronous versions for LangGraph compatibility
-    def greet_student_sync(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
-        """Generate welcoming lesson introduction (sync version)."""
-        try:
-            response = self.llm.invoke(
-                self.lesson_greeting_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    student_name=student_name
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_student_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "student_name": student_name,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson greeting: {str(e)}"
-            ) from e
 
-    def present_card_sync(self, card: Dict[str, Any]) -> str:
-        """Present lesson card conversationally (sync version)."""
-        try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            response = self.llm.invoke(
-                self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
-                    examples=examples,
-                    question=question,
-                    card_title=card.get("title", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in present_card_sync: {e}",
-                extra={
-                    "card_title": card.get("title", "unknown"),
-                    "has_content": bool(card),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
-            ) from e
 
-    def evaluate_response_sync(
-        self, 
-        student_response: str,
-        expected_answer: Any,
-        card_context: Dict,
-        attempt_number: int,
-        is_correct: bool
-    ) -> str:
-        """Generate contextual feedback for student response (sync version) - returns content only."""
-        try:
-            response = self.llm.invoke(
-                self.feedback_prompt.format_messages(
-                    question=card_context["cfu"]["stem"],
-                    expected=str(expected_answer),
-                    student_response=student_response,
-                    attempt=attempt_number,
-                    is_correct=is_correct
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in evaluate_response_sync: {e}",
-                extra={
-                    "student_response": student_response,
-                    "expected_answer": expected_answer,
-                    "attempt_number": attempt_number,
-                    "is_correct": is_correct,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate feedback: {str(e)}"
-            ) from e
 
     def evaluate_response_sync_full(
         self, 
@@ -885,37 +635,6 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate feedback for student response: {str(e)}"
             ) from e
 
-    def transition_to_next_sync(
-        self, 
-        completed_card: Dict, 
-        next_card: Optional[Dict],
-        progress_context: Dict
-    ) -> str:
-        """Generate transition between lesson cards (sync version) - returns content only."""
-        if not next_card:
-            return self.complete_lesson_sync(completed_card, progress_context)
-            
-        try:
-            response = self.llm.invoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in transition_to_next_sync: {e}",
-                extra={
-                    "completed_card_title": completed_card.get("title", "unknown"),
-                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate transition: {str(e)}"
-            ) from e
 
     def transition_to_next_sync_full(
         self,
@@ -973,29 +692,6 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate transition between lesson cards: {str(e)}"
             ) from e
 
-    def complete_lesson_sync(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
-        """Generate lesson completion message (sync version) - returns content only."""
-        try:
-            response = self.llm.invoke(
-                self.completion_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "the lesson"),
-                    completed_cards=progress_context.get("cards_completed", 0),
-                    progress_summary=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in complete_lesson_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "cards_completed": progress_context.get("cards_completed", 0),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson completion message: {str(e)}"
-            ) from e
 
     def complete_lesson_sync_full(self, lesson_snapshot: Dict, progress_context: Dict, state: Optional[Dict] = None):
         """Generate lesson completion message (sync version) - returns full response object.
@@ -1111,34 +807,6 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to present lesson card '{card.get('title', 'unknown')}' for lesson '{lesson_snapshot.get('title', 'unknown')}': {str(e)}"
             ) from e
 
-    def greet_with_first_card_sync(self, lesson_snapshot: Dict, first_card: Dict[str, Any]) -> str:
-        """Generate cohesive greeting with first card (sync version) - returns content only."""
-        try:
-            examples = "\n".join(first_card.get("example", []))
-            response = self.llm.invoke(
-                self.greeting_with_first_card_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    card_title=first_card.get("title", ""),
-                    card_explainer=first_card.get("explainer", ""),
-                    card_examples=examples,
-                    card_question=first_card.get("cfu", {}).get("stem", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_with_first_card_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "card_title": first_card.get("title", "unknown"),
-                    "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate greeting with first lesson card: {str(e)}"
-            ) from e
 
     def greet_with_first_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any], state: Optional[Dict] = None):
         """Generate cohesive greeting with first card (sync version) - returns full response object.
