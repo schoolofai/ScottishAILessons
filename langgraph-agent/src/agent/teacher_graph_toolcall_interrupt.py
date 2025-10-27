@@ -42,6 +42,10 @@ except ImportError:
     )
 
 
+# Partial credit threshold for passing (60% = demonstrates sufficient understanding)
+PARTIAL_CREDIT_THRESHOLD = 0.6
+
+
 def _parse_numeric_response(response: str, money_format: bool = False) -> float:
     """Parse numeric response, handling currency symbols and formatting.
     
@@ -471,7 +475,34 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         max_attempts=max_attempts,
         state=state  # Pass full state for curriculum context
     )
-    
+
+    # ═══════════════════════════════════════════════════════════════
+    # DETERMINISTIC THRESHOLD-BASED OVERRIDE
+    # Apply 60% partial credit threshold for consistent evaluation
+    # ═══════════════════════════════════════════════════════════════
+    if evaluation.partial_credit is not None:
+        print(f"🎯 EVALUATION DEBUG: partial_credit={evaluation.partial_credit:.2f}, is_correct={evaluation.is_correct}, threshold={PARTIAL_CREDIT_THRESHOLD}")
+
+        # Override is_correct if student meets threshold but LLM marked incorrect
+        if evaluation.partial_credit >= PARTIAL_CREDIT_THRESHOLD and not evaluation.is_correct:
+            print(f"✅ THRESHOLD OVERRIDE: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%} → Setting is_correct=True")
+
+            # Create new evaluation with overridden fields
+            from .llm_teacher import EvaluationResponse
+            evaluation = EvaluationResponse(
+                is_correct=True,  # OVERRIDE to true
+                confidence=min(1.0, evaluation.confidence + 0.1),  # Boost confidence slightly
+                feedback=f"{evaluation.feedback}\n\n✨ **Great work!** You've demonstrated understanding of the key concepts (scored {evaluation.partial_credit:.0%}).",
+                reasoning=f"{evaluation.reasoning}\n[Threshold override applied: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%}]",
+                should_progress=True,  # Progress with threshold pass
+                partial_credit=evaluation.partial_credit,
+                rubric_breakdown=evaluation.rubric_breakdown
+            )
+        elif evaluation.partial_credit >= PARTIAL_CREDIT_THRESHOLD and evaluation.is_correct:
+            print(f"✅ THRESHOLD CONFIRMED: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%} → is_correct=True (LLM agrees)")
+        else:
+            print(f"❌ BELOW THRESHOLD: {evaluation.partial_credit:.1%} < {PARTIAL_CREDIT_THRESHOLD:.0%} → is_correct={evaluation.is_correct}")
+
     # Record evidence using shared utility
     should_progress = evaluation.is_correct or (attempts >= max_attempts)
     evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)

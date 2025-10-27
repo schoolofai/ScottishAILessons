@@ -367,9 +367,27 @@ Rubric for Evaluation:
 
 When evaluating:
 1. Apply each rubric criterion independently
-2. Award partial credit based on criteria met
+2. Award points based on CONCEPTUAL UNDERSTANDING, not formatting/explanation detail
 3. Provide criterion-specific reasoning
 4. Sum points from all criteria for partial_credit score (0.0-1.0 scale)
+
+CRITICAL EVALUATION THRESHOLD:
+5. Set is_correct=true if partial_credit ≥ 0.6 (60% threshold for passing)
+   - ≥60%: Student demonstrates sufficient understanding → is_correct=true, should_progress=true
+   - <60%: Needs more work → is_correct=false, should_progress depends on attempt_number
+
+6. Rubric Interpretation Philosophy:
+   - Focus on WHETHER student identified correct concepts (yes/no)
+   - Accept minimal reasoning - even 2-3 words counts as "explanation"
+   - "Identifies X as irrelevant" = Award points if they mention X AT ALL
+   - "With brief explanation" = Accept ANY reasoning phrase, don't require full sentences
+   - Partial lists are OK - if rubric says "identify at least two" and they identify one, give 0.5 points
+
+7. Be LENIENT with formatting, phrasing, and explanation detail:
+   - "voltage is relevant" = sufficient explanation
+   - "size not needed" = sufficient explanation
+   - Bullet points, fragments, shorthand = all acceptable
+   - Focus on whether core concept is understood, not how it's expressed
 
 Common Misconceptions for This Question:
 {misconceptions_text}
@@ -378,19 +396,21 @@ If the student's error matches a known misconception, reference the provided cla
 
 Evaluation Guidelines:
 1. For numeric questions: Accept reasonable approximations, alternative formats (fractions, decimals), and contextual answers
-2. For MCQ questions: 
+2. For MCQ questions:
    - If expected answer is a dict with MCQ info, compare student response to correct_human_index (1-indexed)
    - Student may respond with numbers (1, 2, 3) or option text
    - Be flexible: "2" should match correct_human_index 2
    - Example: if correct_human_index is 2 and student responds "2", mark as correct
 3. For open-ended: Look for conceptual understanding and key ideas
-4. Consider partial credit for partially correct responses
+4. Consider partial credit for partially correct responses - BE GENEROUS with partial credit
 5. CRITICAL: In feedback, DO NOT reveal the correct answer - only provide hints and guidance
-6. For incorrect responses: Give conceptual hints, point to the method/process, encourage retry
-7. Example good feedback: "Think about what 0.2 means - how many tenths? Can you simplify that fraction?"
-8. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
-9. Be encouraging and guide learning without giving away the solution
-10. The correct answer will be revealed separately if needed after max attempts
+6. For incorrect responses (<60%): Give conceptual hints, point to the method/process, encourage retry
+7. For threshold passes (≥60%): Acknowledge their understanding while gently noting areas for improvement
+8. Example good feedback (≥60%): "You've identified the key information! To make your answer even stronger, you could briefly explain why X is irrelevant."
+9. Example good feedback (<60%): "Think about what 0.2 means - how many tenths? Can you simplify that fraction?"
+10. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
+11. Be encouraging and guide learning without giving away the solution
+12. The correct answer will be revealed separately if needed after max attempts
 
 IMPORTANT LATEX FORMATTING: When including mathematical expressions in feedback, use these exact formats:
 - Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
