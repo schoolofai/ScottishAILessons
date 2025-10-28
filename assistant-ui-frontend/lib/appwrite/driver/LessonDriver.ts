@@ -311,4 +311,67 @@ export class LessonDriver extends BaseDriver {
       throw this.handleError(error, `publish template ${templateId}`);
     }
   }
+
+  /**
+   * [ADMIN] Update lesson template with new data
+   * Validates card data if cards are being updated
+   * Follows FAST FAIL pattern - throws exceptions immediately on errors
+   *
+   * @param templateId - The ID of the template to update
+   * @param updates - Partial template data to update (e.g., { cards: compressedString })
+   * @returns Updated lesson template
+   * @throws Error if validation fails or update fails
+   */
+  async updateLessonTemplate(
+    templateId: string,
+    updates: Partial<LessonTemplate>
+  ): Promise<LessonTemplate> {
+    // Validate templateId
+    if (!templateId || typeof templateId !== 'string' || templateId.trim().length === 0) {
+      throw new Error('Valid templateId is required');
+    }
+
+    // Validate updates object
+    if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
+      throw new Error('No updates provided');
+    }
+
+    // If cards are being updated, validate compression format
+    if (updates.cards !== undefined) {
+      if (typeof updates.cards !== 'string') {
+        throw new Error('Cards must be in compressed string format');
+      }
+
+      // Verify it's valid compressed data by attempting decompression
+      try {
+        const decompressed = decompressCards(updates.cards);
+        if (!Array.isArray(decompressed)) {
+          throw new Error('Decompressed cards must be an array');
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        throw new Error(`Invalid compressed cards data: ${errorMsg}`);
+      }
+    }
+
+    try {
+      // Perform update via BaseDriver
+      const updatedTemplate = await this.update<LessonTemplate>(
+        'lesson_templates',
+        templateId,
+        updates
+      );
+
+      console.log(`[LessonDriver] Template ${templateId} updated successfully`);
+      return updatedTemplate;
+
+    } catch (error) {
+      // Fast fail with detailed error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw this.handleError(
+        error,
+        `update lesson template ${templateId}: ${errorMsg}`
+      );
+    }
+  }
 }

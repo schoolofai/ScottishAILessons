@@ -8,6 +8,7 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AutoStartTrigger } from "./AutoStartTrigger";
 import { LessonSnapshot } from "@/lib/appwrite/types";
+import { CourseOutcome } from "@/lib/types/course-outcomes";
 import { SessionProvider } from "@/lib/SessionContext";
 
 // Import interrupt-enabled Tool UI components
@@ -26,6 +27,8 @@ export interface SessionContext {
   course_level?: string;         // e.g., "national-3", "national-4", "national-5"
   sqa_course_code?: string;      // SQA course code if available
   course_title?: string;         // Full course title
+  // Enriched SQA outcome data
+  enriched_outcomes?: CourseOutcome[];  // Full CourseOutcome objects from course_outcomes collection
   // Accessibility preferences
   use_plain_text?: boolean;     // Use explainer_plain for dyslexia-friendly content
 }

@@ -218,22 +218,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         </CardHeader>
 
         <CardContent className="space-y-6">
-          {/* Lesson content */}
-          <div className="prose prose-sm max-w-none">
-            <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-              <ReactMarkdown
-                components={{
-                  // Custom rendering for math expressions if needed
-                  p: ({children}) => <p className="mb-2 leading-relaxed">{children}</p>,
-                  strong: ({children}) => <strong className="font-semibold text-blue-800">{children}</strong>,
-                  em: ({children}) => <em className="italic text-blue-700">{children}</em>
-                }}
-              >
-                {card_content}
-              </ReactMarkdown>
-            </div>
-          </div>
-
           {/* Interactive question section */}
           <div className="border-t pt-6">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
