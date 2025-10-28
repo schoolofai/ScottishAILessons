@@ -108,6 +108,7 @@ export async function createLessonSession(params: StartLessonParams): Promise<Le
       lessonTemplateId,
       startedAt: new Date().toISOString(),
       stage: 'design',
+      status: 'active', // Session lifecycle: created, active, completed, abandoned, failed
       lessonSnapshot: compressedSnapshot  // Compressed for storage
     };
 

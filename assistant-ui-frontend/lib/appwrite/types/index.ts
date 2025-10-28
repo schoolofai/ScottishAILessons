@@ -191,6 +191,9 @@ export interface Session {
   startedAt: string;
   endedAt?: string;
   stage: string;
+  status: 'created' | 'active' | 'completed' | 'abandoned' | 'failed'; // Session lifecycle status
+  completedAt?: string; // Timestamp when session was completed
+  durationMinutes?: number; // Duration from start to completion
   lessonSnapshot: string; // JSON string
   threadId?: string; // LangGraph thread ID for conversation continuity
   lastMessageAt?: string; // Timestamp of last chat interaction
