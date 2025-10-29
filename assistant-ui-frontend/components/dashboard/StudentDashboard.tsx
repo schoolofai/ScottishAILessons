@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SpacedRepetitionPanel } from "./SpacedRepetitionPanel";
 
 interface Course {
   $id: string;
@@ -277,6 +278,16 @@ export function StudentDashboard() {
           Continue your mathematics learning journey with Scottish AI Lessons.
         </p>
       </div>
+
+      {/* Spaced Repetition Review Recommendations */}
+      {student && courses.length > 0 && (
+        <SpacedRepetitionPanel
+          studentId={student.$id}
+          courseId="C844 73"
+          onStartReview={(lessonTemplateId) => startLesson(lessonTemplateId)}
+          maxRecommendations={5}
+        />
+      )}
 
       {/* Available Lessons Section - Now at the top */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
