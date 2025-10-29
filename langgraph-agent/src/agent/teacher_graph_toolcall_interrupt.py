@@ -73,8 +73,46 @@ def _parse_numeric_response(response: str, money_format: bool = False) -> float:
     # Round to 2dp if money format
     if money_format:
         value = round(value, 2)
-    
+
     return value
+
+
+def _extract_conversation_history(state: InterruptUnifiedState) -> Dict:
+    """Extract and serialize the conversation history from LangGraph state.
+
+    Returns a structured ConversationHistory object ready for compression and storage.
+    The messages array preserves chronological order with embedded tool calls.
+    """
+    messages = state.get("messages", [])
+
+    serialized_messages = []
+    for msg in messages:
+        msg_data = {
+            "id": getattr(msg, "id", str(uuid.uuid4())),
+            "type": msg.__class__.__name__,
+            "content": getattr(msg, "content", ""),
+        }
+
+        # Extract tool calls if present (embedded in AIMessage)
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            msg_data["tool_calls"] = [
+                {
+                    "id": tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", ""),
+                    "name": tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", ""),
+                    "args": tc.get("args") if isinstance(tc, dict) else getattr(tc, "args", {})
+                }
+                for tc in msg.tool_calls
+            ]
+
+        serialized_messages.append(msg_data)
+
+    return {
+        "version": "1.0",
+        "threadId": state.get("session_id", ""),
+        "sessionId": state.get("session_id", ""),
+        "capturedAt": datetime.now().isoformat(),
+        "messages": serialized_messages
+    }
 
 
 def _is_lesson_complete(state: InterruptUnifiedState) -> bool:
@@ -194,7 +232,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             print(f"🚨 DESIGN DEBUG - Unknown action in interrupt response: {action}")
     else:
         print(f"🚨 DESIGN DEBUG - No interrupt_response found, checking other conditions")
-    
+
     # Check lesson completion FIRST - before trying to access current card
     if _is_lesson_complete(state):
         print(f"🔍 NODE_EXIT: design_node | decision: lesson_complete | generating summary...")
@@ -214,11 +252,15 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             state=state  # Pass full state for curriculum context
         )
 
+        # Extract conversation history for persistence
+        conversation_history = _extract_conversation_history(state)
+
         # Create tool call for lesson completion UI
         mastery_updates = state.get("mastery_updates", [])
         print(f"🚨 COMPLETION DEBUG - Tool call data:")
         print(f"🚨 COMPLETION DEBUG - Evidence entries: {len(evidence)}")
         print(f"🚨 COMPLETION DEBUG - Mastery updates: {len(mastery_updates)}")
+        print(f"🚨 COMPLETION DEBUG - Conversation history messages: {len(conversation_history.get('messages', []))}")
         print(f"🚨 COMPLETION DEBUG - Session context: session_id={state.get('session_id')}, student_id={state.get('student_id')}, course_id={state.get('course_id')}")
 
         tool_call = ToolCall(
@@ -237,7 +279,9 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
                 # Session context for frontend persistence
                 "session_id": state.get("session_id"),
                 "student_id": state.get("student_id"),
-                "course_id": state.get("course_id")
+                "course_id": state.get("course_id"),
+                # Conversation history for replay (frontend will compress before saving)
+                "conversation_history": conversation_history
             }
         )
 
@@ -342,16 +386,27 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
 def get_answer_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Get answer node - captures interrupt response and returns to design."""
     current_idx = state.get("current_card_index", 0)
-    print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx}")
-    
-    print(f"🚨 INTERRUPT DEBUG - About to interrupt with empty payload, waiting for sendCommand response")
-    
+    current_stage = state.get("stage", "unknown")
+    interrupt_count = state.get("interrupt_count", 0)
+
+    print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx} | stage: {current_stage}")
+    print(f"📊 INTERRUPT STATE BEFORE:", {
+        "interrupt_count": interrupt_count,
+        "current_stage": current_stage,
+        "current_card_index": current_idx,
+        "has_student_response": bool(state.get("student_response")),
+        "timestamp": datetime.now().isoformat()
+    })
+
+    print(f"🛑 INTERRUPT TRIGGERED - Waiting for user response (interrupt #{interrupt_count + 1})")
+
     # Interrupt with EMPTY payload - frontend already has data from tool call
     response = interrupt({})
-    
+
     # THIS CODE EXECUTES AFTER RESUME with response from sendCommand
-    print(f"🚨 INTERRUPT DEBUG - Raw response received: {response}")
-    print(f"🚨 INTERRUPT DEBUG - Response type: {type(response)}")
+    print(f"✅ INTERRUPT RESUMED - Response received (interrupt #{interrupt_count + 1})")
+    print(f"📥 INTERRUPT DEBUG - Raw response received: {response}")
+    print(f"📥 INTERRUPT DEBUG - Response type: {type(response)}")
     
     # Parse response robustly (keep existing parsing logic)
     payload = None
@@ -386,10 +441,20 @@ def get_answer_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     
     # Simply store the interrupt response and return to design
     print(f"🔍 NODE_EXIT: get_answer_node | returning to design with payload")
-    return {
+    print(f"📤 INTERRUPT RESPONSE PAYLOAD:", {
+        "payload": payload,
+        "action": payload.get("action") if isinstance(payload, dict) else None,
+        "has_student_response": bool(payload.get("student_response")) if isinstance(payload, dict) else False,
+        "next_stage": "design"
+    })
+
+    return_dict = {
         "interrupt_response": payload,
+        "interrupt_count": interrupt_count + 1,  # Increment interrupt count
         "stage": "design"  # Always go back to design
     }
+    print(f"✅ INTERRUPT COMPLETE - Returning to design_node")
+    return return_dict
 
 
 def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:

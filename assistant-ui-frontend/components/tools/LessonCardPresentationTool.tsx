@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
-  useLangGraphInterruptState,
-  useLangGraphSendCommand
-} from "@assistant-ui/react-langgraph";
+  useSafeLangGraphInterruptState,
+  useSafeLangGraphSendCommand
+} from "@/lib/replay/useSafeLangGraphHooks";
 import { useCurrentCard } from "@/contexts/CurrentCardContext";
+import { useReplayMode } from "@/contexts/ReplayModeContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -70,9 +71,13 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 >({
   toolName: "lesson_card_presentation",
   render: function LessonCardPresentationUI({ args }) {
+    // Check if we're in replay mode
+    const { isReplayMode } = useReplayMode();
+
     // Get interrupt state and sendCommand hook
-    const interrupt = useLangGraphInterruptState();
-    const sendCommand = useLangGraphSendCommand();
+    // Safe versions that won't throw in replay mode
+    const interrupt = useSafeLangGraphInterruptState();
+    const sendCommand = useSafeLangGraphSendCommand();
 
     // Get current card context for updating with real-time card data
     const { setCurrentCard } = useCurrentCard();
@@ -82,6 +87,26 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
     const [hintIndex, setHintIndex] = useState(0);
+
+    // 🚨 DEBUG: Log component mount and interrupt state
+    useEffect(() => {
+      console.log('🃏 LessonCardTool - Component mounted/updated:', {
+        hasInterrupt: !!interrupt,
+        interruptValue: interrupt?.value,
+        hasArgs: !!args,
+        cardDataId: args?.card_data?.id,
+        cardTitle: args?.card_data?.title,
+        timestamp: new Date().toISOString()
+      });
+
+      if (!interrupt) {
+        console.warn('⚠️ LessonCardTool - NO INTERRUPT - Component will not render');
+      }
+
+      if (interrupt && !args?.card_data) {
+        console.error('❌ LessonCardTool - Has interrupt but missing card_data in args');
+      }
+    }, [interrupt, args]);
 
     // Update CurrentCardContext with card data for context-aware chat
     useEffect(() => {
@@ -116,7 +141,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     }, [args.card_data?.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
 
     // CHECK: Only render if there's an interrupt
-    if (!interrupt) return null;
+    // In replay mode, render even without interrupt (tool calls trigger rendering)
+    // In live mode, only render when we have an interrupt
+    if (!isReplayMode && !interrupt) return null;
 
     // DATA: Get from tool call args (NOT from interrupt.value)
     const { card_content, card_data, card_index, total_cards, cfu_type, lesson_context } = args;
@@ -370,24 +397,37 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             )}
           </div>
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="outline"
-              onClick={handleSkipCard}
-              className="flex-1"
-            >
-              Skip Card
-            </Button>
+          {/* Action buttons - Hidden in replay mode */}
+          {!isReplayMode && (
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={handleSkipCard}
+                className="flex-1"
+              >
+                Skip Card
+              </Button>
 
-            <Button
-              onClick={handleSubmitAnswer}
-              disabled={!studentAnswer.trim() && !selectedMCQOption}
-              className="flex-1"
-            >
-              Submit Answer
-            </Button>
-          </div>
+              <Button
+                onClick={handleSubmitAnswer}
+                disabled={!studentAnswer.trim() && !selectedMCQOption}
+                className="flex-1"
+              >
+                Submit Answer
+              </Button>
+            </div>
+          )}
+
+          {/* Replay mode notice */}
+          {isReplayMode && (
+            <div className="pt-4 border-t">
+              <div className="bg-gray-100 rounded-lg p-3 text-center">
+                <p className="text-sm text-gray-600 italic">
+                  🎬 Replay Mode - This lesson card is from a completed session
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

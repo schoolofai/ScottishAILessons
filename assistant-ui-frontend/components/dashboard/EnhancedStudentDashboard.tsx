@@ -569,10 +569,10 @@ export function EnhancedStudentDashboard() {
       client.setSession(storedSession);
       const databases = new Databases(client);
 
-      // Create or get active session (race-condition safe)
-      const { createOrGetActiveSession } = await import('@/lib/sessions/session-security');
+      // Create fresh session (v3 behavior - always start fresh)
+      const { createFreshSession } = await import('@/lib/sessions/session-creation');
 
-      const { sessionId, isNew } = await createOrGetActiveSession(databases, {
+      const sessionId = await createFreshSession(databases, {
         lessonTemplateId,
         studentId: student.$id,
         courseId: activeCourse,
@@ -584,9 +584,8 @@ export function EnhancedStudentDashboard() {
       logger.info('lesson_start_completed', {
         lessonTemplateId,
         sessionId,
-        isNew,
         duration,
-        action: isNew ? 'created' : 'resumed'
+        action: 'created_fresh'
       });
 
       // Invalidate caches with proper tags

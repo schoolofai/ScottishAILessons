@@ -12,7 +12,7 @@ import { logger } from '@/lib/logger';
 
 interface Session {
   $id: string;
-  completedAt: string;
+  endedAt: string; // Actual field name in Appwrite sessions schema
   durationMinutes?: number;
   startedAt: string;
   studentId: string; // SECURITY: Validate ownership
@@ -148,7 +148,7 @@ export default function LessonSessionsPage() {
           Query.equal('studentId', student.$id), // CRITICAL: Prevent data leaks
           Query.equal('lessonTemplateId', lessonTemplateId),
           Query.equal('status', 'completed'),
-          Query.orderDesc('completedAt'),
+          Query.orderDesc('endedAt'), // Order by completion time
           Query.limit(100) // Reasonable limit for history
         ]
       );
@@ -275,8 +275,8 @@ export default function LessonSessionsPage() {
                     <div>
                       <p className="font-medium">
                         Completed{' '}
-                        <time dateTime={session.completedAt}>
-                          {formatDistanceToNow(new Date(session.completedAt), {
+                        <time dateTime={session.endedAt}>
+                          {formatDistanceToNow(new Date(session.endedAt), {
                             addSuffix: true
                           })}
                         </time>
@@ -284,7 +284,7 @@ export default function LessonSessionsPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" aria-hidden="true" />
-                          {new Date(session.completedAt).toLocaleDateString('en-GB', {
+                          {new Date(session.endedAt).toLocaleDateString('en-GB', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric'

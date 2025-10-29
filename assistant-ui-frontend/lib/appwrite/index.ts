@@ -7,6 +7,9 @@ export { EvidenceDriver } from './driver/EvidenceDriver';
 export { SessionDriver } from './driver/SessionDriver';
 export { MasteryDriver } from './driver/MasteryDriver';
 
+// SessionDriver type exports
+export type { ConversationHistory } from './driver/SessionDriver';
+
 // Hook exports
 export { useAppwrite } from './hooks/useAppwrite';
 export { useAuth } from './hooks/useAuth';

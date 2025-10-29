@@ -10,6 +10,7 @@ import { AutoStartTrigger } from "./AutoStartTrigger";
 import { LessonSnapshot } from "@/lib/appwrite/types";
 import { CourseOutcome } from "@/lib/types/course-outcomes";
 import { SessionProvider } from "@/lib/SessionContext";
+import { ReplayModeProvider } from "@/contexts/ReplayModeContext";
 
 // Import interrupt-enabled Tool UI components
 import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
@@ -38,17 +39,22 @@ export interface MyAssistantProps {
   threadId?: string;
   sessionContext?: SessionContext;
   onThreadCreated?: (threadId: string) => void; // Callback when new thread is created
+  isReplayMode?: boolean; // Enable replay mode (disables interactions)
+  replayRuntime?: any; // Custom replay runtime for playing back stored messages
 }
 
-export function MyAssistant({ 
-  sessionId, 
-  threadId: initialThreadId, 
+export function MyAssistant({
+  sessionId,
+  threadId: initialThreadId,
   sessionContext,
-  onThreadCreated
+  onThreadCreated,
+  isReplayMode = false,
+  replayRuntime
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
-  
-  const runtime = useLangGraphRuntime({
+
+  // Use replay runtime if in replay mode, otherwise use LangGraph runtime
+  const langGraphRuntime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (messages, { command }) => {
       // Let runtime handle thread creation if needed
@@ -102,36 +108,70 @@ export function MyAssistant({
 
   // Manually load thread state if we're initializing with an existing thread
   useEffect(() => {
+    console.log('🔄 MyAssistant - useEffect triggered:', {
+      hasInitialThreadId: !!initialThreadId,
+      currentThreadId: threadIdRef.current,
+      willLoadThread: !!(initialThreadId && threadIdRef.current === initialThreadId)
+    });
+
     if (initialThreadId && threadIdRef.current === initialThreadId) {
+      console.log('📥 MyAssistant - Loading existing thread state:', initialThreadId);
+
       getThreadState(initialThreadId)
         .then(state => {
+          console.log('✅ MyAssistant - Thread state loaded:', {
+            threadId: initialThreadId,
+            messageCount: state.values?.messages?.length || 0,
+            hasInterrupts: !!(state.tasks?.[0]?.interrupts),
+            interruptCount: state.tasks?.[0]?.interrupts?.length || 0
+          });
+
           // Use runtime's switchToThread to properly load the messages
           runtime.switchToThread(initialThreadId);
         })
         .catch(error => {
-          console.error('MyAssistant - Failed to load thread state:', error);
+          console.error('❌ MyAssistant - Failed to load thread state:', error);
         });
+    } else {
+      console.log('⏭️ MyAssistant - Skipping thread load (no initial thread or already loaded)');
     }
-  }, [initialThreadId, runtime]);
+  }, [initialThreadId, langGraphRuntime]);
+
+  // Use replay runtime if provided, otherwise use LangGraph runtime
+  const runtime = isReplayMode && replayRuntime ? replayRuntime : langGraphRuntime;
 
   const isSessionMode = !!sessionContext;
 
-  return (
-    <SessionProvider isSessionMode={isSessionMode}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        <AutoStartTrigger
-          sessionContext={sessionContext}
-          existingThreadId={initialThreadId}
-        />
-        <Thread />
+  console.log('🎬 MyAssistant - Mode:', {
+    isReplayMode,
+    hasReplayRuntime: !!replayRuntime,
+    isSessionMode,
+    usingRuntime: isReplayMode && replayRuntime ? 'replay' : 'langGraph'
+  });
 
-        {/* Interrupt-enabled Tool UI components for interactive lesson cards */}
-        <LessonCardPresentationTool />
-        <FeedbackPresentationTool />
-        <ProgressAcknowledgmentTool />
-        <LessonSummaryPresentationTool />
-        <LessonCompletionSummaryTool />
-      </AssistantRuntimeProvider>
-    </SessionProvider>
+  return (
+    <ReplayModeProvider isReplayMode={isReplayMode}>
+      <SessionProvider isSessionMode={isSessionMode}>
+        <AssistantRuntimeProvider runtime={runtime}>
+          {/* Only show AutoStartTrigger in non-replay mode */}
+          {!isReplayMode && (
+            <AutoStartTrigger
+              sessionContext={sessionContext}
+              existingThreadId={initialThreadId}
+            />
+          )}
+
+          <Thread />
+
+          {/* Tool UI components render automatically based on tool calls in messages */}
+          {/* They work in both live and replay modes */}
+          <LessonCardPresentationTool />
+          <FeedbackPresentationTool />
+          <ProgressAcknowledgmentTool />
+          <LessonSummaryPresentationTool />
+          <LessonCompletionSummaryTool />
+        </AssistantRuntimeProvider>
+      </SessionProvider>
+    </ReplayModeProvider>
   );
 }

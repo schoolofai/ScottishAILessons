@@ -2,6 +2,55 @@ import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { Session, Evidence, LessonSnapshot } from '../types';
 import { decompressJSON } from '../utils/compression';
+import * as pako from 'pako';
+
+/**
+ * Conversation history type for replay
+ */
+export type ConversationHistory = {
+  version: string;
+  threadId: string;
+  sessionId: string;
+  capturedAt: string;
+  messages: Array<{
+    id: string;
+    type: string;
+    content: string;
+    tool_calls?: Array<{
+      id: string;
+      name: string;
+      args: any;
+    }>;
+  }>;
+};
+
+/**
+ * Decompress conversation history from storage format
+ * Reverses gzip compression + base64 encoding
+ */
+function decompressConversationHistory(compressedBase64: string): ConversationHistory {
+  try {
+    // Decode base64 to binary
+    const binaryString = atob(compressedBase64);
+    const compressed = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      compressed[i] = binaryString.charCodeAt(i);
+    }
+
+    // Decompress with pako
+    const decompressed = pako.ungzip(compressed, { to: 'string' });
+
+    // Parse JSON
+    const history = JSON.parse(decompressed);
+
+    console.log(`🗜️ Decompression successful: ${history.messages?.length || 0} messages recovered`);
+
+    return history;
+  } catch (error) {
+    console.error('❌ Failed to decompress conversation history:', error);
+    throw new Error('Decompression failed');
+  }
+}
 
 /**
  * Session driver for session state management and progress tracking
@@ -211,6 +260,101 @@ export class SessionDriver extends BaseDriver {
       return await this.update<Session>('sessions', sessionId, data);
     } catch (error) {
       throw this.handleError(error, 'update session');
+    }
+  }
+
+  /**
+   * Update session with compressed conversation history
+   * This should be called before completing the session
+   */
+  async updateConversationHistory(sessionId: string, compressedHistory: string): Promise<Session> {
+    try {
+      console.log(`SessionDriver - Updating conversation history for session ${sessionId}`);
+      console.log(`SessionDriver - Compressed history size: ${(compressedHistory.length / 1024).toFixed(2)} KB`);
+
+      return await this.update<Session>('sessions', sessionId, {
+        conversationHistory: compressedHistory
+      });
+    } catch (error) {
+      throw this.handleError(error, 'update conversation history');
+    }
+  }
+
+  /**
+   * Get session document by ID
+   * Public wrapper around protected get() method
+   */
+  async getSession(sessionId: string): Promise<Session> {
+    try {
+      return await this.get<Session>('sessions', sessionId);
+    } catch (error) {
+      throw this.handleError(error, 'get session');
+    }
+  }
+
+  /**
+   * Retrieve and decompress conversation history for session replay
+   * Returns null if no history is stored
+   */
+  async getConversationHistory(sessionId: string): Promise<ConversationHistory | null> {
+    try {
+      const session = await this.get<Session>('sessions', sessionId);
+
+      if (!session.conversationHistory) {
+        console.log(`SessionDriver - No conversation history stored for session ${sessionId}`);
+        return null;
+      }
+
+      console.log(`SessionDriver - Decompressing conversation history for session ${sessionId}`);
+      const history = decompressConversationHistory(session.conversationHistory);
+
+      return history;
+    } catch (error) {
+      throw this.handleError(error, 'get conversation history');
+    }
+  }
+
+  /**
+   * Get both session and conversation history for replay
+   * Returns session and conversation history together
+   */
+  async getSessionWithHistory(sessionId: string): Promise<{ session: Session; history: ConversationHistory | null }> {
+    try {
+      const session = await this.get<Session>('sessions', sessionId);
+
+      let history: ConversationHistory | null = null;
+      if (session.conversationHistory) {
+        console.log(`SessionDriver - Decompressing conversation history for session ${sessionId}`);
+        history = decompressConversationHistory(session.conversationHistory);
+      } else {
+        console.log(`SessionDriver - No conversation history stored for session ${sessionId}`);
+      }
+
+      return { session, history };
+    } catch (error) {
+      throw this.handleError(error, 'get session with history');
+    }
+  }
+
+  /**
+   * Mark session as completed
+   * Should be called when student finishes all lesson cards
+   */
+  async completeSession(sessionId: string, score?: number): Promise<Session> {
+    try {
+      const completionData: Partial<Session> = {
+        status: 'completed',
+        endedAt: new Date().toISOString()
+      };
+
+      if (score !== undefined) {
+        completionData.score = score;
+      }
+
+      console.log(`SessionDriver - Marking session ${sessionId} as completed with score: ${score}`);
+      return await this.update<Session>('sessions', sessionId, completionData);
+    } catch (error) {
+      throw this.handleError(error, 'complete session');
     }
   }
 }

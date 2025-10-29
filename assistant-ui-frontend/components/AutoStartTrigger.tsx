@@ -35,18 +35,27 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
         return;
       }
 
-      // For existing threads with session context, we need to send the mode-switching message
+      // Mark as processed to prevent multiple triggers
       globalAutoStartState.set(sessionKey, true);
       setHasAutoStarted(true);
 
-      // Small delay to ensure thread is fully loaded
-      setTimeout(() => {
-        // Send empty message with session context to trigger mode switch to teaching
-        threadRuntime.append({
-          role: "user",
-          content: [{ type: "text", text: "" }] // Empty message to trigger teaching mode
-        });
-      }, 100);
+      // CRITICAL: Only send message if thread has NO messages (brand new session)
+      // If thread already has messages, it means it was started before and may have interrupts
+      if (!hasExistingMessages) {
+        console.log('🚀 AutoStartTrigger - New session with existing thread, sending initial message');
+        // Small delay to ensure thread is fully loaded
+        setTimeout(() => {
+          // Send empty message with session context to trigger mode switch to teaching
+          threadRuntime.append({
+            role: "user",
+            content: [{ type: "text", text: "" }] // Empty message to trigger teaching mode
+          });
+        }, 100);
+      } else {
+        console.log('✅ AutoStartTrigger - Thread has existing messages, NOT sending message to preserve interrupts');
+        // The thread will automatically load its previous state via MyAssistant's onSwitchToThread
+        // No need to trigger a new graph run
+      }
       return;
     }
 

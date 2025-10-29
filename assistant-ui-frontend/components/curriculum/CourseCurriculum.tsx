@@ -18,7 +18,6 @@ import {
 import { Client, Databases, Query } from 'appwrite';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '@/lib/logger';
-import { abandonAndRestart } from '@/lib/sessions/session-security';
 import { cache, createCacheKey } from '@/lib/cache';
 
 interface Lesson {
@@ -26,21 +25,17 @@ interface Lesson {
   label: string;
   lessonTemplateId: string;
   lesson_type: string;
-  status: 'completed' | 'in_progress' | 'not_started' | 'locked';
+  status: 'completed' | 'not_started' | 'locked'; // v3: removed 'in_progress'
   estimatedMinutes?: number;
   isPublished: boolean;
-  activeSessionId?: string;
   completedCount: number;
-  lastActivity?: string;
   lesson_type_display?: string;
   engagement_tags?: string[];
 }
 
 interface SessionsByLessonMap {
   [lessonTemplateId: string]: {
-    activeSession: any | null;
-    completedCount: number;
-    lastActivity?: string;
+    completedCount: number; // v3: removed activeSession and lastActivity
   };
 }
 
@@ -184,58 +179,32 @@ export function CourseCurriculum({
         return true;
       });
 
+      // v3: Only count completed sessions, ignore active/abandoned
       studentSessions.forEach((session: any) => {
         const lessonId = session.lessonTemplateId;
 
         if (!sessionsByLesson[lessonId]) {
           sessionsByLesson[lessonId] = {
-            activeSession: null,
-            completedCount: 0,
-            lastActivity: undefined
+            completedCount: 0
           };
         }
 
-        const lessonSessions = sessionsByLesson[lessonId];
-
-        if (session.status === 'active' || session.status === 'created') {
-          // Validate session data (fail fast)
-          if (!session.startedAt) {
-            logger.error('session_missing_startedAt', {
-              sessionId: session.$id,
-              status: session.status,
-              lessonTemplateId: lessonId
-            });
-            throw new Error(`Corrupted session data: ${session.$id}`);
-          }
-
-          // Keep most recent active session only
-          if (!lessonSessions.activeSession ||
-              new Date(session.startedAt) > new Date(lessonSessions.activeSession.startedAt)) {
-            lessonSessions.activeSession = session;
-            lessonSessions.lastActivity = session.updatedAt || session.startedAt;
-          }
-        } else if (session.status === 'completed') {
-          lessonSessions.completedCount++;
-
-          // Track most recent activity
-          const activityDate = session.completedAt || session.updatedAt;
-          if (!lessonSessions.lastActivity || activityDate > lessonSessions.lastActivity) {
-            lessonSessions.lastActivity = activityDate;
-          }
+        // Only count completed sessions
+        if (session.status === 'completed') {
+          sessionsByLesson[lessonId].completedCount++;
         }
       });
 
-      // Map lessons with status
+      // Map lessons with status (v3 simplified logic)
       const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
         const lessonSessions = sessionsByLesson[template.$id];
         const isPublished = template.status === 'published';
 
+        // v3: Only three states - locked, completed, or not_started
         let status: Lesson['status'] = 'not_started';
 
         if (!isPublished) {
           status = 'locked';
-        } else if (lessonSessions?.activeSession) {
-          status = 'in_progress';
         } else if (lessonSessions?.completedCount > 0) {
           status = 'completed';
         }
@@ -261,17 +230,15 @@ export function CourseCurriculum({
           status,
           estimatedMinutes: template.estMinutes || 30,
           isPublished,
-          activeSessionId: lessonSessions?.activeSession?.$id,
           completedCount: lessonSessions?.completedCount || 0,
-          lastActivity: lessonSessions?.lastActivity,
           lesson_type_display,
           engagement_tags
         };
       });
 
+      // v3: removed in_progress from logging
       logger.info('lessons_mapped', {
         totalLessons: lessonsWithStatus.length,
-        inProgress: lessonsWithStatus.filter(l => l.status === 'in_progress').length,
         completed: lessonsWithStatus.filter(l => l.status === 'completed').length,
         locked: lessonsWithStatus.filter(l => l.status === 'locked').length,
         notStarted: lessonsWithStatus.filter(l => l.status === 'not_started').length
@@ -312,8 +279,6 @@ export function CourseCurriculum({
     switch (status) {
       case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-      case 'in_progress':
-        return <Circle className="h-5 w-5 text-blue-600 fill-blue-200" />;
       case 'locked':
         return <Lock className="h-5 w-5 text-gray-400" />;
       default:
@@ -321,6 +286,7 @@ export function CourseCurriculum({
     }
   };
 
+  // v3: Simplified button rendering - no Continue or stale session logic
   const getActionButton = (lesson: Lesson) => {
     const isStarting = startingLessonId === lesson.lessonTemplateId;
 
@@ -341,27 +307,18 @@ export function CourseCurriculum({
       );
     }
 
-    // Determine button configuration
+    // Determine button configuration (v3: only Start or Retake)
     let buttonText = 'Start Lesson';
     let buttonVariant: 'default' | 'outline' = 'default';
     let buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
     let ariaLabel = `Start ${lesson.label}`;
 
-    if (lesson.status === 'in_progress') {
-      buttonText = 'Continue';
-      buttonVariant = 'default';
-      buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
-      ariaLabel = `Continue ${lesson.label}`;
-    } else if (lesson.status === 'completed') {
+    if (lesson.status === 'completed') {
       buttonText = 'Retake Lesson';
       buttonVariant = 'outline';
       buttonIcon = <RotateCcw className="h-4 w-4" aria-hidden="true" />;
       ariaLabel = `Retake ${lesson.label}`;
     }
-
-    // Calculate activity age for warning (7 days = stale)
-    const isStale = lesson.lastActivity &&
-      Date.now() - new Date(lesson.lastActivity).getTime() > 7 * 24 * 60 * 60 * 1000;
 
     return (
       <div className="flex flex-col items-end gap-2">
@@ -388,85 +345,17 @@ export function CourseCurriculum({
           )}
         </Button>
 
-        {/* Activity timestamp for in-progress lessons */}
-        {lesson.status === 'in_progress' && lesson.lastActivity && (
-          <p className={`text-xs ${isStale ? 'text-amber-600' : 'text-gray-500'}`}>
-            Last activity: {formatDistanceToNow(new Date(lesson.lastActivity), { addSuffix: true })}
-          </p>
-        )}
-
         {/* History link for completed lessons */}
         {lesson.completedCount > 0 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              router.push(`/lesson-sessions/${lesson.lessonTemplateId}`);
+              router.push(`/lessons/${lesson.lessonTemplateId}/history`);
             }}
             className="text-xs text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             aria-label={`View ${lesson.completedCount} completed attempts for ${lesson.label}`}
           >
             View History ({lesson.completedCount} completed)
-          </button>
-        )}
-
-        {/* "Start Over" link for stale in-progress sessions */}
-        {lesson.status === 'in_progress' && isStale && lesson.activeSessionId && (
-          <button
-            onClick={async (e) => {
-              e.stopPropagation();
-
-              if (!confirm('Abandon current progress and start fresh?\n\nYour current session will be marked as abandoned.')) {
-                return;
-              }
-
-              try {
-                const client = new Client()
-                  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-                  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-                // Set session from localStorage
-                const cookieFallback = localStorage.getItem('cookieFallback');
-                if (cookieFallback) {
-                  const cookieData = JSON.parse(cookieFallback);
-                  const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-                  client.setSession(cookieData[sessionKey]);
-                }
-
-                const databases = new Databases(client);
-
-                const newSessionId = await abandonAndRestart(
-                  databases,
-                  lesson.activeSessionId!,
-                  studentId,
-                  lesson.lessonTemplateId,
-                  courseId,
-                  undefined // threadId not available here
-                );
-
-                // Invalidate cache
-                const cacheKey = createCacheKey('recommendations', studentId, courseId);
-                cache.invalidate(cacheKey);
-
-                logger.info('session_restarted_from_curriculum', {
-                  oldSessionId: lesson.activeSessionId,
-                  newSessionId,
-                  lessonTemplateId: lesson.lessonTemplateId
-                });
-
-                // Navigate to new session
-                router.push(`/session/${newSessionId}`);
-              } catch (err) {
-                logger.error('failed_to_abandon_and_restart', {
-                  lessonTemplateId: lesson.lessonTemplateId,
-                  error: err instanceof Error ? err.message : String(err)
-                });
-                alert('Failed to start over. Please try again.');
-              }
-            }}
-            className="text-xs text-amber-600 hover:underline focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 rounded"
-            aria-label={`Start ${lesson.label} over from the beginning`}
-          >
-            Start Over
           </button>
         )}
       </div>
@@ -531,9 +420,7 @@ export function CourseCurriculum({
                 key={lesson.lessonTemplateId}
                 className={`
                   flex items-center gap-3 p-4 rounded-lg border transition-all
-                  ${lesson.status === 'in_progress'
-                    ? 'bg-blue-50 border-blue-200'
-                    : isNextLesson
+                  ${isNextLesson
                     ? 'bg-green-50 border-green-200'
                     : 'bg-white border-gray-200'
                   }

@@ -451,6 +451,8 @@ export const SessionSchema = z.object({
   startedAt: OptionalTimestampSchema,
   completedAt: OptionalTimestampSchema,
   durationMinutes: z.number().int().min(0).optional(),
+  score: z.number().min(0).max(1).optional(), // Overall lesson performance (0.0-1.0)
+  conversationHistory: z.string().max(50000).optional(), // Compressed (gzip + base64) conversation history for replay
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema
 }).strict();

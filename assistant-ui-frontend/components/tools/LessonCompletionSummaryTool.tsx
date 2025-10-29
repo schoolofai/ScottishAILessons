@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
+import { useSafeLangGraphInterruptState } from "@/lib/replay/useSafeLangGraphHooks";
 import { useRouter } from "next/navigation";
 import { useAppwrite, EvidenceDriver, SessionDriver, MasteryDriver } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,48 @@ import {
   AlertTriangleIcon
 } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
+import * as pako from 'pako';
+import { useReplayMode } from "@/contexts/ReplayModeContext";
+
+/**
+ * Compress and encode conversation history for storage.
+ * Uses gzip compression followed by base64 encoding.
+ */
+function compressConversationHistory(history: ConversationHistory): string {
+  try {
+    const jsonString = JSON.stringify(history);
+    const compressed = pako.gzip(jsonString);
+    const base64 = btoa(String.fromCharCode(...compressed));
+
+    const originalSize = new Blob([jsonString]).size;
+    const compressedSize = compressed.length;
+    const ratio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+
+    console.log(`🗜️ Compression stats: ${originalSize}B → ${compressedSize}B (${ratio}% reduction)`);
+
+    return base64;
+  } catch (error) {
+    console.error('❌ Failed to compress conversation history:', error);
+    throw new Error('Compression failed');
+  }
+}
+
+type ConversationHistory = {
+  version: string;
+  threadId: string;
+  sessionId: string;
+  capturedAt: string;
+  messages: Array<{
+    id: string;
+    type: string;
+    content: string;
+    tool_calls?: Array<{
+      id: string;
+      name: string;
+      args: any;
+    }>;
+  }>;
+};
 
 type LessonCompletionSummaryArgs = {
   summary: string;
@@ -59,6 +101,8 @@ type LessonCompletionSummaryArgs = {
   session_id: string;
   student_id: string;
   course_id: string;
+  // Conversation history for replay (will be compressed before saving)
+  conversation_history?: ConversationHistory;
 };
 
 export const LessonCompletionSummaryTool = makeAssistantToolUI<
@@ -67,7 +111,8 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
 >({
   toolName: "lesson_completion_summary",
   render: function LessonCompletionSummaryUI({ args, callTool, status }) {
-    const interrupt = useLangGraphInterruptState();
+    const { isReplayMode } = useReplayMode();
+    const interrupt = useSafeLangGraphInterruptState();
     const router = useRouter();
     const { createDriver } = useAppwrite();
 
@@ -81,13 +126,15 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
       retry_recommended,
       session_id,
       student_id,
-      course_id
+      course_id,
+      conversation_history
     } = args;
 
     // Debug logging to check what data we're receiving
     console.log('🔍 LessonCompletionSummaryTool received args:', {
       evidence: evidence?.length || 0,
       mastery_updates: mastery_updates?.length || 0,
+      conversation_history_messages: conversation_history?.messages?.length || 0,
       session_id,
       student_id,
       course_id,
@@ -184,16 +231,39 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
             console.log('⚠️ No mastery updates to persist');
           }
 
-          // 4. Mark session as complete
-          console.log('📊 Updating session status to complete...');
-          const sessionUpdate = {
-            endedAt: new Date().toISOString(),
-            stage: "done"
-          };
-          console.log('[Session Debug] Session update data:', sessionUpdate);
+          // 4. Compress and persist conversation history
+          if (conversation_history && conversation_history.messages.length > 0) {
+            console.log('💬 Starting conversation history compression and persistence...');
+            console.log(`[History Debug] Messages to compress: ${conversation_history.messages.length}`);
 
-          await sessionDriver.updateSession(session_id, sessionUpdate);
-          console.log('✅ Session marked as complete');
+            try {
+              const compressedHistory = compressConversationHistory(conversation_history);
+              const sizeKB = (compressedHistory.length / 1024).toFixed(2);
+              console.log(`[History Debug] Compressed size: ${sizeKB} KB`);
+
+              // Verify size constraint (50KB max in Appwrite)
+              if (compressedHistory.length > 50000) {
+                throw new Error(`Compressed history exceeds 50KB limit: ${sizeKB} KB`);
+              }
+
+              // Update session with compressed history
+              await sessionDriver.updateConversationHistory(session_id, compressedHistory);
+              console.log('✅ Conversation history compressed and persisted successfully');
+            } catch (historyError) {
+              console.error('⚠️ Failed to persist conversation history (non-fatal):', historyError);
+              // Continue with session completion even if history fails
+            }
+          } else {
+            console.log('⚠️ No conversation history to persist');
+          }
+
+          // 5. Mark session as complete with proper status and score
+          console.log('📊 Marking session as completed...');
+          const finalScore = performance_analysis.overall_accuracy;
+          console.log('[Session Debug] Completing session with score:', finalScore);
+
+          await sessionDriver.completeSession(session_id, finalScore);
+          console.log('✅ Session marked as completed with status="completed"');
 
           console.log('🎉 All lesson completion data auto-persisted successfully!');
           setPersistenceCompleted(true);
@@ -549,38 +619,51 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
             </TabsContent>
           </Tabs>
 
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-6 border-t">
-            {retry_recommended && (
+          {/* Action buttons - Hidden in replay mode */}
+          {!isReplayMode && (
+            <div className="flex gap-3 pt-6 border-t">
+              {retry_recommended && (
+                <Button
+                  variant="outline"
+                  onClick={handleRetry}
+                  disabled={isLoading}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCwIcon className="w-4 h-4" />
+                  Retry Lesson
+                </Button>
+              )}
+
               <Button
-                variant="outline"
-                onClick={handleRetry}
-                disabled={isLoading}
-                className="flex items-center gap-2"
+                variant="secondary"
+                onClick={handleComplete}
+                disabled={isLoading || !persistenceCompleted}
+                className="flex-1"
               >
-                <RefreshCwIcon className="w-4 h-4" />
-                Retry Lesson
+                {persistenceCompleted ? "Continue to Dashboard" : "Saving Progress..."}
               </Button>
-            )}
 
-            <Button
-              variant="secondary"
-              onClick={handleComplete}
-              disabled={isLoading || !persistenceCompleted}
-              className="flex-1"
-            >
-              {persistenceCompleted ? "Continue to Dashboard" : "Saving Progress..."}
-            </Button>
+              <Button
+                onClick={handleContinue}
+                disabled={isLoading}
+                className="flex-1 flex items-center gap-2"
+              >
+                <span>Continue Learning</span>
+                <TrophyIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
 
-            <Button
-              onClick={handleContinue}
-              disabled={isLoading}
-              className="flex-1 flex items-center gap-2"
-            >
-              <span>Continue Learning</span>
-              <TrophyIcon className="w-4 h-4" />
-            </Button>
-          </div>
+          {/* Replay mode notice */}
+          {isReplayMode && (
+            <div className="pt-6 border-t">
+              <div className="bg-gray-100 rounded-lg p-4 text-center">
+                <p className="text-sm text-gray-600 italic">
+                  🎬 Replay Mode - This is a summary of a completed lesson
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Final encouraging message */}
           <div className="text-center text-sm text-gray-600 pt-4">

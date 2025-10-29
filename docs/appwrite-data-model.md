@@ -455,6 +455,8 @@ interface Session {
   startedAt: string;          // Session start time (required, ISO datetime)
   endedAt: string;            // Session end time (ISO datetime)
   stage: 'design' | 'deliver' | 'mark' | 'progress' | 'done'; // Session stage (default: "design")
+  status: 'created' | 'active' | 'completed' | 'abandoned' | 'failed'; // Session lifecycle status
+  score?: number;             // Overall lesson performance (0.0-1.0), optional
   lessonSnapshot: string;     // JSON snapshot of lesson content (required, max 8000 chars)
   threadId: string;           // LangGraph conversation thread ID (max 100 chars)
   lastMessageAt: string;      // Last chat interaction timestamp (ISO datetime)

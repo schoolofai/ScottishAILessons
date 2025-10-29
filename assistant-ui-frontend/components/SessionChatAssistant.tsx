@@ -30,8 +30,15 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const resizeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    console.log('🔄 SessionChatAssistant - useEffect triggered:', {
+      sessionId,
+      timestamp: new Date().toISOString()
+    });
+
     const loadSessionContext = async () => {
       try {
+        console.log('📥 SessionChatAssistant - Starting to load session context for:', sessionId);
+
         const sessionDriver = createDriver(SessionDriver);
         const courseDriver = createDriver(CourseDriver);
 
@@ -45,16 +52,23 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         const { session, parsedSnapshot } = sessionStateData;
 
+        console.log('📦 SessionChatAssistant - Session data loaded:', {
+          sessionId: session.$id,
+          hasThreadId: !!session.threadId,
+          threadId: session.threadId,
+          hasContextChatThreadId: !!sessionWithThread.contextChatThreadId
+        });
+
         // Use threadId from session if available (priority: session.threadId > sessionWithThread.threadId)
         // This supports thread continuity from EnhancedDashboard
         if (session.threadId) {
-          console.log('SessionChatAssistant - Using threadId from session for continuity:', session.threadId);
+          console.log('✅ SessionChatAssistant - Using threadId from session for continuity:', session.threadId);
           setExistingThreadId(session.threadId);
         } else if (sessionWithThread.threadId) {
-          console.log('SessionChatAssistant - Found existing thread ID:', sessionWithThread.threadId);
+          console.log('✅ SessionChatAssistant - Found existing thread ID:', sessionWithThread.threadId);
           setExistingThreadId(sessionWithThread.threadId);
         } else {
-          console.log('SessionChatAssistant - No existing thread ID found, new thread will be created');
+          console.log('ℹ️ SessionChatAssistant - No existing thread ID found, new thread will be created');
         }
 
         // Load context chat thread ID if available
@@ -111,14 +125,25 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           enriched_outcomes: enrichedOutcomes, // Add enriched CourseOutcome objects
         };
 
-        console.log('SessionChatAssistant - Loading context:', context);
-        console.log('SessionChatAssistant - Thread info:', {
-          existingThreadId: sessionWithThread.threadId,
+        console.log('✅ SessionChatAssistant - Session context built successfully:', {
+          session_id: context.session_id,
+          student_id: context.student_id,
+          hasLessonSnapshot: !!context.lesson_snapshot,
+          lessonTitle: context.lesson_snapshot?.title,
+          courseSubject: context.course_subject,
+          courseLevel: context.course_level,
+          enrichedOutcomesCount: enrichedOutcomes.length
+        });
+
+        console.log('📊 SessionChatAssistant - Thread info:', {
+          existingThreadId: session.threadId,
           hasExistingConversation: sessionWithThread.hasExistingConversation,
           lastMessageAt: sessionWithThread.lastMessageAt
         });
 
+        console.log('🎯 SessionChatAssistant - Setting session context state');
         setSessionContext(context);
+        console.log('✅ SessionChatAssistant - Session context state updated');
       } catch (err) {
         console.error("Failed to load session context:", err);
         setError(err instanceof Error ? err.message : "Failed to load session");
@@ -128,7 +153,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     };
 
     loadSessionContext();
-  }, [sessionId, existingThreadId]);
+  }, [sessionId]); // CRITICAL FIX: Remove existingThreadId to prevent re-initialization loop
 
   // Handle new thread creation - persist to session
   const handleThreadCreated = async (newThreadId: string) => {

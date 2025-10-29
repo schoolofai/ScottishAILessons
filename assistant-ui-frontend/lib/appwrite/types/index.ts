@@ -194,9 +194,11 @@ export interface Session {
   status: 'created' | 'active' | 'completed' | 'abandoned' | 'failed'; // Session lifecycle status
   completedAt?: string; // Timestamp when session was completed
   durationMinutes?: number; // Duration from start to completion
+  score?: number; // Overall lesson performance score (0.0-1.0), optional
   lessonSnapshot: string; // JSON string
   threadId?: string; // LangGraph thread ID for conversation continuity
   lastMessageAt?: string; // Timestamp of last chat interaction
+  conversationHistory?: string; // Compressed (gzip + base64) conversation history for replay
 }
 
 export interface Evidence {
