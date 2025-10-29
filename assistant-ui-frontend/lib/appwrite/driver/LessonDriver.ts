@@ -87,14 +87,40 @@ export class LessonDriver extends BaseDriver {
 
   /**
    * Create new lesson session - Phase 3.3 MVP2.5 enhanced with pedagogy fields
+   * Supports spaced repetition with sessionType tracking
    */
   async createSession(
     studentId: string,
     courseId: string,
-    lessonTemplateId: string
+    lessonTemplateId: string,
+    sessionType?: 'initial' | 'review'
   ): Promise<Session> {
     try {
       const user = await this.getCurrentUser();
+
+      // Auto-detect session type if not provided by checking for completed sessions
+      let effectiveSessionType = sessionType;
+      let reviewCount = 0;
+      let originalCompletionDate: string | undefined;
+
+      if (!effectiveSessionType) {
+        // Query for completed sessions of this lesson
+        const completedSessions = await this.list<Session>('sessions', [
+          Query.equal('studentId', studentId),
+          Query.equal('lessonTemplateId', lessonTemplateId),
+          Query.equal('stage', 'done'),
+          Query.orderDesc('$createdAt')
+        ]);
+
+        if (completedSessions.length > 0) {
+          effectiveSessionType = 'review';
+          reviewCount = completedSessions.length;
+          originalCompletionDate = completedSessions[completedSessions.length - 1].endedAt ||
+                                   completedSessions[completedSessions.length - 1].$createdAt;
+        } else {
+          effectiveSessionType = 'initial';
+        }
+      }
 
       // Get lesson template to create snapshot
       const lessonTemplate = await this.getLessonTemplate(lessonTemplateId);
@@ -131,8 +157,18 @@ export class LessonDriver extends BaseDriver {
         courseId,
         lessonTemplateId,
         stage: 'design',
-        lessonSnapshot: compressJSON(lessonSnapshot)
+        lessonSnapshot: compressJSON(lessonSnapshot),
+        sessionType: effectiveSessionType,
+        reviewCount: effectiveSessionType === 'review' ? reviewCount : undefined,
+        originalCompletionDate: effectiveSessionType === 'review' ? originalCompletionDate : undefined
       };
+
+      console.log('[LessonDriver] Creating session:', {
+        lessonTemplateId,
+        sessionType: effectiveSessionType,
+        reviewCount,
+        isReview: effectiveSessionType === 'review'
+      });
 
       const permissions = this.createUserPermissions(user.$id);
       return await this.create<Session>('sessions', sessionData, permissions);
