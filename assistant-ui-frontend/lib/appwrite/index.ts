@@ -6,6 +6,7 @@ export { LessonDriver } from './driver/LessonDriver';
 export { EvidenceDriver } from './driver/EvidenceDriver';
 export { SessionDriver } from './driver/SessionDriver';
 export { MasteryDriver } from './driver/MasteryDriver';
+export { RoutineDriver } from './driver/RoutineDriver';
 
 // Hook exports
 export { useAppwrite } from './hooks/useAppwrite';

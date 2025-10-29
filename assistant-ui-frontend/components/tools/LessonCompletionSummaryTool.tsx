@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import { useRouter } from "next/navigation";
-import { useAppwrite, EvidenceDriver, SessionDriver, MasteryDriver } from "@/lib/appwrite";
+import { useAppwrite, EvidenceDriver, SessionDriver, MasteryDriver, RoutineDriver } from "@/lib/appwrite";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +111,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
           const evidenceDriver = createDriver(EvidenceDriver);
           const sessionDriver = createDriver(SessionDriver);
           const masteryDriver = createDriver(MasteryDriver);
+          const routineDriver = createDriver(RoutineDriver);
 
           console.log('🚀 Auto-persisting lesson completion data...');
           console.log(`Evidence records: ${evidence.length}, Mastery updates: ${mastery_updates.length}`);
@@ -180,11 +181,35 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
               emaByOutcome: JSON.parse(masteryResult.emaByOutcome || '{}'),
               updatedAt: masteryResult.updatedAt
             });
+
+            // 4. Update routine schedules for spaced repetition
+            console.log('📅 Updating routine schedules for spaced repetition...');
+            console.log('[Routine Debug] Processing mastery updates for routine scheduling:', mastery_updates);
+
+            for (const masteryUpdate of mastery_updates) {
+              try {
+                console.log(`[Routine Debug] Updating schedule for outcome ${masteryUpdate.outcome_id} with EMA ${masteryUpdate.score}`);
+
+                await routineDriver.updateOutcomeSchedule(
+                  student_id,
+                  course_id,
+                  masteryUpdate.outcome_id,
+                  masteryUpdate.score
+                );
+
+                console.log(`✅ Updated routine schedule for outcome ${masteryUpdate.outcome_id}`);
+              } catch (routineError) {
+                console.error(`⚠️ Failed to update routine for outcome ${masteryUpdate.outcome_id}:`, routineError);
+                // Continue with other outcomes even if one fails
+              }
+            }
+
+            console.log('✅ Successfully updated all routine schedules');
           } else {
             console.log('⚠️ No mastery updates to persist');
           }
 
-          // 4. Mark session as complete
+          // 5. Mark session as complete
           console.log('📊 Updating session status to complete...');
           const sessionUpdate = {
             endedAt: new Date().toISOString(),
