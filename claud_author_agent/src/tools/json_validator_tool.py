@@ -294,26 +294,18 @@ class LessonTemplate(BaseModel):
     @field_validator('cards')
     @classmethod
     def validate_card_count_and_sequence(cls, v, info):
-        """Validate card count matches lesson_type and cards have sequential IDs."""
-        lesson_type = info.data.get('lesson_type') if hasattr(info, 'data') else None
+        """Validate card count within universal bounds and cards have sequential IDs."""
         count = len(v)
 
-        # Card count ranges per lesson_type
-        ranges = {
-            "teach": (3, 4),
-            "independent_practice": (3, 5),
-            "formative_assessment": (2, 6),
-            "revision": (4, 8),
-            "mock_exam": (8, 15)
-        }
+        # Universal card count bounds (pedagogical flexibility with practical limits)
+        MIN_CARDS = 1  # At least one card required
+        MAX_CARDS = 20  # Practical upper limit for token constraints and session length
 
-        if lesson_type in ranges:
-            min_cards, max_cards = ranges[lesson_type]
-            if not (min_cards <= count <= max_cards):
-                raise ValueError(
-                    f"lesson_type '{lesson_type}' requires {min_cards}-{max_cards} cards, "
-                    f"got {count}"
-                )
+        if not (MIN_CARDS <= count <= MAX_CARDS):
+            raise ValueError(
+                f"Lesson must have {MIN_CARDS}-{MAX_CARDS} cards, got {count}. "
+                f"Create as many cards as needed based on pedagogical requirements and estMinutes."
+            )
 
         # Validate sequential card IDs (card_001, card_002, ...)
         expected_id_num = 1
@@ -392,7 +384,8 @@ def _format_validation_errors(pydantic_errors: List[Dict[str, Any]]) -> Dict[str
             "Verify CFU type-specific fields (e.g., MCQ needs answerIndex)",
             "Ensure lesson_type enum is valid",
             "Check courseId format (must start with 'course_')",
-            "Verify card count matches lesson_type requirements"
+            "Verify card count is within 1-20 range",
+            "Ensure card count aligns with estMinutes (typically 10-15 min per card)"
         ]
     }
 

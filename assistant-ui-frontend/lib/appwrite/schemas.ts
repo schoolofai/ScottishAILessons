@@ -447,7 +447,7 @@ export const SessionSchema = z.object({
   contextChatThreadId: IdSchema.optional(), // Context chat thread ID for separate context-aware conversations
   lessonTemplateId: IdSchema,
   courseId: IdSchema,
-  status: z.enum(['created', 'active', 'completed', 'abandoned', 'failed']).default('created'),
+  status: z.enum(['created', 'active', 'completed', 'failed']).default('created'),
   startedAt: OptionalTimestampSchema,
   completedAt: OptionalTimestampSchema,
   durationMinutes: z.number().int().min(0).optional(),

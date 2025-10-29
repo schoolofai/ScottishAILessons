@@ -191,7 +191,7 @@ export interface Session {
   startedAt: string;
   endedAt?: string;
   stage: string;
-  status: 'created' | 'active' | 'completed' | 'abandoned' | 'failed'; // Session lifecycle status
+  status: 'created' | 'active' | 'completed' | 'failed'; // Session lifecycle status
   completedAt?: string; // Timestamp when session was completed
   durationMinutes?: number; // Duration from start to completion
   score?: number; // Overall lesson performance score (0.0-1.0), optional

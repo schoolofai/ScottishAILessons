@@ -389,6 +389,72 @@ CRITICAL EVALUATION THRESHOLD:
    - Bullet points, fragments, shorthand = all acceptable
    - Focus on whether core concept is understood, not how it's expressed
 
+8. **MANDATORY FEEDBACK STRUCTURE - You MUST use this exact format**:
+
+   Start your feedback with:
+   "**Assessment Summary:**
+   Overall Score: [X]/[Y] points ([Z]%)
+
+   Rubric Breakdown:
+   * [Criterion 1 name]: [awarded]/[max] points [status emoji: ✓ Complete / ⚠ Partial / ✗ Not Met]
+   * [Criterion 2 name]: [awarded]/[max] points [status]
+   * ...
+
+   **What You Did Well:**
+   - [Specific strength related to criteria where they scored full/high points]
+   - [Another strength if applicable]
+
+   **Areas for Improvement:**
+   - **[Criterion name where points lost]**: [Concrete suggestion WITHOUT revealing answer - guide toward method/concept]
+   - [Another area if applicable]
+
+   **Next Steps:**
+   - [1-2 actionable hints to improve on weak criteria without giving away solution]"
+
+   EXAMPLE for 60% threshold pass (3/5 points):
+   "**Assessment Summary:**
+   Overall Score: 3/5 points (60%)
+
+   Rubric Breakdown:
+   * Identifying relevant factors: 2/2 points ✓ Complete
+   * Explaining why factors are relevant: 1/2 points ⚠ Partial
+   * Identifying irrelevant factors: 0/1 point ✗ Not Met
+
+   **What You Did Well:**
+   - You correctly identified voltage and current as key factors - excellent recognition of what matters!
+   - Your understanding of the relevant variables is solid
+
+   **Areas for Improvement:**
+   - **Explaining relevance**: You mentioned voltage is relevant, but adding WHY (e.g., 'higher voltage transfers more energy') would make your answer complete
+   - **Irrelevant factors**: You didn't mention which factors are NOT needed - think about properties that don't affect the calculation
+
+   **Next Steps:**
+   - Consider: What property of the wire actually affects resistance? Is the wire's color scientifically relevant?
+   - Try explaining the relationship between your identified factors and energy transfer"
+
+   EXAMPLE for <60% needs improvement (2/5 points):
+   "**Assessment Summary:**
+   Overall Score: 2/5 points (40%)
+
+   Rubric Breakdown:
+   * Identifying relevant factors: 1/2 points ⚠ Partial
+   * Explaining why factors are relevant: 1/2 points ⚠ Partial
+   * Identifying irrelevant factors: 0/1 point ✗ Not Met
+
+   **What You Did Well:**
+   - You mentioned voltage, which is definitely one of the key factors - good start!
+
+   **Areas for Improvement:**
+   - **Identifying relevant factors**: You've found voltage, but there's another important factor you're missing. Think about what flows through the circuit
+   - **Explaining relevance**: Try adding WHY voltage matters - what does higher voltage do to the energy transfer?
+   - **Irrelevant factors**: Consider which properties of the wire don't actually affect the physics here
+
+   **Next Steps:**
+   - Review the circuit diagram - what two things are being measured that affect energy transfer?
+   - Think about the equation: Power = ? × ? (what goes in those spaces?)"
+
+   CRITICAL: Always celebrate strengths first, then guide improvements WITHOUT revealing the answer
+
 Common Misconceptions for This Question:
 {misconceptions_text}
 
@@ -431,7 +497,37 @@ Just completed: {completed_card}
 Next up: {next_card}
 Student progress: {progress_context}
 
-Create a smooth, encouraging transition that connects the concepts."""),
+{assessment_feedback}
+
+TRANSITION GUIDELINES:
+1. **Acknowledge Assessment Performance** (if feedback provided):
+   - **MANDATORY**: Name 1-2 specific criteria from the Rubric Breakdown (use the exact criterion names)
+   - Include the point score for those criteria (e.g., "1/1 points" or "2/2 points")
+   - Celebrate what they mastered by referencing the actual rubric criterion name
+   - Keep it brief (1-2 sentences) - don't repeat entire rubric breakdown
+   - Example criterion references: "identifying renewable energy sources (1/1 points)", "explaining why coal is non-renewable (2/2 points)"
+
+2. **Connect to Next Topic:**
+   - Show how completed concept relates to upcoming content
+   - Build confidence by linking their demonstrated skills to what's next
+
+3. **Maintain Momentum:**
+   - Keep transition concise and forward-looking
+   - Focus on learning progression, not just completion
+
+EXAMPLE with assessment feedback (FOLLOW THIS PATTERN):
+"Excellent work on energy sources! You nailed identifying renewable energy sources (1/1 points) and explaining why coal is non-renewable (2/2 points) - that precision shows solid understanding. Those identification and explanation skills will be crucial as we explore Scotland's real-world energy applications. You'll see how the same analysis you just mastered applies to actual Scottish power stations. Ready to connect theory to practice?"
+
+EXAMPLE without assessment feedback (skipped/first card):
+"Great progress on energy sources! Now let's build on that foundation as we explore Scotland's energy applications - you'll see these concepts in action..."
+
+Create a smooth, encouraging transition that celebrates their learning and builds excitement for the next topic.
+
+IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
+- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
+- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
+- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
+Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
             ("human", "Transition to the next topic")
         ])
         
@@ -688,11 +784,29 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 subject_area = "learning"
                 level_description = ""
 
+            # Extract and format assessment feedback from progress_context if present
+            assessment_feedback_text = ""
+            if isinstance(progress_context, dict) and progress_context.get("assessment_feedback"):
+                feedback = progress_context["assessment_feedback"]
+                # Format feedback for transition prompt
+                assessment_feedback_text = f"""
+**Previous Question Assessment:**
+{feedback}
+
+Use this assessment to acknowledge specific strengths in your transition.
+"""
+            else:
+                assessment_feedback_text = "(No assessment feedback - student may have skipped or this is first card)"
+
+            # Remove feedback from progress_context string representation (keep stats separate)
+            progress_stats = {k: v for k, v in progress_context.items() if k != "assessment_feedback"} if isinstance(progress_context, dict) else progress_context
+
             response = self.llm.invoke(
                 self.transition_prompt.format_messages(
                     completed_card=completed_card.get("title", "previous topic"),
                     next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context),
+                    progress_context=str(progress_stats),
+                    assessment_feedback=assessment_feedback_text,  # NEW parameter
                     subject_area=subject_area,
                     level_description=level_description,
                     **curriculum_context

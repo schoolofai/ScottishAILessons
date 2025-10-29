@@ -28,9 +28,11 @@ import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import { useSessionContext } from "@/lib/SessionContext";
+import { useReplayMode } from "@/contexts/ReplayModeContext";
 
 export const Thread: FC = () => {
   const { isSessionMode } = useSessionContext();
+  const { isReplayMode } = useReplayMode();
 
   return (
     <ThreadPrimitive.Root
@@ -59,16 +61,24 @@ export const Thread: FC = () => {
         </ThreadPrimitive.If>
       </ThreadPrimitive.Viewport>
 
-      {!isSessionMode && (
+      {!isSessionMode && !isReplayMode && (
         <div className="shrink-0 bg-background border-t border-gray-200 pb-12">
           <Composer />
         </div>
       )}
 
-      {isSessionMode && (
+      {isSessionMode && !isReplayMode && (
         <div className="shrink-0 bg-background border-t border-gray-200 p-4">
           <div className="text-center text-sm text-muted-foreground">
             📚 Interact with the lesson cards above to continue your learning journey
+          </div>
+        </div>
+      )}
+
+      {isReplayMode && (
+        <div className="shrink-0 bg-background border-t border-gray-200 p-4">
+          <div className="text-center text-sm text-muted-foreground italic">
+            🎬 Replay Mode - This is a read-only view of a completed lesson session
           </div>
         </div>
       )}

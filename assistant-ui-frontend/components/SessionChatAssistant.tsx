@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { MyAssistant, SessionContext } from "./MyAssistant";
 import { useAppwrite, SessionDriver } from "@/lib/appwrite";
 import { CourseDriver } from "@/lib/appwrite/driver/CourseDriver";
@@ -10,6 +11,9 @@ import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
 import { Client } from "@langchain/langgraph-sdk";
 import { CurrentCardProvider } from "@/contexts/CurrentCardContext";
+import { LessonExitWarningModal } from "./session/LessonExitWarningModal";
+import { usePreventNavigation } from "@/hooks/usePreventNavigation";
+import { NavigationPreventionProvider } from "@/contexts/NavigationPreventionContext";
 
 interface SessionChatAssistantProps {
   sessionId: string;
@@ -17,6 +21,7 @@ interface SessionChatAssistantProps {
 }
 
 export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssistantProps) {
+  const router = useRouter();
   const [sessionContext, setSessionContext] = useState<SessionContext | undefined>(undefined);
   const [existingThreadId, setExistingThreadId] = useState<string | undefined>(threadId);
   const [contextChatThreadId, setContextChatThreadId] = useState<string | undefined>(undefined);
@@ -25,6 +30,12 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [isContextChatCollapsed, setIsContextChatCollapsed] = useState(false);
   const [contextChatWidth, setContextChatWidth] = useState(33); // Width as percentage (1/3 = 33%)
   const [isResizing, setIsResizing] = useState(false);
+
+  // Navigation prevention state
+  const [sessionStatus, setSessionStatus] = useState<'created' | 'active' | 'completed' | 'failed'>('active');
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [allowNavigation, setAllowNavigation] = useState(false);
+
   const { createDriver } = useAppwrite();
   const threadIdRef = useRef<string | undefined>(existingThreadId);
   const resizeRef = useRef<HTMLDivElement>(null);
@@ -143,7 +154,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         console.log('🎯 SessionChatAssistant - Setting session context state');
         setSessionContext(context);
-        console.log('✅ SessionChatAssistant - Session context state updated');
+        setSessionStatus(session.status); // Set status for navigation prevention
+        console.log('✅ SessionChatAssistant - Session context state updated, status:', session.status);
       } catch (err) {
         console.error("Failed to load session context:", err);
         setError(err instanceof Error ? err.message : "Failed to load session");
@@ -154,6 +166,39 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
     loadSessionContext();
   }, [sessionId]); // CRITICAL FIX: Remove existingThreadId to prevent re-initialization loop
+
+  // Handle session status change from child components (e.g., LessonCompletionSummaryTool)
+  // IMPORTANT: Must be BEFORE early returns to maintain consistent hook order
+  const handleSessionStatusChange = useCallback((status: 'created' | 'active' | 'completed' | 'failed') => {
+    console.log('🔄 Session status changed to:', status);
+    setSessionStatus(status);
+  }, []);
+
+  // Navigation prevention: Warn user before leaving active session
+  usePreventNavigation(
+    sessionStatus === 'active' && !allowNavigation,
+    () => setShowExitModal(true),
+    allowNavigation
+  );
+
+  // Handle confirmed navigation
+  const handleConfirmLeave = useCallback(() => {
+    setAllowNavigation(true);
+    setShowExitModal(false);
+
+    // Navigate after a short delay to allow state to update
+    setTimeout(() => {
+      // Check if there's a pending navigation from Link click
+      const pendingNav = sessionStorage.getItem('pendingNavigation');
+      if (pendingNav) {
+        sessionStorage.removeItem('pendingNavigation');
+        router.push(pendingNav);
+      } else {
+        // Default to going back
+        router.back();
+      }
+    }, 50);
+  }, [router]);
 
   // Handle new thread creation - persist to session
   const handleThreadCreated = async (newThreadId: string) => {
@@ -243,11 +288,18 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   }
 
   return (
-    <CurrentCardProvider>
-      <div className="flex h-screen">
-      {/* Main Teaching Panel - Always takes available space */}
-      <div className="flex flex-col flex-1">
-        <SessionHeader sessionContext={sessionContext} />
+    <NavigationPreventionProvider
+      value={{
+        shouldPreventNavigation: sessionStatus === 'active' && !allowNavigation,
+        onNavigationAttempt: () => setShowExitModal(true),
+        allowNavigation
+      }}
+    >
+      <CurrentCardProvider onSessionStatusChange={handleSessionStatusChange}>
+        <div className="flex h-screen">
+        {/* Main Teaching Panel - Always takes available space */}
+        <div className="flex flex-col flex-1">
+          <SessionHeader sessionContext={sessionContext} />
         <div className="flex-1 min-h-0" data-testid="main-teaching-panel">
           <MyAssistant
             sessionId={sessionId}
@@ -315,6 +367,14 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         </button>
       )}
       </div>
-    </CurrentCardProvider>
+
+      {/* Navigation Warning Modal */}
+      <LessonExitWarningModal
+        open={showExitModal}
+        onOpenChange={setShowExitModal}
+        onConfirmLeave={handleConfirmLeave}
+      />
+      </CurrentCardProvider>
+    </NavigationPreventionProvider>
   );
 }

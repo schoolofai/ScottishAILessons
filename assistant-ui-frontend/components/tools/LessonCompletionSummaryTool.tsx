@@ -26,6 +26,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import * as pako from 'pako';
 import { useReplayMode } from "@/contexts/ReplayModeContext";
+import { useSafeCurrentCard } from "@/contexts/CurrentCardContext";
 
 /**
  * Compress and encode conversation history for storage.
@@ -115,6 +116,8 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
     const interrupt = useSafeLangGraphInterruptState();
     const router = useRouter();
     const { createDriver } = useAppwrite();
+    const cardContext = useSafeCurrentCard();
+    const onSessionStatusChange = cardContext?.onSessionStatusChange;
 
     const {
       summary,
@@ -264,6 +267,12 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
 
           await sessionDriver.completeSession(session_id, finalScore);
           console.log('✅ Session marked as completed with status="completed"');
+
+          // Notify parent component (SessionChatAssistant) to update navigation prevention
+          if (onSessionStatusChange) {
+            console.log('📢 Notifying parent: session status changed to "completed"');
+            onSessionStatusChange('completed');
+          }
 
           console.log('🎉 All lesson completion data auto-persisted successfully!');
           setPersistenceCompleted(true);

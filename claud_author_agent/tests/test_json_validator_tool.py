@@ -101,7 +101,7 @@ def valid_card(valid_cfu_mcq, valid_rubric, valid_misconception):
 
 @pytest.fixture
 def minimal_valid_template(valid_card):
-    """Minimal valid lesson template (teach type, 3 cards)."""
+    """Minimal valid lesson template (teach type, 3 cards within universal 1-20 range)."""
     card1 = valid_card.copy()
     card2 = valid_card.copy()
     card2["id"] = "card_002"
@@ -411,15 +411,44 @@ def test_template_invalid_lesson_type(minimal_valid_template):
     assert "Invalid lesson_type" in str(exc_info.value)
 
 
-def test_template_wrong_card_count_for_type(minimal_valid_template):
-    """Test template fails when card count doesn't match lesson_type."""
+def test_template_card_count_below_minimum(minimal_valid_template):
+    """Test template fails when card count below universal minimum (1 card)."""
     invalid_template = minimal_valid_template.copy()
-    invalid_template["lesson_type"] = "teach"  # Requires 3-4 cards
-    invalid_template["cards"] = invalid_template["cards"][:2]  # Only 2 cards
+    invalid_template["cards"] = []  # Zero cards
 
     with pytest.raises(ValidationError) as exc_info:
         LessonTemplate(**invalid_template)
-    assert "requires 3-4 cards, got 2" in str(exc_info.value)
+    # Pydantic's built-in list validation catches empty list before custom validator
+    assert "at least 1 item" in str(exc_info.value)
+
+
+def test_template_card_count_above_maximum(minimal_valid_template):
+    """Test template fails when card count exceeds universal maximum (20 cards)."""
+    invalid_template = minimal_valid_template.copy()
+
+    # Generate 21 cards (exceeds limit) with valid titles (min 10 chars)
+    extra_cards = []
+    for i in range(21):
+        card = minimal_valid_template["cards"][0].copy()
+        card["id"] = f"card_{i+1:03d}"
+        card["title"] = f"Practice Problem {i+1}"  # Valid title (10+ chars)
+        extra_cards.append(card)
+
+    invalid_template["cards"] = extra_cards
+
+    with pytest.raises(ValidationError) as exc_info:
+        LessonTemplate(**invalid_template)
+    assert "must have 1-20 cards" in str(exc_info.value)
+
+
+def test_template_single_card_valid(minimal_valid_template):
+    """Test template passes with single card (edge case)."""
+    valid_template = minimal_valid_template.copy()
+    valid_template["cards"] = [minimal_valid_template["cards"][0]]  # 1 card only
+
+    # Should pass validation
+    template = LessonTemplate(**valid_template)
+    assert len(template.cards) == 1
 
 
 def test_template_non_sequential_card_ids(minimal_valid_template):

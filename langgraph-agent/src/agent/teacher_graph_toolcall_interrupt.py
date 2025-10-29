@@ -46,6 +46,53 @@ except ImportError:
 PARTIAL_CREDIT_THRESHOLD = 0.6
 
 
+def _format_enhanced_feedback(evaluation, cfu: Dict) -> str:
+    """Format evaluation feedback with optional visual rubric reinforcement.
+
+    The LLM prompt now generates structured feedback with Assessment Summary,
+    but this function can add additional visual formatting if needed for clarity.
+
+    Args:
+        evaluation: EvaluationResponse from LLMTeacher
+        cfu: CFU dict containing rubric information
+
+    Returns:
+        Enhanced feedback string with rubric breakdown
+    """
+    # Primary feedback from LLM (already structured per updated prompt)
+    feedback = evaluation.feedback
+
+    # Optional: Add visual rubric table if breakdown exists and not already in feedback
+    # This provides a fallback in case LLM doesn't follow format exactly
+    if evaluation.rubric_breakdown and "Rubric Breakdown:" not in feedback:
+        rubric_parts = ["\n\n📊 **Rubric Breakdown:**"]
+
+        for criterion in evaluation.rubric_breakdown:
+            desc = criterion.description
+            awarded = criterion.points_awarded
+            max_pts = criterion.max_points
+
+            # Status emoji based on score
+            if awarded == max_pts:
+                status = "✓ Complete"
+            elif awarded > 0:
+                status = "⚠ Partial"
+            else:
+                status = "✗ Not Met"
+
+            rubric_parts.append(f"• **{desc}**: {awarded}/{max_pts} pts {status}")
+
+        # Add total score summary
+        total_score = sum(c.points_awarded for c in evaluation.rubric_breakdown)
+        total_possible = sum(c.max_points for c in evaluation.rubric_breakdown)
+        overall_pct = (total_score / total_possible * 100) if total_possible > 0 else 0
+        rubric_parts.append(f"\n**Total**: {total_score}/{total_possible} points ({overall_pct:.0f}%)")
+
+        feedback += "\n".join(rubric_parts)
+
+    return feedback
+
+
 def _parse_numeric_response(response: str, money_format: bool = False) -> float:
     """Parse numeric response, handling currency symbols and formatting.
     
@@ -573,11 +620,15 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
-    
+
     # Determine progression (already calculated in evidence entry)
     should_progress = evidence_entry["should_progress"]
 
     print(f"🚨 MARK DEBUG - Evaluation result: correct={evaluation.is_correct}, should_progress={should_progress}")
+
+    # Format enhanced feedback with rubric breakdown
+    enhanced_feedback = _format_enhanced_feedback(evaluation, cfu)
+    print(f"🚨 MARK DEBUG - Enhanced feedback length: {len(enhanced_feedback)} chars, has Assessment Summary: {'Assessment Summary:' in enhanced_feedback}")
 
     # NEW: Generate explanation if max attempts reached and incorrect
     explanation_message = None
@@ -603,7 +654,7 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     return {
         "is_correct": evaluation.is_correct,
         "should_progress": should_progress,
-        "feedback": evaluation.feedback,
+        "feedback": enhanced_feedback,  # CHANGED: Use enhanced feedback with rubric breakdown
         "explanation": explanation_message,  # NEW field
         "attempts": attempts,
         "evidence": evidence,
@@ -834,19 +885,28 @@ def progress_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     # Move to next card
     next_card_index = current_card_index + 1
     
-    # Generate transition message
+    # Generate transition message with assessment feedback
     teacher = LLMTeacher()
     cards = state["lesson_snapshot"].get("cards", [])
     next_card = cards[next_card_index] if next_card_index < len(cards) else None
-    
+
+    # Extract detailed feedback from state (set by mark_node)
+    assessment_feedback = state.get("feedback", "")
+    print(f"🚨 PROGRESS DEBUG - Assessment feedback length: {len(assessment_feedback)} chars")
+    print(f"🚨 PROGRESS DEBUG - Has 'Assessment Summary': {'Assessment Summary:' in assessment_feedback}")
+
+    # Build enhanced progress context with assessment feedback
+    progress_context = {
+        "cards_completed": len(cards_completed),
+        "total_cards": len(cards),
+        "current_performance": state.get("is_correct", False),
+        "assessment_feedback": assessment_feedback  # NEW: Include detailed rubric feedback
+    }
+
     transition_obj = teacher.transition_to_next_sync_full(
         completed_card=current_card,
         next_card=next_card,
-        progress_context={
-            "cards_completed": len(cards_completed),
-            "total_cards": len(cards),
-            "current_performance": state.get("is_correct", False)
-        },
+        progress_context=progress_context,
         state=state  # Pass full state for curriculum context
     )
     

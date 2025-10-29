@@ -108,10 +108,18 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 **Purpose**: Validate lesson template faithfully represents SOW pedagogical design
 
 ### 1.1 Card Structure Preservation (25%)
-- Card count within ±1 of SOW card_structure count
+- Card count reasonably aligns with SOW card_structure count (exact match preferred, but agent may adjust if pedagogically justified)
 - Card order matches SOW lesson_flow_summary
 - SOW card types correctly transformed
 - Template estMinutes matches SOW estMinutes (±5 acceptable)
+- Card count realistic for estMinutes (typically 10-15 min per card)
+
+**Scoring Guidance**:
+- **1.0**: Perfect match with SOW card_structure count
+- **0.95**: Differs by ±1 card, pedagogically sound
+- **0.90**: Differs by ±2 cards, coherent lesson
+- **0.85**: Differs by ±3+ cards but complete
+- **<0.85**: Missing critical pedagogical moments or bloated with redundancy
 
 ### 1.2 Content Preservation (35%)
 - ALL SOW worked_example fields appear in template explainer content

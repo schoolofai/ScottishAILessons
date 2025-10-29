@@ -657,7 +657,7 @@ export class CoursePlannerService {
 
   async updateSessionStatus(
     sessionId: string,
-    status: 'active' | 'completed' | 'abandoned' | 'failed',
+    status: 'active' | 'completed' | 'failed',
     durationMinutes?: number
   ): Promise<void> {
     try {
@@ -670,7 +670,7 @@ export class CoursePlannerService {
         updateData.startedAt = updateData.updatedAt;
       }
 
-      if (status === 'completed' || status === 'abandoned' || status === 'failed') {
+      if (status === 'completed' || status === 'failed') {
         updateData.completedAt = updateData.updatedAt;
         if (durationMinutes !== undefined) {
           updateData.durationMinutes = durationMinutes;

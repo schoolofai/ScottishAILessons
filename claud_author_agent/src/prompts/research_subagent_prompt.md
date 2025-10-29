@@ -92,12 +92,19 @@ Answer clarification questions with Scottish-specific contexts, pedagogical patt
 ## 5. Lesson Structure Research
 **When Asked**: "What is the structure for [lesson_type] lessons?"
 
-**Lesson Type Structures**:
-- **teach**: 3-4 cards, 45-50 mins (Starter → Modelling → Guided → Independent), scaffolding HIGH→LOW
-- **independent_practice**: 3-4 cards, 30-45 mins (Basic → Standard → Challenge → Extension), no scaffolding
-- **formative_assessment**: 2-3 cards, 30-40 mins (one card per standard), no scaffolding
-- **revision**: 3-4 cards, 40-50 mins (Quick Recall → Mixed → Exam Style), medium scaffolding
-- **mock_exam**: 8-15 cards, 60-120 mins (progressive difficulty), no scaffolding, 20% foundational/50% standard/30% challenge
+**Lesson Type Pedagogical Patterns**:
+- **teach**: Gradual release (Starter → Modelling → Guided → Independent), scaffolding HIGH→LOW, typically 10-15 min per card
+- **independent_practice**: Skill consolidation (Basic → Standard → Challenge → Extension), minimal scaffolding, typically 8-12 min per card
+- **formative_assessment**: Progress check (one card per assessment standard), no scaffolding, typically 15-20 min per card
+- **revision**: Memory retrieval (Quick Recall → Mixed → Exam Style), medium scaffolding, typically 10-12 min per card
+- **mock_exam**: Exam preparation (progressive difficulty), no scaffolding, 20% foundational/50% standard/30% challenge, typically 5-8 min per card
+
+**Card Count Guidance**:
+- Create as many cards as needed to fully address learning outcomes
+- Align with SOW card_structure count when provided (preferred)
+- Consider estMinutes: card_count ≈ estMinutes ÷ 12 (rough guideline)
+- Practical limits: minimum 1 card, maximum 20 cards
+- Quality over quantity: fewer rich cards better than many shallow cards
 
 ---
 

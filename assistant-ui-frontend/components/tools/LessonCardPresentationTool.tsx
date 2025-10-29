@@ -88,6 +88,36 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [showHint, setShowHint] = useState(false);
     const [hintIndex, setHintIndex] = useState(0);
 
+    // Stem renderer component for proper markdown and newline formatting
+    const StemRenderer = ({ stem, className }: { stem: string; className?: string }) => {
+      // Handle both literal "\n" strings and actual newline characters
+      // Convert them to double newlines for proper markdown paragraph breaks
+      let processedStem = stem;
+
+      // First, convert literal "\n" strings (escaped) to actual newlines
+      processedStem = processedStem.replace(/\\n/g, '\n');
+
+      // Then convert single newlines to double newlines for markdown paragraphs
+      processedStem = processedStem.replace(/\n/g, '\n\n');
+
+      return (
+        <div className={`prose prose-sm max-w-none ${className || ''}`}>
+          <ReactMarkdown
+            components={{
+              p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+              strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+              em: ({ node, ...props }) => <em className="italic" {...props} />,
+              ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2" {...props} />,
+              ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+              li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+            }}
+          >
+            {processedStem}
+          </ReactMarkdown>
+        </div>
+      );
+    };
+
     // 🚨 DEBUG: Log component mount and interrupt state
     useEffect(() => {
       console.log('🃏 LessonCardTool - Component mounted/updated:', {
@@ -255,9 +285,10 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             {/* MCQ - Multiple Choice Question */}
             {card_data.cfu.type === "mcq" && card_data.cfu.options && (
               <div className="space-y-4">
-                <Label className="text-base font-medium">
-                  {card_data.cfu.stem}
-                </Label>
+                <StemRenderer
+                  stem={card_data.cfu.stem}
+                  className="text-base font-medium mb-3"
+                />
                 <RadioGroup
                   value={selectedMCQOption}
                   onValueChange={setSelectedMCQOption}
@@ -273,7 +304,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                         htmlFor={`option-${index}`}
                         className="text-base cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
                       >
-                        {String.fromCharCode(65 + index)}. {option}
+                        {option}
                       </Label>
                     </div>
                   ))}
@@ -285,7 +316,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             {card_data.cfu.type === "numeric" && (
               <div className="space-y-4">
                 <Label htmlFor="numeric-answer" className="text-base font-medium">
-                  {card_data.cfu.stem}
+                  <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -310,8 +341,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             {/* Structured Response - Multi-part Written Answer */}
             {card_data.cfu.type === "structured_response" && (
               <div className="space-y-4">
-                <Label htmlFor="structured-answer" className="text-base font-medium whitespace-pre-line">
-                  {card_data.cfu.stem}
+                <Label htmlFor="structured-answer" className="text-base font-medium">
+                  <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
                 <textarea
                   id="structured-answer"
@@ -330,7 +361,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             {card_data.cfu.type === "short_text" && (
               <div className="space-y-4">
                 <Label htmlFor="short-text-answer" className="text-base font-medium">
-                  {card_data.cfu.stem}
+                  <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
                 <Input
                   id="short-text-answer"

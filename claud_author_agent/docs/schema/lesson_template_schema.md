@@ -93,8 +93,8 @@ Lesson templates are detailed pedagogical designs containing 3-15 interactive le
 **Example**: `"teach"`
 
 **Impact**:
-- Determines card count (teach: 3-4, mock_exam: 8-15)
-- Influences scaffolding strategy (teach: high→low, independent: none)
+- Influences card structure and pacing (create cards based on pedagogical needs and estMinutes, not fixed counts)
+- Determines scaffolding strategy (teach: high→low, independent: none)
 - Affects CFU type selection (teach: varied, formative: structured_response)
 - Guides hint provision (teach: extensive, independent: minimal)
 

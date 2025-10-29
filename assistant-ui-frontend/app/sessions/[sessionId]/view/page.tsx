@@ -64,16 +64,13 @@ export default function SessionReplayPage() {
 
       setSession(sessionDoc as unknown as SessionData);
 
-      if (!history) {
-        setError('No conversation history available for this session');
-        return;
-      }
-
+      // Set conversation history
       setConversationHistory(history);
 
       logger.info('session_replay_loaded', {
         sessionId,
-        messageCount: history.messages.length
+        messageCount: history?.messages.length || 0,
+        hasHistory: !!history
       });
     } catch (err) {
       logger.error('failed_to_load_session_replay', {
@@ -124,13 +121,31 @@ export default function SessionReplayPage() {
     );
   }
 
-  if (!session || !conversationHistory) {
+  if (!session) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-6xl mx-auto">
           <Alert>
             <BookOpen className="h-4 w-4" />
             <AlertDescription>Session not found</AlertDescription>
+          </Alert>
+          <Button onClick={handleGoBack} className="mt-4" variant="outline">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show simple message if no conversation history available
+  if (!conversationHistory) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-6xl mx-auto">
+          <Alert>
+            <BookOpen className="h-4 w-4" />
+            <AlertDescription>No conversation history available for this session.</AlertDescription>
           </Alert>
           <Button onClick={handleGoBack} className="mt-4" variant="outline">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -179,11 +194,14 @@ export default function SessionReplayPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p><strong>Session ID:</strong> {session.$id}</p>
-              <p><strong>Status:</strong> <Badge variant="outline">{session.status}</Badge></p>
-              <p><strong>Messages:</strong> {conversationHistory.messages.length} messages recorded</p>
-              <p className="italic text-orange-600">⚠️ This is a replay of a completed lesson. All interactions are disabled.</p>
+            <div className="text-sm text-gray-600 space-y-2">
+              <div><strong>Session ID:</strong> {session.$id}</div>
+              <div className="flex items-center gap-2">
+                <strong>Status:</strong>
+                <Badge variant="outline">{session.status}</Badge>
+              </div>
+              <div><strong>Messages:</strong> {conversationHistory.messages.length} messages recorded</div>
+              <div className="italic text-orange-600">⚠️ This is a replay of a completed lesson. All interactions are disabled.</div>
             </div>
           </CardContent>
         </Card>
