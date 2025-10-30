@@ -116,7 +116,6 @@ Examples:
   python -m src.sow_author_cli \\
     --courseId course_c84474 \\
     --mcp-config .mcp.json \\
-    --max-retries 5 \\
     --no-persist-workspace
         """
     )
@@ -146,13 +145,6 @@ Examples:
         help='Path to MCP configuration file (default: .mcp.json)'
     )
     parser.add_argument(
-        '--max-retries',
-        type=int,
-        default=3,
-        metavar='N',
-        help='Maximum critic retry attempts (default: 3)'
-    )
-    parser.add_argument(
         '--no-persist-workspace',
         action='store_true',
         help='Delete workspace after execution (default: persist for debugging)'
@@ -171,7 +163,6 @@ Examples:
 async def run_agent(
     courseId: str,
     mcp_config_path: str = ".mcp.json",
-    max_critic_retries: int = 3,
     persist_workspace: bool = True,
     log_level: str = "INFO"
 ) -> Dict[str, Any]:
@@ -180,7 +171,6 @@ async def run_agent(
     Args:
         courseId: Course identifier (subject/level auto-fetched from database)
         mcp_config_path: Path to MCP config
-        max_critic_retries: Maximum critic retry attempts
         persist_workspace: Whether to preserve workspace
         log_level: Logging level
 
@@ -194,7 +184,6 @@ async def run_agent(
     print("Input Parameters:")
     print(f"  Course ID:     {courseId}")
     print(f"  MCP Config:    {mcp_config_path}")
-    print(f"  Max Retries:   {max_critic_retries}")
     print(f"  Persist WS:    {persist_workspace}")
     print(f"  Log Level:     {log_level}")
     print()
@@ -207,7 +196,6 @@ async def run_agent(
     agent = SOWAuthorClaudeAgent(
         mcp_config_path=mcp_config_path,
         persist_workspace=persist_workspace,
-        max_critic_retries=max_critic_retries,
         log_level=log_level
     )
 
@@ -287,7 +275,6 @@ async def main() -> int:
         result = await run_agent(
             courseId=params["courseId"],
             mcp_config_path=args.mcp_config,
-            max_critic_retries=args.max_retries,
             persist_workspace=not args.no_persist_workspace,
             log_level=args.log_level
         )

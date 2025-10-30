@@ -151,12 +151,28 @@ def _get_previous_attempts(evidence: list, item_id: str) -> list[str]:
     return [entry["response"] for entry in evidence if entry["item_id"] == item_id]
 
 
-def _create_evidence_entry(evaluation, student_response: str, cfu: dict,
+def _create_evidence_entry(evaluation, student_response: str, cfu: dict, current_card: dict,
                           attempts: int, should_progress: bool, max_attempts: int) -> dict:
-    """Create evidence entry for student response evaluation."""
+    """Create evidence entry for student response evaluation.
+
+    Args:
+        evaluation: Evaluation response from LLM
+        student_response: Student's answer text
+        cfu: CFU dict (may or may not have 'id' field)
+        current_card: Full card dict containing 'id' field
+        attempts: Number of attempts made
+        should_progress: Whether student should move to next card
+        max_attempts: Maximum allowed attempts
+
+    Returns:
+        Evidence entry dict with backward-compatible item_id
+    """
+    # Backward-compatible: prefer cfu.id (new schema), fallback to card.id (old schema)
+    item_id = cfu.get("id", current_card.get("id", "unknown"))
+
     return {
         "timestamp": datetime.now().isoformat(),
-        "item_id": cfu["id"],
+        "item_id": item_id,
         "response": student_response,
         "correct": evaluation.is_correct,
         "should_progress": should_progress,

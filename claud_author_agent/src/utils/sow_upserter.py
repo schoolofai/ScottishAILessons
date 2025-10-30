@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, Any
 
 from .compression import compress_json_gzip_base64, get_compression_stats
+from ..tools.sow_validator_tool import validate_sow_schema
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,35 @@ async def upsert_sow_to_appwrite(
             "SOW must have at least one lesson entry."
         )
 
-    logger.info(f"✓ SOW structure validated: {len(sow_data['entries'])} entries")
+    logger.info(f"✓ SOW basic structure validated: {len(sow_data['entries'])} entries")
+
+    # Step 2.5: Pydantic schema validation (comprehensive)
+    logger.info("🔍 Running Pydantic schema validation before database write...")
+    sow_json_str = json.dumps(sow_data)
+    validation_result = validate_sow_schema(sow_json_str)
+
+    if not validation_result["valid"]:
+        error_summary = validation_result["summary"]
+        error_details = validation_result.get("errors", [])
+
+        # Format error messages for display
+        error_messages = []
+        for error in error_details[:10]:  # Limit to 10 for readability
+            location = error.get("location", "unknown")
+            message = error.get("message", "validation error")
+            error_messages.append(f"  - {location}: {message}")
+
+        formatted_errors = "\n".join(error_messages)
+
+        raise ValueError(
+            f"❌ SOW failed Pydantic schema validation:\n"
+            f"{error_summary}\n\n"
+            f"Validation errors:\n{formatted_errors}\n\n"
+            f"This indicates the SOW author/critic subagents produced invalid output. "
+            f"Check workspace files for details."
+        )
+
+    logger.info(f"✓ Pydantic validation passed: {validation_result['summary']}")
 
     # Step 3: Transform to Appwrite schema
     # Extract accessibility_notes from metadata

@@ -31,7 +31,15 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with `.specify/memory/constitution.md`:
+
+- [ ] **Fast-Fail**: No fallback mechanisms planned - all errors throw exceptions with logging
+- [ ] **Code Quality**: Design respects 500-line file / 50-line function limits (plan refactoring if needed)
+- [ ] **Documentation**: PRD, brief, task updates included in "done" definition
+- [ ] **Testing**: Playwright test strategy defined for manual validation
+- [ ] **Architecture**: Compatible with dual implementation (LangGraph + Aegra) if backend changes involved
+
+**Violations Requiring Justification**: [List any intentional violations with rationale, or state "None"]
 
 ## Project Structure
 

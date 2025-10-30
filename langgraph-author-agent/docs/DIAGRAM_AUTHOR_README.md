@@ -101,13 +101,34 @@ Running Diagram Author Agent Basic Tests
 
 ### Running the Agent
 
+**IMPORTANT**: The Diagram Author agent is a LangGraph application and must be run using the `langgraph dev` CLI, not directly with Python.
+
 ```bash
-source venv/bin/activate
+# Start the agent server
 cd langgraph-author-agent
-python src/diagram_author_agent.py
+source ../venv/bin/activate
+langgraph dev
 ```
 
-This runs the example in `diagram_author_agent.py` with a sample lesson template.
+This will:
+1. Start the LangGraph development server on **port 2024** (default)
+2. Expose the `diagram_author` graph at the `/diagram_author/stream` endpoint
+3. Provide an API documentation interface at `http://localhost:2024/docs`
+4. Enable LangGraph Studio debugging at `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`
+
+**Accessing the Agent**:
+- **API Endpoint**: `http://localhost:2024/diagram_author/stream`
+- **API Docs**: `http://localhost:2024/docs`
+- **LangGraph Studio**: `https://smith.langchain.com/studio/?baseUrl=http://127.0.0.1:2024`
+
+**Graph Configuration**: The agent is configured in `langgraph.json` as:
+```json
+{
+  "graphs": {
+    "diagram_author": "./src/diagram_author_agent.py:agent"
+  }
+}
+```
 
 ### Integration with Seeding Scripts
 
@@ -233,9 +254,9 @@ If diagram generation fails after 3 attempts:
 - [ ] Create `diagrams` Storage bucket
 
 ### Phase 3: LangGraph CLI Setup
-- [ ] Create `langgraph.json` configuration
-- [ ] Set up development server (port 2028)
-- [ ] Add health check endpoint
+- [x] Create `langgraph.json` configuration
+- [x] Set up development server (port 2024)
+- [x] Add health check endpoint
 - [ ] Test streaming with LangGraph Studio
 
 ### Phase 4: Production
@@ -253,6 +274,30 @@ docker compose up -d
 curl http://localhost:3001/health
 ```
 
+### LangGraph server not starting
+```bash
+# Check if port 2024 is already in use
+lsof -ti:2024 | xargs kill -9
+
+# Ensure langgraph-cli is installed
+cd langgraph-author-agent
+source ../venv/bin/activate
+pip install "langgraph-cli[inmem]"
+
+# Start the server
+langgraph dev
+```
+
+### Cannot connect to diagram_author graph
+The graph name must match the configuration in `langgraph.json`:
+```bash
+# Correct endpoint
+curl http://localhost:2024/diagram_author/stream
+
+# Check available graphs
+curl http://localhost:2024/docs
+```
+
 ### ImportError: No module named 'deepagents'
 ```bash
 source venv/bin/activate
@@ -265,9 +310,10 @@ export GOOGLE_API_KEY=<your-api-key>
 # Or add to langgraph-author-agent/.env
 ```
 
-### Port 3001 already in use
+### Port 3001 already in use (DiagramScreenshot service)
 ```bash
 lsof -ti:3001 | xargs kill -9
+cd diagram-prototypes
 docker compose up -d
 ```
 
@@ -281,6 +327,8 @@ docker compose up -d
 
 ---
 
-**★ Implementation Status**: ✅ **Core modules complete, tests passing**
+**★ Implementation Status**: ✅ **Core modules complete, tests passing, LangGraph CLI configured**
+
+**How to Run**: Use `langgraph dev` (not `python src/diagram_author_agent.py`)
 
 **Next Milestone**: Frontend seeding script integration
