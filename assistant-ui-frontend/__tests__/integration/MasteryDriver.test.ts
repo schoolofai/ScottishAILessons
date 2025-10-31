@@ -242,4 +242,149 @@ describe('MasteryDriver Integration Tests', () => {
       console.log('Mixed update result EMAs:', result?.emaByOutcome);
     });
   });
+
+  describe('EMA Integration', () => {
+    it('should apply true EMA when updating outcome twice', async () => {
+      // First lesson: score 0.8
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_1': 0.8
+      });
+      
+      let mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      expect(mastery?.emaByOutcome['outcome_ema_1']).toBe(0.8);  // Bootstrap
+      
+      // Second lesson: score 0.3 (bad day)
+      // With α=0.3: 0.3 * 0.3 + 0.7 * 0.8 = 0.65 (not 0.3!)
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_1': 0.3
+      });
+      
+      mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // Verify EMA was applied (score should be ~0.65, not 0.3)
+      expect(mastery?.emaByOutcome['outcome_ema_1']).toBeGreaterThan(0.6);
+      expect(mastery?.emaByOutcome['outcome_ema_1']).toBeLessThan(0.7);
+      expect(mastery?.emaByOutcome['outcome_ema_1']).not.toBe(0.3);  // NOT direct replacement
+      
+      console.log('EMA after bad lesson:', mastery?.emaByOutcome['outcome_ema_1']);
+    });
+
+    it('should preserve untouched outcomes during EMA update', async () => {
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_2': 0.8,
+        'outcome_ema_3': 0.6
+      });
+      
+      // Update only outcome_ema_2
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_2': 1.0
+      });
+      
+      const mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // outcome_ema_2 should be updated with EMA
+      expect(mastery?.emaByOutcome['outcome_ema_2']).toBeGreaterThan(0.8);
+      expect(mastery?.emaByOutcome['outcome_ema_2']).toBeLessThan(1.0);
+      
+      // outcome_ema_3 should remain unchanged
+      expect(mastery?.emaByOutcome['outcome_ema_3']).toBe(0.6);
+    });
+
+    it('should show EMA stabilizing over multiple lessons', async () => {
+      const scores = [1.0, 0.7, 0.3, 0.6, 0.6, 0.6, 0.6];
+      
+      for (const score of scores) {
+        await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+          'outcome_ema_4': score
+        });
+      }
+      
+      const mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // After many 0.6 scores, EMA should converge toward 0.6
+      expect(mastery?.emaByOutcome['outcome_ema_4']).toBeGreaterThan(0.55);
+      expect(mastery?.emaByOutcome['outcome_ema_4']).toBeLessThan(0.65);
+      
+      console.log('EMA after stabilization:', mastery?.emaByOutcome['outcome_ema_4']);
+    });
+
+    it('should handle improvement scenario with EMA', async () => {
+      // Start with poor performance
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_5': 0.3
+      });
+      
+      // Student improves dramatically
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_5': 1.0
+      });
+      
+      const mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // EMA should show improvement but not jump directly to 1.0
+      // With α=0.3: 0.3 * 1.0 + 0.7 * 0.3 = 0.51
+      expect(mastery?.emaByOutcome['outcome_ema_5']).toBeGreaterThan(0.45);
+      expect(mastery?.emaByOutcome['outcome_ema_5']).toBeLessThan(0.55);
+      expect(mastery?.emaByOutcome['outcome_ema_5']).not.toBe(1.0);  // Gradual improvement
+      
+      console.log('EMA after improvement:', mastery?.emaByOutcome['outcome_ema_5']);
+    });
+
+    it('should handle regression scenario with EMA', async () => {
+      // Start with excellent performance
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_6': 0.9
+      });
+      
+      // Student regresses
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_6': 0.5
+      });
+      
+      const mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // EMA should show decline but not drop directly to 0.5
+      // With α=0.3: 0.3 * 0.5 + 0.7 * 0.9 = 0.78
+      expect(mastery?.emaByOutcome['outcome_ema_6']).toBeGreaterThan(0.75);
+      expect(mastery?.emaByOutcome['outcome_ema_6']).toBeLessThan(0.80);
+      expect(mastery?.emaByOutcome['outcome_ema_6']).not.toBe(0.5);  // Gradual decline
+      
+      console.log('EMA after regression:', mastery?.emaByOutcome['outcome_ema_6']);
+    });
+
+    it('should handle multiple outcomes with different EMA trajectories', async () => {
+      // Lesson 1: All outcomes start well
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_7': 0.9,
+        'outcome_ema_8': 0.9,
+        'outcome_ema_9': 0.9
+      });
+      
+      // Lesson 2: Mixed performance
+      await masteryDriver.batchUpdateEMAs(testStudentId, testCourseId, {
+        'outcome_ema_7': 1.0,  // Continues improving
+        'outcome_ema_8': 0.9,  // Stays stable
+        'outcome_ema_9': 0.3   // Regresses
+      });
+      
+      const mastery = await masteryDriver.getMasteryV2(testStudentId, testCourseId);
+      
+      // outcome_ema_7 should increase slightly
+      expect(mastery?.emaByOutcome['outcome_ema_7']).toBeGreaterThan(0.9);
+      expect(mastery?.emaByOutcome['outcome_ema_7']).toBeLessThan(1.0);
+      
+      // outcome_ema_8 should remain stable
+      expect(mastery?.emaByOutcome['outcome_ema_8']).toBeCloseTo(0.9, 1);
+      
+      // outcome_ema_9 should decrease but not catastrophically
+      expect(mastery?.emaByOutcome['outcome_ema_9']).toBeGreaterThan(0.6);
+      expect(mastery?.emaByOutcome['outcome_ema_9']).toBeLessThan(0.8);
+      
+      console.log('Mixed EMA results:', {
+        improved: mastery?.emaByOutcome['outcome_ema_7'],
+        stable: mastery?.emaByOutcome['outcome_ema_8'],
+        regressed: mastery?.emaByOutcome['outcome_ema_9']
+      });
+    });
+  });
 });
