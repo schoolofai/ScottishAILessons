@@ -1,7 +1,9 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./src/agent/graph_interrupt.py:graph_interrupt"
+    "agent": "./src/agent/graph_interrupt.py:graph_interrupt",
+    "question_practice": "./src/agent/sqa/graphs/question_practice.py:question_practice_graph",
+    "exam_assessment": "./src/agent/sqa/graphs/exam_assessment.py:exam_assessment_graph"
   },
   "env": ".env",
   "image_distro": "wolfi",
