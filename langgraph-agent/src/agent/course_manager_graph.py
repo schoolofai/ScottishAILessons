@@ -45,7 +45,7 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
             raise ValueError(error_msg)
 
         # Log received session_context structure
-        logger.info(f"[Course Manager Graph] Received session_context: {json.dumps({
+        context_summary = {
             'student_id': session_context.get('student', {}).get('id'),
             'course_id': session_context.get('course', {}).get('courseId'),
             'mode': session_context.get('mode'),
@@ -56,7 +56,8 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
             'sow_data': session_context.get('sow', []),
             'mastery_data': session_context.get('mastery', []),
             'routine_data': session_context.get('routine', [])
-        })}")
+        }
+        logger.info(f"[Course Manager Graph] Received session_context: {json.dumps(context_summary)}")
 
         # Validate scheduling context
         is_valid, error_message = validate_scheduling_context(session_context)
@@ -74,12 +75,13 @@ def course_manager_node(state: UnifiedState) -> UnifiedState:
                    f"with {template_count} lesson templates")
 
         # Log data being passed to scoring utils
-        logger.info(f"[Course Manager Graph] Passing to scoring utils: {json.dumps({
+        scoring_data = {
             'sow_data': session_context.get('sow', []),
             'mastery_data': session_context.get('mastery', []),
             'routine_data': session_context.get('routine', []),
             'constraints': session_context.get('constraints', {})
-        })}")
+        }
+        logger.info(f"[Course Manager Graph] Passing to scoring utils: {json.dumps(scoring_data)}")
 
         # Generate lesson candidates using scoring algorithm
         candidates = create_lesson_candidates(session_context)
