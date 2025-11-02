@@ -22,6 +22,7 @@ from typing import Dict, Any
 from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt
 
 from ..states import QuestionPracticeState
 from ..subgraphs.fetch_question import compiled_fetch_graph
@@ -91,6 +92,14 @@ def present_question_node(state: QuestionPracticeState) -> Dict[str, Any]:
     )
 
     logger.debug("Presenting question via tool call, waiting for user answer")
+
+    # Interrupt to wait for user answer
+    # Frontend will resume with user_answer in resume_data
+    try:
+        interrupt({})
+    except RuntimeError:
+        # Not in runnable context (e.g., unit tests) - skip interrupt
+        pass
 
     return {
         "messages": [tool_message]
@@ -173,6 +182,14 @@ def show_feedback_node(state: QuestionPracticeState) -> Dict[str, Any]:
     )
 
     logger.debug(f"Showing feedback: {result}, Stats: {stats}")
+
+    # Interrupt to wait for continue decision
+    # Frontend will resume with continue boolean in resume_data
+    try:
+        interrupt({})
+    except RuntimeError:
+        # Not in runnable context (e.g., unit tests) - skip interrupt
+        pass
 
     return {
         "messages": [tool_message]

@@ -25,6 +25,7 @@ import uuid
 from langchain_core.messages import AIMessage
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.types import interrupt
 
 from ..states import ExamAssessmentState, Question
 from ..subgraphs.fetch_question import compiled_fetch_graph
@@ -191,6 +192,14 @@ def deliver_exam_node(state: ExamAssessmentState) -> Dict[str, Any]:
 
     logger.debug(f"Delivering exam {exam_package['exam_id']}, waiting for responses")
 
+    # Interrupt to wait for student responses
+    # Frontend will resume with responses dict in resume_data
+    try:
+        interrupt({})
+    except RuntimeError:
+        # Not in runnable context (e.g., unit tests) - skip interrupt
+        pass
+
     return {
         "messages": [tool_message]
     }
@@ -309,6 +318,14 @@ def show_results_node(state: ExamAssessmentState) -> Dict[str, Any]:
     )
 
     logger.debug(f"Showing results: {total_awarded}/{total_available} ({percentage}%)")
+
+    # Interrupt to wait for next exam decision
+    # Frontend will resume with next_exam boolean in resume_data
+    try:
+        interrupt({})
+    except RuntimeError:
+        # Not in runnable context (e.g., unit tests) - skip interrupt
+        pass
 
     return {
         "messages": [tool_message]

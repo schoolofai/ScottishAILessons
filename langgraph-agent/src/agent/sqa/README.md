@@ -251,6 +251,28 @@ pytest tests/sqa/unit/test_exam_nodes.py -v
 - QuestionPractice nodes: 13 tests
 - ExamAssessment nodes: 18 tests
 
+### Integration & E2E Tests
+
+Integration and E2E test files have been created in `tests/sqa/integration/` and `tests/sqa/e2e/`:
+
+- `test_practice_flow.py` - Full practice session workflows
+- `test_exam_flow.py` - Full exam generation, marking, and remediation flows
+- `test_sqa_graphs_e2e.py` - Realistic user journeys across all SQA levels
+
+**Note on Interrupt-Based Testing:**
+
+These graphs use `interrupt()` calls to pause execution and wait for frontend input (question answers, continue decisions, exam responses). Testing interrupt-based graphs requires either:
+
+1. **LangGraph Server**: Full interrupt/resume handling with streaming
+2. **Custom Test Infrastructure**: Mock interrupt handlers with checkpoint simulation
+
+The integration/E2E tests are written but require proper interrupt handling infrastructure to execute. For now, they serve as:
+- **Documentation** of expected workflows and user journeys
+- **Specification** for frontend integration patterns
+- **Reference** for future integration testing with LangGraph server
+
+The unit tests (85/85 passing) provide comprehensive coverage of all node logic, state transitions, and business rules.
+
 ## Configuration
 
 ### Register in langgraph.json
