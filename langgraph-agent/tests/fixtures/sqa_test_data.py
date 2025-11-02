@@ -147,7 +147,7 @@ CORRECT_ANSWERS = {
 }
 
 WRONG_ANSWERS = {
-    "test_q_001": "0.5",  # Wrong calculation
-    "test_q_002": "x = 8",  # Arithmetic error
-    "test_q_003": "2 m/s²"  # Wrong formula
+    "test_q_001": "completely wrong",  # No match
+    "test_q_002": "I don't know",  # No attempt at equation
+    "test_q_003": "not sure"  # Wrong answer
 }

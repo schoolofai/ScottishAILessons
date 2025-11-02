@@ -105,7 +105,7 @@ def collect_candidates(state: FetchQuestionState) -> Dict[str, Any]:
         logger.info("Generated LLM question")
 
     logger.info(f"Total candidates collected: {len(candidates)}")
-    return {"__candidates": candidates}
+    return {"candidates": candidates}
 
 
 def apply_novelty(state: FetchQuestionState) -> Dict[str, Any]:
@@ -118,7 +118,7 @@ def apply_novelty(state: FetchQuestionState) -> Dict[str, Any]:
     """
     logger.info("=== FETCH_QUESTION: apply_novelty ===")
 
-    candidates = state.get("__candidates", [])
+    candidates = state.get("candidates", [])
     used_ids = set(state.get("used_question_ids", []))
 
     logger.debug(f"Checking {len(candidates)} candidates against {len(used_ids)} used IDs")
@@ -149,7 +149,7 @@ def apply_novelty(state: FetchQuestionState) -> Dict[str, Any]:
     return {
         "question": chosen,
         "used_question_ids": updated_used_ids,
-        "__candidates": None  # Clear temporary state
+        "candidates": None  # Clear temporary state
     }
 
 

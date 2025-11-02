@@ -93,7 +93,7 @@ class FetchQuestionState(TypedDict):
     used_question_ids: NotRequired[List[str]]
 
     # Internal (temporary) - used during processing
-    __candidates: NotRequired[List[Question]]
+    candidates: NotRequired[List[Question]]
 
     # Outputs
     question: NotRequired[Question]
