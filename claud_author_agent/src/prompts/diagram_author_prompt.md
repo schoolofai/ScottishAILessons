@@ -131,6 +131,7 @@ Write final results to `diagrams_output.json` in workspace:
       "image_path": "/absolute/path/to/workspace/diagrams/card_1_lesson.png",
       "diagram_type": "geometry",
       "diagram_context": "lesson",
+      "diagram_description": "Right triangle ABC with sides a=3cm and b=4cm, showing Pythagorean relationship and right angle marker",
       "visual_critique_score": 0.91,
       "critique_iterations": 2,
       "critique_feedback": [
@@ -145,6 +146,7 @@ Write final results to `diagrams_output.json` in workspace:
       "image_path": "/absolute/path/to/workspace/diagrams/card_1_cfu.png",
       "diagram_type": "algebra",
       "diagram_context": "cfu",
+      "diagram_description": "Quadratic function graph with unlabeled vertex and roots for student to determine",
       "visual_critique_score": 0.88,
       "critique_iterations": 1,
       "critique_feedback": [

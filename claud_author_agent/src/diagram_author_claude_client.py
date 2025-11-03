@@ -34,7 +34,7 @@ from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
 from .utils.diagram_extractor import fetch_lesson_template, extract_diagram_cards
 from .utils.diagram_upserter import batch_upsert_diagrams
-from .tools.diagram_screenshot_tool import diagram_screenshot_server, check_diagram_service_health
+from .tools.diagram_screenshot_tool import create_diagram_screenshot_server_with_workspace, check_diagram_service_health
 
 logger = logging.getLogger(__name__)
 
@@ -256,11 +256,13 @@ class DiagramAuthorClaudeAgent:
                 # Tool Name: mcp__diagram-screenshot__render_diagram
                 # Implementation: src/tools/diagram_screenshot_tool.py
                 # ═══════════════════════════════════════════════════════════════
+                # Create MCP server with workspace path captured in closure
+                diagram_screenshot_server = create_diagram_screenshot_server_with_workspace(str(workspace_path))
                 mcp_servers_for_diagram_author = {
-                    "diagram-screenshot": diagram_screenshot_server  # DiagramScreenshot HTTP wrapper
+                    "diagram-screenshot": diagram_screenshot_server  # DiagramScreenshot with workspace path
                     # Appwrite MCP intentionally excluded - not used by diagram author
                 }
-                logger.info("Registered diagram-screenshot MCP tool (Appwrite MCP excluded - not needed)")
+                logger.info(f"Registered diagram-screenshot MCP tool with workspace: {workspace_path}")
 
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
                 options = ClaudeAgentOptions(
@@ -274,11 +276,10 @@ class DiagramAuthorClaudeAgent:
                         'mcp__diagram-screenshot__render_diagram'  # DiagramScreenshot tool
                     ],
                     max_turns=50,  # Reduced limit: 3 iterations per card + overhead (was 500)
-                    cwd=str(workspace_path),  # Set agent working directory to isolated workspace
-                    env={"AGENT_WORKSPACE_PATH": str(workspace_path)}  # Pass workspace to MCP tools
+                    cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
 
-                logger.info(f"Agent configured: bypassPermissions + cwd={workspace_path} + env.AGENT_WORKSPACE_PATH={workspace_path} + max_turns=50")
+                logger.info(f"Agent configured: bypassPermissions + cwd={workspace_path} + max_turns=50")
 
                 # Execute pipeline (2 subagents: diagram_generation, visual_critic)
                 async with ClaudeSDKClient(options) as client:
@@ -448,6 +449,7 @@ class DiagramAuthorClaudeAgent:
                         "image_base64": diagram["image_base64"],
                         "diagram_type": diagram["diagram_type"],
                         "diagram_context": diagram.get("diagram_context"),  # Optional - may not be present in older runs
+                        "diagram_description": diagram.get("diagram_description", ""),  # NEW: Brief description for downstream LLMs
                         "visual_critique_score": diagram["visual_critique_score"],
                         "critique_iterations": diagram["critique_iterations"],
                         "critique_feedback": diagram["critique_feedback"],

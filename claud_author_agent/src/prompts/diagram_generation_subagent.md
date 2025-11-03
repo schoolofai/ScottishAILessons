@@ -356,15 +356,27 @@ Return to the main agent:
   "image_base64": "iVBORw0KGgo...",
   "diagram_type": "geometry",
   "diagram_context": "lesson",
+  "diagram_description": "A right triangle ABC with sides a=3cm and b=4cm, showing the right angle marker at vertex B.",
   "status": "ready_for_critique",
   "render_attempts": 1,
   "render_time_ms": 450
 }
 ```
 
-**IMPORTANT**: Always include `diagram_context` field matching the input context:
-- `"lesson"` for diagrams based on explainer content
-- `"cfu"` for diagrams based on CFU questions
+**IMPORTANT**: Always include these required fields:
+
+- **diagram_context**: Matches the input context
+  - `"lesson"` for diagrams based on explainer content
+  - `"cfu"` for diagrams based on CFU questions
+
+- **diagram_description**: 1-2 sentence description of the diagram
+  - Describe key mathematical elements (shapes, functions, data)
+  - Mention labeled points, axes, or key features
+  - Used by downstream LLMs that cannot view images
+  - Examples:
+    - "A parabola showing y = x² with vertex at origin, axis of symmetry at x=0, and roots marked"
+    - "Bar chart comparing rainfall in mm across Edinburgh, Glasgow, and Stirling using Scottish blue bars"
+    - "Isosceles triangle with two equal sides of 5cm and base angles of 65° each"
 
 Or if rendering fails after 3 attempts:
 
@@ -372,6 +384,7 @@ Or if rendering fails after 3 attempts:
 {
   "status": "render_failed",
   "diagram_context": "lesson",
+  "diagram_description": "",
   "error": "TIMEOUT_ERROR: Diagram too complex",
   "render_attempts": 3,
   "last_error_suggestion": "Simplify diagram or reduce element count"

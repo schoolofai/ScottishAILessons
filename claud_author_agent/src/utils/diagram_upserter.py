@@ -125,6 +125,7 @@ async def upsert_lesson_diagram(
     critique_feedback: List[Dict[str, Any]],
     execution_id: str,
     diagram_context: Optional[str] = None,
+    diagram_description: Optional[str] = None,
     mcp_config_path: str = ".mcp.json"
 ) -> Dict[str, Any]:
     """Upsert lesson diagram to Appwrite lesson_diagrams collection.
@@ -263,6 +264,10 @@ async def upsert_lesson_diagram(
             if diagram_context is not None:
                 update_data["diagram_context"] = diagram_context
 
+            # Add diagram_description if provided (optional for backward compatibility)
+            if diagram_description is not None:
+                update_data["diagram_description"] = diagram_description
+
             updated_doc = await update_appwrite_document(
                 database_id="default",
                 collection_id="lesson_diagrams",
@@ -304,6 +309,10 @@ async def upsert_lesson_diagram(
             # Add diagram_context if provided (optional for backward compatibility)
             if diagram_context is not None:
                 create_data["diagram_context"] = diagram_context
+
+            # Add diagram_description if provided (optional for backward compatibility)
+            if diagram_description is not None:
+                create_data["diagram_description"] = diagram_description
 
             created_doc = await create_appwrite_document(
                 database_id="default",
@@ -353,6 +362,7 @@ async def batch_upsert_diagrams(
             - critique_feedback (list)
             - execution_id (str)
             - diagram_context (str, optional): "lesson" or "cfu" - context for diagram usage
+            - diagram_description (str, optional): Brief description for downstream LLMs
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -397,6 +407,7 @@ async def batch_upsert_diagrams(
                 critique_feedback=diagram_data["critique_feedback"],
                 execution_id=diagram_data["execution_id"],
                 diagram_context=diagram_data.get("diagram_context"),  # Optional - may not be present
+                diagram_description=diagram_data.get("diagram_description"),  # Optional - brief description for LLMs
                 mcp_config_path=mcp_config_path
             )
 
