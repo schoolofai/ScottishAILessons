@@ -8,7 +8,7 @@
   title: string,                       // From SOW.label
   outcomeRefs: string[],               // COMBINED: SOW.outcomeRefs + SOW.assessmentStandardRefs[].code
   lesson_type: "teach" | "independent_practice" | "formative_assessment" | "revision" | "mock_exam",
-  estMinutes: number,                  // Range: 5-120
+  estMinutes: number,                  // Range: 5-120 (regular), 5-180 (mock_exam/mock_assessment)
   createdBy: "lesson_author_agent",    // EXACT VALUE - always this string
   sow_order: number,                   // From SOW.order
   version: 1,                          // Always 1 for new templates

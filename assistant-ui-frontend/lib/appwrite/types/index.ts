@@ -181,6 +181,27 @@ export interface LessonSnapshot {
   policy: LessonPolicy;
 }
 
+/**
+ * Lesson diagram - AI-generated JSXGraph visualization for a specific card
+ * Stored in lesson_diagrams collection with image in Appwrite Storage
+ */
+export interface LessonDiagram {
+  $id: string;
+  $createdAt: string;
+  $updatedAt: string;
+  lessonTemplateId: string; // Foreign key to lesson_templates
+  cardId: string; // Card identifier (e.g., "card_001")
+  jsxgraph_json: string; // Serialized JSXGraph JSON specification
+  image_file_id: string; // Appwrite Storage file ID reference (bucket: 6907775a001b754c19a6)
+  diagram_type: 'geometry' | 'algebra' | 'statistics' | 'mixed';
+  diagram_context?: 'lesson' | 'cfu'; // Optional: "lesson" for teaching content, "cfu" for assessment questions
+  visual_critique_score: number; // Quality score from visual critic (0.0-1.0)
+  critique_iterations: number; // Number of refinement iterations (1-3)
+  critique_feedback: string; // JSON stringified critique history
+  execution_id: string; // Unique generation execution ID
+  failure_reason?: string; // Error details for failed diagrams (optional)
+}
+
 export interface Session {
   $id: string;
   $createdAt: string;

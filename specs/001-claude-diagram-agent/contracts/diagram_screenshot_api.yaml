@@ -1,0 +1,469 @@
+openapi: 3.0.3
+info:
+  title: DiagramScreenshot Service API
+  version: 1.0.0
+  description: |
+    Headless rendering service for JSXGraph mathematical diagrams.
+    Accepts JSXGraph JSON specifications and returns base64-encoded PNG images.
+
+    **Architecture**: Node.js + TypeScript + Playwright
+    **Deployment**: Docker containerized (port 3001)
+    **Timeout**: 30 seconds per render
+
+  contact:
+    name: ScottishAILessons Development Team
+    url: https://github.com/schoolofai/ScottishAILessons
+
+servers:
+  - url: http://localhost:3001
+    description: Local development server
+  - url: https://diagram-service.scottishailessons.com
+    description: Production server (future deployment)
+
+tags:
+  - name: Health
+    description: Service health monitoring
+  - name: Rendering
+    description: Diagram rendering operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Verify service is running and responsive
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                healthy:
+                  summary: Healthy service
+                  value:
+                    status: healthy
+                    timestamp: "2025-10-31T12:34:56.789Z"
+                    version: "1.0.0"
+                    uptime_seconds: 3600
+        '503':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/render:
+    post:
+      tags:
+        - Rendering
+      summary: Render JSXGraph diagram to PNG
+      description: |
+        Accepts JSXGraph JSON specification and returns base64-encoded PNG image.
+
+        **Rendering Process**:
+        1. Validate JSON structure (diagram.board, diagram.elements)
+        2. Launch headless browser (Playwright)
+        3. Load JSXGraph library
+        4. Execute JSXGraph code to create diagram
+        5. Capture screenshot as PNG
+        6. Return base64-encoded image
+
+        **Timeout**: 30 seconds (configurable)
+        **Image Format**: PNG, 800x600px default (configurable via board attributes)
+      operationId: renderDiagram
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiagramRenderRequest'
+            examples:
+              simple_point:
+                summary: Simple point diagram
+                value:
+                  diagram:
+                    board:
+                      boundingbox: [-5, 5, 5, -5]
+                      axis: true
+                      showNavigation: false
+                    elements:
+                      - type: point
+                        args: [[0, 0]]
+                        attributes:
+                          name: "Origin"
+                          size: 3
+                          strokeColor: "#0066CC"
+              pythagorean_triangle:
+                summary: Right triangle (3-4-5)
+                value:
+                  diagram:
+                    board:
+                      boundingbox: [-1, 6, 6, -1]
+                      axis: false
+                      showNavigation: false
+                    elements:
+                      - type: point
+                        args: [[0, 0]]
+                        attributes:
+                          name: "A"
+                          size: 3
+                          strokeColor: "#0066CC"
+                      - type: point
+                        args: [[4, 0]]
+                        attributes:
+                          name: "B"
+                          size: 3
+                          strokeColor: "#0066CC"
+                      - type: point
+                        args: [[0, 3]]
+                        attributes:
+                          name: "C"
+                          size: 3
+                          strokeColor: "#0066CC"
+                      - type: polygon
+                        args: [["A", "B", "C"]]
+                        attributes:
+                          fillColor: "#28a745"
+                          fillOpacity: 0.3
+                          strokeColor: "#0066CC"
+                          strokeWidth: 2
+              quadratic_function:
+                summary: Quadratic function y = x²
+                value:
+                  diagram:
+                    board:
+                      boundingbox: [-5, 10, 5, -2]
+                      axis: true
+                      showNavigation: false
+                    elements:
+                      - type: functiongraph
+                        args: ["x*x", -5, 5]
+                        attributes:
+                          strokeColor: "#DC3545"
+                          strokeWidth: 2
+                      - type: text
+                        args: [1, 2, "y = x²"]
+                        attributes:
+                          fontSize: 16
+                          strokeColor: "#6c757d"
+      responses:
+        '200':
+          description: Diagram rendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramRenderResponse'
+              examples:
+                success:
+                  summary: Successful rendering
+                  value:
+                    success: true
+                    image: "iVBORw0KGgoAAAANSUhEUgAA..."
+                    metadata:
+                      width: 800
+                      height: 600
+                      render_time_ms: 1234
+                      jsxgraph_version: "1.6.2"
+        '400':
+          description: Invalid request (malformed JSON or missing required fields)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramRenderError'
+              examples:
+                invalid_json:
+                  summary: JSON parsing error
+                  value:
+                    success: false
+                    error: "Invalid JSON: Unexpected token"
+                    error_code: "INVALID_JSON"
+                    suggestions:
+                      - "Ensure jsxgraph_json is valid JSON string"
+                      - "Check for proper escaping of quotes"
+                missing_diagram:
+                  summary: Missing diagram key
+                  value:
+                    success: false
+                    error: "Missing 'diagram' key in JSON"
+                    error_code: "INVALID_STRUCTURE"
+                    suggestions:
+                      - "Add 'diagram' key at root level"
+                      - "Structure should be: { diagram: { board: {...}, elements: [...] } }"
+        '401':
+          description: Unauthorized (missing or invalid API key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '408':
+          description: Request timeout (rendering exceeded 30 seconds)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramRenderError'
+              examples:
+                timeout:
+                  summary: Rendering timeout
+                  value:
+                    success: false
+                    error: "Rendering timeout after 30 seconds"
+                    error_code: "TIMEOUT"
+                    suggestions:
+                      - "Simplify diagram (reduce number of elements)"
+                      - "Check if DiagramScreenshot service is responsive"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagramRenderError'
+              examples:
+                render_error:
+                  summary: Rendering failed
+                  value:
+                    success: false
+                    error: "Playwright browser error: Page crashed"
+                    error_code: "RENDER_ERROR"
+                    suggestions:
+                      - "Check service logs for details"
+                      - "Verify diagram elements are valid JSXGraph types"
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        API key for authentication. Default development key: "dev-api-key-change-in-production"
+
+        **Environment Variable**: DIAGRAM_SCREENSHOT_API_KEY
+
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+          description: Service health status
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of health check
+        version:
+          type: string
+          description: Service version (semantic versioning)
+          example: "1.0.0"
+        uptime_seconds:
+          type: integer
+          description: Service uptime in seconds
+          example: 3600
+
+    DiagramRenderRequest:
+      type: object
+      required:
+        - diagram
+      properties:
+        diagram:
+          type: object
+          required:
+            - board
+            - elements
+          properties:
+            board:
+              $ref: '#/components/schemas/JSXGraphBoard'
+            elements:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/JSXGraphElement'
+
+    JSXGraphBoard:
+      type: object
+      required:
+        - boundingbox
+      properties:
+        boundingbox:
+          type: array
+          description: Coordinate bounds [x_min, y_max, x_max, y_min]
+          minItems: 4
+          maxItems: 4
+          items:
+            type: number
+          example: [-5, 5, 5, -5]
+        axis:
+          type: boolean
+          description: Show coordinate axes
+          default: true
+        showNavigation:
+          type: boolean
+          description: Show zoom/pan controls
+          default: false
+        showCopyright:
+          type: boolean
+          description: Show JSXGraph copyright notice
+          default: false
+        grid:
+          type: boolean
+          description: Show grid lines
+          default: false
+
+    JSXGraphElement:
+      type: object
+      required:
+        - type
+        - args
+      properties:
+        type:
+          type: string
+          enum:
+            - point
+            - line
+            - circle
+            - curve
+            - functiongraph
+            - text
+            - polygon
+            - angle
+            - arc
+            - arrow
+          description: JSXGraph element type
+        args:
+          type: array
+          description: Type-specific arguments (varies by element type)
+          items: {}
+        attributes:
+          type: object
+          description: Visual styling and behavior attributes
+          properties:
+            name:
+              type: string
+              description: Element label
+            size:
+              type: integer
+              description: Point size (default: 3)
+            strokeColor:
+              type: string
+              description: Line/border color (hex format)
+              pattern: "^#[0-9A-Fa-f]{6}$"
+              example: "#0066CC"
+            fillColor:
+              type: string
+              description: Fill color (hex format)
+              pattern: "^#[0-9A-Fa-f]{6}$"
+              example: "#28a745"
+            strokeWidth:
+              type: integer
+              description: Line thickness in pixels
+              minimum: 1
+              default: 2
+            withLabel:
+              type: boolean
+              description: Show name label
+              default: true
+            label:
+              type: object
+              description: Label configuration
+              properties:
+                offset:
+                  type: array
+                  description: Label offset from element [x, y]
+                  minItems: 2
+                  maxItems: 2
+                  items:
+                    type: number
+                fontSize:
+                  type: integer
+                  description: Font size in pixels
+                  default: 14
+
+    DiagramRenderResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Rendering success status
+        image:
+          type: string
+          format: byte
+          description: Base64-encoded PNG image data
+          example: "iVBORw0KGgoAAAANSUhEUgAA..."
+        metadata:
+          type: object
+          properties:
+            width:
+              type: integer
+              description: Image width in pixels
+              example: 800
+            height:
+              type: integer
+              description: Image height in pixels
+              example: 600
+            render_time_ms:
+              type: integer
+              description: Rendering duration in milliseconds
+              example: 1234
+            jsxgraph_version:
+              type: string
+              description: JSXGraph library version used
+              example: "1.6.2"
+
+    DiagramRenderError:
+      type: object
+      required:
+        - success
+        - error
+        - error_code
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+          description: Always false for error responses
+        error:
+          type: string
+          description: Human-readable error message
+        error_code:
+          type: string
+          enum:
+            - INVALID_JSON
+            - INVALID_STRUCTURE
+            - TIMEOUT
+            - CONNECTION_ERROR
+            - RENDER_ERROR
+            - HTTP_ERROR
+          description: Machine-readable error code
+        suggestions:
+          type: array
+          description: Actionable suggestions for fixing the error
+          items:
+            type: string
+          example:
+            - "Ensure jsxgraph_json is valid JSON string"
+            - "Check for proper escaping of quotes"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+        details:
+          type: object
+          description: Additional error context
+
+security:
+  - ApiKeyAuth: []

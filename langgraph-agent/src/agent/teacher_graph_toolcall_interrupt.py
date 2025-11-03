@@ -402,6 +402,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": cfu_type,
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }
@@ -555,9 +556,9 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
                 # Skip LLM evaluation, use pre-validation result
                 print(f"🚨 MARK DEBUG - Numeric pre-validation passed, skipping LLM")
                 should_progress = True
-                
+
                 # Record evidence and continue
-                evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
+                evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, current_card, attempts, should_progress, max_attempts)
                 evidence = state.get("evidence", [])
                 evidence.append(evidence_entry)
                 
@@ -617,7 +618,7 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
 
     # Record evidence using shared utility
     should_progress = evaluation.is_correct or (attempts >= max_attempts)
-    evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
+    evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, current_card, attempts, should_progress, max_attempts)
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
 
@@ -634,7 +635,9 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     explanation_message = None
     if attempts >= max_attempts and not evaluation.is_correct:
         print(f"🚨 MARK DEBUG - Max attempts reached with incorrect answer, generating explanation")
-        previous_attempts = _get_previous_attempts(evidence, cfu["id"])
+        # Use same backward-compatible ID fallback as evidence entry
+        item_id = cfu.get("id", current_card.get("id", "unknown"))
+        previous_attempts = _get_previous_attempts(evidence, item_id)
         explanation_obj = teacher.explain_correct_answer_sync_full(
             current_card=current_card,
             student_attempts=previous_attempts,
@@ -783,6 +786,7 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": current_card.get("cfu", {}).get("type", ""),
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }
