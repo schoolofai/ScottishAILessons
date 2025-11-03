@@ -237,7 +237,7 @@ class LessonTemplate(BaseModel):
     label: Optional[str] = Field(None, min_length=30, max_length=80, description="Alternative to title")
     outcomeRefs: List[str] = Field(..., min_length=1, description="SQA outcome + assessment standard codes")
     lesson_type: str = Field(..., description="Pedagogical category")
-    estMinutes: int = Field(..., ge=30, le=120, description="Estimated duration")
+    estMinutes: int = Field(..., ge=5, le=180, description="Estimated duration (5-120 regular, 5-180 mock_exam)")
     sow_order: int = Field(..., ge=1, description="Sequential position in SOW (1-indexed)")
 
     # === METADATA FIELDS ===
@@ -290,6 +290,29 @@ class LessonTemplate(BaseModel):
                     f"Must be one of: {', '.join(sorted(allowed_statuses))}"
                 )
         return v
+
+    @model_validator(mode='after')
+    def validate_est_minutes_by_lesson_type(self):
+        """Validate estMinutes based on lesson_type.
+
+        Mock exams can be up to 180 minutes (to accommodate full SQA exam simulations
+        with multiple papers, e.g., Paper 1: 50min + Break: 5min + Paper 2: 100min).
+        Regular lessons are capped at 120 minutes (double period).
+        """
+        lesson_type = self.lesson_type
+        est_minutes = self.estMinutes
+
+        is_mock_exam = lesson_type in ('mock_exam', 'mock_assessment')
+        max_minutes = 180 if is_mock_exam else 120
+
+        if not (5 <= est_minutes <= max_minutes):
+            lesson_type_label = "Mock exams" if is_mock_exam else "Regular lessons"
+            raise ValueError(
+                f"Invalid estMinutes for lesson_type '{lesson_type}': {est_minutes}. "
+                f"{lesson_type_label} must be between 5 and {max_minutes} minutes."
+            )
+
+        return self
 
     @field_validator('cards')
     @classmethod

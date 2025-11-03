@@ -36,6 +36,10 @@ Write comprehensive critique to `critic_result.json` using Write tool:
     "pass": true | false,
     "failed_checks": ["list of schema violations if pass=false"]
   },
+  "factual_correctness_gate": {
+    "pass": true | false,
+    "failed_checks": ["list of factual errors with corrections if pass=false"]
+  },
   "dimensional_scores": {
     "sow_template_fidelity": 0.0-1.0,
     "basic_quality": 0.0-1.0
@@ -103,6 +107,161 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 
 ---
 
+## FACTUAL CORRECTNESS GATE: CFU & Rubric Validation (PASS/FAIL)
+
+**Purpose**: Validate that CFU questions, expected answers, and rubric criteria are factually/academically correct across ALL subject domains. ANY error = instant FAIL.
+
+**Scope**: This gate validates CORRECTNESS, not pedagogy. Check that:
+- Expected answers are accurate and defensible
+- Rubric criteria reference correct facts/values/concepts/terminology
+- MCQ answer indices point to actually correct options
+- Terminology and descriptions match academic standards
+- Content is factually accurate for the subject domain
+
+**Subject Coverage**: This gate applies to ALL subjects:
+- **Mathematics**: Calculations, place values, operations, notation
+- **Sciences**: Laws, formulas, processes, terminology, units
+- **Languages**: Grammar rules, vocabulary, translations, linguistic concepts
+- **Humanities**: Historical facts, dates, geographical information, social concepts
+- **Computing**: Algorithms, syntax, data structures, technical concepts
+- **Applications**: Real-world contexts, pricing, measurements, authentic scenarios
+
+**Process**:
+1. For EACH card's CFU:
+   - **Verify the question is solvable** and unambiguous
+   - **Check expected answer** against subject domain knowledge
+   - **Validate rubric criteria** reference correct facts/values/concepts
+   - **Check terminology** matches academic/industry standards
+   - **Verify authenticity** of real-world contexts (prices, dates, locations)
+
+2. If ANY factual error found:
+   - Set factual_correctness_gate.pass = false
+   - Add detailed error to failed_checks with correction guidance
+   - STOP evaluation, skip dimensional scoring
+
+**Error Format**:
+Each failed_check entry must include:
+- **Card ID + CFU ID**: Location of error
+- **Error Type**: Category of error (answer error, rubric terminology, criterion reference, context authenticity, etc.)
+- **Discrepancy Description**: What is wrong (be specific with facts)
+- **How to Correct**: Actionable fix guidance with correct information
+
+**Example Failed Checks** (Cross-Subject):
+
+```json
+"failed_checks": [
+  "Card card_003, CFU q003 (Mathematics): RUBRIC CRITERION ERROR - Criterion 'Identifies tenths digit (8) as decision digit' uses incorrect place value terminology. When rounding 12.387 to 1 decimal place, the digit 8 is in the hundredths place, not the tenths place (which is 3). The criterion should reference the correct place value. Correction: Change criterion description to 'Identifies hundredths digit (8) as decision digit' or use generic phrasing like 'identifies the digit immediately after the target place value'.",
+
+  "Card card_005, CFU q005 (Science): EXPECTED ANSWER ERROR - Question asks for the formula of photosynthesis, but rubric criterion states 'CO2 + H2O → C6H12O6 + O2'. This is incomplete - missing light energy and chlorophyll indicators. Discrepancy: Simplified formula omits essential components for National 5 level. Correction: Update rubric to accept '6CO2 + 6H2O + light energy → C6H12O6 + 6O2' or adjust question to specify 'simplified word equation'.",
+
+  "Card card_007, CFU q007 (History): ANSWER INDEX ERROR - MCQ asks 'When did Scotland gain devolution?', answerIndex points to option 2 ('1979'), but correct answer is option 3 ('1999'). The 1979 referendum failed; devolution occurred in 1999. Discrepancy: Answer index points to incorrect historical date. Correction: Change 'answerIndex: 2' to 'answerIndex: 3', or add option clarification 'attempted but failed' for 1979.",
+
+  "Card card_009, CFU q009 (Modern Studies): CONTEXT AUTHENTICITY ERROR - Question uses '£50 monthly mobile phone bill' as typical Scottish consumer example. Discrepancy: £50/month is above typical 2024 Scottish mobile tariffs (£10-30 is more common). This may confuse students or seem inauthentic. Correction: Adjust to '£25 monthly mobile phone bill' for realistic Scottish context, or specify 'premium plan' in question.",
+
+  "Card card_011, CFU q011 (Computing): RUBRIC CRITERION MISMATCH - Question asks students to 'write a Python function that returns True if a number is even', but rubric criterion states 'correctly uses modulo operator (%)'. Discrepancy: Rubric is too prescriptive - students could also use bitwise AND or division-based checks. Correction: Change criterion to 'correctly determines even numbers' (method-agnostic) OR add criterion 'uses modulo operator (%) OR equivalent method'.",
+
+  "Card card_013, CFU q013 (Geography): FACTUAL ERROR - Question states 'Edinburgh is the largest city in Scotland'. Discrepancy: Glasgow is the largest city; Edinburgh is the capital. Correction: Change question to 'Edinburgh is the capital city of Scotland' OR if testing knowledge, make it a true/false question with correct answer being 'False'.",
+
+  "Card card_015, CFU q015 (Gaelic): TRANSLATION ERROR - Expected answer for 'How are you?' is 'Ciamar a tha thu?', but rubric also accepts 'Ciamar a tha sibh?'. Discrepancy: The second phrase is formal/plural 'you', which may not match the informal question context. Correction: Clarify in question whether formal or informal register is expected, or accept both with rubric note about register appropriateness."
+]
+```
+
+**If validation fails**:
+```json
+{
+  "pass": false,
+  "overall_score": 0.0,
+  "schema_gate": {"pass": true},
+  "factual_correctness_gate": {
+    "pass": false,
+    "failed_checks": [/* detailed errors as shown above */]
+  },
+  "dimensional_scores": {"sow_template_fidelity": null, "basic_quality": null},
+  "dimensional_feedback": {
+    "sow_template_fidelity": "NOT EVALUATED - factual correctness gate failed",
+    "basic_quality": "NOT EVALUATED - factual correctness gate failed"
+  },
+  "feedback": "CRITICAL: Factual correctness gate failed with N errors. Fix ALL factual/academic errors before re-evaluation: [summarize error types and subjects]",
+  "issues": [/* factual errors as issues */]
+}
+```
+
+**CFU-Type Specific Checks** (Subject-Agnostic):
+
+### Numeric CFU (`type: "numeric"`)
+- ✅ Expected answer is correct for the subject domain (math calculation, scientific measurement, date/year, etc.)
+- ✅ Tolerance is appropriate for problem context and subject precision standards
+- ✅ Rubric criteria reference correct steps/operations/concepts
+- ✅ Units match problem requirements and regional standards (metric in UK science)
+- ✅ If money2dp=true, expected answer has exactly 2 decimal places
+
+### MCQ CFU (`type: "mcq"`)
+- ✅ answerIndex points to the factually/academically correct option
+- ✅ Distractors are plausible but verifiably incorrect per subject knowledge
+- ✅ No ambiguity - only ONE option is defensibly correct by academic standards
+- ✅ Options don't contain factual errors (e.g., wrong dates, misspelled terms, incorrect definitions)
+
+### Structured Response CFU (`type: "structured_response"`)
+- ✅ Multi-part questions (a), (b), (c) have correct solutions per subject domain
+- ✅ Rubric criteria match the problem structure and subject requirements
+- ✅ Criterion descriptions reference correct facts/values/steps/concepts
+- ✅ Terminology matches subject-specific academic/industry standards
+- ✅ Part dependencies are logically sound (part b doesn't depend on wrong part a answer)
+
+### Short Text CFU (`type: "short_text"`)
+- ✅ If question has a definitive answer per subject standards, rubric reflects it
+- ✅ Rubric criteria reference correct concepts/definitions/terminology
+- ✅ No factual errors in stem or rubric descriptions
+- ✅ Acceptable answers cover legitimate subject variations (e.g., British vs American spelling)
+
+**Common Error Patterns to Check** (Cross-Subject):
+
+1. **Terminology errors**: Incorrect technical terms, confused definitions, wrong place values
+2. **Calculation/formula errors**: Wrong arithmetic, incorrect scientific formulas, wrong algorithms
+3. **Reference errors**: Rubric mentions incorrect values/facts/dates/names
+4. **Historical/factual errors**: Wrong dates, events, locations, people, processes
+5. **Logic errors**: MCQ points to wrong option, contradictory criteria, impossible scenarios
+6. **Unit/notation errors**: Wrong units, incorrect notation, non-standard symbols
+7. **Ambiguity**: Multiple defensible answers but rubric only accepts one arbitrarily
+8. **Authenticity errors**: Unrealistic prices, outdated information, non-Scottish contexts
+9. **Translation errors**: Wrong language translations, incorrect linguistic terminology
+10. **Scientific errors**: Violated laws of nature, incorrect chemical formulas, wrong biological processes
+
+**Validation Strategy** (Subject-Specific):
+
+**For Mathematics/Sciences**:
+- Work through calculations yourself, verify expected answers
+- Check formulas against standard references (SQA standards, textbooks)
+- Verify units and notation match Scottish/UK standards
+
+**For Languages**:
+- Verify translations using authoritative sources
+- Check grammar rules against language standards
+- Confirm spelling matches regional variant (British English for Scotland)
+
+**For Humanities**:
+- Cross-reference historical facts with authoritative sources
+- Verify dates, names, locations, events
+- Check geographical information for accuracy
+
+**For Computing**:
+- Verify code syntax and logic
+- Check algorithmic correctness
+- Confirm technical terminology matches industry standards
+
+**For Applied/Real-World Contexts**:
+- Verify prices/costs are realistic for Scottish context (2024)
+- Check locations/services exist (ScotRail routes, NHS services)
+- Confirm measurements/values are plausible
+
+**When in Doubt**:
+- Use WebSearch to verify factual claims
+- Cross-reference against Course_data.txt SQA standards
+- Check multiple authoritative sources for contentious facts
+- Flag ambiguities even if you proceed with pass
+
+---
+
 ## DIMENSION 1: SOW-Template Fidelity (Weight: 0.75, Threshold: ≥0.90)
 
 **Purpose**: Validate lesson template faithfully represents SOW pedagogical design
@@ -111,8 +270,8 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 - Card count reasonably aligns with SOW card_structure count (exact match preferred, but agent may adjust if pedagogically justified)
 - Card order matches SOW lesson_flow_summary
 - SOW card types correctly transformed
-- Template estMinutes matches SOW estMinutes (±5 acceptable)
-- Card count realistic for estMinutes (typically 10-15 min per card)
+- Template estMinutes (if provided) is reasonable for Scottish classroom periods (25-50 min)
+- Card count realistic for lesson content (typically 6-12 cards per lesson)
 
 **Scoring Guidance**:
 - **1.0**: Perfect match with SOW card_structure count
@@ -165,7 +324,7 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 - No US-specific references (Walmart, ZIP codes, etc.)
 
 ### 2.3 Coherence Basics (30%)
-- Metadata consistency: title, lesson_type, estMinutes match SOW
+- Metadata consistency: title, lesson_type match SOW (estMinutes optional)
 - outcomeRefs = SOW outcomeRefs + SOW assessmentStandardRefs codes
 - Card count matches SOW design (within ±1)
 
@@ -177,6 +336,7 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 
 `pass = true` IF:
 - schema_gate.pass = true AND
+- factual_correctness_gate.pass = true AND
 - sow_template_fidelity ≥ 0.90 AND
 - basic_quality ≥ 0.80 AND
 - overall_score ≥ 0.85
@@ -218,7 +378,27 @@ Check:
 
 If ANY check fails: Set schema_gate.pass = false, skip dimensional scoring, write result
 
-### Step 3: EVALUATE DIMENSION 1 - SOW-Template Fidelity (if schema gate passed)
+### Step 2.5: RUN FACTUAL CORRECTNESS GATE (if schema gate passed)
+
+For each card's CFU:
+1. Verify question is solvable, unambiguous, and factually sound
+2. Check expected answer / correct option against subject domain knowledge
+3. Validate rubric criteria reference correct facts/values/concepts
+4. Check terminology matches academic/industry standards
+5. Verify real-world contexts are authentic and appropriate
+
+If ANY check fails:
+- Set factual_correctness_gate.pass = false
+- Add detailed error with correction to failed_checks
+- Skip dimensional scoring
+- Write failure result
+
+**Use WebSearch if needed** to verify:
+- Current facts (prices, dates, policies)
+- Scottish-specific information (locations, services, regulations)
+- Subject-specific standards (formulas, terminology, processes)
+
+### Step 3: EVALUATE DIMENSION 1 - SOW-Template Fidelity (if both gates passed)
 - Extract SOW card_structure
 - Compare card counts (±1 acceptable)
 - Check worked examples preservation
@@ -269,11 +449,12 @@ Use Write tool to create `critic_result.json` with all fields
 
 ## Example Outcomes
 
-| Scenario | Overall | Schema Gate | Fidelity | Quality | Result | Key Issues |
-|----------|---------|-------------|----------|---------|--------|------------|
-| High-quality | 0.92 | ✅ pass | 0.95 | 0.85 | ✅ pass=true | None - zero content loss |
-| Poor fidelity | 0.68 | ✅ pass | 0.65 | 0.78 | ❌ pass=false | Card count mismatch, worked examples not used, practice problems ignored |
-| Schema fail | 0.0 | ❌ fail | null | null | ❌ pass=false | Forbidden fields present, createdBy≠"lesson_author_agent", CFU uses "question_text" |
+| Scenario | Overall | Schema Gate | Factual Gate | Fidelity | Quality | Result | Key Issues |
+|----------|---------|-------------|--------------|----------|---------|--------|------------|
+| High-quality | 0.92 | ✅ pass | ✅ pass | 0.95 | 0.85 | ✅ pass=true | None - zero content loss |
+| Poor fidelity | 0.68 | ✅ pass | ✅ pass | 0.65 | 0.78 | ❌ pass=false | Card count mismatch, worked examples not used, practice problems ignored |
+| Schema fail | 0.0 | ❌ fail | N/A | null | null | ❌ pass=false | Forbidden fields present, createdBy≠"lesson_author_agent", CFU uses "question_text" |
+| Factual fail | 0.0 | ✅ pass | ❌ fail | null | null | ❌ pass=false | CFU expected answers incorrect, rubric criteria reference wrong facts, terminology errors across subjects |
 
 **Common Failure Patterns**:
 

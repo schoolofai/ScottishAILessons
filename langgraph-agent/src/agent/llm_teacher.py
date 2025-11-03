@@ -340,11 +340,15 @@ Card Details:
 - Sqa alignment summary: {sqa_alignment_summary}
 </card context>
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Present this card: {card_title}")
         ])
 
@@ -478,11 +482,15 @@ Evaluation Guidelines:
 11. Be encouraging and guide learning without giving away the solution
 12. The correct answer will be revealed separately if needed after max attempts
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions in feedback, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters.
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$
 
 Return your evaluation as structured output."""),
             ("human", "Evaluate this student response")
@@ -523,11 +531,15 @@ EXAMPLE without assessment feedback (skipped/first card):
 
 Create a smooth, encouraging transition that celebrates their learning and builds excitement for the next topic.
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Transition to the next topic")
         ])
         
@@ -564,11 +576,15 @@ The student has tried their best but hasn't got the correct answer. Now provide 
 
 Be supportive and educational - this is a learning moment, not a failure.
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Explain the correct answer")
         ])
         
@@ -602,11 +618,15 @@ Your task is to:
 
 Be supportive, specific, and educational. Focus on growth and learning rather than just correctness.
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Analyze this completed lesson and provide comprehensive feedback")
         ])
         
@@ -633,11 +653,15 @@ Card Details:
 - Sqa alignment summary: {sqa_alignment_summary}
 </card context>
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Start the lesson with the first card")
         ])
         
@@ -665,11 +689,15 @@ Card Details:
 </card context>
 
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Start the lesson with the first MCQ card")
         ])
         
@@ -699,11 +727,15 @@ Card Details:
 </card context>
 
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Present this MCQ card: {card_title}")
         ])
 
@@ -1482,11 +1514,15 @@ Provide a progressive hint that:
 3. Is encouraging and supportive
 4. References their specific error pattern
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
                 ("human", "Generate a hint")
             ])
             

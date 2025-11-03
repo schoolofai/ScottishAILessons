@@ -17,6 +17,8 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { BookOpenIcon, UserIcon, ClockIcon } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
+import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 type LessonCardPresentationArgs = {
   card_content: string;
@@ -87,6 +89,10 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
     const [hintIndex, setHintIndex] = useState(0);
+
+    // Diagram state - for fetching and displaying lesson diagrams
+    const [diagramUrl, setDiagramUrl] = useState<string | null>(null);
+    const [diagramLoading, setDiagramLoading] = useState<boolean>(false);
 
     // Stem renderer component for proper markdown and newline formatting
     const StemRenderer = ({ stem, className }: { stem: string; className?: string }) => {
@@ -169,6 +175,62 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         } : null);
       };
     }, [args.card_data?.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
+
+    // Fetch diagram for current card
+    useEffect(() => {
+      // Extract lessonTemplateId from various possible locations
+      const lessonTemplateId =
+        (args as any).lesson_template_id || // Direct field
+        (args as any).lesson_snapshot?.lessonTemplateId || // From snapshot
+        args.lesson_context?.lesson_template_id; // From context
+
+      const cardId = args.card_data?.id;
+
+      console.log('📊 DiagramFetch - Attempting to fetch diagram:', {
+        lessonTemplateId,
+        cardId,
+        hasLessonTemplateId: !!lessonTemplateId,
+        hasCardId: !!cardId
+      });
+
+      // Only fetch if we have both required IDs
+      if (!lessonTemplateId || !cardId) {
+        console.warn('⚠️ DiagramFetch - Missing required IDs, skipping diagram fetch');
+        return;
+      }
+
+      const fetchDiagram = async () => {
+        setDiagramLoading(true);
+        try {
+          console.log('🔍 DiagramFetch - Querying Appwrite for CFU diagram...');
+          // Initialize driver without session token (Storage bucket must have public read permissions)
+          // Alternative: Pass session token if bucket is private: new DiagramDriver(sessionToken)
+          const driver = new DiagramDriver();
+          const result = await driver.getCFUDiagramWithPreviewUrl(lessonTemplateId, cardId);
+
+          if (result) {
+            console.log('✅ DiagramFetch - CFU diagram found:', {
+              fileId: result.diagram.image_file_id,
+              previewUrl: result.previewUrl,
+              diagramType: result.diagram.diagram_type,
+              diagramContext: result.diagram.diagram_context
+            });
+            setDiagramUrl(result.previewUrl);
+          } else {
+            console.log('ℹ️ DiagramFetch - No diagram exists for this card (expected for cards without diagrams)');
+            setDiagramUrl(null);
+          }
+        } catch (error) {
+          console.error('❌ DiagramFetch - Failed to fetch diagram:', error);
+          // Silent fail - no diagram shown (graceful degradation)
+          setDiagramUrl(null);
+        } finally {
+          setDiagramLoading(false);
+        }
+      };
+
+      fetchDiagram();
+    }, [args.card_data?.id, (args as any).lesson_template_id, (args as any).lesson_snapshot?.lessonTemplateId, args.lesson_context?.lesson_template_id]);
 
     // CHECK: Only render if there's an interrupt
     // In replay mode, render even without interrupt (tool calls trigger rendering)
@@ -282,6 +344,23 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               Your Turn to Answer
             </h3>
 
+            {/* Diagram Display - shown above question if available */}
+            {diagramUrl && (
+              <div className="mb-6">
+                <img
+                  src={diagramUrl}
+                  alt={`Diagram for ${card_data.title}`}
+                  className="w-full max-w-2xl mx-auto rounded-lg border border-gray-200 shadow-sm"
+                  loading="lazy"
+                  onError={(e) => {
+                    console.error('❌ DiagramRender - Failed to load diagram image:', diagramUrl);
+                    // Hide image on load error (graceful degradation)
+                    setDiagramUrl(null);
+                  }}
+                />
+              </div>
+            )}
+
             {/* MCQ - Multiple Choice Question */}
             {card_data.cfu.type === "mcq" && card_data.cfu.options && (
               <div className="space-y-4">
@@ -338,20 +417,21 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             )}
 
-            {/* Structured Response - Multi-part Written Answer */}
+            {/* Structured Response - Multi-part Written Answer with Rich Text */}
             {card_data.cfu.type === "structured_response" && (
               <div className="space-y-4">
                 <Label htmlFor="structured-answer" className="text-base font-medium">
                   <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
-                <textarea
-                  id="structured-answer"
+                <RichTextEditor
                   value={studentAnswer}
-                  onChange={(e) => setStudentAnswer(e.target.value)}
-                  placeholder="Show your working for each part. Write your complete answer."
-                  className="w-full p-3 border rounded-lg text-base font-mono min-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={setStudentAnswer}
+                  placeholder="Show your working for each part. Use the toolbar for formatting or click the formula button (Σ) to insert equations."
+                  className="min-h-[200px]"
                 />
                 <p className="text-xs text-gray-500">
+                  💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, and the formula button (Σ) for math equations like E = mc²
+                  <br />
                   Max points: {card_data.cfu.rubric.total_points}
                 </p>
               </div>
