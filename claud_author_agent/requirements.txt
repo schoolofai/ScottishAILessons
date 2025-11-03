@@ -13,3 +13,8 @@ pytest-asyncio>=0.21.0
 
 # Optional: Type checking
 mypy>=1.5.0
+
+# Optional: PDF export for revision notes
+# Note: weasyprint has system dependencies (Cairo, Pango)
+# See: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#installation
+weasyprint>=60.0
