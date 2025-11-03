@@ -16,6 +16,12 @@ description: "Task list template for feature implementation"
 - **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
 - Include exact file paths in descriptions
 
+**Constitution Compliance**: All tasks must respect `.specify/memory/constitution.md`:
+- Fast-fail: No fallback patterns - exceptions with detailed logging
+- Code quality: Files <500 lines, functions <50 lines (refactor if needed)
+- Documentation: Update PRD/brief/task files as part of "done"
+- Testing: Include Playwright manual test validation tasks
+
 ## Path Conventions
 - **Single project**: `src/`, `tests/` at repository root
 - **Web app**: `backend/src/`, `frontend/src/`

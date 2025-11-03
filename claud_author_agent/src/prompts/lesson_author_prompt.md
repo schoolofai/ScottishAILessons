@@ -22,7 +22,7 @@ The lesson_template.json file MUST contain these exact fields:
   "title": "string (REQUIRED - from SoW entry 'label' field)",
   "outcomeRefs": ["array<string> (REQUIRED - see transformation rule #1 below)"],
   "lesson_type": "teach|independent_practice|formative_assessment|revision|mock_exam (REQUIRED)",
-  "estMinutes": "integer 5-120 (REQUIRED)",
+  "estMinutes": "integer 5-120 (REQUIRED for regular lessons), 5-180 (allowed for mock_exam/mock_assessment)",
   "createdBy": "lesson_author_agent (REQUIRED - ALWAYS this exact value)",
   "sow_order": "integer (REQUIRED - extract from input 'order' field)",
 
@@ -159,7 +159,7 @@ output_courseId = input_courseId
 - [ ] `title` exists and is non-empty string
 - [ ] `outcomeRefs` exists and is non-empty array
 - [ ] `lesson_type` exists and matches: teach|independent_practice|formative_assessment|revision|mock_exam
-- [ ] `estMinutes` exists and is integer between 5-120
+- [ ] `estMinutes` exists and is integer (5-120 for regular lessons, 5-180 for mock_exam/mock_assessment)
 - [ ] `createdBy` is exactly "lesson_author_agent" (not "claude", not "ai", not anything else)
 - [ ] `sow_order` exists and is positive integer
 - [ ] `cards` exists and is array with 3-5 elements (or 8-15 for mock_exam)
@@ -450,7 +450,7 @@ Learn from these mistakes to avoid schema validation failures:
         "plain_language_level": "CEFR_<A1|A2|B1>",
         "extra_time": <boolean>
       },
-      "estMinutes": <integer 5-120>
+      "estMinutes": <integer 5-120 for regular, 5-180 for mock_exam>
     }
     ```
 
@@ -987,6 +987,7 @@ Adapt card count based on estMinutes:
 - 60 mins (mock_exam): 8-10 cards (comprehensive single paper)
 - 90 mins (mock_exam): 10-12 cards (standard exam paper)
 - 120 mins (mock_exam): 12-15 cards (extended or two-paper exam)
+- 120-180 mins (mock_exam): Up to 15 cards (full multi-paper SQA exam simulation)
 </card_design_patterns>
 
 <explainer_design_by_lesson_type>

@@ -195,3 +195,55 @@ def validate_lesson_author_input(input_data: Dict[str, Any]) -> tuple[bool, str]
 
     logger.info(f"Lesson Author input validation passed: courseId='{course_id}', order={order}")
     return True, ""
+
+
+def validate_diagram_author_input(input_data: Dict[str, Any]) -> tuple[bool, str]:
+    """Validate Diagram Author input data schema and format.
+
+    Checks that input contains required fields (courseId, order) and that
+    values are properly formatted. Uses same validation as Lesson Author.
+
+    Args:
+        input_data: Dictionary containing courseId and order
+
+    Returns:
+        Tuple of (is_valid: bool, error_message: str)
+        If valid, error_message is empty string.
+
+    Example:
+        >>> validate_diagram_author_input({
+        ...     "courseId": "course_c84874",
+        ...     "order": 5
+        ... })
+        (True, "")
+
+        >>> validate_diagram_author_input({"courseId": "invalid_format"})
+        (False, "Invalid courseId format: ...")
+    """
+    # Check required fields
+    if "courseId" not in input_data:
+        return False, "Missing required field: courseId"
+
+    if "order" not in input_data:
+        return False, "Missing required field: order"
+
+    course_id = input_data["courseId"]
+    order = input_data["order"]
+
+    # Validate types
+    if not isinstance(course_id, str):
+        return False, f"Field 'courseId' must be string, got {type(course_id).__name__}"
+
+    if not isinstance(order, int):
+        return False, f"Field 'order' must be integer, got {type(order).__name__}"
+
+    # Validate courseId format (must start with "course_")
+    if not course_id.startswith("course_"):
+        return False, f"Invalid courseId format: '{course_id}'. Expected format: 'course_*' (e.g., 'course_c84874')"
+
+    # Validate order is 1-indexed (starts from 1, not 0)
+    if order < 1:
+        return False, f"Invalid order: {order}. Order must be >= 1 (1-indexed, starts from 1)"
+
+    logger.info(f"Diagram Author input validation passed: courseId='{course_id}', order={order}")
+    return True, ""

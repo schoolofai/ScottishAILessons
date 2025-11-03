@@ -1,0 +1,731 @@
+{
+  "level_name": "National 5",
+  "level_aliases": [
+    "Nat 5",
+    "N5"
+  ],
+  "qualification": {
+    "title": "National 5 Mathematics",
+    "course_code": "C847 75",
+    "scqf": {
+      "level": 5,
+      "credits": 24,
+      "core_skill_auto_cert": "Numeracy at SCQF level 5"
+    }
+  },
+  "course_structure": {
+    "structure_type": "skills_based",
+    "units": [],
+    "added_value_unit": {
+      "present": false,
+      "code": null,
+      "title": null,
+      "scqf_credits": null
+    },
+    "skills_framework": {
+      "knowledge_understanding": [
+        "understand and use mathematical concepts and relationships",
+        "select and apply numerical skills",
+        "select and apply skills in algebra, geometry, trigonometry and statistics",
+        "use mathematical models",
+        "use mathematical reasoning skills to interpret information, to select a strategy to solve a problem, and to communicate solutions"
+      ],
+      "skills": [
+        {
+          "name": "Working with surds",
+          "description": "Simplification, Rationalising denominators",
+          "examples": []
+        },
+        {
+          "name": "Simplifying expressions using the laws of indices",
+          "description": "Multiplication and division using positive and negative indices including fractions, (ab)ᵐ = aᵐbᵐ, (aᵐ)ⁿ = aᵐⁿ, aᵐ/ⁿ = ⁿ√aᵐ, Calculations using scientific notation",
+          "examples": []
+        },
+        {
+          "name": "Rounding",
+          "description": "To a given number of significant figures",
+          "examples": []
+        },
+        {
+          "name": "Working with reverse percentages",
+          "description": "Use reverse percentages to calculate an original quantity",
+          "examples": []
+        },
+        {
+          "name": "Working with appreciation/depreciation",
+          "description": "Appreciation including compound interest, Depreciation",
+          "examples": []
+        },
+        {
+          "name": "Working with fractions",
+          "description": "Operations and combinations of operations on fractions including mixed numbers (addition, subtraction, multiplication, division)",
+          "examples": []
+        },
+        {
+          "name": "Working with algebraic expressions involving expansion of brackets",
+          "description": "a(bx+c)+d(ex+f), ax(bx+c), (ax+b)(cx+d), (ax+b)(cx²+dx+e) where a,b,c,d,e,f ∈Z",
+          "examples": []
+        },
+        {
+          "name": "Factorising an algebraic expression",
+          "description": "Common factor, Difference of squares p²x² - a², Trinomials with unitary and non-unitary x² coefficient, Combinations of the above",
+          "examples": []
+        },
+        {
+          "name": "Completing the square in a quadratic expression with unitary x² coefficient",
+          "description": "Writing quadratics of the form x²+bx+c in the form (x+p)² +q where b,c∈Z and p,q∈Q",
+          "examples": []
+        },
+        {
+          "name": "Reducing an algebraic fraction to its simplest form",
+          "description": "a/b where a,b are of the form (mx+p)ⁿ or (mx+p)(nx+q) and b≠0",
+          "examples": []
+        },
+        {
+          "name": "Applying the four operations to algebraic fractions",
+          "description": "a/b * c/d where a,b,c,d can be simple constants, variables or expressions; * can be add, subtract, multiply or divide; and b≠0,d≠0",
+          "examples": []
+        },
+        {
+          "name": "Determining the equation of a straight line",
+          "description": "Use the formula y-b=m(x-a) or equivalent to find the equation of a straight line, given two points or one point and the gradient of the line, Use functional notation, f(x), Identify gradient and y-intercept from various forms of the equation of a straight line",
+          "examples": []
+        },
+        {
+          "name": "Working with linear equations and inequations",
+          "description": "Where numerical coefficients are rational numbers, Q, Where numerical solutions are rational numbers, Q",
+          "examples": []
+        },
+        {
+          "name": "Working with simultaneous equations",
+          "description": "Construct from text, Graphical solution, Algebraic solution",
+          "examples": []
+        },
+        {
+          "name": "Changing the subject of a formula",
+          "description": "Linear formula, Formula involving a simple square or square root",
+          "examples": []
+        },
+        {
+          "name": "Recognise and determine the equation of a quadratic function from its graph",
+          "description": "Equations of the form y=kx² and y=k(x+p)²+q where k,p,q∈Z",
+          "examples": []
+        },
+        {
+          "name": "Sketching a quadratic function",
+          "description": "Equations of the form y=(ax-m)(bx-n) where a,b,m,n∈Z, Equations of the form y=k(x+p)²+q where k,p,q∈Z",
+          "examples": []
+        },
+        {
+          "name": "Identifying features of a quadratic function",
+          "description": "Identify: the nature and coordinates of the turning point, the equation of the axis of symmetry of a quadratic of the form y=k(x+p)²+q where k,p,q∈Z",
+          "examples": []
+        },
+        {
+          "name": "Solving a quadratic equation",
+          "description": "Solving from factorised form, Solving having factorised first, Graphical treatment",
+          "examples": []
+        },
+        {
+          "name": "Solving a quadratic equation using the quadratic formula",
+          "description": "Solving using the quadratic formula",
+          "examples": []
+        },
+        {
+          "name": "Using the discriminant to determine the number of roots",
+          "description": "Know and use the discriminant, Determine the number and describe the nature of roots using the language 'two real and distinct roots', 'one repeated real root', 'two equal real roots' and 'no real roots'",
+          "examples": []
+        },
+        {
+          "name": "Determining the gradient of a straight line, given two points",
+          "description": "m = (y₂-y₁)/(x₂-x₁)",
+          "examples": []
+        },
+        {
+          "name": "Circle geometry",
+          "description": "Calculating the length of an arc, Calculating the area of a sector",
+          "examples": []
+        },
+        {
+          "name": "Calculating the volume of a standard solid",
+          "description": "Sphere, cone, pyramid",
+          "examples": []
+        },
+        {
+          "name": "Applying Pythagoras' theorem",
+          "description": "Using Pythagoras' theorem in complex situations including converse and three dimensions",
+          "examples": []
+        },
+        {
+          "name": "Applying the properties of shapes to determine an angle involving at least two steps",
+          "description": "Quadrilaterals/triangles/polygons/circles, Relationship in a circle between the centre, chord and perpendicular bisector",
+          "examples": []
+        },
+        {
+          "name": "Using similarity",
+          "description": "Interrelationship of scale — length, area and volume",
+          "examples": []
+        },
+        {
+          "name": "Working with two-dimensional vectors",
+          "description": "Adding or subtracting two-dimensional vectors using directed line segments",
+          "examples": []
+        },
+        {
+          "name": "Working with three-dimensional coordinates",
+          "description": "Determining coordinates of a point from a diagram representing a three-dimensional object",
+          "examples": []
+        },
+        {
+          "name": "Using vector components",
+          "description": "Adding or subtracting two- or three-dimensional vectors using components",
+          "examples": []
+        },
+        {
+          "name": "Calculating the magnitude of a vector",
+          "description": "Magnitude of a two- or three-dimensional vector",
+          "examples": []
+        },
+        {
+          "name": "Working with the graphs of trigonometric functions",
+          "description": "Basic graphs, Amplitude, Vertical translation, Multiple angle, Phase angle",
+          "examples": []
+        },
+        {
+          "name": "Working with trigonometric relationships in degrees",
+          "description": "Sine, cosine and tangent of angles from 0° to 360°, Period, Related angles, Solve basic equations, Use the identities cos²x° + sin²x° = 1 and tan x° = sin x° / cos x°",
+          "examples": []
+        },
+        {
+          "name": "Calculating the area of a triangle using trigonometry",
+          "description": "Area = ½ab sin C",
+          "examples": []
+        },
+        {
+          "name": "Using the sine and cosine rules to find a side or angle in a triangle",
+          "description": "Sine rule for side and angle, Cosine rule for side and angle",
+          "examples": []
+        },
+        {
+          "name": "Using bearings with trigonometry",
+          "description": "To find a distance or direction",
+          "examples": []
+        },
+        {
+          "name": "Comparing data sets using statistics",
+          "description": "Compare data sets using calculated/determined: interquartile range, standard deviation",
+          "examples": []
+        },
+        {
+          "name": "Forming a linear model from a given set of data",
+          "description": "Determine the equation of a best-fitting straight line on a scattergraph and use it to estimate y given x",
+          "examples": []
+        },
+        {
+          "name": "Interpreting a situation where mathematics can be used and identifying a strategy",
+          "description": "Can be attached to any operational skills to require analysis of a situation",
+          "examples": []
+        },
+        {
+          "name": "Explaining a solution and relating it to context",
+          "description": "Can be attached to any operational skills to require explanation of the solution given",
+          "examples": []
+        }
+      ]
+    },
+    "topic_areas": [
+      {
+        "title": "Numerical skills",
+        "content_points": [
+          "Simplification of surds",
+          "Rationalising denominators",
+          "Multiplication and division using positive and negative indices including fractions",
+          "(ab)ᵐ = aᵐbᵐ",
+          "(aᵐ)ⁿ = aᵐⁿ",
+          "aᵐ/ⁿ = ⁿ√aᵐ",
+          "Calculations using scientific notation",
+          "Rounding to a given number of significant figures",
+          "Use reverse percentages to calculate an original quantity",
+          "Appreciation including compound interest",
+          "Depreciation",
+          "Operations and combinations of operations on fractions including mixed numbers (addition, subtraction, multiplication, division)"
+        ],
+        "skills_assessed": [
+          "Working with surds",
+          "Simplifying expressions using the laws of indices",
+          "Rounding",
+          "Working with reverse percentages",
+          "Working with appreciation/depreciation",
+          "Working with fractions"
+        ],
+        "marking_guidance": null
+      },
+      {
+        "title": "Algebraic skills",
+        "content_points": [
+          "a(bx+c)+d(ex+f)",
+          "ax(bx+c)",
+          "(ax+b)(cx+d)",
+          "(ax+b)(cx²+dx+e) where a,b,c,d,e,f ∈Z",
+          "Common factor",
+          "Difference of squares p²x² - a²",
+          "Trinomials with unitary and non-unitary x² coefficient",
+          "Combinations of the above",
+          "Writing quadratics of the form x²+bx+c in the form (x+p)² +q where b,c∈Z and p,q∈Q",
+          "a/b where a,b are of the form (mx+p)ⁿ or (mx+p)(nx+q) and b≠0",
+          "a/b * c/d where a,b,c,d can be simple constants, variables or expressions; * can be add, subtract, multiply or divide; and b≠0,d≠0",
+          "Use the formula y-b=m(x-a) or equivalent to find the equation of a straight line, given two points or one point and the gradient of the line",
+          "Use functional notation, f(x)",
+          "Identify gradient and y-intercept from various forms of the equation of a straight line",
+          "Where numerical coefficients are rational numbers, Q",
+          "Where numerical solutions are rational numbers, Q",
+          "Construct from text",
+          "Graphical solution",
+          "Algebraic solution",
+          "Linear formula",
+          "Formula involving a simple square or square root",
+          "Equations of the form y=kx² and y=k(x+p)²+q where k,p,q∈Z",
+          "Equations of the form y=(ax-m)(bx-n) where a,b,m,n∈Z",
+          "Equations of the form y=k(x+p)²+q where k,p,q∈Z",
+          "Identify: the nature and coordinates of the turning point, the equation of the axis of symmetry of a quadratic of the form y=k(x+p)²+q where k,p,q∈Z",
+          "Solving from factorised form",
+          "Solving having factorised first",
+          "Graphical treatment",
+          "Solving using the quadratic formula",
+          "Know and use the discriminant",
+          "Determine the number and describe the nature of roots using the language 'two real and distinct roots', 'one repeated real root', 'two equal real roots' and 'no real roots'"
+        ],
+        "skills_assessed": [
+          "Working with algebraic expressions involving expansion of brackets",
+          "Factorising an algebraic expression",
+          "Completing the square in a quadratic expression with unitary x² coefficient",
+          "Reducing an algebraic fraction to its simplest form",
+          "Applying the four operations to algebraic fractions",
+          "Determining the equation of a straight line",
+          "Working with linear equations and inequations",
+          "Working with simultaneous equations",
+          "Changing the subject of a formula",
+          "Recognise and determine the equation of a quadratic function from its graph",
+          "Sketching a quadratic function",
+          "Identifying features of a quadratic function",
+          "Solving a quadratic equation",
+          "Solving a quadratic equation using the quadratic formula",
+          "Using the discriminant to determine the number of roots"
+        ],
+        "marking_guidance": null
+      },
+      {
+        "title": "Geometric skills",
+        "content_points": [
+          "m = (y₂-y₁)/(x₂-x₁)",
+          "Calculating the length of an arc",
+          "Calculating the area of a sector",
+          "Sphere, cone, pyramid",
+          "Using Pythagoras' theorem in complex situations including converse and three dimensions",
+          "Quadrilaterals/triangles/polygons/circles",
+          "Relationship in a circle between the centre, chord and perpendicular bisector",
+          "Interrelationship of scale — length, area and volume",
+          "Adding or subtracting two-dimensional vectors using directed line segments",
+          "Determining coordinates of a point from a diagram representing a three-dimensional object",
+          "Adding or subtracting two- or three-dimensional vectors using components",
+          "Magnitude of a two- or three-dimensional vector"
+        ],
+        "skills_assessed": [
+          "Determining the gradient of a straight line, given two points",
+          "Circle geometry",
+          "Calculating the volume of a standard solid",
+          "Applying Pythagoras' theorem",
+          "Applying the properties of shapes to determine an angle involving at least two steps",
+          "Using similarity",
+          "Working with two-dimensional vectors",
+          "Working with three-dimensional coordinates",
+          "Using vector components",
+          "Calculating the magnitude of a vector"
+        ],
+        "marking_guidance": null
+      },
+      {
+        "title": "Trigonometric skills",
+        "content_points": [
+          "Basic graphs",
+          "Amplitude",
+          "Vertical translation",
+          "Multiple angle",
+          "Phase angle",
+          "Sine, cosine and tangent of angles from 0° to 360°",
+          "Period",
+          "Related angles",
+          "Solve basic equations",
+          "Use the identities cos²x° + sin²x° = 1 and tan x° = sin x° / cos x°",
+          "Area = ½ab sin C",
+          "Sine rule for side and angle",
+          "Cosine rule for side and angle",
+          "To find a distance or direction"
+        ],
+        "skills_assessed": [
+          "Working with the graphs of trigonometric functions",
+          "Working with trigonometric relationships in degrees",
+          "Calculating the area of a triangle using trigonometry",
+          "Using the sine and cosine rules to find a side or angle in a triangle",
+          "Using bearings with trigonometry"
+        ],
+        "marking_guidance": null
+      },
+      {
+        "title": "Statistical skills",
+        "content_points": [
+          "Compare data sets using calculated/determined: interquartile range, standard deviation",
+          "Determine the equation of a best-fitting straight line on a scattergraph and use it to estimate y given x"
+        ],
+        "skills_assessed": [
+          "Comparing data sets using statistics",
+          "Forming a linear model from a given set of data"
+        ],
+        "marking_guidance": null
+      },
+      {
+        "title": "Reasoning skills",
+        "content_points": [
+          "Can be attached to any operational skills to require analysis of a situation",
+          "Can be attached to any operational skills to require explanation of the solution given"
+        ],
+        "skills_assessed": [
+          "Interpreting a situation where mathematics can be used and identifying a strategy",
+          "Explaining a solution and relating it to context"
+        ],
+        "marking_guidance": null
+      }
+    ],
+    "question_paper_specifications": [
+      {
+        "paper_name": "Question paper 1 (non-calculator)",
+        "duration_minutes": 60,
+        "total_marks": 40,
+        "sections": [],
+        "content_weightings": [
+          {
+            "content_area": "Algebra",
+            "weighting": "30–45%"
+          },
+          {
+            "content_area": "Geometry",
+            "weighting": "15–35%"
+          },
+          {
+            "content_area": "Trigonometry",
+            "weighting": "10–25%"
+          },
+          {
+            "content_area": "Numerical skills",
+            "weighting": "10–25%"
+          },
+          {
+            "content_area": "Statistics",
+            "weighting": "5–15%"
+          }
+        ],
+        "question_types": [
+          "short-answer",
+          "extended-response"
+        ],
+        "additional_details": "Candidates must apply numerical calculation skills without the use of a calculator to demonstrate an underlying grasp of mathematical processes."
+      },
+      {
+        "paper_name": "Question paper 2",
+        "duration_minutes": 90,
+        "total_marks": 50,
+        "sections": [],
+        "content_weightings": [
+          {
+            "content_area": "Algebra",
+            "weighting": "30–45%"
+          },
+          {
+            "content_area": "Geometry",
+            "weighting": "15–35%"
+          },
+          {
+            "content_area": "Trigonometry",
+            "weighting": "10–25%"
+          },
+          {
+            "content_area": "Numerical skills",
+            "weighting": "10–25%"
+          },
+          {
+            "content_area": "Statistics",
+            "weighting": "5–15%"
+          }
+        ],
+        "question_types": [
+          "short-answer",
+          "extended-response"
+        ],
+        "additional_details": "A calculator may be used. Skills which may be facilitated by the use of a calculator, allowing more opportunity for application."
+      }
+    ],
+    "assignment_specification": null,
+    "recommended_sequence": [
+      "Numerical skills",
+      "Algebraic skills",
+      "Geometric skills",
+      "Trigonometric skills",
+      "Statistical skills",
+      "Reasoning skills"
+    ],
+    "sequence_rationale": "Developing mathematical skills is an active and productive process, building on candidates' current knowledge, understanding and capabilities. Existing knowledge should form the starting point for any learning and teaching situation, with new knowledge being linked to existing knowledge and built on.",
+    "delivery_notes": [
+      "Investigative or project-based tasks (e.g., investigating quadratic functions graphs using technology)",
+      "Mix of collaborative and independent tasks (e.g., identifying gradient and y-intercept from straight line equations)",
+      "Using real-life materials (e.g., plans, drawings for trigonometric calculations)",
+      "Problem-solving and critical thinking",
+      "Explaining thinking and presenting strategies/solutions to others (e.g., discussing simultaneous equation strategies in groups)",
+      "Effective use of questioning and discussion to encourage explanation and understanding of fundamental concepts",
+      "Making links across the curriculum (e.g., science, technology, social subjects, health and wellbeing) for skill transfer and shared understanding of formula manipulation",
+      "Using technology for richer learning experiences and confidence development",
+      "Continual reinforcement and consolidation to build a foundation for progression",
+      "Encourage processing numbers without a calculator, practicing mental calculations, and improving written/mental calculation fluency",
+      "Calculator use should complement, not replace, these skills",
+      "Integration of skills: operational skills (e.g., expressions with equations, gradients with straight line equations, indices with fractions, completing the square with quadratic function sketching, related angles with sine/cosine rules, vectors with Pythagoras' theorem, area of triangle with area of sector)",
+      "Integration of reasoning skills: deriving expressions from problems, breaking down compound solids, deriving algebraic fractions, accuracy in rounding, deriving simultaneous equations from problems",
+      "Use of graphing software packages is encouraged for trigonometric functions and quadratic functions",
+      "Real-life contexts should be used for trigonometric functions (wave theory), linear equations/inequations (max safe load, hiring car, mobile phone charges, health/fitness), quadratic functions (projectile motion), similarity (dilutions, recipe scaling, power supply, scale plans), vectors (combination of forces, crossing a stream, snooker balls), statistics (various real-life data sets)",
+      "Emphasise systematic approach to expansion of brackets, importance of functional notation, correct terminology for nature of roots, deducing formulae from practical approaches, developing confidence in similarity/proportion/ratio, considering real-life limitations for inequations",
+      "Avoid inappropriate premature rounding that leads to incorrect answers."
+    ]
+  },
+  "assessment_model": {
+    "exam_papers": [
+      {
+        "name": "Question paper 1 (non-calculator)",
+        "duration_minutes": 60,
+        "marks": 40,
+        "weight_percent": null
+      },
+      {
+        "name": "Question paper 2",
+        "duration_minutes": 90,
+        "marks": 50,
+        "weight_percent": null
+      }
+    ],
+    "calculator_policy": "Paper 1: Non-calculator. Paper 2: Calculator allowed.",
+    "coursework_present": false,
+    "coursework_type": null,
+    "coursework_weight_percent": null,
+    "coursework_notes": null,
+    "avu_present": false,
+    "avu_format": null,
+    "avu_duration_minutes_total": null,
+    "avu_marks_total": null
+  },
+  "marking_guidance": {
+    "provided": true,
+    "guidance": "General Marking Principles for National 5 Mathematics\n\nMarkers must always apply these general principles in conjunction with the detailed marking instructions for each question.\n\n1. Positive Marking:\n   * Issue: Ensuring candidates are awarded for demonstrated skills, knowledge, and understanding, rather than penalising for errors.\n   * Instructions to Markers: Always use positive marking. Candidates accumulate marks for correct demonstrations; marks are never deducted for errors or omissions.\n\n2. Seeking Guidance:\n   * Issue: Encountering candidate responses not explicitly covered by general principles or detailed marking instructions.\n   * Instructions to Markers: If uncertain how to assess a specific response, seek guidance from your team leader.\n\n3. Mark Allocation:\n   * Issue: Understanding the value of each marking point.\n   * Instructions to Markers: One mark is available for each bullet point (•). There are no half marks.\n\n4. Error Handling (Follow-through Marking):\n   * Issue: How to mark subsequent working after an initial error.\n   * Instructions to Markers: If a candidate's response contains an error, all subsequent working must still be marked. Award marks only if the level of difficulty in the subsequent working is similar to the level of difficulty in the illustrative scheme.\n\n5. Working Required for Full Marks:\n   * Issue: Awarding marks for correct answers without supporting working.\n   * Instructions to Markers: Only award full marks where the solution contains appropriate working. A correct answer with no working receives no mark, unless explicitly stated otherwise in the marking instructions for that specific question.\n\n6. Permitted Methods:\n   * Issue: Candidates using alternative, mathematically correct methods.\n   * Instructions to Markers: Candidates may use any mathematically correct method to answer questions, except in cases where a particular method is specified or explicitly excluded.\n\n7. Trivial Errors:\n   * Issue: Minor calculation errors (e.g., 6 x 6 = 12).\n   * Instructions to Markers: If an error is trivial, casual, or insignificant, candidates lose the opportunity to gain a mark. An exception is made for transcription errors where the candidate deals with the intended quadratic equation, in which case all marks may be awarded (see point 8).\n\n8. Transcription Errors:\n   * Issue: Errors made when copying from the question paper to the script, or within the script.\n   * Examples:\n     * Candidate writes x² + 5x + 7 = 9x + 4 as x - 4x + 3 = 0. This is a transcription error.\n     * Candidate then solves x - 4x + 3 = 0 as x = 1. This is no longer a quadratic equation.\n   * Instructions to Markers: If a candidate makes a transcription error, they lose the opportunity to gain the next process mark. However, if the candidate deals with the intended quadratic equation despite a transcription error (e.g., x² + 5x + 7 = 9x + 4 becomes x² - 4x + 3 = 0 and then correctly factorised to (x-3)(x-1)=0), this error is not treated as a transcription error, and all marks may be awarded.\n\n9. Horizontal/Vertical Marking for Paired Solutions:\n   * Issue: Questions requiring two pairs of solutions (e.g., simultaneous equations).\n   * Example: Solutions are x=2, y=5 and x=-4, y=-7.\n   * Instructions to Markers: If a question results in two pairs of solutions, apply horizontal or vertical marking as indicated in the detailed marking instructions. Choose whichever method benefits the candidate, do not combine both.\n     * Horizontal: Mark x=2 and x=-4 together, then y=5 and y=-7 together.\n     * Vertical: Mark x=2 and y=5 together, then x=-4 and y=-7 together.\n\n10. Simplification of Final Answers:\n    * Issue: Numerical values in final answers.\n    * Instructions to Markers: Candidates should simplify numerical values as far as possible unless specifically mentioned in the detailed marking instructions. For example, 15/12 should be simplified to 5/4 or 1 1/4. √64 must be simplified to 8. Square roots of perfect squares up to and including 144 must be known.\n\n11. 'Show that...' Questions:\n    * Issue: Candidates needing to arrive at a required result.\n    * Instructions to Markers: In 'Show that...' questions, the last mark is not awarded as a follow-through from a previous error, unless explicitly specified in the detailed marking instructions.\n\n12. Checking All Working:\n    * Issue: Fundamental misunderstandings appearing early in a response.\n    * Instructions to Markers: Check all working carefully. Even with an early misunderstanding, marks may still be awarded later in the question. The appearance of a correct answer does not guarantee all available marks.\n\n13. Scored-out Working:\n    * Issue: How to treat scored-out working.\n    * Instructions to Markers: Mark legible scored-out working that has not been replaced. If scored-out working has been replaced, only mark the replacement working.\n\n14. Multiple Attempts:\n    * Issue: Candidates making multiple attempts at a question.\n    * Instructions to Markers:\n      * If multiple attempts use the same strategy and the final answer is not identified, mark all attempts and award the lowest mark.\n      * If candidates try different valid strategies, apply the above rule to attempts within each strategy and then award the highest mark across strategies.\n      * Example: Strategy 1 attempts: 3 marks, 4 marks -> Resultant mark for Strategy 1 is 3. Strategy 2 attempts: 1 mark, 5 marks -> Resultant mark for Strategy 2 is 1. Overall award: 3 marks (highest of 3 and 1).\n\nAdditional Guidance from Course Reports (2022, 2023, 2024):\n\n*   Number Skills (Non-Calculator Paper):\n    *   Issue: Candidates losing marks due to lack of basic number skills, especially in the non-calculator paper.\n    *   Instructions to Markers: Emphasise the importance of maintaining and practising number skills for the non-calculator paper.\n*   Algebraic Skills:\n    *   Issue: Candidates losing marks due to lack of basic algebraic skills (rearranging, factorising, simplifying).\n    *   Instructions to Markers: Encourage consistent practice of basic algebraic skills across both papers.\n*   Premature Rounding:\n    *   Issue: Inappropriate premature rounding leading to incorrect final answers.\n    *   Instructions to Markers: Penalise premature rounding that affects the accuracy of the final answer. For example, rounding sin x = 2/3 to 0.7 too early will lead to incorrect angles.\n*   Diagram Annotation:\n    *   Issue: Candidates performing calculations elsewhere on the page without clearly attaching them to named angles in diagrams.\n    *   Instructions to Markers: Encourage candidates to note the sizes of any calculated angles directly on the diagram to ensure marks are awarded.\n*   Quadratic Graphs and Completing the Square:\n    *   Issue: Candidates not linking skills related to quadratic graphs (e.g., y = (x+a)²+b) with completing the square.\n    *   Instructions to Markers: Look for evidence of understanding the connection between these forms.\n*   Communication of Reasoning:\n    *   Issue: Candidates not providing valid comments when comparing data sets or not communicating final answers appropriately (e.g., leaving answers as m=0.8 instead of 'a mango costs £0.80').\n    *   Instructions to Markers: Award marks for clear communication of reasons and explanations, and for stating answers in context where appropriate.\n*   Pythagoras' Theorem and Right Angles:\n    *   Issue: Incorrectly applying Pythagoras' theorem to non-right-angled triangles or failing to mention the right angle in conclusions for converse Pythagoras questions.\n    *   Instructions to Markers: Ensure candidates demonstrate understanding of the conditions for applying Pythagoras' theorem and clearly state the presence of a right angle when using its converse.\n*   Trigonometric Identities:\n    *   Issue: Difficulty in identifying substitutions to eliminate terms (e.g., cos²x) or not laying out proofs in a structured way.\n    *   Instructions to Markers: Look for evidence of correct substitutions and logical steps in proofs.\n*   Volume Formulae:\n    *   Issue: Candidates forgetting basic volume formulae (e.g., cuboid) or using incorrect dimensions.\n    *   Instructions to Markers: Ensure correct formula application and use of appropriate dimensions.\n*   Nature of Roots:\n    *   Issue: Candidates not using correct terminology for the nature of roots of a quadratic function.\n    *   Instructions to Markers: Expected responses are:\n        *   b² - 4ac > 0: 'two real and distinct roots'\n        *   b² - 4ac = 0: 'one repeated real root' or 'two equal real roots'\n        *   b² - 4ac < 0: 'no real roots'\n*   Efficient Methods:\n    *   Issue: Candidates using less efficient methods, leading to errors or incomplete solutions.\n    *   Instructions to Markers: While any mathematically correct method is acceptable, encourage efficient strategies where appropriate."
+  },
+  "cfe_alignment": {
+    "levels": [
+      "Fourth"
+    ],
+    "es_os": [],
+    "benchmarks": []
+  },
+  "documents": {
+    "course_specification": [
+      {
+        "title": "National 5 Mathematics course specification",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/n5-course-spec-mathematics.pdf",
+        "year": 2023,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics course specification (Gaelic translation)",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/n5-course-spec-matamataig.pdf",
+        "year": 2023,
+        "filetype": "pdf"
+      }
+    ],
+    "specimen_papers": [
+      {
+        "title": "National 5 Mathematics Paper 1 Specimen Question paper Gaelic medium",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5SQPMatamataigPaipear1.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Paper 2 Specimen Question paper Gaelic medium",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5SQPMatamataigPaipear2.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Paper 1 (Non-Calculator) Specimen Question paper",
+        "url": "https://www.sqa.org.uk/files_ccc/MathematicsPaper1SQPRN5.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Paper 2 Specimen Question paper",
+        "url": "https://www.sqa.org.uk/files_ccc/MathematicsPaper2SQPRN5.pdf",
+        "year": null,
+        "filetype": "pdf"
+      }
+    ],
+    "past_papers": [
+      {
+        "title": "National 5 Mathematics Paper 1 (Non-Calculator) question paper",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Mathematics_Paper1-Non-calculator_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Paper 2 question paper",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Mathematics_Paper2_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Matamataig Paper 1 (Non-Calculator) question paper",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Matamataig_Paper1-Non-calculator_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Matamataig Paper 2 question paper",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Matamataig_Paper2_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      }
+    ],
+    "marking_instructions": [
+      {
+        "title": "National 5 Mathematics Paper 1 (Non-Calculator) Marking Instructions",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/mi_N5_Mathematics_Paper-1_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Paper 2 Marking Instructions",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/mi_N5_Mathematics_Paper-2_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2021 Mathematics Paper 1 (Non-calculator) Finalised Marking Instructions",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2021-N5-Mathematics-Paper-1-Non-calculator-Finalised-Marking-Instructions.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2021 Mathematics Paper 2 Finalised Marking Instructions",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2021-N5-Mathematics-Paper-2-Finalised-Marking-Instructions.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "Mathematics Marking Guidance",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/MathematicsMarkingGuidance.pdf",
+        "year": 2024,
+        "filetype": "pdf"
+      }
+    ],
+    "coursework_tasks": [],
+    "general_documents": [
+      {
+        "title": "Mathematics command words",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/NQMathematicsCommandWords.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Mathematics Analysis Grid",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/National5MathematicsAnalysisGrid.xlsx",
+        "year": null,
+        "filetype": "xlsx"
+      },
+      {
+        "title": "2022 National 5 Matamataig Revision Support for Learners",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2022-revision-support-learners-n5-matamataig.pdf",
+        "year": 2022,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2022 Higher Matamataig Revision Support for Learners",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2022-revision-support-learners-h-matamataig.pdf",
+        "year": 2022,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2022 Advanced Higher Matamataig Revision Support for Learners",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2022-revision-support-learners-ah-matamataig.pdf",
+        "year": 2022,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Matamataig Paper 1 (Non-Calculator) glossary",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Matamataig_Paper1-Non-calculator-Glossary_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      },
+      {
+        "title": "National 5 Matamataig Paper 2 glossary",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/N5_Matamataig_Paper2-Glossary_2021.pdf",
+        "year": 2021,
+        "filetype": "pdf"
+      }
+    ],
+    "course_reports": [
+      {
+        "title": "2024 National 5 Mathematics course report",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2024-n5-course-report-mathematics.pdf",
+        "year": 2024,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2023 National 5 Mathematics course report",
+        "url": "https://www.sqa.org.uk/sqa/files_ccc/2023-n5-course-report-mathematics.pdf",
+        "year": 2023,
+        "filetype": "pdf"
+      },
+      {
+        "title": "2022 National 5 Mathematics course report",
+        "url": "https://www.sqa.org.uk/files_ccc/2022-n5-course-report-mathematics.pdf",
+        "year": 2022,
+        "filetype": "pdf"
+      }
+    ],
+    "formulae_support": [
+      {
+        "title": "Mathematics National 5 Formulae List",
+        "url": "https://www.sqa.org.uk/files_ccc/MathsSQPN5FormList.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "FORMULAE LIST (Paper 1 Specimen)",
+        "url": "https://www.sqa.org.uk/files_ccc/MathematicsPaper1SQPRN5.pdf",
+        "year": null,
+        "filetype": "pdf"
+      },
+      {
+        "title": "FORMULAE LIST (Paper 2 Specimen)",
+        "url": "https://www.sqa.org.uk/files_ccc/MathematicsPaper2SQPRN5.pdf",
+        "year": null,
+        "filetype": "pdf"
+      }
+    ],
+    "assignments": []
+  },
+  "provenance": {
+    "source_pages": [
+      "https://www.sqa.org.uk/sqa/files_ccc/n5-course-spec-mathematics.pdf",
+      "https://www.sqa.org.uk/sqa/files_ccc/mi_N5_Mathematics_Paper-1_2021.pdf",
+      "https://www.sqa.org.uk/sqa/files_ccc/mi_N5_Mathematics_Paper-2_2021.pdf",
+      "https://www.sqa.org.uk/sqa/files_ccc/MathematicsMarkingGuidance.pdf",
+      "https://www.sqa.org.uk/sqa/files_ccc/2024-n5-course-report-mathematics.pdf",
+      "https://www.sqa.org.uk/sqa/files_ccc/2023-n5-course-report-mathematics.pdf",
+      "https://www.sqa.org.uk/files_ccc/2022-n5-course-report-mathematics.pdf"
+    ],
+    "last_verified": null
+  }
+}

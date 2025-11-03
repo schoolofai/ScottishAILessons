@@ -116,7 +116,6 @@ Examples:
   python -m src.sow_author_cli \\
     --courseId course_c84474 \\
     --mcp-config .mcp.json \\
-    --max-retries 5 \\
     --no-persist-workspace
         """
     )
@@ -137,6 +136,20 @@ Examples:
         help='Course identifier (must exist in default.courses; subject/level auto-fetched)'
     )
 
+    # Versioning options
+    parser.add_argument(
+        '--version',
+        type=str,
+        default='1',
+        metavar='VERSION',
+        help='SOW version number (default: 1). Must be numeric string (e.g., "1", "2").'
+    )
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Force overwrite existing SOW for this version (use with caution)'
+    )
+
     # Configuration options
     parser.add_argument(
         '--mcp-config',
@@ -144,13 +157,6 @@ Examples:
         default='.mcp.json',
         metavar='PATH',
         help='Path to MCP configuration file (default: .mcp.json)'
-    )
-    parser.add_argument(
-        '--max-retries',
-        type=int,
-        default=3,
-        metavar='N',
-        help='Maximum critic retry attempts (default: 3)'
     )
     parser.add_argument(
         '--no-persist-workspace',
@@ -170,8 +176,9 @@ Examples:
 
 async def run_agent(
     courseId: str,
+    version: str = "1",
+    force: bool = False,
     mcp_config_path: str = ".mcp.json",
-    max_critic_retries: int = 3,
     persist_workspace: bool = True,
     log_level: str = "INFO"
 ) -> Dict[str, Any]:
@@ -179,8 +186,9 @@ async def run_agent(
 
     Args:
         courseId: Course identifier (subject/level auto-fetched from database)
+        version: SOW version number (default: "1")
+        force: Force overwrite existing SOW for this version (default: False)
         mcp_config_path: Path to MCP config
-        max_critic_retries: Maximum critic retry attempts
         persist_workspace: Whether to preserve workspace
         log_level: Logging level
 
@@ -193,12 +201,15 @@ async def run_agent(
     print()
     print("Input Parameters:")
     print(f"  Course ID:     {courseId}")
+    print(f"  Version:       {version}")
+    print(f"  Force Mode:    {'YES' if force else 'NO'}")
     print(f"  MCP Config:    {mcp_config_path}")
-    print(f"  Max Retries:   {max_critic_retries}")
     print(f"  Persist WS:    {persist_workspace}")
     print(f"  Log Level:     {log_level}")
     print()
     print("Note: Subject and level will be automatically fetched from database")
+    if force:
+        print("⚠️  WARNING: Force mode will overwrite existing SOW for this version!")
     print()
     print("=" * 70)
     print()
@@ -207,12 +218,15 @@ async def run_agent(
     agent = SOWAuthorClaudeAgent(
         mcp_config_path=mcp_config_path,
         persist_workspace=persist_workspace,
-        max_critic_retries=max_critic_retries,
         log_level=log_level
     )
 
-    # Execute pipeline (subject/level fetched automatically)
-    result = await agent.execute(courseId=courseId)
+    # Execute pipeline with version and force parameters
+    result = await agent.execute(
+        courseId=courseId,
+        version=version,
+        force=force
+    )
 
     return result
 
@@ -283,11 +297,12 @@ async def main() -> int:
             logger.info("No input provided, entering interactive mode")
             params = interactive_input()
 
-        # Run agent (subject/level fetched automatically)
+        # Run agent with version and force parameters
         result = await run_agent(
             courseId=params["courseId"],
+            version=args.version,
+            force=args.force,
             mcp_config_path=args.mcp_config,
-            max_critic_retries=args.max_retries,
             persist_workspace=not args.no_persist_workspace,
             log_level=args.log_level
         )

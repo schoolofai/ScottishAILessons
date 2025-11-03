@@ -57,9 +57,7 @@ This file contains the COMPLETE schema documentation for `authored_sow.json`, in
    - `metadata.accessibility_notes` array
    - `metadata.engagement_notes` array
 
-5. **Card Timings**: Sum to entry `estMinutes` (±2 min tolerance)
-
-6. **Teach→Revision Pairing**: Every teach lesson paired with revision lesson (1:1 ratio)
+5. **Teach→Revision Pairing**: Every teach lesson paired with revision lesson (1:1 ratio)
 
 7. **Course-Level Requirements**:
    - At least 1 `independent_practice` lesson
@@ -109,11 +107,162 @@ This file contains the COMPLETE schema documentation for `authored_sow.json`, in
 
 </inputs>
 
+## ═══════════════════════════════════════════════════════════════════════════════
+## 🔴 SECTION 1A: COURSE STRUCTURE TYPE DETECTION (READ FIRST)
+## ═══════════════════════════════════════════════════════════════════════════════
+
+<structure_type_detection>
+### Understanding Course Structure Types
+
+SQA courses use **TWO fundamentally different structures** based on qualification level:
+
+#### **Unit-Based Structure** (National 1-4)
+- **Hierarchy**: `course_structure.units[]` → `outcomes[]` → `assessment_standards[]`
+- **Identifiers**: Unit codes (e.g., "U1"), Outcome codes (e.g., "O1"), Assessment Standard codes (e.g., "AS1.2")
+- **Detection**: `Course_data.txt` has `"structure_type": "unit_based"` AND non-empty `units[]` array
+- **Example**: National 3 Physics with 3 units, each containing outcomes and assessment standards
+
+#### **Skills-Based Structure** (National 5, Higher, Advanced Higher)
+- **Hierarchy**: `course_structure.skills_framework.skills[]` + `topic_areas[]` + `question_paper_specifications[]`
+- **No Codes**: Skills are identified by name (e.g., "Working with surds"), NOT codes
+- **Detection**: `Course_data.txt` has `"structure_type": "skills_based"` AND non-empty `skills_framework.skills[]` array
+- **Example**: National 5 Mathematics with 46 skills grouped into topic areas with question paper weightings
+
+### How to Detect Structure Type
+
+**CRITICAL FIRST STEP** when reading `Course_data.txt`:
+
+#### Primary Detection Method (Preferred):
+```json
+// Check this field first
+{
+  "course_structure": {
+    "structure_type": "unit_based" | "skills_based",
+    ...
+  }
+}
+```
+
+#### Fallback Detection Method (Backward Compatibility):
+If `structure_type` field is missing or null, infer structure from content:
+
+```json
+// Check for presence of these sections
+{
+  "course_structure": {
+    "skills_framework": { ... },  // Present → skills_based
+    "topic_areas": [ ... ],       // Present → skills_based
+    "units": [ ... ]               // Present (and skills_framework absent) → unit_based
+  }
+}
+```
+
+**Detection Logic (with fallback)**:
+```
+1. Read Course_data.txt
+2. Parse JSON and extract course_structure
+
+3. TRY primary detection:
+   - IF structure_type field exists AND is not null:
+     → Use structure_type value directly
+     → GOTO step 4
+
+4. FALLBACK detection (for older Course_data.txt without structure_type):
+   - IF skills_framework exists AND is non-empty:
+     → Infer structure_type = "skills_based"
+     → GOTO step 5
+   - ELSE IF topic_areas exists AND is non-empty:
+     → Infer structure_type = "skills_based"
+     → GOTO step 5
+   - ELSE IF units exists AND is non-empty:
+     → Infer structure_type = "unit_based"
+     → GOTO step 5
+   - ELSE:
+     → FAIL-FAST: Invalid Course_data.txt (no recognizable structure)
+
+5. BRANCH by detected structure_type:
+
+   IF structure_type == "unit_based":
+     → Use units → outcomes → assessment_standards hierarchy
+     → Reference standards using code/outcome/description objects
+     → Example: {"code": "AS1.2", "outcome": "O1", "description": "Add fractions..."}
+
+   IF structure_type == "skills_based":
+     → Use skills_framework.skills[] for curriculum content
+     → Reference skills using skill_name/description objects
+     → Example: {"skill_name": "Working with surds", "description": "Simplification, Rationalising denominators"}
+     → Also consult topic_areas[] and question_paper_specifications[] for thematic grouping
+```
+
+### Structure-Specific Authoring Guidance
+
+#### For Unit-Based Courses (National 1-4):
+1. **Coverage**: Ensure all units → outcomes → assessment standards are covered
+2. **Sequencing**: Follow `recommended_sequence` for unit ordering
+3. **References**: Use `StandardOrSkillRef` with code/outcome/description fields:
+   ```json
+   {
+     "code": "AS1.2",
+     "outcome": "O1",
+     "description": "Add and subtract fractions with different denominators"
+   }
+   ```
+4. **Chunking**: Group 2-3 related assessment standards per lesson
+5. **SOWEntry fields**: Use `standards_or_skills_addressed` array (NOT legacy `outcomeRefs`/`assessmentStandardRefs`)
+
+#### For Skills-Based Courses (National 5+):
+1. **Coverage**: Ensure all skills from `skills_framework.skills[]` are covered
+2. **Thematic Grouping**: Use `topic_areas[]` to group related skills into lessons
+   - Example: Topic area "Numerical skills" includes skills like "Working with surds", "Scientific notation"
+3. **Assessment Awareness**: Consider `question_paper_specifications` when designing practice
+   - Non-calculator vs calculator sections
+   - Content area weightings (e.g., Algebra 30-45%, Geometry 15-35%)
+4. **References**: Use `StandardOrSkillRef` with skill_name/description fields:
+   ```json
+   {
+     "skill_name": "Working with surds",
+     "description": "Simplification, Rationalising denominators"
+   }
+   ```
+5. **NO CODES**: Skills-based courses do NOT have unit codes, outcome codes, or assessment standard codes
+6. **SOWEntry fields**: Use `standards_or_skills_addressed` array with skill references
+7. **Sequencing**: Use topic_areas order and pedagogical dependencies (no official recommended_sequence)
+
+### Common Mistakes to Avoid
+
+❌ **DON'T**:
+- Assume all courses use units/outcomes/assessment standards
+- Try to create codes for skills-based courses (e.g., "S1.2" for a skill)
+- Mix unit-based and skills-based references in the same entry
+- Use legacy `outcomeRefs` or `assessmentStandardRefs` fields
+
+✅ **DO**:
+- Check `structure_type` field FIRST before authoring
+- Use `standards_or_skills_addressed` field for ALL courses (unified model)
+- Follow structure-specific hierarchy when extracting curriculum content
+- Match Course_data.txt structure exactly in your references
+- Use exact skill names from skills_framework.skills[].name (no paraphrasing)
+
+### Validation Requirements
+
+**Schema Validator** will check:
+1. `StandardOrSkillRef` objects have EITHER (code + outcome) OR (skill_name), never both
+2. Descriptions match Course_data.txt exactly
+3. All skills/standards referenced exist in Course_data.txt
+4. Coverage completeness based on structure type
+
+**Unified Critic** will validate:
+- **Unit-based**: All units/outcomes/assessment standards covered
+- **Skills-based**: All skills from skills_framework covered with appropriate topic area grouping
+
+</structure_type_detection>
+
 <outputs>
 You MUST write these files to the workspace filesystem using the Write tool:
 - `/workspace/authored_sow.json`     : Complete SoW with pedagogical content and metadata.
   * REQUIRED: metadata (coherence, accessibility_notes, engagement_notes), entries[]
-  * Each entry REQUIRED: order, label, lesson_type, coherence, policy, engagement_tags, outcomeRefs, assessmentStandardRefs (enriched objects), lesson_plan (detailed card_structure with 6-12 cards), accessibility_profile, estMinutes, lesson_instruction
+  * Each entry REQUIRED: order, label, lesson_type, coherence, policy, engagement_tags, **standards_or_skills_addressed** (enriched StandardOrSkillRef objects), lesson_plan (detailed card_structure with 6-12 cards), accessibility_profile, estMinutes, lesson_instruction
+  * **Structure-aware references**: Use StandardOrSkillRef with either code/outcome (unit-based) OR skill_name (skills-based)
   * Focus: Pedagogical content (detailed lesson plans, coherence, accessibility strategies)
   * Metadata: Omit technical fields - seeding script handles courseId, IDs, timestamps, lessonTemplateRef
 - `/workspace/sow_critic_result.json`: Written by Unified Critic (comprehensive validation across all dimensions, including lesson plan depth).
@@ -134,13 +283,38 @@ You MUST write these files to the workspace filesystem using the Write tool:
 
 2) **Read Required Files** (SILENT):
    - Use Read tool to read `/workspace/Course_data.txt` (raw JSON format)
-     - Parse official SQA course structure, unit names, codes, outcomes, assessment standards with full descriptions
+     - Parse official SQA course structure
+     - **CRITICAL**: Extract `course_structure.structure_type` field ("unit_based" or "skills_based")
+     - **IF unit_based**: Parse units, outcomes, assessment standards with codes and descriptions
+     - **IF skills_based**: Parse skills_framework.skills[], topic_areas[], question_paper_specifications[]
    - Use Read tool to read `/workspace/SOW_Schema.md`
      - Understand all schema requirements, field definitions, enriched structures, forbidden patterns
      - Note the "Pre-Write Validation Checklist" section
    - Keep SOW_Schema.md in mind throughout authoring - reference it when uncertain about field formats
    - **DO NOT display** file contents, parsing results, or file validation details
    - **Proceed silently** to step 3
+
+2a) **Detect Course Structure Type** (SILENT - BUT CRITICAL):
+   - **PRIMARY**: Extract `structure_type` from Course_data.txt (`course_structure.structure_type`)
+   - **FALLBACK** (if structure_type missing/null - backward compatibility):
+     * IF `skills_framework` exists and non-empty → infer "skills_based"
+     * ELSE IF `topic_areas` exists and non-empty → infer "skills_based"
+     * ELSE IF `units` exists and non-empty → infer "unit_based"
+     * ELSE → FAIL-FAST with error
+   - **BRANCH by detected structure_type**:
+     * **IF "unit_based"** (National 1-4):
+       - Use units → outcomes → assessment_standards hierarchy
+       - Reference standards using StandardOrSkillRef with code/outcome/description
+       - Apply chunking strategy: group 2-3 assessment standards per lesson
+       - Follow recommended_sequence for unit ordering
+     * **IF "skills_based"** (National 5, Higher, Advanced Higher):
+       - Use skills_framework.skills[] as primary curriculum content
+       - Reference skills using StandardOrSkillRef with skill_name/description (NO codes)
+       - Group skills by topic_areas[] for thematic lesson organization
+       - Consider question_paper_specifications[] for assessment practice design
+       - NO unit codes, outcome codes, or assessment standard codes exist
+   - See <structure_type_detection> section for complete guidance
+   - **Execute internally - do not display structure type detection or branching logic**
 
 🔴 **CRITICAL: SILENT EXECUTION MODE** - All subsequent work (steps 3-7) executes internally with NO displayed output:
 - Do not display WebSearch results, queries, or findings
@@ -193,7 +367,6 @@ You MUST write these files to the workspace filesystem using the Write tool:
    - For explainer cards, include key_concepts array (3-5 concepts)
    - For modelling cards, include worked_example (detailed example with Scottish context)
    - For guided_practice cards, include practice_problems array (2-4 problems with increasing complexity)
-   - Ensure card timings sum to entry's estMinutes
    - Ensure ALL assessmentStandardRefs appear in at least 2-3 cards (progressive scaffolding)
    - Use WebSearch for lesson-specific pedagogical patterns (lesson starters, CFU strategies, misconceptions)
    - Maintain Scottish contexts throughout card sequence (use WebSearch for authentic examples)
@@ -256,7 +429,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
      * Verify specific CFU strategies (NOT generic phrases from SOW_Schema.md forbidden patterns)
      * Verify descriptions match Course_data.txt EXACTLY (character-for-character)
      * Verify metadata fields all non-empty
-     * Verify card counts and timings
+     * Verify card counts (6-12 per entry)
      * Verify teach→revision pairing
      * Verify course-level requirements (≥1 independent_practice, exactly 1 mock_assessment)
    - **VALIDATION OUTPUT**:
@@ -525,7 +698,6 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - ✅ All entries have detailed lesson_plan with:
   * card_structure containing 6-12 cards with complete pedagogical detail
   * Each card uses enriched standards_addressed objects
-  * Card timings sum to estMinutes (within ±2 minutes)
   * ALL assessmentStandardRefs appear in at least 2-3 cards
 - ✅ All entries use lesson_instruction (NOT "notes") for overall teacher guidance
 </success_criteria>
@@ -550,7 +722,6 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
   * Each card specifies: card_number, card_type, title, purpose, standards_addressed (enriched objects), pedagogical_approach, cfu_strategy, estimated_minutes
   * Cards with misconceptions include misconceptions_addressed array
   * Cards with assessment include rubric_guidance
-  * Card timings sum to entry's estMinutes
   * ALL assessmentStandardRefs appear in at least 2-3 cards (progressive scaffolding)
   * Each card's standards_addressed uses enriched objects (code/description/outcome) - NOT bare codes
 - **Focus on pedagogical design**: Detailed card-by-card lesson structure, not administrative metadata.
@@ -577,7 +748,7 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
   * Embed misconceptions in specific cards, not just listed generically
   * Specify CFU strategies per card (MCQ, structured question, etc.) - NOT generic "ask questions"
   * Include rubric guidance for assessment-focused cards
-  * Ensure card timings realistic and sum to estMinutes
+  * Ensure card timings are realistic (typically 5-15 min per card)
   * Use card_type progression: starter → explainer → modelling → guided_practice → independent_practice → exit_ticket
 - Use `policy.calculator_section` to stage calculator progression: non_calc → mixed → calc.
 - Keep `coherence.block_index` ascending and transparent (e.g., "2.1", "2.2", "2.3").

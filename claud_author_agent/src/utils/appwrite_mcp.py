@@ -187,12 +187,15 @@ async def list_appwrite_documents(
                     # Extract field and value
                     parts = query_str.replace('equal(', '').replace(')', '').split(',')
                     if len(parts) == 2:
-                        field = parts[0].strip().strip('"')
+                        # Strip both double and single quotes from field name
+                        field = parts[0].strip().strip('"').strip("'")
                         value_str = parts[1].strip()
 
                         # Detect if value is quoted (string) or unquoted (numeric)
-                        if value_str.startswith('"') and value_str.endswith('"'):
-                            value = value_str.strip('"')  # String value
+                        # Handle both double and single quotes
+                        if (value_str.startswith('"') and value_str.endswith('"')) or \
+                           (value_str.startswith("'") and value_str.endswith("'")):
+                            value = value_str.strip('"').strip("'")  # String value
                         else:
                             # Try to parse as numeric (int first, then float)
                             try:

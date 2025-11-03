@@ -156,3 +156,97 @@
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+ * TipTap Rich Text Editor Custom Styling
+ * ═══════════════════════════════════════════════════════════════ */
+@layer components {
+  /* TipTap Editor Prose Styling */
+  .rich-text-editor .ProseMirror {
+    @apply text-foreground bg-white dark:bg-background;
+    min-height: 150px;
+    padding: 1rem;
+  }
+
+  .rich-text-editor .ProseMirror:focus {
+    @apply outline-none;
+  }
+
+  /* Placeholder styling */
+  .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Text formatting */
+  .rich-text-editor .ProseMirror strong {
+    @apply font-bold;
+  }
+
+  .rich-text-editor .ProseMirror em {
+    @apply italic;
+  }
+
+  .rich-text-editor .ProseMirror u {
+    text-decoration: underline;
+  }
+
+  /* List styling */
+  .rich-text-editor .ProseMirror ul,
+  .rich-text-editor .ProseMirror ol {
+    @apply pl-6 my-2;
+  }
+
+  .rich-text-editor .ProseMirror ul {
+    @apply list-disc;
+  }
+
+  .rich-text-editor .ProseMirror ol {
+    @apply list-decimal;
+  }
+
+  .rich-text-editor .ProseMirror li {
+    @apply my-1;
+  }
+
+  /* Math formula styling */
+  .rich-text-editor .ProseMirror .math-inline {
+    @apply inline-block bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded mx-1;
+    border: 1px solid oklch(0.6 0.118 184.704 / 30%);
+  }
+
+  .rich-text-editor .ProseMirror .math-display {
+    @apply block bg-blue-50 dark:bg-blue-900/20 p-3 rounded my-2;
+    border: 1px solid oklch(0.6 0.118 184.704 / 30%);
+  }
+
+  /* KaTeX rendering in TipTap */
+  .rich-text-editor .ProseMirror .katex {
+    @apply font-normal;
+  }
+
+  .rich-text-editor .ProseMirror .katex-display {
+    @apply my-2;
+  }
+
+  /* Focus state for container */
+  .rich-text-editor:focus-within {
+    @apply ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Paragraph spacing */
+  .rich-text-editor .ProseMirror p {
+    @apply my-2;
+  }
+
+  .rich-text-editor .ProseMirror p:first-child {
+    @apply mt-0;
+  }
+
+  .rich-text-editor .ProseMirror p:last-child {
+    @apply mb-0;
+  }
+}
