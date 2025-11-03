@@ -402,6 +402,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": cfu_type,
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }
@@ -785,6 +786,7 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": current_card.get("cfu", {}).get("type", ""),
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }

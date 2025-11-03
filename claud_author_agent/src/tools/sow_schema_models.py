@@ -49,9 +49,12 @@ class CEFRLevel(str, Enum):
 
 
 class AssessmentStandardRef(BaseModel):
-    """Enriched assessment standard reference.
+    """Enriched assessment standard reference (DEPRECATED - use StandardOrSkillRef).
 
     Must include exact SQA description from Course_data.txt - no paraphrasing.
+
+    DEPRECATED: This model is kept for backward compatibility with National 1-4 SOWs.
+    New SOWs should use StandardOrSkillRef which supports both unit-based and skills-based structures.
     """
     code: str = Field(..., description="Assessment standard code (e.g., 'AS1.2' or '2.1')")
     description: str = Field(..., min_length=5, description="Exact SQA description from Course_data.txt")
@@ -59,6 +62,84 @@ class AssessmentStandardRef(BaseModel):
 
     class Config:
         str_strip_whitespace = True
+
+
+class SkillRef(BaseModel):
+    """Reference to a skill from skills_framework (National 5+ courses).
+
+    Skills-based courses (National 5, Higher, Advanced Higher) use skills instead of
+    assessment standards. Each skill has a name and description from Course_data.txt.
+
+    Example from National 5 Mathematics:
+        skill_name: "Working with surds"
+        description: "Simplification, Rationalising denominators"
+    """
+    skill_name: str = Field(..., min_length=5, description="Skill name from Course_data.txt skills_framework.skills[].name")
+    description: str = Field(..., min_length=10, description="Exact skill description from Course_data.txt skills_framework.skills[].description")
+
+    class Config:
+        str_strip_whitespace = True
+
+
+class StandardOrSkillRef(BaseModel):
+    """Unified reference supporting both unit-based and skills-based course structures.
+
+    This model replaces AssessmentStandardRef and SkillRef to support both:
+    - **Unit-based** (National 1-4): Uses code, description, outcome
+    - **Skills-based** (National 5+): Uses skill_name, description
+
+    The structure type is detected from Course_data.txt structure_type field.
+
+    Examples:
+        Unit-based: {"code": "AS1.2", "description": "Add fractions...", "outcome": "O1"}
+        Skills-based: {"skill_name": "Working with surds", "description": "Simplification, Rationalising denominators"}
+    """
+    # Unit-based fields (Optional for skills-based)
+    code: Optional[str] = Field(None, description="Assessment standard code (unit-based only, e.g., 'AS1.2')")
+    outcome: Optional[str] = Field(None, description="Parent outcome reference (unit-based only, e.g., 'O1')")
+
+    # Skills-based fields (Optional for unit-based)
+    skill_name: Optional[str] = Field(None, description="Skill name (skills-based only)")
+
+    # Common field (REQUIRED for both)
+    description: str = Field(..., min_length=5, description="Exact SQA description or skill description from Course_data.txt")
+
+    class Config:
+        str_strip_whitespace = True
+
+    @model_validator(mode='after')
+    def validate_structure_type(self):
+        """Ensure exactly one structure type is used."""
+        is_unit_based = self.code is not None or self.outcome is not None
+        is_skills_based = self.skill_name is not None
+
+        if is_unit_based and is_skills_based:
+            raise ValueError(
+                "Cannot mix unit-based (code/outcome) with skills-based (skill_name) in same reference. "
+                "Use either unit-based structure (code + outcome + description) OR "
+                "skills-based structure (skill_name + description)."
+            )
+
+        if not is_unit_based and not is_skills_based:
+            raise ValueError(
+                "Must provide either unit-based fields (code, outcome) OR skills-based field (skill_name). "
+                "Check Course_data.txt structure_type to determine which structure to use."
+            )
+
+        # Unit-based validation
+        if is_unit_based:
+            if not self.code or not self.outcome:
+                raise ValueError(
+                    "Unit-based structure requires BOTH code AND outcome. "
+                    f"Provided: code={self.code}, outcome={self.outcome}"
+                )
+
+        # Skills-based validation
+        if is_skills_based:
+            if not self.skill_name:
+                raise ValueError("Skills-based structure requires skill_name")
+
+        return self
 
 
 class MisconceptionAddressed(BaseModel):
@@ -132,12 +213,16 @@ class Card(BaseModel):
     - Specific CFU strategy (NOT generic phrases like "ask questions")
     - Enriched standards_addressed (objects, not bare strings)
     - Sequential card_number (1, 2, 3...)
+
+    Note: standards_addressed now uses StandardOrSkillRef to support both:
+    - Unit-based courses (National 1-4): code, outcome, description
+    - Skills-based courses (National 5+): skill_name, description
     """
     card_number: int = Field(..., ge=1)
     card_type: CardType
     title: str = Field(..., min_length=5)
     purpose: str = Field(..., min_length=10)
-    standards_addressed: List[AssessmentStandardRef] = Field(default_factory=list)
+    standards_addressed: List[StandardOrSkillRef] = Field(default_factory=list)
     pedagogical_approach: str = Field(..., min_length=20)
     key_concepts: Optional[List[str]] = None
     worked_example: Optional[str] = None
@@ -145,7 +230,7 @@ class Card(BaseModel):
     cfu_strategy: str = Field(..., min_length=5)
     misconceptions_addressed: Optional[List[MisconceptionAddressed]] = None
     rubric_guidance: Optional[RubricGuidance] = None
-    estimated_minutes: int = Field(..., ge=1)
+    estimated_minutes: Optional[int] = Field(None, ge=1, description="Optional estimated minutes for the card (metadata only, not validated)")
 
     @model_validator(mode='after')
     def normalize_practice_problems(self):
@@ -246,6 +331,11 @@ class SOWEntry(BaseModel):
     """Single lesson entry in SOW with complete pedagogical design.
 
     Each entry represents one ~50-minute lesson in the course sequence.
+
+    Structure awareness:
+    - Unit-based courses (National 1-4): standards_or_skills_addressed contains code/outcome/description
+    - Skills-based courses (National 5+): standards_or_skills_addressed contains skill_name/description
+    - Legacy fields (outcomeRefs, assessmentStandardRefs) deprecated but kept for backward compatibility
     """
     order: int = Field(..., ge=1)
     label: str = Field(..., min_length=10)
@@ -253,28 +343,18 @@ class SOWEntry(BaseModel):
     coherence: Coherence
     policy: Policy
     engagement_tags: List[str] = Field(..., min_length=1)
-    outcomeRefs: List[str] = Field(..., min_length=1)
-    assessmentStandardRefs: List[AssessmentStandardRef] = Field(default_factory=list)  # Allow empty for synthesis lessons
+
+    # NEW unified field for both unit-based and skills-based courses
+    standards_or_skills_addressed: List[StandardOrSkillRef] = Field(default_factory=list)
+
+    # DEPRECATED fields for backward compatibility (National 1-4 legacy)
+    outcomeRefs: Optional[List[str]] = Field(None, description="DEPRECATED: Use standards_or_skills_addressed")
+    assessmentStandardRefs: Optional[List[AssessmentStandardRef]] = Field(None, description="DEPRECATED: Use standards_or_skills_addressed")
+
     lesson_plan: LessonPlan
     accessibility_profile: AccessibilityProfile
-    estMinutes: int = Field(..., ge=1)
+    estMinutes: Optional[int] = Field(None, ge=1, description="Optional estimated minutes for the lesson (metadata only, not validated)")
     lesson_instruction: str = Field(..., min_length=50)
-
-    @model_validator(mode='after')
-    def validate_card_timings_match_estMinutes(self):
-        """Validate card estimated_minutes sum to entry estMinutes (±2 min tolerance)."""
-        if not self.lesson_plan or not self.lesson_plan.card_structure:
-            return self
-
-        card_total = sum(c.estimated_minutes for c in self.lesson_plan.card_structure)
-        tolerance = 2
-
-        if abs(card_total - self.estMinutes) > tolerance:
-            raise ValueError(
-                f"Entry {self.order}: Card timings sum to {card_total} minutes "
-                f"but estMinutes is {self.estMinutes} (tolerance ±{tolerance} min)"
-            )
-        return self
 
 
 class MetadataCoherence(BaseModel):

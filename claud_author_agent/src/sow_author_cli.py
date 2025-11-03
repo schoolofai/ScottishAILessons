@@ -136,6 +136,20 @@ Examples:
         help='Course identifier (must exist in default.courses; subject/level auto-fetched)'
     )
 
+    # Versioning options
+    parser.add_argument(
+        '--version',
+        type=str,
+        default='1',
+        metavar='VERSION',
+        help='SOW version number (default: 1). Must be numeric string (e.g., "1", "2").'
+    )
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Force overwrite existing SOW for this version (use with caution)'
+    )
+
     # Configuration options
     parser.add_argument(
         '--mcp-config',
@@ -162,6 +176,8 @@ Examples:
 
 async def run_agent(
     courseId: str,
+    version: str = "1",
+    force: bool = False,
     mcp_config_path: str = ".mcp.json",
     persist_workspace: bool = True,
     log_level: str = "INFO"
@@ -170,6 +186,8 @@ async def run_agent(
 
     Args:
         courseId: Course identifier (subject/level auto-fetched from database)
+        version: SOW version number (default: "1")
+        force: Force overwrite existing SOW for this version (default: False)
         mcp_config_path: Path to MCP config
         persist_workspace: Whether to preserve workspace
         log_level: Logging level
@@ -183,11 +201,15 @@ async def run_agent(
     print()
     print("Input Parameters:")
     print(f"  Course ID:     {courseId}")
+    print(f"  Version:       {version}")
+    print(f"  Force Mode:    {'YES' if force else 'NO'}")
     print(f"  MCP Config:    {mcp_config_path}")
     print(f"  Persist WS:    {persist_workspace}")
     print(f"  Log Level:     {log_level}")
     print()
     print("Note: Subject and level will be automatically fetched from database")
+    if force:
+        print("⚠️  WARNING: Force mode will overwrite existing SOW for this version!")
     print()
     print("=" * 70)
     print()
@@ -199,8 +221,12 @@ async def run_agent(
         log_level=log_level
     )
 
-    # Execute pipeline (subject/level fetched automatically)
-    result = await agent.execute(courseId=courseId)
+    # Execute pipeline with version and force parameters
+    result = await agent.execute(
+        courseId=courseId,
+        version=version,
+        force=force
+    )
 
     return result
 
@@ -271,9 +297,11 @@ async def main() -> int:
             logger.info("No input provided, entering interactive mode")
             params = interactive_input()
 
-        # Run agent (subject/level fetched automatically)
+        # Run agent with version and force parameters
         result = await run_agent(
             courseId=params["courseId"],
+            version=args.version,
+            force=args.force,
             mcp_config_path=args.mcp_config,
             persist_workspace=not args.no_persist_workspace,
             log_level=args.log_level

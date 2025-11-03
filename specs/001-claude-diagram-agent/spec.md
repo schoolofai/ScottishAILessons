@@ -5,13 +5,23 @@
 **Status**: Draft
 **Input**: User description: "I want to create the functionality in the langgraph deep agent @langgraph-author-agent/src/diagram_author_agent.py the documentation for this is in @langgraph-author-agent/docs/DIAGRAM_AUTHOR_README.md in a claude agent instead - there are several claude agents aready implemented in @claud_author_agent/ i want to use the same patterns and in these. the new claude diagram agent will also have a cli wrapper like the other cluade agents - this will allow cli based operations 1. single lesson template daigram generation - this mode will take courseId and sow order and generate diagrams for the lesson - and populate the entry in collection lesson_diagram in appwrite 2. batch mode - where it takes courseId and generates diagrams for all available lessons for that courseID - in batch mode there should be a dry run option like with the @claud_author_agent/src/lesson_author_cli.py - if there is lesson_diagram entry for the lesson already it should skip generation unless --force option is provided"
 
+## Clarifications
+
+### Session 2025-10-31
+
+- Q: How should the DiagramScreenshot service integration be implemented for the Claude agent to call the rendering API? → A: Custom MCP server wrapping HTTP client logic (like json_validator_tool pattern)
+- Q: How should the system determine which cards from a lesson template require diagram generation (FR-015 card eligibility detection)? → A: LLM analysis by Claude agent within card pre-processing step
+- Q: Why does the system use sequential batch processing instead of parallel processing (clarifying FR-036 vs Out-of-Scope line 308)? → A: Sequential processing only (design choice for MVP simplicity and debugging)
+- Q: What error response format should the DiagramScreenshot service return when rendering fails (needed for FR-039 exception handling)? → A: Existing service format: {success: false, error: {code, message, details, renderTimeMs, consoleErrors, suggestion}}
+- Q: What filesystem security measures does the workspace management system need (FR-017-023 workspace creation security)? → A: Single-user CLI tool (no isolation needed for MVP)
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
   IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
   Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
   you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
+
   Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
   Think of each story as a standalone slice of functionality that can be:
   - Developed independently
@@ -124,9 +134,9 @@ Different users have different operational preferences. Curriculum developers ma
 - **FR-011**: System MUST fetch lesson_template document from Appwrite default.lesson_templates collection using courseId and order
 - **FR-012**: System MUST throw exception with clear error message when lesson_template is not found (no fallback or default lesson)
 - **FR-013**: System MUST validate lesson_template structure contains required fields (lessonTemplateId, cards array) before processing
-- **FR-014**: System MUST extract all cards from lesson_template that contain mathematical or visual content requiring diagrams
-- **FR-015**: System MUST identify card types eligible for diagrams (teach cards with mathematical content, explain_diagram cards, practice cards with visual problems)
-- **FR-016**: System MUST skip cards that explicitly do not need diagrams (explain_plain text-only cards, simple multiple choice without visual context)
+- **FR-014**: System MUST use Claude agent LLM analysis during pre-processing to extract all cards from lesson_template that contain mathematical or visual content requiring diagrams (not keyword-based heuristics)
+- **FR-015**: System MUST provide LLM with card content, cardType, and title for contextual analysis to determine diagram eligibility (e.g., "calculate gradient" needs diagram, "define gradient" does not)
+- **FR-016**: System MUST skip cards identified by LLM as not needing diagrams (text-only explanations, simple multiple choice without visual context, purely verbal content)
 
 #### Workspace Management
 
@@ -136,7 +146,7 @@ Different users have different operational preferences. Curriculum developers ma
 - **FR-020**: System MUST write README.md to workspace documenting file purposes and workflow
 - **FR-021**: System MUST preserve workspace after execution by default (persist=True)
 - **FR-022**: System MUST delete workspace when --no-persist-workspace flag is provided
-- **FR-023**: System MUST throw exception when workspace creation fails due to filesystem errors (permissions, disk full)
+- **FR-023**: System MUST throw exception when workspace creation fails due to filesystem errors (permissions, disk full); single-user CLI tool assumes trusted execution environment (no path traversal prevention or permission sandboxing needed for MVP)
 
 #### Claude SDK Configuration
 
@@ -145,24 +155,24 @@ Different users have different operational preferences. Curriculum developers ma
 - **FR-026**: System MUST set Claude SDK working directory (cwd) to workspace root path
 - **FR-027**: System MUST register allowed tools: Read, Write, Edit, Glob, Grep, TodoWrite, Task, WebSearch, WebFetch
 - **FR-028**: System MUST set max_turns to 500 to prevent infinite loops
-- **FR-029**: System MUST register MCP servers for validation tools if needed (Pydantic schema validators)
+- **FR-029**: System MUST register MCP servers including render_diagram_tool (custom HTTP wrapper) and any validation tools needed (Pydantic schema validators), using create_sdk_mcp_server pattern from claude_agent_sdk
 
 #### Subagent Configuration
 
 - **FR-030**: System MUST define Diagram Author subagent with responsibility for generating JSXGraph JSON and rendering images
 - **FR-031**: System MUST define Visual Critic subagent with responsibility for analyzing rendered diagram images across 4 quality dimensions
-- **FR-032**: System MUST provide Diagram Author subagent with access to render_diagram_tool (HTTP client to DiagramScreenshot service)
+- **FR-032**: System MUST provide Diagram Author subagent with access to render_diagram_tool implemented as custom MCP server wrapping HTTP client logic (following json_validator_tool pattern from claud_author_agent/src/tools/)
 - **FR-033**: System MUST provide Visual Critic subagent with NO tools (pure multimodal vision analysis)
 - **FR-034**: System MUST configure Diagram Author subagent with prompt containing JSXGraph pattern library references
 - **FR-035**: System MUST configure Visual Critic subagent with prompt containing 4D scoring criteria (clarity, accuracy, pedagogy, aesthetics)
 
 #### Diagram Generation Loop
 
-- **FR-036**: System MUST process each card requiring a diagram sequentially (not parallel to preserve context)
+- **FR-036**: System MUST process each card requiring a diagram sequentially (not parallel) for MVP simplicity, easier debugging, and predictable error handling at 20-50 lesson scale
 - **FR-037**: System MUST invoke Diagram Author subagent for each card to generate JSXGraph JSON and request rendering
 - **FR-038**: System MUST call DiagramScreenshot service HTTP endpoint to render JSXGraph JSON to PNG image
-- **FR-039**: System MUST throw exception when DiagramScreenshot service returns HTTP 4xx or 5xx errors (no fallback)
-- **FR-040**: System MUST throw exception when DiagramScreenshot service is unreachable after 30 second timeout (no retry, no fallback)
+- **FR-039**: System MUST throw exception when DiagramScreenshot service returns HTTP 4xx or 5xx errors (no fallback), extracting error.code and error.message from service's {success: false, error: {code, message, details, suggestion}} response format for diagnostic logging
+- **FR-040**: System MUST throw exception when DiagramScreenshot service is unreachable after 30 second timeout (no retry, no fallback), including renderTimeMs and consoleErrors in exception message if available
 - **FR-041**: System MUST validate rendered image is non-empty base64 PNG data before proceeding
 
 #### Quality Assessment & Refinement
@@ -298,14 +308,14 @@ Different users have different operational preferences. Curriculum developers ma
 
 8. **Scottish Visual Guidelines**: Diagrams use predefined color palette (Primary Blue #0066CC, Success Green #28a745, Warning Orange #FFA500, Danger Red #DC3545, Neutral Gray #6c757d) consistent with Scottish educational standards.
 
-9. **Card Eligibility Heuristics**: System identifies diagram needs based on cardType and content keywords (mathematical terms, geometric references, data visualization mentions). If heuristics miss edge cases, manual curation required.
+9. **Card Eligibility Analysis**: System uses Claude agent LLM analysis during pre-processing to identify diagram needs based on contextual understanding of card content, cardType, and pedagogical intent. This replaces keyword-based heuristics with semantic understanding (e.g., distinguishes "calculate gradient" from "define gradient").
 
 10. **Workspace Persistence Default**: Workspaces preserved by default (persist=True) for debugging and audit trail. Production automation should use --no-persist-workspace to avoid disk accumulation.
 
 ## Out of Scope
 
 - Diagram editing UI for manual refinement after generation
-- Batch processing parallelization (sequential processing only in MVP)
+- Batch processing parallelization (sequential processing only in MVP for simpler error handling, easier debugging, and sufficient performance at 20-50 lesson scale; can be added post-MVP if larger courses require it)
 - Cloud storage integration for large images (inline base64 only)
 - Diagram versioning system (overwrites only, no history)
 - Real-time preview of diagrams during generation (fire-and-forget API model)

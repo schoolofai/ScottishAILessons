@@ -221,17 +221,85 @@ class SOWAuthorClaudeAgent:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    async def _check_existing_sow(
+        self,
+        courseId: str,
+        version: str
+    ) -> Optional[Dict[str, Any]]:
+        """Check if SOW already exists for courseId AND version.
+
+        This prevents creating duplicate SOWs for the same version.
+        Uses FAIL FAST pattern - raises exception if corruption detected.
+
+        Args:
+            courseId: Course identifier
+            version: SOW version to check
+
+        Returns:
+            Existing SOW document if found, None otherwise
+
+        Raises:
+            ValueError: If multiple SOWs found with same courseId+version (data corruption)
+        """
+        logger.info(f"Duplicate check: courseId='{courseId}', version='{version}'")
+
+        try:
+            from .utils.appwrite_mcp import list_appwrite_documents
+
+            existing_sows = await list_appwrite_documents(
+                database_id="default",
+                collection_id="Authored_SOW",
+                queries=[
+                    f'equal("courseId", "{courseId}")',
+                    f'equal("version", "{version}")'
+                ],
+                mcp_config_path=str(self.mcp_config_path)
+            )
+
+            if len(existing_sows) > 1:
+                # Data corruption - multiple SOWs with same courseId+version
+                error_msg = (
+                    f"DATA CORRUPTION DETECTED: Found {len(existing_sows)} SOWs for "
+                    f"courseId='{courseId}', version='{version}'. "
+                    f"Database integrity violated. Manual cleanup required.\n"
+                    f"SOW IDs: {[sow.get('$id') for sow in existing_sows]}"
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
+            if existing_sows:
+                sow = existing_sows[0]
+                logger.info(
+                    f"Found existing SOW: {sow['$id']} "
+                    f"(status={sow.get('status')}, created={sow.get('$createdAt')})"
+                )
+                return sow
+            else:
+                logger.info(f"No existing SOW found for version '{version}'")
+                return None
+
+        except ValueError:
+            raise  # Re-raise corruption errors
+        except Exception as e:
+            error_msg = f"Failed to check for existing SOW: {str(e)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
     async def execute(
         self,
-        courseId: str
+        courseId: str,
+        version: str = "1",
+        force: bool = False
     ) -> Dict[str, Any]:
-        """Execute the complete SOW authoring pipeline.
+        """Execute the complete SOW authoring pipeline with version support.
 
         The pipeline automatically fetches subject and level from the database based on courseId,
         eliminating redundant input and ensuring data consistency.
 
         Args:
             courseId: Course identifier (e.g., 'course_c84874')
+            version: SOW version number (default: "1"). Must be numeric string.
+            force: If True, overwrite existing SOW for this version (default: False)
 
         Returns:
             Dictionary containing:
@@ -243,7 +311,7 @@ class SOWAuthorClaudeAgent:
                 - error: str (if failed)
 
         Raises:
-            ValueError: If input validation fails or course not found
+            ValueError: If input validation fails, course not found, or duplicate version exists
             FileNotFoundError: If MCP config or prompts missing
         """
         # Step 1: Validate courseId format
@@ -251,6 +319,14 @@ class SOWAuthorClaudeAgent:
         if not is_valid:
             logger.error(f"Input validation failed: {error_msg}")
             raise ValueError(error_msg)
+
+        # Step 1b: Validate version format (must be numeric string)
+        if not version.isdigit():
+            error_msg = f"Version must be a numeric string (e.g., '1', '2'), got: '{version}'"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"SOW Authoring Pipeline: courseId='{courseId}', version='{version}', force={force}")
 
         # Step 2: Fetch subject and level from database (FAIL FAST)
         logger.info(f"Fetching course details from database for courseId '{courseId}'...")
@@ -266,6 +342,35 @@ class SOWAuthorClaudeAgent:
         if not is_valid:
             logger.error(f"Fetched data validation failed: {error_msg}")
             raise ValueError(error_msg)
+
+        # Step 4: Check for existing SOW with this courseId AND version (FAIL FAST)
+        logger.info(f"Checking for existing SOW version '{version}' for courseId '{courseId}'...")
+        existing_sow = await self._check_existing_sow(courseId, version)
+
+        if existing_sow and not force:
+            error_msg = (
+                f"SOW version {version} already exists for courseId '{courseId}'.\n"
+                f"  Document ID: {existing_sow['$id']}\n"
+                f"  Status: {existing_sow.get('status', 'UNKNOWN')}\n"
+                f"  Created: {existing_sow.get('$createdAt', 'UNKNOWN')}\n"
+                f"  Use --force flag to overwrite this specific version."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if existing_sow and force:
+            logger.warning(
+                f"FORCE MODE: Will overwrite existing SOW version {version} "
+                f"(Document ID: {existing_sow['$id']})"
+            )
+            self.existing_sow_id = existing_sow['$id']
+            self.version_being_overwritten = version
+        else:
+            self.existing_sow_id = None
+            self.version_being_overwritten = None
+
+        # Store version for downstream use
+        self.sow_version = version
 
         logger.info(f"Starting SOW authoring pipeline: {subject} ({level})")
 
@@ -372,8 +477,10 @@ class SOWAuthorClaudeAgent:
                     subject=subject,
                     level=level,
                     course_id=courseId,
+                    version=self.sow_version,  # Pass version
                     execution_id=self.execution_id,
-                    mcp_config_path=str(self.mcp_config_path)
+                    mcp_config_path=str(self.mcp_config_path),
+                    existing_sow_id=getattr(self, 'existing_sow_id', None)  # Pass for force mode
                 )
 
                 logger.info(f"SOW upserted successfully: {appwrite_document_id}")
