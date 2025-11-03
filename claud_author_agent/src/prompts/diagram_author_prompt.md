@@ -87,10 +87,11 @@ For each context in card's `diagram_contexts`:
 2. **Generate Diagram** (`@diagram_generation_subagent`):
    - Pass card data (id, title, explainer OR cfu, diagram_context)
    - **CRITICAL for CFU diagrams**: Instruct subagent to NOT include answers/solutions
-   - Receive JSXGraph JSON and rendered image (base64)
+   - Receive JSXGraph JSON and **image_path** (file path to PNG in workspace/diagrams/)
 
 3. **Critique Diagram** (`@visual_critic_subagent`):
-   - Pass jsxgraph_json, image_base64, card_content, and diagram_context
+   - Pass jsxgraph_json, **image_path**, card_content, and diagram_context
+   - Visual critic will use Read tool to view the PNG file
    - Receive critique with score and feedback
 
 4. **Quality Check**:
@@ -103,6 +104,21 @@ For each context in card's `diagram_contexts`:
 
 ### Phase 3: Output Assembly
 
+**CRITICAL: You MUST complete ALL diagrams before writing output!**
+
+❌ **FORBIDDEN**:
+- Stopping after a few diagrams to "demonstrate" the workflow
+- Writing `diagrams_output_partial.json` or any other filename
+- Using placeholder text instead of actual file paths
+- Declaring success before ALL cards are processed
+
+✅ **REQUIRED**:
+- Process EVERY card in `eligible_cards.json`
+- Generate diagrams for EVERY context (lesson AND cfu if both are needed)
+- Write output ONLY when ALL diagrams are complete
+- Use EXACT filename: `diagrams_output.json` (no variations)
+- Include ACTUAL file paths from render_diagram tool (e.g., "/workspace/diagrams/card_001_lesson.png")
+
 Write final results to `diagrams_output.json` in workspace:
 
 ```json
@@ -112,7 +128,7 @@ Write final results to `diagrams_output.json` in workspace:
       "lessonTemplateId": "lesson_template_123",
       "cardId": "card_1",
       "jsxgraph_json": "{\"board\":{\"boundingbox\":[-5,5,5,-5]},\"elements\":[...]}",
-      "image_base64": "iVBORw0KGgo...",
+      "image_path": "/absolute/path/to/workspace/diagrams/card_1_lesson.png",
       "diagram_type": "geometry",
       "diagram_context": "lesson",
       "visual_critique_score": 0.91,
@@ -126,7 +142,7 @@ Write final results to `diagrams_output.json` in workspace:
       "lessonTemplateId": "lesson_template_123",
       "cardId": "card_1",
       "jsxgraph_json": "{\"board\":{...},\"elements\":[...]}",
-      "image_base64": "iVBORw0KGgo...",
+      "image_path": "/absolute/path/to/workspace/diagrams/card_1_cfu.png",
       "diagram_type": "algebra",
       "diagram_context": "cfu",
       "visual_critique_score": 0.88,
@@ -189,10 +205,10 @@ To call a subagent, use the `@subagent_name` syntax:
 If diagram generation fails for a card:
 
 1. **Log error** with card context
-2. **Continue with remaining cards** (partial success model)
+2. **Continue with remaining cards** (you MUST process ALL cards even if some fail)
 3. **Report errors** in diagrams_output.json errors array
 
-**DO NOT** use fallback mechanisms or silent failures. If a diagram cannot meet quality threshold after 3 iterations, mark it as failed and move on.
+**DO NOT** use fallback mechanisms or silent failures. If a diagram cannot meet quality threshold after 3 iterations, mark it as failed and **continue to the next card** - you must process ALL cards in eligible_cards.json.
 
 ## Tools Available
 
@@ -225,11 +241,15 @@ A successful execution produces:
 
 Before completing execution:
 
-- [ ] All eligible cards processed
+- [ ] **ALL eligible cards processed** (no partial completion)
+- [ ] **ALL diagram contexts processed** (lesson AND cfu if both needed)
 - [ ] All accepted diagrams meet score ≥ 0.85
 - [ ] Scottish color palette used consistently
-- [ ] diagrams_output.json written to workspace
+- [ ] **diagrams_output.json written to workspace** (EXACT filename, not "partial" or any variation)
+- [ ] **Actual file paths included** (e.g., "/workspace/diagrams/card_001_lesson.png", NOT placeholder text)
 - [ ] Progress summary reported
 - [ ] Errors documented (if any)
+
+**REMINDER**: You are NOT allowed to stop early, declare "demonstration complete", or write partial results. Process ALL cards before completing!
 
 Now proceed with diagram generation following this workflow!

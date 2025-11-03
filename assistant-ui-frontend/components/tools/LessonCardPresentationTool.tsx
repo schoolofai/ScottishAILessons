@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { BookOpenIcon, UserIcon, ClockIcon } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
+import { RichTextEditor } from "@/components/ui/rich-text-editor";
 
 type LessonCardPresentationArgs = {
   card_content: string;
@@ -416,20 +417,21 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             )}
 
-            {/* Structured Response - Multi-part Written Answer */}
+            {/* Structured Response - Multi-part Written Answer with Rich Text */}
             {card_data.cfu.type === "structured_response" && (
               <div className="space-y-4">
                 <Label htmlFor="structured-answer" className="text-base font-medium">
                   <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
-                <textarea
-                  id="structured-answer"
+                <RichTextEditor
                   value={studentAnswer}
-                  onChange={(e) => setStudentAnswer(e.target.value)}
-                  placeholder="Show your working for each part. Write your complete answer."
-                  className="w-full p-3 border rounded-lg text-base font-mono min-h-[150px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={setStudentAnswer}
+                  placeholder="Show your working for each part. Use the toolbar for formatting or click the formula button (Σ) to insert equations."
+                  className="min-h-[200px]"
                 />
                 <p className="text-xs text-gray-500">
+                  💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, and the formula button (Σ) for math equations like E = mc²
+                  <br />
                   Max points: {card_data.cfu.rubric.total_points}
                 </p>
               </div>

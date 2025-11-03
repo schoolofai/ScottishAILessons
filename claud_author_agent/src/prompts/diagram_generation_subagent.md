@@ -196,11 +196,40 @@ Use ONLY these colors:
 
 After generating JSXGraph JSON:
 
-1. **Format as string**: Convert diagram JSON to string for tool call
-2. **Call render_diagram tool**: `mcp__diagram-screenshot__render_diagram`
-3. **Check result**: Verify `result.success === true`
-4. **Extract image**: Get `result.image` (base64-encoded PNG)
+1. **Call render_diagram tool**: `mcp__diagram-screenshot__render_diagram`
+   - **REQUIRED parameters**: `diagram`, `card_id`, `diagram_context`
+   - **Optional parameters**: `options` (width, height, format, scale)
+2. **Check result**: Verify `result.success === true`
+3. **Extract file path**: Get `result.image_path` (absolute path to PNG file in workspace)
+4. **Return path**: Pass `image_path` back to main agent (NOT base64 data)
 5. **Handle errors**: If rendering fails, analyze error and retry with fixes (max 3 attempts)
+
+### CRITICAL: Parameter Types
+
+**The render_diagram tool expects JSON OBJECTS (not strings) and REQUIRES card_id + diagram_context!**
+
+❌ **WRONG** - Missing required params or passing JSON as strings:
+```json
+{
+  "diagram": "{\"board\": {...}, \"elements\": [...]}",  // String - WILL FAIL!
+  "options": "{}"                                         // Missing card_id and diagram_context!
+}
+```
+
+✅ **CORRECT** - All required params as proper types:
+```json
+{
+  "diagram": {                    // Object - CORRECT!
+    "board": {...},
+    "elements": [...]
+  },
+  "card_id": "card_001",         // String - REQUIRED!
+  "diagram_context": "lesson",   // String - REQUIRED! ("lesson" or "cfu")
+  "options": {}                   // Object - Optional
+}
+```
+
+**DO NOT stringify the diagram JSON! DO include card_id and diagram_context!**
 
 ### Tool Call Example
 
@@ -227,9 +256,30 @@ mcp__diagram-screenshot__render_diagram
         }
       }
     ]
+  },
+  "card_id": "card_001",
+  "diagram_context": "lesson"
+}
+```
+
+### Tool Response Handling
+
+When the tool returns successfully:
+```json
+{
+  "success": true,
+  "image_path": "/absolute/path/to/workspace/diagrams/card_001_lesson.png",
+  "metadata": {
+    "format": "png",
+    "width": 1200,
+    "height": 800,
+    "sizeBytes": 45678,
+    "renderTimeMs": 450
   }
 }
 ```
+
+**Extract `image_path` and return it to the main agent. DO NOT return base64 data.**
 
 ### Error Recovery
 

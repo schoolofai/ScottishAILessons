@@ -18,6 +18,7 @@ Architecture:
 """
 
 import asyncio
+import base64
 import json
 import logging
 import time
@@ -273,10 +274,11 @@ class DiagramAuthorClaudeAgent:
                         'mcp__diagram-screenshot__render_diagram'  # DiagramScreenshot tool
                     ],
                     max_turns=50,  # Reduced limit: 3 iterations per card + overhead (was 500)
-                    cwd=str(workspace_path)  # Set agent working directory to isolated workspace
+                    cwd=str(workspace_path),  # Set agent working directory to isolated workspace
+                    env={"AGENT_WORKSPACE_PATH": str(workspace_path)}  # Pass workspace to MCP tools
                 )
 
-                logger.info(f"Agent configured: bypassPermissions + DiagramScreenshot tool + cwd={workspace_path} + max_turns=50")
+                logger.info(f"Agent configured: bypassPermissions + cwd={workspace_path} + env.AGENT_WORKSPACE_PATH={workspace_path} + max_turns=50")
 
                 # Execute pipeline (2 subagents: diagram_generation, visual_critic)
                 async with ClaudeSDKClient(options) as client:
@@ -346,6 +348,94 @@ class DiagramAuthorClaudeAgent:
                         "metrics": self.cost_tracker.get_summary(),
                         "message": "All diagram generation attempts failed"
                     }
+
+                # ═══════════════════════════════════════════════════════════════
+                # PHASE 4: VALIDATE IMAGE FILES AND LOAD PNG DATA (CRITICAL)
+                # ═══════════════════════════════════════════════════════════════
+                # FILE-BASED ARCHITECTURE: Check that ALL diagrams have image_path
+                # and that the PNG files exist. Then load files and encode to base64
+                # for Appwrite upload.
+                #
+                # Fast-fail principle: If even ONE diagram is missing its file,
+                # the entire execution is marked as FAILED.
+                # ═══════════════════════════════════════════════════════════════
+
+                logger.info("Validating diagram files and loading PNG data...")
+
+                missing_images = []
+                for diagram in diagrams:
+                    card_id = diagram.get("cardId", "unknown")
+                    image_path = diagram.get("image_path")
+
+                    # Check if image_path field exists
+                    if not image_path or image_path == "null" or (isinstance(image_path, str) and image_path.strip() == ""):
+                        missing_images.append({
+                            "cardId": card_id,
+                            "diagram_context": diagram.get("diagram_context", "unknown"),
+                            "has_jsxgraph": bool(diagram.get("jsxgraph_json")),
+                            "issue": "image_path is null, empty, or missing"
+                        })
+                        logger.error(f"❌ Diagram for card {card_id} is missing image_path field")
+                        continue
+
+                    # Check if file exists at the path
+                    from pathlib import Path
+                    file_path = Path(image_path)
+                    if not file_path.exists():
+                        missing_images.append({
+                            "cardId": card_id,
+                            "diagram_context": diagram.get("diagram_context", "unknown"),
+                            "has_jsxgraph": bool(diagram.get("jsxgraph_json")),
+                            "issue": f"PNG file not found at path: {image_path}"
+                        })
+                        logger.error(f"❌ PNG file not found: {image_path}")
+                        continue
+
+                    # Load PNG file and encode to base64
+                    try:
+                        png_bytes = file_path.read_bytes()
+                        image_base64 = base64.b64encode(png_bytes).decode('utf-8')
+                        diagram["image_base64"] = image_base64
+                        logger.info(f"✅ Loaded PNG from {file_path.name} ({len(png_bytes)} bytes)")
+                    except Exception as e:
+                        missing_images.append({
+                            "cardId": card_id,
+                            "diagram_context": diagram.get("diagram_context", "unknown"),
+                            "issue": f"Failed to read PNG file: {str(e)}"
+                        })
+                        logger.error(f"❌ Failed to read PNG file {image_path}: {e}")
+
+                if missing_images:
+                    error_msg = (
+                        f"FAILED: {len(missing_images)}/{len(diagrams)} diagrams have missing or unreadable PNG files. "
+                        f"The diagram generation subagent MUST call mcp__diagram-screenshot__render_diagram "
+                        f"with card_id and diagram_context to write PNG files. "
+                        f"Missing/failed diagrams: {[d['cardId'] for d in missing_images]}"
+                    )
+                    logger.error(f"❌ {error_msg}")
+
+                    # Return failure response with detailed information
+                    return {
+                        "success": False,
+                        "execution_id": self.execution_id,
+                        "workspace_path": str(workspace_path),
+                        "diagrams_generated": 0,  # No diagrams are usable without images
+                        "diagrams_skipped": total_cards - cards_needing_diagrams,
+                        "diagrams_failed": len(diagrams),  # All diagrams with missing images are failures
+                        "errors": errors,
+                        "missing_images": missing_images,
+                        "metrics": self.cost_tracker.get_summary(),
+                        "message": error_msg,
+                        "troubleshooting": [
+                            "Check if DiagramScreenshot service is running at http://localhost:3001",
+                            "Review agent logs for render_diagram tool call attempts",
+                            "Verify tool writes files to workspace/diagrams/ directory",
+                            "Check file permissions in workspace directory",
+                            f"Inspect {workspace_path}/diagrams_output.json for image_path values"
+                        ]
+                    }
+
+                logger.info(f"✅ All {len(diagrams)} diagrams have valid PNG files loaded")
 
                 # Prepare diagrams for batch upsert
                 logger.info("Starting batch upsert to Appwrite lesson_diagrams collection...")
@@ -455,17 +545,26 @@ class DiagramAuthorClaudeAgent:
 
 **Your task**:
 1. Read eligible_cards.json to see which cards need diagrams
-2. For each card, orchestrate the diagram generation and critique loop:
+2. For EVERY card in eligible_cards.json, orchestrate the diagram generation and critique loop:
    - Call @diagram_generation_subagent to generate JSXGraph JSON and render PNG
    - Call @visual_critic_subagent to critique the diagram
    - If score < 0.85 and iteration < 3, refine and iterate
    - If score ≥ 0.85, accept and move to next card
-3. Write diagrams_output.json with all accepted diagrams and errors
+   - If score < 0.85 after 3 iterations, mark as failed and continue to next card
+3. After processing ALL cards, write diagrams_output.json with all accepted diagrams and errors
+
+**CRITICAL REQUIREMENTS**:
+- ❌ DO NOT stop after a few diagrams to "demonstrate" the workflow
+- ❌ DO NOT write `diagrams_output_partial.json` or any filename other than `diagrams_output.json`
+- ❌ DO NOT use placeholder text like "[Generated successfully]" - include actual base64 PNG data
+- ✅ MUST process ALL {cards_needing_diagrams} cards before completing
+- ✅ MUST write EXACT filename: `diagrams_output.json`
+- ✅ MUST include actual base64 image data from render_diagram tool
 
 **Quality threshold**: ≥0.85 across 4 dimensions (clarity, accuracy, pedagogy, aesthetics)
 **Max iterations per card**: 3
 
-Begin by reading eligible_cards.json and acknowledging the task.
+Begin by reading eligible_cards.json and acknowledging that you will process ALL cards.
 """
 
         # Combine main prompt with instruction

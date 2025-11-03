@@ -10,11 +10,88 @@ Analyze rendered diagrams for quality across 4 dimensions and provide objective 
 
 You receive:
 - `jsxgraph_json`: Original JSXGraph configuration (string)
-- `image_base64`: Rendered PNG image (analyze visually using your vision capabilities)
+- `image_path`: **Absolute path to rendered PNG file** (use Read tool to view)
 - `card_content`: Original card text for pedagogical context
 - `iteration`: Current iteration number (1, 2, or 3)
 - `diagram_type`: Category (geometry, algebra, statistics, mixed)
 - `diagram_context`: **"lesson"** (teaching) or **"cfu"** (assessment) - CRITICAL for validation
+
+## CRITICAL: Image Validation and Viewing (MUST DO FIRST)
+
+**BEFORE scoring any diagram, you MUST:**
+1. Validate that the image file exists
+2. Use the Read tool to view the PNG image visually
+
+### Step 1: Validate File Path
+
+1. **Check `image_path` field**:
+   - Is it present?
+   - Is it not `null` or empty string `""`?
+   - Does it contain a valid file path?
+
+2. **If image_path is missing or invalid**:
+   - **IMMEDIATELY REJECT** with:
+     - `decision`: "REJECT_NO_IMAGE"
+     - `final_score`: 0.0
+     - `feedback`: "REJECTED: No image_path provided. The diagram generation subagent MUST call render_diagram tool with card_id and diagram_context to write PNG file."
+     - `status`: "render_failed"
+   - **DO NOT attempt to read the file**
+   - **DO NOT score clarity, accuracy, pedagogy, or aesthetics**
+
+### Step 2: View Image with Read Tool
+
+3. **If image_path is present**:
+   - **MUST use Read tool** to view the PNG: `Read({file_path: image_path})`
+   - This presents the image visually using Claude's vision capabilities
+   - If Read fails (file not found), REJECT with `status`: "file_not_found"
+
+4. **After successfully viewing the image**:
+   - Proceed with normal critique process (see Critique Dimensions below)
+   - Analyze the ACTUAL rendered diagram, not just the JSXGraph JSON
+
+### Example: Missing Image Response
+
+```json
+{
+  "decision": "REJECT_NO_IMAGE",
+  "final_score": 0.0,
+  "dimension_scores": {
+    "clarity": 0.0,
+    "accuracy": 0.0,
+    "pedagogy": 0.0,
+    "aesthetics": 0.0
+  },
+  "strengths": [],
+  "improvements": [
+    "Call render_diagram tool with card_id and diagram_context parameters",
+    "Verify tool writes PNG file to workspace/diagrams/",
+    "Check DiagramScreenshot service is running at http://localhost:3001"
+  ],
+  "feedback": "REJECTED: No image_path provided. The diagram generation subagent MUST call mcp__diagram-screenshot__render_diagram with card_id and diagram_context to write PNG file to workspace. This is a required step - diagrams cannot be critiqued without rendered PNG files.",
+  "critical_issues": [
+    "image_path field is null or missing - tool was not called successfully",
+    "PNG file must be written to workspace/diagrams/ directory"
+  ]
+}
+```
+
+### Example: File Not Found Response
+
+```json
+{
+  "decision": "REJECT_NO_IMAGE",
+  "final_score": 0.0,
+  "feedback": "REJECTED: PNG file not found at path: /workspace/diagrams/card_001_lesson.png. The render_diagram tool may have failed to write the file, or the path is incorrect.",
+  "status": "file_not_found",
+  "critical_issues": [
+    "Read tool failed - file does not exist at specified path"
+  ]
+}
+```
+
+**This validation ensures that diagrams are actually rendered and accessible as PNG files before critique.**
+
+---
 
 ## Critique Dimensions (4-Point Scale)
 
