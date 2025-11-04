@@ -52,6 +52,12 @@ export interface ExcalidrawCanvasRef {
    * @returns Array of Excalidraw elements
    */
   getSceneElements: () => any[];
+
+  /**
+   * Insert a library item onto the canvas by its ID
+   * @param itemId - The ID of the library item to insert
+   */
+  insertLibraryItem: (itemId: string) => void;
 }
 
 /**
@@ -352,6 +358,7 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
     customLibraryUrls = []
   }, ref) => {
     const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
+    const [loadedLibraryItems, setLoadedLibraryItems] = useState<any[]>([]);
 
     // Expose methods to parent via ref
     useImperativeHandle(ref, () => ({
@@ -428,8 +435,143 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
           return [];
         }
         return excalidrawAPI.getSceneElements();
+      },
+
+      insertLibraryItem: (itemId: string): void => {
+        if (!excalidrawAPI) {
+          console.warn('⚠️ Canvas API not ready');
+          return;
+        }
+
+        console.log(`🎯 Inserting library item: ${itemId}`);
+
+        // Find the library item by exact ID first
+        let libraryItem = loadedLibraryItems.find(item => item.id === itemId);
+
+        // If not found by ID, try multiple search strategies
+        if (!libraryItem) {
+          const searchTerm = itemId.toLowerCase().replace(/-/g, ' ').replace(/_/g, ' ');
+
+          // Strategy 1: Exact name match (case-insensitive)
+          libraryItem = loadedLibraryItems.find(item =>
+            item.name && item.name.toLowerCase() === searchTerm
+          );
+
+          // Strategy 2: Partial name match (search term in name)
+          if (!libraryItem) {
+            libraryItem = loadedLibraryItems.find(item =>
+              item.name && item.name.toLowerCase().includes(searchTerm)
+            );
+          }
+
+          // Strategy 3: Reverse match (name in search term) - for longer library names
+          if (!libraryItem) {
+            libraryItem = loadedLibraryItems.find(item =>
+              item.name && searchTerm.includes(item.name.toLowerCase())
+            );
+          }
+
+          // Strategy 4: Word-by-word match (any word matches)
+          if (!libraryItem) {
+            const searchWords = searchTerm.split(' ');
+            libraryItem = loadedLibraryItems.find(item => {
+              if (!item.name) return false;
+              const nameWords = item.name.toLowerCase().split(' ');
+              return searchWords.some(searchWord =>
+                nameWords.some(nameWord =>
+                  nameWord.includes(searchWord) || searchWord.includes(nameWord)
+                )
+              );
+            });
+          }
+
+          if (libraryItem) {
+            console.log(`✅ Found library item by name match: "${libraryItem.name}" (ID: ${libraryItem.id})`);
+          }
+        }
+
+        if (!libraryItem) {
+          console.warn(`⚠️ Library item not found: "${itemId}"`);
+          console.log(`📚 Try one of these available items:`, loadedLibraryItems.slice(0, 10).map(item => ({ id: item.id, name: item.name })));
+          alert(`Item "${itemId}" not found. Check browser console to see available items.`);
+          return;
+        }
+
+        // Get current elements
+        const currentElements = excalidrawAPI.getSceneElements();
+
+        // Clone library item elements and position them in center of visible viewport
+        const appState = excalidrawAPI.getAppState();
+        const { scrollX, scrollY, zoom, width, height } = appState;
+
+        // Calculate the center of the visible canvas viewport in canvas coordinates
+        const viewportCenterX = -scrollX / zoom.value + (width / 2) / zoom.value;
+        const viewportCenterY = -scrollY / zoom.value + (height / 2) / zoom.value;
+
+        // Calculate bounding box of library item to center it properly
+        const itemElements = libraryItem.elements;
+        const bounds = itemElements.reduce((acc: any, el: any) => {
+          const minX = Math.min(acc.minX, el.x);
+          const minY = Math.min(acc.minY, el.y);
+          const maxX = Math.max(acc.maxX, el.x + (el.width || 0));
+          const maxY = Math.max(acc.maxY, el.y + (el.height || 0));
+          return { minX, minY, maxX, maxY };
+        }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+
+        const itemCenterX = (bounds.minX + bounds.maxX) / 2;
+        const itemCenterY = (bounds.minY + bounds.maxY) / 2;
+
+        // Calculate offset to move item center to viewport center
+        const offsetX = viewportCenterX - itemCenterX;
+        const offsetY = viewportCenterY - itemCenterY;
+
+        console.log(`📍 Positioning: viewport center (${Math.round(viewportCenterX)}, ${Math.round(viewportCenterY)}), offset (${Math.round(offsetX)}, ${Math.round(offsetY)})`);
+
+        // Clone with ALL required Excalidraw properties for full selectability
+        const newElements = libraryItem.elements.map((el: any) => ({
+          ...el,
+          // Identity
+          id: `${el.id}-${Date.now()}-${Math.random()}`,
+          type: el.type, // Explicit type preservation
+
+          // Positioning
+          x: el.x + offsetX,
+          y: el.y + offsetY,
+
+          // State flags
+          isDeleted: false,
+          locked: false,
+
+          // Relationship properties - clear all bindings to old elements
+          boundElements: null, // Use null instead of [] to match TypeScript definition
+          groupIds: [],
+          frameId: null, // CRITICAL: Prevent frame inheritance from library items
+
+          // Ordering (CRITICAL - was missing)
+          index: null, // Let Excalidraw assign proper fractional index
+
+          // Randomization for rendering
+          seed: Math.floor(Math.random() * 2 ** 31),
+
+          // Version tracking
+          version: (el.version || 0) + 1,
+          versionNonce: Math.floor(Math.random() * 2 ** 31),
+
+          // Timestamp
+          updated: Date.now(),
+
+          // Optional data preservation
+          customData: el.customData ? { ...el.customData } : undefined,
+        }));
+
+        // Add to canvas
+        excalidrawAPI.updateScene({
+          elements: [...currentElements, ...newElements],
+        });
+
+        console.log(`✅ Inserted ${newElements.length} elements from library item "${itemId}"`);
       }
-    }));
+    }), [excalidrawAPI, loadedLibraryItems]);
 
     return (
       <div
@@ -474,6 +616,17 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
                   } else {
                     console.log('📚 External libraries disabled - using coordinate graph only');
                   }
+
+                  // Store library items in state for quick access panel
+                  setLoadedLibraryItems(libraryItems);
+
+                  // Log all loaded items for debugging quick access buttons
+                  console.log('📋 Loaded library items:', libraryItems.map((item, idx) => ({
+                    index: idx,
+                    id: item.id,
+                    name: item.name || 'Unnamed',
+                    elementCount: item.elements?.length || 0
+                  })));
 
                   // Update Excalidraw library with all items
                   await api.updateLibrary({

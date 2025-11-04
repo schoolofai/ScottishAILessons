@@ -428,6 +428,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   onChange={setStudentAnswer}
                   placeholder="Show your working for each part. Use the toolbar for formatting or click the formula button (Σ) to insert equations."
                   className="min-h-[200px]"
+                  stem={card_data.cfu.stem}
                 />
                 <p className="text-xs text-gray-500">
                   💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, and the formula button (Σ) for math equations like E = mc²

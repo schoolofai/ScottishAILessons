@@ -17,13 +17,15 @@ interface RichTextEditorProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  stem?: string; // Optional lesson question/stem to show in drawing modal
 }
 
 export function RichTextEditor({
   value,
   onChange,
   placeholder = "Enter your answer...",
-  className = ""
+  className = "",
+  stem
 }: RichTextEditorProps) {
   const [showMathInput, setShowMathInput] = useState(false);
   const [isMathfieldReady, setIsMathfieldReady] = useState(false);
@@ -115,9 +117,33 @@ export function RichTextEditor({
   }
 
   return (
-    <div className={`rich-text-editor border border-input rounded-lg overflow-hidden ${className}`}>
-      {/* Toolbar */}
-      <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-muted/30">
+    <>
+      {/* CSS for selected image styling */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .rich-text-editor .ProseMirror img.ProseMirror-selectednode {
+          outline: 3px solid #3b82f6;
+          outline-offset: 2px;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+
+        .rich-text-editor .ProseMirror img {
+          max-width: 100%;
+          height: auto;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .rich-text-editor .ProseMirror img:hover {
+          outline: 2px solid #93c5fd;
+          outline-offset: 2px;
+          border-radius: 4px;
+        }
+      `}} />
+
+      <div className={`rich-text-editor border border-input rounded-lg overflow-hidden ${className}`}>
+        {/* Toolbar */}
+        <div className="flex flex-wrap gap-1 p-2 border-b border-border bg-muted/30">
         <Button
           type="button"
           variant="ghost"
@@ -181,7 +207,7 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+          onClick={() => editor.chain().focus().clearContent().run()}
         >
           Clear
         </Button>
@@ -214,7 +240,9 @@ export function RichTextEditor({
         open={showDrawModal}
         onClose={() => setShowDrawModal(false)}
         onInsert={handleDrawingInsert}
+        stem={stem}
       />
-    </div>
+      </div>
+    </>
   );
 }

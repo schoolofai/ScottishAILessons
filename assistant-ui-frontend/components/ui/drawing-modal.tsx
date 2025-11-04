@@ -4,11 +4,14 @@ import React, { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog";
 import { Button } from "./button";
 import { ExcalidrawCanvas, type ExcalidrawCanvasRef } from "./excalidraw-canvas";
+import { QuickAccessPanel } from "./quick-access-panel";
+import ReactMarkdown from 'react-markdown';
 
 interface DrawingModalProps {
   open: boolean;
   onClose: () => void;
   onInsert: (base64Image: string) => void;
+  stem?: string; // Optional lesson question/stem to display
 }
 
 /**
@@ -22,9 +25,45 @@ interface DrawingModalProps {
  * - Draw on canvas
  * - Click "Insert Drawing" → exports to PNG, closes modal, inserts into editor
  */
-export function DrawingModal({ open, onClose, onInsert }: DrawingModalProps) {
+export function DrawingModal({ open, onClose, onInsert, stem }: DrawingModalProps) {
   const canvasRef = useRef<ExcalidrawCanvasRef>(null);
   const [isInserting, setIsInserting] = useState(false);
+  const [isPanelOpen, setIsPanelOpen] = useState(true); // Start open by default
+
+  const handleQuickInsert = (itemId: string) => {
+    console.log(`🚀 Quick insert requested: ${itemId}`);
+    canvasRef.current?.insertLibraryItem(itemId);
+  };
+
+  // Stem renderer component - matches LessonCardPresentationTool formatting
+  const StemRenderer = ({ stem, className }: { stem: string; className?: string }) => {
+    // Handle both literal "\n" strings and actual newline characters
+    // Convert them to double newlines for proper markdown paragraph breaks
+    let processedStem = stem;
+
+    // First, convert literal "\n" strings (escaped) to actual newlines
+    processedStem = processedStem.replace(/\\n/g, '\n');
+
+    // Then convert single newlines to double newlines for markdown paragraphs
+    processedStem = processedStem.replace(/\n/g, '\n\n');
+
+    return (
+      <div className={`prose prose-sm max-w-none ${className || ''}`}>
+        <ReactMarkdown
+          components={{
+            p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+            strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
+            em: ({ node, ...props }) => <em className="italic" {...props} />,
+            ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2" {...props} />,
+            ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+          }}
+        >
+          {processedStem}
+        </ReactMarkdown>
+      </div>
+    );
+  };
 
   const handleInsert = async () => {
     try {
@@ -63,24 +102,59 @@ export function DrawingModal({ open, onClose, onInsert }: DrawingModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="!max-w-[98vw] sm:!max-w-[98vw] w-[95vw] h-[95vh] p-0 gap-0 flex flex-col">
+      <DialogContent
+        className="!max-w-[98vw] sm:!max-w-[98vw] w-[95vw] h-[95vh] p-0 gap-0 flex flex-col"
+        onEscapeKeyDown={(e) => {
+          e.preventDefault(); // Block Escape key from closing modal
+        }}
+        onPointerDownOutside={(e) => {
+          e.preventDefault(); // Block outside clicks from closing modal
+        }}
+        onInteractOutside={(e) => {
+          e.preventDefault(); // Block all outside interactions
+        }}
+      >
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle>Draw a Diagram</DialogTitle>
         </DialogHeader>
 
-        {/* Canvas Area - Fills available space */}
-        <div className="flex-1 min-h-0 p-4">
-          <ExcalidrawCanvas
-            ref={canvasRef}
-            height={Math.max(500, Math.floor(window.innerHeight * 0.8))}
-            width="100%"
-          />
-        </div>
+        {/* Main Content Area - Two column layout if stem provided */}
+        <div className="flex-1 min-h-0 flex">
+          {/* Left Column - Lesson Stem/Question (if provided) */}
+          {stem && (
+            <div className="w-[30%] border-r border-gray-200 bg-gray-50 overflow-y-auto flex flex-col">
+              <div className="px-4 py-3 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <h3 className="text-sm font-semibold text-gray-800">📝 Question</h3>
+              </div>
+              <div className="flex-1 p-4">
+                <StemRenderer stem={stem} />
+              </div>
+            </div>
+          )}
 
-        {/* Instructions */}
-        <div className="px-6 pb-3 flex-shrink-0">
-          <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
-            <p><strong>💡 Tip:</strong> Use shapes (rectangle, ellipse, arrow) or freehand drawing (press P or 7). Use the toolbar to customize colors, line styles, and more. Click "Insert Drawing" when finished.</p>
+          {/* Right Column - Canvas Area */}
+          <div className={`${stem ? 'w-[70%]' : 'w-full'} flex flex-col`}>
+            <div className="flex-1 min-h-0 p-4 relative overflow-visible">
+              <ExcalidrawCanvas
+                ref={canvasRef}
+                height={Math.max(500, Math.floor(window.innerHeight * 0.8))}
+                width="100%"
+              />
+
+              {/* Quick Access Panel - Inside canvas container */}
+              <QuickAccessPanel
+                onInsertItem={handleQuickInsert}
+                isOpen={isPanelOpen}
+                onToggle={() => setIsPanelOpen(!isPanelOpen)}
+              />
+            </div>
+
+            {/* Instructions */}
+            <div className="px-4 pb-3 flex-shrink-0">
+              <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
+                <p><strong>💡 Tip:</strong> Use shapes (rectangle, ellipse, arrow) or freehand drawing (press P or 7). Use the toolbar to customize colors, line styles, and more.</p>
+              </div>
+            </div>
           </div>
         </div>
 
