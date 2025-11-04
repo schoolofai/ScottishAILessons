@@ -19,7 +19,12 @@ declare module '@tiptap/core' {
       /**
        * Add an image
        */
-      setImage: (options: { src: string; alt?: string; title?: string }) => ReturnType;
+      setImage: (options: {
+        src: string;
+        alt?: string;
+        title?: string;
+        dataScene?: string;  // Excalidraw scene JSON for editing
+      }) => ReturnType;
     };
   }
 }
@@ -61,6 +66,19 @@ export const Image = Node.create<ImageOptions>({
       },
       height: {
         default: null,
+      },
+      dataScene: {
+        default: null,
+        // Store Excalidraw scene JSON for edit capability
+        parseHTML: element => element.getAttribute('data-scene'),
+        renderHTML: attributes => {
+          if (!attributes.dataScene) {
+            return {};
+          }
+          return {
+            'data-scene': attributes.dataScene,
+          };
+        },
       },
     };
   },

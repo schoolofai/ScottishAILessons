@@ -247,14 +247,14 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
-            # NEW: Extract drawing data if present
+            # Extract drawing data if present (universal - works with ANY CFU type)
             student_drawing = interrupt_response.get("student_drawing")
             student_drawing_text = interrupt_response.get("student_drawing_text")
 
             print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
             if student_drawing:
-                print(f"🎨 DESIGN DEBUG - Drawing received: {len(student_drawing)} bytes base64")
-                print(f"📝 DESIGN DEBUG - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+                print(f"🎨 UNIVERSAL DRAWING - Drawing received: {len(student_drawing)} bytes base64 (works with all CFU types)")
+                print(f"📝 UNIVERSAL DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
 
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
@@ -544,16 +544,20 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     attempts = state.get("attempts", 0) + 1
     max_attempts = state.get("max_attempts", 3)
 
-    # Route to appropriate evaluation based on CFU type
+    # Route to appropriate evaluation based on DRAWING PRESENCE (not CFU type)
     cfu_type = cfu.get("type", "")
 
-    # Handle drawing CFU type - use vision API evaluation
-    if cfu_type == "drawing":
-        if not student_drawing:
-            print("🚨 MARK DEBUG - Drawing CFU but no drawing submitted")
-            return {"stage": "design"}  # Go back to design
+    # PRIORITY 1: Check for drawing submission FIRST (works with ANY CFU type)
+    if student_drawing:
+        print(f"🎨 VISION API: Drawing detected for '{cfu_type}' CFU - routing to vision evaluation")
 
-        print(f"🎨 MARK DEBUG - Routing to vision-based drawing evaluation")
+        # Validation: drawing field should not be empty string
+        if not student_drawing.strip():
+            error_msg = f"student_drawing field is present but empty for CFU type: {cfu_type}"
+            print(f"🚨 MARK DEBUG - {error_msg}")
+            raise ValueError(error_msg)
+
+        print(f"🎨 MARK DEBUG - Routing to vision-based evaluation (CFU type: {cfu_type}, drawing size: {len(student_drawing)} bytes)")
         evaluation = teacher.evaluate_drawing_response(
             student_drawing=student_drawing,
             student_drawing_text=student_drawing_text,
@@ -578,7 +582,7 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         evidence = state.get("evidence", [])
         evidence.append(evidence_entry)
 
-        print(f"🎨 MARK DEBUG - Drawing evaluation complete: is_correct={evaluation.is_correct}, should_progress={should_progress}")
+        print(f"🎨 MARK DEBUG - Vision evaluation complete: is_correct={evaluation.is_correct}, should_progress={should_progress}, cfu_type={cfu_type}")
 
         return {
             "is_correct": evaluation.is_correct,
@@ -592,8 +596,8 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "student_drawing_text": None
         }
 
-    # Pre-validate numeric responses BEFORE LLM evaluation
-    if cfu_type == "numeric":
+    # PRIORITY 2: Pre-validate numeric responses BEFORE LLM evaluation (text-only path)
+    if cfu_type == "numeric" and student_response:
         try:
             # Extract expected answer and tolerance
             expected_numeric = float(cfu.get("expected", 0))
@@ -747,14 +751,14 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
-            # NEW: Extract drawing data if present
+            # Extract drawing data if present (universal - works with ANY CFU type)
             student_drawing = interrupt_response.get("student_drawing")
             student_drawing_text = interrupt_response.get("student_drawing_text")
 
             print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
             if student_drawing:
-                print(f"🎨 RETRY DEBUG - Drawing received: {len(student_drawing)} bytes base64")
-                print(f"📝 RETRY DEBUG - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+                print(f"🎨 UNIVERSAL DRAWING - Drawing received on retry: {len(student_drawing)} bytes base64 (works with all CFU types)")
+                print(f"📝 UNIVERSAL DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
 
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")

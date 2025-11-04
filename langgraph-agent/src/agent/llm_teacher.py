@@ -833,18 +833,35 @@ Use this assessment to acknowledge specific strengths in your transition.
             # Remove feedback from progress_context string representation (keep stats separate)
             progress_stats = {k: v for k, v in progress_context.items() if k != "assessment_feedback"} if isinstance(progress_context, dict) else progress_context
 
-            response = self.llm.invoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_stats),
-                    assessment_feedback=assessment_feedback_text,  # NEW parameter
-                    subject_area=subject_area,
-                    level_description=level_description,
-                    **curriculum_context
-                )
-            )
-            return response
+            # Retry logic for OpenAI API errors (with exponential backoff)
+            import time
+            max_retries = 3
+            retry_delay = 1  # seconds
+
+            for attempt in range(max_retries):
+                try:
+                    response = self.llm.invoke(
+                        self.transition_prompt.format_messages(
+                            completed_card=completed_card.get("title", "previous topic"),
+                            next_card=next_card.get("title", "next topic"),
+                            progress_context=str(progress_stats),
+                            assessment_feedback=assessment_feedback_text,  # NEW parameter
+                            subject_area=subject_area,
+                            level_description=level_description,
+                            **curriculum_context
+                        )
+                    )
+                    return response
+                except Exception as llm_error:
+                    if attempt < max_retries - 1:
+                        logger.warning(
+                            f"OpenAI API error in transition (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s: {llm_error}"
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, re-raise
+                        raise
         except Exception as e:
             logger.error(
                 f"LLM call failed in transition_to_next_sync_full: {e}",
@@ -1385,10 +1402,28 @@ Respond with structured evaluation including:
 
             logger.info(f"🎨 Evaluating drawing submission (attempt {attempt_number}/{max_attempts})")
 
-            evaluation = structured_llm.invoke(
-                [message],
-                config={"tags": ["json", "vision"], "run_name": "drawing_evaluation"}
-            )
+            # Retry logic for OpenAI API errors (with exponential backoff)
+            import time
+            max_retries = 3
+            retry_delay = 1  # seconds
+
+            for api_attempt in range(max_retries):
+                try:
+                    evaluation = structured_llm.invoke(
+                        [message],
+                        config={"tags": ["json", "vision"], "run_name": "drawing_evaluation"}
+                    )
+                    break  # Success, exit retry loop
+                except Exception as api_error:
+                    if api_attempt < max_retries - 1:
+                        logger.warning(
+                            f"OpenAI Vision API error (attempt {api_attempt + 1}/{max_retries}), retrying in {retry_delay}s: {api_error}"
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, re-raise
+                        raise
 
             logger.info(
                 f"✅ Drawing evaluated: is_correct={evaluation.is_correct}, "
@@ -1399,28 +1434,32 @@ Respond with structured evaluation including:
             return evaluation
 
         except Exception as e:
+            # Extract CFU type for detailed error logging
+            cfu_type = card_context.get("cfu", {}).get("type", "unknown")
+
             logger.error(
-                f"Vision API call failed in evaluate_drawing_response: {e}",
+                f"Vision API evaluation failed - FAST FAIL (no fallback)",
                 extra={
+                    "cfu_type": cfu_type,
                     "has_drawing": bool(student_drawing),
-                    "drawing_size": len(student_drawing) if student_drawing else 0,
-                    "has_text": bool(student_drawing_text),
+                    "drawing_size_bytes": len(student_drawing) if student_drawing else 0,
+                    "has_text_explanation": bool(student_drawing_text),
+                    "text_explanation_length": len(student_drawing_text) if student_drawing_text else 0,
                     "attempt_number": attempt_number,
                     "max_attempts": max_attempts,
-                    "error_type": type(e).__name__
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "card_id": card_context.get("id", "unknown")
                 }
             )
 
-            # Fallback: Return neutral evaluation with error feedback
-            logger.warning("Returning fallback evaluation due to vision API failure")
-            return EvaluationResponse(
-                is_correct=False,
-                confidence=0.0,
-                feedback=f"Unable to evaluate your drawing due to a technical issue. Please try again or ask your teacher for help.",
-                reasoning=f"Vision API error: {str(e)}",
-                should_progress=attempt_number >= max_attempts,  # Progress if max attempts
-                partial_credit=0.0
-            )
+            # FAST FAIL - No silent fallback (anti-pattern per CLAUDE.md)
+            # Raise exception with detailed context for debugging
+            raise RuntimeError(
+                f"Vision API evaluation failed for '{cfu_type}' CFU type. "
+                f"Student submitted drawing but evaluation could not complete. "
+                f"Error: {type(e).__name__}: {str(e)}"
+            ) from e
 
     def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str], state: Optional[Dict] = None):
         """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object.

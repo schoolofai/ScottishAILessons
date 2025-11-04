@@ -19,6 +19,7 @@ import { BookOpenIcon, UserIcon, ClockIcon } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
 import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
+import { DrawingModal } from "@/components/ui/drawing-modal";
 
 type LessonCardPresentationArgs = {
   card_content: string;
@@ -82,13 +83,18 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const sendCommand = useSafeLangGraphSendCommand();
 
     // Get current card context for updating with real-time card data
-    const { setCurrentCard } = useCurrentCard();
+    const { currentCard, setCurrentCard } = useCurrentCard();
 
     // Component state - must be before early return to avoid hook order issues
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
     const [showHint, setShowHint] = useState(false);
     const [hintIndex, setHintIndex] = useState(0);
+
+    // Drawing state - universal for all CFU types
+    const [studentDrawing, setStudentDrawing] = useState<string | null>(null);
+    const [studentDrawingText, setStudentDrawingText] = useState<string>("");
+    const [showDrawModal, setShowDrawModal] = useState(false);
 
     // Diagram state - for fetching and displaying lesson diagrams
     const [diagramUrl, setDiagramUrl] = useState<string | null>(null);
@@ -260,8 +266,12 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const progress = ((card_index + 1) / total_cards) * 100;
 
     const handleSubmitAnswer = () => {
-      if (!studentAnswer.trim() && !selectedMCQOption) {
-        alert("Please provide an answer before submitting.");
+      // Validate: must have text answer OR drawing
+      const hasTextAnswer = studentAnswer.trim() || selectedMCQOption;
+      const hasDrawing = studentDrawing;
+
+      if (!hasTextAnswer && !hasDrawing) {
+        alert("Please provide an answer or drawing before submitting.");
         return;
       }
 
@@ -270,20 +280,27 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       console.log('🚨 TOOL UI DEBUG - Submitting answer via sendCommand:', {
         action: "submit_answer",
         student_response: finalAnswer,
+        has_drawing: !!studentDrawing,
+        drawing_text: studentDrawingText,
         card_id: card_data.id
       });
 
-      // Update interaction state to "evaluating" for context-aware chat
+      // Update interaction state to "evaluating" AND store previous answer for retry
       setCurrentCard(prev => prev ? {
         ...prev,
-        interaction_state: "evaluating"
+        interaction_state: "evaluating",
+        previous_answer: finalAnswer,
+        previous_drawing: studentDrawing || undefined,
+        previous_drawing_text: studentDrawingText || undefined
       } : null);
 
-      // Send command with resume value as JSON string
+      // Send command with resume value as JSON string (always include drawing fields)
       sendCommand({
         resume: JSON.stringify({
           action: "submit_answer",
           student_response: finalAnswer,
+          student_drawing: studentDrawing || null,         // ✅ Include drawing
+          student_drawing_text: studentDrawingText || null, // ✅ Include drawing text
           interaction_type: "answer_submission",
           card_id: card_data.id,
           interaction_id: args.interaction_id,
@@ -313,6 +330,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     };
 
     return (
+      <>
       <Card className="w-full max-w-4xl mx-auto">
         <CardHeader>
           <div className="flex items-center justify-between mb-4">
@@ -388,6 +406,20 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                     </div>
                   ))}
                 </RadioGroup>
+
+                {/* Drawing Support for MCQ */}
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDrawModal(true)}
+                  className="w-full mt-4"
+                >
+                  🎨 Add Diagram to Explain Answer (Optional)
+                </Button>
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    ✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}
+                  </div>
+                )}
               </div>
             )}
 
@@ -414,6 +446,20 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                     }}
                   />
                 </div>
+
+                {/* Drawing Support for Numeric */}
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDrawModal(true)}
+                  className="w-full mt-2"
+                >
+                  🎨 Add Diagram / Working (Optional)
+                </Button>
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    ✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}
+                  </div>
+                )}
               </div>
             )}
 
@@ -423,6 +469,51 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 <Label htmlFor="structured-answer" className="text-base font-medium">
                   <StemRenderer stem={card_data.cfu.stem} />
                 </Label>
+
+                {/* Editable diagram hint */}
+                {studentAnswer.includes('data-scene') && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                    <span className="text-blue-600 text-sm">✏️</span>
+                    <div className="flex-1">
+                      <p className="text-sm text-blue-800 font-medium">Your diagrams are editable!</p>
+                      <p className="text-xs text-blue-700 mt-0.5">
+                        Click any diagram in your answer below to edit it. Changes will be saved automatically.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit Previous Answer button (Issue 2: restore previous attempt) */}
+                {currentCard?.previous_answer &&
+                 studentAnswer !== currentCard.previous_answer && (
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 mb-2">
+                    <div className="flex items-start gap-2 mb-2">
+                      <span className="text-yellow-600 text-sm">🔄</span>
+                      <div className="flex-1">
+                        <p className="text-sm text-yellow-900 font-medium">Previous answer available</p>
+                        <p className="text-xs text-yellow-800 mt-0.5">
+                          You can restore your previous answer and edit it instead of starting from scratch.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Restore previous answer HTML (includes any diagrams with scene data)
+                        if (currentCard.previous_answer) {
+                          setStudentAnswer(currentCard.previous_answer);
+                          console.log('📥 Restored previous answer to editor');
+                        }
+                      }}
+                      className="w-full bg-yellow-100 hover:bg-yellow-200 border-yellow-400 text-yellow-900"
+                    >
+                      📝 Restore Previous Answer
+                    </Button>
+                  </div>
+                )}
+
                 <RichTextEditor
                   value={studentAnswer}
                   onChange={setStudentAnswer}
@@ -431,7 +522,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   stem={card_data.cfu.stem}
                 />
                 <p className="text-xs text-gray-500">
-                  💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, and the formula button (Σ) for math equations like E = mc²
+                  💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, the formula button (Σ) for math, and the draw button (✏️) for diagrams
                   <br />
                   Max points: {card_data.cfu.rubric.total_points}
                 </p>
@@ -458,6 +549,20 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                     }
                   }}
                 />
+
+                {/* Drawing Support for Short Text */}
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDrawModal(true)}
+                  className="w-full mt-2"
+                >
+                  🎨 Add Diagram (Optional)
+                </Button>
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    ✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}
+                  </div>
+                )}
               </div>
             )}
 
@@ -543,6 +648,21 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
         </CardContent>
       </Card>
+
+      {/* Universal Drawing Modal - available for all CFU types */}
+      {showDrawModal && (
+        <DrawingModal
+          open={showDrawModal}
+          onClose={() => setShowDrawModal(false)}
+          onInsert={(base64, description) => {
+            setStudentDrawing(base64);
+            setStudentDrawingText(description || "");
+            setShowDrawModal(false);
+          }}
+          stem={card_data.cfu.stem}
+        />
+      )}
+      </>
     );
   },
 });

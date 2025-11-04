@@ -26,6 +26,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MarkdownText } from "./markdown-text";
+import { UserMessageText } from "./user-message-text";
 import { ToolFallback } from "./tool-fallback";
 import { useSessionContext } from "@/lib/SessionContext";
 import { useReplayMode } from "@/contexts/ReplayModeContext";
@@ -361,7 +362,7 @@ const UserMessage: FC = () => {
 
         {/* aui-user-message-content */}
         <div className="bg-muted text-foreground col-start-2 rounded-3xl px-5 py-2.5 break-words">
-          <MessagePrimitive.Content components={{ Text: MarkdownText }} />
+          <MessagePrimitive.Content components={{ Text: UserMessageText }} />
         </div>
 
         {/* aui-user-branch-picker */}

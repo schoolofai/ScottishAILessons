@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./dialog";
 import { Button } from "./button";
 import { ExcalidrawCanvas, type ExcalidrawCanvasRef } from "./excalidraw-canvas";
@@ -10,8 +10,9 @@ import ReactMarkdown from 'react-markdown';
 interface DrawingModalProps {
   open: boolean;
   onClose: () => void;
-  onInsert: (base64Image: string) => void;
+  onInsert: (base64Image: string, sceneData?: any) => void;  // Now includes scene data for editing
   stem?: string; // Optional lesson question/stem to display
+  initialSceneData?: any; // Optional scene data to restore previous drawing
 }
 
 /**
@@ -25,10 +26,102 @@ interface DrawingModalProps {
  * - Draw on canvas
  * - Click "Insert Drawing" → exports to PNG, closes modal, inserts into editor
  */
-export function DrawingModal({ open, onClose, onInsert, stem }: DrawingModalProps) {
+export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }: DrawingModalProps) {
   const canvasRef = useRef<ExcalidrawCanvasRef>(null);
+  const isMountedRef = useRef<boolean>(false); // Track component mount state
   const [isInserting, setIsInserting] = useState(false);
   const [isPanelOpen, setIsPanelOpen] = useState(true); // Start open by default
+
+  // Track component mount/unmount state
+  useEffect(() => {
+    isMountedRef.current = true;
+    console.log('✅ DrawingModal mounted');
+
+    return () => {
+      isMountedRef.current = false;
+      console.log('🔄 DrawingModal unmounting');
+    };
+  }, []);
+
+  // Load initial scene data when modal opens with existing drawing
+  useEffect(() => {
+    if (!open) return;
+
+    console.log('🚪 ═══════════════════════════════════════════════════');
+    console.log('🚪 DRAWING MODAL OPENED');
+    console.log('🚪 ═══════════════════════════════════════════════════');
+
+    // CRITICAL FIX: Clear Excalidraw localStorage on modal open
+    // This prevents zoom/scroll pollution from previous sessions
+    if (typeof window !== 'undefined') {
+      try {
+        // Clear all Excalidraw-related localStorage keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('excalidraw')) {
+            keysToRemove.push(key);
+          }
+        }
+
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+        });
+
+        if (keysToRemove.length > 0) {
+          console.log(`🧹 Cleared ${keysToRemove.length} Excalidraw localStorage keys to prevent viewport pollution`);
+          console.log('🧹 Removed keys:', keysToRemove);
+        } else {
+          console.log('🧹 No Excalidraw localStorage keys found to clear');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to clear Excalidraw localStorage:', error);
+      }
+    }
+
+    if (!initialSceneData) {
+      console.log('ℹ️ Modal opened without initial scene data (new drawing)');
+      console.log('🚪 ═══════════════════════════════════════════════════');
+      return;
+    }
+
+    console.log('🎨 MODAL - Rendering with initial scene data:', {
+      hasInitialSceneData: !!initialSceneData,
+      elements: initialSceneData?.elements?.length || 0,
+      hasAppState: !!initialSceneData?.appState,
+      hasFiles: !!initialSceneData?.files
+    });
+
+    // Log element positions in the scene data for debugging
+    if (initialSceneData?.elements && initialSceneData.elements.length > 0) {
+      console.log('🎯 MODAL - Scene data element positions (first 3):');
+      initialSceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
+        console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
+      });
+    }
+
+    console.log('✅ MODAL - Elements passed directly via initialElements prop (single-phase initialization)');
+    console.log('🚪 ═══════════════════════════════════════════════════');
+
+    // CRITICAL FIX: Force Excalidraw to refresh canvas position after modal layout completes
+    // This fixes the 10px cursor offset bug when editing existing drawings
+    const refreshTimer = setTimeout(() => {
+      // Only refresh if component is still mounted - prevents React setState warning
+      if (isMountedRef.current && canvasRef.current) {
+        try {
+          // Call our refreshCanvas method to recalculate canvas coordinates
+          canvasRef.current.refreshCanvas();
+          console.log('🔄 CRITICAL FIX: Forced canvas position refresh after modal layout');
+        } catch (error) {
+          console.warn('⚠️ Failed to refresh canvas position:', error);
+        }
+      } else if (!isMountedRef.current) {
+        console.log('⏭️ Skipping refresh - component unmounted before timeout');
+      }
+    }, 250); // Increased delay to ensure Excalidraw completes internal initialization
+
+    return () => clearTimeout(refreshTimer);
+  }, [open, initialSceneData]);
 
   const handleQuickInsert = (itemId: string) => {
     console.log(`🚀 Quick insert requested: ${itemId}`);
@@ -75,20 +168,24 @@ export function DrawingModal({ open, onClose, onInsert, stem }: DrawingModalProp
 
       setIsInserting(true);
 
-      // Export canvas to base64 PNG
+      // Export canvas to base64 PNG (for display)
       const base64 = await canvasRef.current?.exportToPngBase64();
 
       if (!base64) {
         throw new Error("Failed to export drawing");
       }
 
+      // Export scene data (for editing)
+      const sceneData = canvasRef.current?.exportSceneData();
+
       console.log('📊 Drawing exported:', {
         base64Length: base64.length,
-        estimatedSize: `${Math.round(base64.length / 1024)}KB`
+        estimatedSize: `${Math.round(base64.length / 1024)}KB`,
+        sceneElements: sceneData?.elements?.length || 0
       });
 
-      // Call parent's insert handler with base64 image
-      onInsert(base64);
+      // Call parent's insert handler with both PNG and scene data
+      onInsert(base64, sceneData);
 
       // Close modal
       onClose();
@@ -134,11 +231,12 @@ export function DrawingModal({ open, onClose, onInsert, stem }: DrawingModalProp
 
           {/* Right Column - Canvas Area */}
           <div className={`${stem ? 'w-[70%]' : 'w-full'} flex flex-col`}>
-            <div className="flex-1 min-h-0 p-4 relative overflow-visible">
+            <div className="flex-1 min-h-0 relative overflow-visible">
               <ExcalidrawCanvas
                 ref={canvasRef}
                 height={Math.max(500, Math.floor(window.innerHeight * 0.8))}
                 width="100%"
+                initialElements={initialSceneData?.elements || []}
               />
 
               {/* Quick Access Panel - Inside canvas container */}
@@ -150,7 +248,7 @@ export function DrawingModal({ open, onClose, onInsert, stem }: DrawingModalProp
             </div>
 
             {/* Instructions */}
-            <div className="px-4 pb-3 flex-shrink-0">
+            <div className="px-4 py-3 flex-shrink-0">
               <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded border border-blue-200">
                 <p><strong>💡 Tip:</strong> Use shapes (rectangle, ellipse, arrow) or freehand drawing (press P or 7). Use the toolbar to customize colors, line styles, and more.</p>
               </div>

@@ -15,6 +15,10 @@ export interface CurrentCardData {
     student_name: string;
     progress: string;
   };
+  // Previous answer data for retry scenarios (Issue 2)
+  previous_answer?: string;
+  previous_drawing?: string;
+  previous_drawing_text?: string;
 }
 
 /**
