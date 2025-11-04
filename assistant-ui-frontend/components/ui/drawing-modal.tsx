@@ -79,32 +79,32 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
       }
     }
 
-    if (!initialSceneData) {
-      console.log('ℹ️ Modal opened without initial scene data (new drawing)');
-      console.log('🚪 ═══════════════════════════════════════════════════');
-      return;
-    }
-
-    console.log('🎨 MODAL - Rendering with initial scene data:', {
-      hasInitialSceneData: !!initialSceneData,
-      elements: initialSceneData?.elements?.length || 0,
-      hasAppState: !!initialSceneData?.appState,
-      hasFiles: !!initialSceneData?.files
-    });
-
-    // Log element positions in the scene data for debugging
-    if (initialSceneData?.elements && initialSceneData.elements.length > 0) {
-      console.log('🎯 MODAL - Scene data element positions (first 3):');
-      initialSceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
-        console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
+    if (initialSceneData) {
+      console.log('🎨 MODAL - Rendering with initial scene data:', {
+        hasInitialSceneData: !!initialSceneData,
+        elements: initialSceneData?.elements?.length || 0,
+        hasAppState: !!initialSceneData?.appState,
+        hasFiles: !!initialSceneData?.files
       });
+
+      // Log element positions in the scene data for debugging
+      if (initialSceneData?.elements && initialSceneData.elements.length > 0) {
+        console.log('🎯 MODAL - Scene data element positions (first 3):');
+        initialSceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
+          console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
+        });
+      }
+
+      console.log('✅ MODAL - Elements passed directly via initialElements prop (single-phase initialization)');
+    } else {
+      console.log('ℹ️ Modal opened without initial scene data (new drawing)');
     }
 
-    console.log('✅ MODAL - Elements passed directly via initialElements prop (single-phase initialization)');
     console.log('🚪 ═══════════════════════════════════════════════════');
 
     // CRITICAL FIX: Force Excalidraw to refresh canvas position after modal layout completes
-    // This fixes the 10px cursor offset bug when editing existing drawings
+    // This fixes the 10px cursor offset bug for BOTH new drawings and editing existing ones
+    // The offset can appear on subsequent modal opens even without scene data due to cached DOM layout
     const refreshTimer = setTimeout(() => {
       // Only refresh if component is still mounted - prevents React setState warning
       if (isMountedRef.current && canvasRef.current) {
