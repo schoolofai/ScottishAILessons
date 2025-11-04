@@ -7,7 +7,9 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { Button } from './button';
 import { MathInput } from './math-input';
 import { MathShortcuts } from './math-shortcuts';
+import { DrawingModal } from './drawing-modal';
 import { Math } from '@/lib/tiptap-math-extension';
+import { Image } from '@/lib/tiptap-image-extension';
 import katex from 'katex';
 
 interface RichTextEditorProps {
@@ -25,6 +27,7 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [showMathInput, setShowMathInput] = useState(false);
   const [isMathfieldReady, setIsMathfieldReady] = useState(false);
+  const [showDrawModal, setShowDrawModal] = useState(false);
   const mathfieldRef = useRef<any>(null);
 
   const editor = useEditor({
@@ -32,6 +35,10 @@ export function RichTextEditor({
       StarterKit,
       Placeholder.configure({
         placeholder,
+      }),
+      Image.configure({
+        inline: true,
+        allowBase64: true,
       }),
       Math,
     ],
@@ -81,6 +88,26 @@ export function RichTextEditor({
   const handleMathCancel = () => {
     setShowMathInput(false);
     setIsMathfieldReady(false);
+  };
+
+  const handleDrawingInsert = (base64Image: string) => {
+    if (!editor || !base64Image) return;
+
+    try {
+      // Insert image with base64 data URI
+      const dataUri = `data:image/png;base64,${base64Image}`;
+
+      editor.chain()
+        .focus()
+        .setImage({ src: dataUri })
+        .insertContent('<p></p>') // Add paragraph after image for continued typing
+        .run();
+
+      console.log('✅ Drawing inserted into rich text editor');
+    } catch (error) {
+      console.error('❌ Failed to insert drawing into editor:', error);
+      alert('Failed to insert drawing. Please try again.');
+    }
   };
 
   if (!editor) {
@@ -143,6 +170,17 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="sm"
+          onClick={() => setShowDrawModal(true)}
+          className="md:text-sm text-base md:min-w-0 min-w-[100px] md:px-3 px-4 md:py-2 py-3"
+        >
+          <span className="text-lg md:text-base">✏️</span>
+          <span className="ml-1">Draw</span>
+        </Button>
+        <div className="w-px h-6 bg-border mx-1" />
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
           onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
         >
           Clear
@@ -170,6 +208,13 @@ export function RichTextEditor({
 
       {/* Editor Content */}
       <EditorContent editor={editor} className="bg-white dark:bg-background" />
+
+      {/* Drawing Modal */}
+      <DrawingModal
+        open={showDrawModal}
+        onClose={() => setShowDrawModal(false)}
+        onInsert={handleDrawingInsert}
+      />
     </div>
   );
 }

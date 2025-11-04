@@ -28,7 +28,11 @@ class UnifiedState(TypedDict, total=False):
     student_id: str
     lesson_snapshot: Dict[str, Any]
     student_response: Optional[str]
-    
+
+    # Drawing submission fields (for drawing CFU type)
+    student_drawing: Optional[str]  # Base64-encoded PNG from Excalidraw canvas
+    student_drawing_text: Optional[str]  # Optional text explanation accompanying drawing
+
     # Teaching progression fields
     course_id: str
     lesson_template_id: str

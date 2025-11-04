@@ -539,6 +539,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             </div>
           )}
+
         </CardContent>
       </Card>
     );

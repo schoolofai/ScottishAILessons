@@ -1270,7 +1270,158 @@ Use this assessment to acknowledge specific strengths in your transition.
             raise RuntimeError(
                 f"Failed to generate structured evaluation: {str(e)}"
             ) from e
-    
+
+    def evaluate_drawing_response(
+        self,
+        student_drawing: str,
+        student_drawing_text: Optional[str],
+        card_context: Dict,
+        attempt_number: int,
+        max_attempts: int = 3,
+        state: Optional[Dict] = None
+    ) -> EvaluationResponse:
+        """Evaluate student's drawing submission using Claude's vision capabilities.
+
+        Args:
+            student_drawing: Base64-encoded PNG image of student's drawing
+            student_drawing_text: Optional text explanation provided by student
+            card_context: Card context dict containing CFU with rubric
+            attempt_number: Current attempt number
+            max_attempts: Maximum allowed attempts
+            state: Optional full state dict with curriculum metadata
+
+        Returns:
+            EvaluationResponse with scoring and feedback based on rubric
+
+        Raises:
+            RuntimeError: If vision API call fails or drawing cannot be evaluated
+        """
+        try:
+            # Extract CFU and rubric information
+            cfu = card_context.get("cfu", {})
+            question_text = cfu.get("stem", "") or cfu.get("question", "")
+            rubric = cfu.get("rubric", {})
+            total_points = rubric.get("total_points", 0)
+            criteria = rubric.get("criteria", [])
+
+            # Extract curriculum context if state provided
+            if state:
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+                curriculum_context = extract_curriculum_context_from_state(state)
+            else:
+                subject_area = "learning"
+                level_description = ""
+                curriculum_context = {"course_context_block": ""}
+
+            # Format rubric for prompt
+            rubric_text = self._format_rubric_for_prompt(rubric)
+
+            # Extract misconceptions
+            misconceptions = card_context.get("misconceptions", [])
+            misconceptions_text = self._format_misconceptions_for_prompt(misconceptions)
+
+            # Build vision-enabled prompt
+            prompt_text = f"""You are evaluating a student's drawing submission for a {subject_area} question{f' at {level_description}' if level_description else ''}.
+
+**Question:** {question_text}
+
+**Student's Text Explanation:** {student_drawing_text or "(No text explanation provided)"}
+
+**Rubric (Total: {total_points} points):**
+{rubric_text}
+
+{misconceptions_text}
+
+{curriculum_context.get('course_context_block', '')}
+
+**Your Task:**
+1. Carefully examine the student's drawing image
+2. Evaluate it against EACH criterion in the rubric
+3. Assign points for each criterion (0 up to the max points listed)
+4. Provide specific, constructive feedback referencing what you see in the drawing
+5. Note any common misconceptions the student may have demonstrated
+6. Determine if the student should progress based on their performance
+
+**Important Evaluation Guidelines:**
+- Be fair and objective - look for evidence of understanding even if execution isn't perfect
+- For geometry/diagrams: Check for correct shapes, labels, angles, and measurements
+- For graphs/plots: Verify axes labels, data points, scales, and trends
+- For scientific diagrams: Validate structures, labels, and relationships
+- If the drawing is blank or unrelated, award 0 points
+- Consider the attempt number ({attempt_number}/{max_attempts}) when deciding progression
+- Partial credit is appropriate when some criteria are met
+
+Respond with structured evaluation including:
+- is_correct: true if student earned >= 70% of points
+- confidence: your confidence in this evaluation (0.0-1.0)
+- feedback: specific, encouraging feedback referencing the drawing
+- reasoning: internal analysis of what you observed
+- should_progress: whether to advance (true if correct OR at max attempts)
+- partial_credit: fraction of points earned (0.0-1.0)
+- rubric_breakdown: points awarded for each criterion
+"""
+
+            # Create message with vision content
+            from langchain_core.messages import HumanMessage
+
+            message = HumanMessage(
+                content=[
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/png;base64,{student_drawing}"
+                        }
+                    },
+                    {
+                        "type": "text",
+                        "text": prompt_text
+                    }
+                ]
+            )
+
+            # Use structured output for consistent evaluation
+            structured_llm = self.llm.with_structured_output(EvaluationResponse)
+
+            logger.info(f"🎨 Evaluating drawing submission (attempt {attempt_number}/{max_attempts})")
+
+            evaluation = structured_llm.invoke(
+                [message],
+                config={"tags": ["json", "vision"], "run_name": "drawing_evaluation"}
+            )
+
+            logger.info(
+                f"✅ Drawing evaluated: is_correct={evaluation.is_correct}, "
+                f"partial_credit={evaluation.partial_credit}, "
+                f"should_progress={evaluation.should_progress}"
+            )
+
+            return evaluation
+
+        except Exception as e:
+            logger.error(
+                f"Vision API call failed in evaluate_drawing_response: {e}",
+                extra={
+                    "has_drawing": bool(student_drawing),
+                    "drawing_size": len(student_drawing) if student_drawing else 0,
+                    "has_text": bool(student_drawing_text),
+                    "attempt_number": attempt_number,
+                    "max_attempts": max_attempts,
+                    "error_type": type(e).__name__
+                }
+            )
+
+            # Fallback: Return neutral evaluation with error feedback
+            logger.warning("Returning fallback evaluation due to vision API failure")
+            return EvaluationResponse(
+                is_correct=False,
+                confidence=0.0,
+                feedback=f"Unable to evaluate your drawing due to a technical issue. Please try again or ask your teacher for help.",
+                reasoning=f"Vision API error: {str(e)}",
+                should_progress=attempt_number >= max_attempts,  # Progress if max attempts
+                partial_credit=0.0
+            )
+
     def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str], state: Optional[Dict] = None):
         """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object.
 

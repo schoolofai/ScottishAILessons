@@ -247,18 +247,29 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
+            # NEW: Extract drawing data if present
+            student_drawing = interrupt_response.get("student_drawing")
+            student_drawing_text = interrupt_response.get("student_drawing_text")
+
             print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            if student_drawing:
+                print(f"🎨 DESIGN DEBUG - Drawing received: {len(student_drawing)} bytes base64")
+                print(f"📝 DESIGN DEBUG - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
-            answer_message = HumanMessage(
-                content=f"Your Answer: {student_response}"
+            message_content = f"Your Answer: {student_response}" if student_response else (
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if student_drawing else "Your Answer: [No response]"
             )
+            answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
+                "student_drawing": student_drawing,
+                "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
                 "stage": "mark",
@@ -512,23 +523,76 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     current_idx = state.get("current_card_index", 0)
     attempts = state.get("attempts", 0)
     student_response = state.get("student_response", "")
+    student_drawing = state.get("student_drawing")
+    student_drawing_text = state.get("student_drawing_text")
     current_card = state.get("current_card")
-    print(f"🔍 NODE_ENTRY: mark_node | card_idx: {current_idx} | attempt: {attempts + 1} | has_response: {bool(student_response)}")
-    
-    if not student_response or not current_card:
-        print("🚨 MARK DEBUG - Missing student response or current card")
+    print(f"🔍 NODE_ENTRY: mark_node | card_idx: {current_idx} | attempt: {attempts + 1} | has_response: {bool(student_response)} | has_drawing: {bool(student_drawing)}")
+
+    # Validate we have either a text response OR a drawing
+    if (not student_response and not student_drawing) or not current_card:
+        print("🚨 MARK DEBUG - Missing student response/drawing or current card")
         return {"stage": "design"}  # Go back to design
-    
-    print(f"🚨 MARK DEBUG - Evaluating response: {student_response[:50]}...")
+
+    if student_response:
+        print(f"🚨 MARK DEBUG - Evaluating text response: {student_response[:50]}...")
+    if student_drawing:
+        print(f"🎨 MARK DEBUG - Evaluating drawing submission: {len(student_drawing)} bytes")
     
     # Perform evaluation
     teacher = LLMTeacher()
     cfu = current_card["cfu"]
     attempts = state.get("attempts", 0) + 1
     max_attempts = state.get("max_attempts", 3)
-    
-    # Pre-validate numeric responses BEFORE LLM evaluation
+
+    # Route to appropriate evaluation based on CFU type
     cfu_type = cfu.get("type", "")
+
+    # Handle drawing CFU type - use vision API evaluation
+    if cfu_type == "drawing":
+        if not student_drawing:
+            print("🚨 MARK DEBUG - Drawing CFU but no drawing submitted")
+            return {"stage": "design"}  # Go back to design
+
+        print(f"🎨 MARK DEBUG - Routing to vision-based drawing evaluation")
+        evaluation = teacher.evaluate_drawing_response(
+            student_drawing=student_drawing,
+            student_drawing_text=student_drawing_text,
+            card_context=current_card,
+            attempt_number=attempts,
+            max_attempts=max_attempts,
+            state=state
+        )
+
+        # Process evaluation result (same logic as other CFU types)
+        should_progress = evaluation.should_progress
+
+        evidence_entry = _create_evidence_entry(
+            evaluation,
+            student_drawing_text or "[Drawing submitted]",  # Use text explanation or placeholder
+            cfu,
+            current_card,
+            attempts,
+            should_progress,
+            max_attempts
+        )
+        evidence = state.get("evidence", [])
+        evidence.append(evidence_entry)
+
+        print(f"🎨 MARK DEBUG - Drawing evaluation complete: is_correct={evaluation.is_correct}, should_progress={should_progress}")
+
+        return {
+            "is_correct": evaluation.is_correct,
+            "should_progress": should_progress,
+            "feedback": evaluation.feedback,
+            "attempts": attempts,
+            "evidence": evidence,
+            "stage": "progress",
+            "student_response": None,  # Clear after marking
+            "student_drawing": None,   # Clear after marking
+            "student_drawing_text": None
+        }
+
+    # Pre-validate numeric responses BEFORE LLM evaluation
     if cfu_type == "numeric":
         try:
             # Extract expected answer and tolerance
@@ -683,18 +747,29 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
+            # NEW: Extract drawing data if present
+            student_drawing = interrupt_response.get("student_drawing")
+            student_drawing_text = interrupt_response.get("student_drawing_text")
+
             print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            if student_drawing:
+                print(f"🎨 RETRY DEBUG - Drawing received: {len(student_drawing)} bytes base64")
+                print(f"📝 RETRY DEBUG - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
-            answer_message = HumanMessage(
-                content=f"Your Answer: {student_response}"
+            message_content = f"Your Answer: {student_response}" if student_response else (
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if student_drawing else "Your Answer: [No response]"
             )
+            answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
+                "student_drawing": student_drawing,
+                "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
                 "stage": "mark",
