@@ -3,6 +3,11 @@
 import React, { useState, useImperativeHandle, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import "@excalidraw/excalidraw/index.css";
+import {
+  LibraryCategory,
+  DEFAULT_LIBRARY_CATEGORIES,
+  getLibraryUrls
+} from "./excalidraw-libraries-config";
 
 // Dynamic import to avoid SSR issues with browser-only APIs
 const Excalidraw = dynamic(
@@ -76,6 +81,78 @@ interface ExcalidrawCanvasProps {
    * Default: undefined (full width)
    */
   width?: string;
+
+  /**
+   * Enable loading of external libraries from libraries.excalidraw.com
+   * Default: true
+   */
+  enableExternalLibraries?: boolean;
+
+  /**
+   * Specify which library categories to load
+   * Default: all categories ['math', 'circuits', 'chemistry', 'biology']
+   */
+  libraryCategories?: LibraryCategory[];
+
+  /**
+   * Additional custom library URLs to load alongside default libraries
+   * Format: Full URL to .excalidrawlib JSON file
+   */
+  customLibraryUrls?: string[];
+}
+
+/**
+ * Fetch external library from URL and extract library items
+ * @param url - Full URL to .excalidrawlib JSON file
+ * @returns Promise resolving to array of library items, or empty array on error
+ */
+async function fetchExternalLibrary(url: string): Promise<any[]> {
+  try {
+    console.log(`📚 Fetching library: ${url}`);
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    // Validate excalidrawlib format
+    if (data.type !== "excalidrawlib" || !Array.isArray(data.libraryItems)) {
+      throw new Error("Invalid .excalidrawlib format");
+    }
+
+    console.log(`✅ Loaded library: ${data.libraryItems.length} items`);
+    return data.libraryItems;
+  } catch (error) {
+    console.warn(`⚠️ Failed to load library from ${url}:`, error);
+    return []; // Return empty array to allow other libraries to load
+  }
+}
+
+/**
+ * Load multiple libraries in parallel and merge results
+ * @param urls - Array of library URLs to fetch
+ * @returns Promise resolving to merged array of all library items
+ */
+async function loadLibraries(urls: string[]): Promise<any[]> {
+  console.log(`🔄 Loading ${urls.length} external libraries...`);
+
+  const results = await Promise.allSettled(
+    urls.map(url => fetchExternalLibrary(url))
+  );
+
+  const allItems = results
+    .filter((result): result is PromiseFulfilledResult<any[]> =>
+      result.status === 'fulfilled'
+    )
+    .flatMap(result => result.value);
+
+  const failedCount = results.filter(r => r.status === 'rejected').length;
+
+  console.log(`📊 Library loading complete: ${allItems.length} items loaded (${failedCount} failed)`);
+
+  return allItems;
 }
 
 /**
@@ -265,7 +342,15 @@ const coordinateGraphLibraryItem = {
  * ```
  */
 export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
-  ({ initialElements = [], height = 400, gridMode = true, width = "100%" }, ref) => {
+  ({
+    initialElements = [],
+    height = 400,
+    gridMode = true,
+    width = "100%",
+    enableExternalLibraries = true,
+    libraryCategories = DEFAULT_LIBRARY_CATEGORIES,
+    customLibraryUrls = []
+  }, ref) => {
     const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
 
     // Expose methods to parent via ref
@@ -358,16 +443,47 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
             console.log('🎨 Excalidraw API initialized');
             setExcalidrawAPI(api);
 
-            // Add coordinate graph template to library after API is ready
+            // Load libraries after API is ready
             if (api && api.updateLibrary) {
-              setTimeout(() => {
-                api.updateLibrary({
-                  libraryItems: [coordinateGraphLibraryItem]
-                }).then(() => {
-                  console.log('📚 Coordinate graph template added to library');
-                }).catch((err: any) => {
-                  console.warn('⚠️ Failed to add library template:', err);
-                });
+              setTimeout(async () => {
+                try {
+                  // Start with custom coordinate graph
+                  const libraryItems = [coordinateGraphLibraryItem];
+
+                  // Load external libraries if enabled
+                  if (enableExternalLibraries) {
+                    console.log('🌐 External libraries enabled');
+
+                    // Get URLs for selected categories
+                    const categoryUrls = getLibraryUrls(libraryCategories);
+
+                    // Merge with custom URLs
+                    const allUrls = [...categoryUrls, ...customLibraryUrls];
+
+                    if (allUrls.length > 0) {
+                      // Fetch all libraries in parallel
+                      const externalItems = await loadLibraries(allUrls);
+
+                      // Merge external items with coordinate graph
+                      libraryItems.push(...externalItems);
+
+                      console.log(`📚 Total library items: ${libraryItems.length} (1 custom + ${externalItems.length} external)`);
+                    } else {
+                      console.log('📚 No external library URLs configured');
+                    }
+                  } else {
+                    console.log('📚 External libraries disabled - using coordinate graph only');
+                  }
+
+                  // Update Excalidraw library with all items
+                  await api.updateLibrary({
+                    libraryItems: libraryItems
+                  });
+
+                  console.log('✅ Library loading complete');
+                } catch (err: any) {
+                  console.error('❌ Failed to load libraries:', err);
+                }
               }, 500);
             }
           }}

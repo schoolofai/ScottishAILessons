@@ -63,7 +63,7 @@ export function DrawingModal({ open, onClose, onInsert }: DrawingModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl w-[90vw] h-[90vh] p-0 gap-0 flex flex-col">
+      <DialogContent className="!max-w-[98vw] sm:!max-w-[98vw] w-[95vw] h-[95vh] p-0 gap-0 flex flex-col">
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle>Draw a Diagram</DialogTitle>
         </DialogHeader>
@@ -72,7 +72,7 @@ export function DrawingModal({ open, onClose, onInsert }: DrawingModalProps) {
         <div className="flex-1 min-h-0 p-4">
           <ExcalidrawCanvas
             ref={canvasRef}
-            height={Math.max(400, Math.floor(window.innerHeight * 0.6))}
+            height={Math.max(500, Math.floor(window.innerHeight * 0.8))}
             width="100%"
           />
         </div>
