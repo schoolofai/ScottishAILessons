@@ -85,6 +85,11 @@ export function usePreventNavigation(
 
       if (!linkElement) return;
 
+      // Allow download links (file downloads should not trigger navigation warning)
+      if (linkElement.hasAttribute('download')) {
+        return; // Allow download links to pass through
+      }
+
       // Check if it's an internal navigation (same origin)
       const href = linkElement.getAttribute('href');
       if (!href) return;
@@ -95,7 +100,9 @@ export function usePreventNavigation(
         href.startsWith('#') ||
         href.startsWith('javascript:') ||
         href.startsWith('mailto:') ||
-        href.startsWith('tel:')
+        href.startsWith('tel:') ||
+        href.startsWith('blob:') || // Allow blob URLs (used for downloads)
+        href.startsWith('data:')    // Allow data URLs (used for downloads)
       ) {
         return; // Allow these to pass through
       }

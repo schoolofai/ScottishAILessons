@@ -557,9 +557,24 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             print(f"🚨 MARK DEBUG - {error_msg}")
             raise ValueError(error_msg)
 
-        print(f"🎨 MARK DEBUG - Routing to vision-based evaluation (CFU type: {cfu_type}, drawing size: {len(student_drawing)} bytes)")
+        # Parse student_drawing: can be string (single) or JSON array (multiple)
+        import json
+        drawing_list = []
+        try:
+            parsed = json.loads(student_drawing)
+            if isinstance(parsed, list):
+                drawing_list = parsed  # Multiple images
+                print(f"🎨 MULTI-IMAGE: Parsed {len(drawing_list)} images from JSON array")
+            else:
+                drawing_list = [student_drawing]  # Single image (legacy format that's already JSON)
+                print(f"🎨 SINGLE IMAGE: Treating parsed JSON as single base64 string")
+        except json.JSONDecodeError:
+            drawing_list = [student_drawing]  # Single base64 string (legacy)
+            print(f"🎨 SINGLE IMAGE: Raw base64 string (not JSON)")
+
+        print(f"🎨 MARK DEBUG - Routing to vision-based evaluation (CFU type: {cfu_type}, image count: {len(drawing_list)})")
         evaluation = teacher.evaluate_drawing_response(
-            student_drawing=student_drawing,
+            student_drawing=drawing_list,  # Pass list of images (single or multiple)
             student_drawing_text=student_drawing_text,
             card_context=current_card,
             attempt_number=attempts,

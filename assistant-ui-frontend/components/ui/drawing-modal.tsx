@@ -197,19 +197,42 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
     }
   };
 
+  const handleExportPng = async () => {
+    try {
+      if (canvasRef.current?.isEmpty()) {
+        alert("Please draw something before exporting.");
+        return;
+      }
+
+      await canvasRef.current?.downloadAsPng();
+      console.log('✅ PNG export initiated');
+    } catch (error) {
+      console.error('❌ Failed to export PNG:', error);
+      alert("Failed to export PNG. Please try again.");
+    }
+  };
+
+  const handleSaveToFile = async () => {
+    try {
+      if (canvasRef.current?.isEmpty()) {
+        alert("Please draw something before saving.");
+        return;
+      }
+
+      await canvasRef.current?.downloadAsExcalidraw();
+      console.log('✅ Excalidraw file save initiated');
+    } catch (error) {
+      console.error('❌ Failed to save file:', error);
+      alert("Failed to save drawing file. Please try again.");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className="!max-w-[98vw] sm:!max-w-[98vw] w-[95vw] h-[95vh] p-0 gap-0 flex flex-col"
-        onEscapeKeyDown={(e) => {
-          e.preventDefault(); // Block Escape key from closing modal
-        }}
-        onPointerDownOutside={(e) => {
-          e.preventDefault(); // Block outside clicks from closing modal
-        }}
-        onInteractOutside={(e) => {
-          e.preventDefault(); // Block all outside interactions
-        }}
+        // Disable ESC key from closing the modal to prevent accidental data loss
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <DialogTitle>Draw a Diagram</DialogTitle>
@@ -256,22 +279,47 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex gap-2 flex-shrink-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={isInserting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleInsert}
-            disabled={isInserting}
-          >
-            {isInserting ? "Inserting..." : "Insert Drawing"}
-          </Button>
+        <DialogFooter className="px-6 py-4 border-t flex justify-between items-center flex-shrink-0">
+          {/* Left side - Export options */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleExportPng}
+              disabled={isInserting}
+              className="text-sm"
+            >
+              💾 Export as PNG
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleSaveToFile}
+              disabled={isInserting}
+              className="text-sm"
+            >
+              📥 Save to Disk (.excalidraw)
+            </Button>
+          </div>
+
+          {/* Right side - Main actions */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isInserting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleInsert}
+              disabled={isInserting}
+            >
+              {isInserting ? "Inserting..." : "Insert Drawing"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

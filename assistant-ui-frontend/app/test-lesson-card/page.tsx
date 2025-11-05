@@ -1,13 +1,21 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { Button } from '@/components/ui/button';
+
+// Multi-image vision API limits (same as LessonCardPresentationTool)
+const IMAGE_LIMITS = {
+  MAX_IMAGES: 5,
+  MAX_TOTAL_SIZE_MB: 3,
+  MAX_INDIVIDUAL_SIZE_KB: 800,
+  WARN_TOTAL_SIZE_MB: 2,
+} as const;
 
 /**
  * Isolated test page for RichTextEditor + DrawingModal
  *
- * Purpose: Debug cursor offset issue in drawing canvas
+ * Purpose: Debug cursor offset issue AND test multi-image validation
  * Usage: Navigate to http://localhost:3000/test-lesson-card
  *
  * Test Steps:
@@ -21,9 +29,16 @@ import { Button } from '@/components/ui/button';
  * 8. **Reload page (Cmd+R / Ctrl+R)**
  * 9. Click the drawing again
  * 10. **Check cursor accuracy after reload** - this is where the issue appears!
+ * 11. **Add 6+ images and watch for validation warnings**
  */
 export default function TestLessonCardPage() {
   const [editorContent, setEditorContent] = useState<string>('');
+  const [imageValidation, setImageValidation] = useState<{
+    imageCount: number;
+    totalSizeMB: number;
+    validationErrors: string[];
+    validationWarnings: string[];
+  }>({ imageCount: 0, totalSizeMB: 0, validationErrors: [], validationWarnings: [] });
 
   const mockQuestionStem = `# Test Question
 
@@ -33,6 +48,53 @@ Draw a diagram to represent the Pythagorean theorem.
 - Show a right-angled triangle
 - Label the sides as a, b, and c
 - Include the formula: a² + b² = c²`;
+
+  // Real-time image validation
+  useEffect(() => {
+    const imgRegex = /<img[^>]*src="data:image\/png;base64,([A-Za-z0-9+/=]+)"[^>]*>/g;
+    const matches = Array.from(editorContent.matchAll(imgRegex));
+
+    if (matches.length === 0) {
+      setImageValidation({ imageCount: 0, totalSizeMB: 0, validationErrors: [], validationWarnings: [] });
+      return;
+    }
+
+    const validationErrors: string[] = [];
+    const validationWarnings: string[] = [];
+    let totalSizeBytes = 0;
+
+    // Validate each image
+    for (let i = 0; i < matches.length; i++) {
+      const base64 = matches[i][1];
+      const sizeBytes = Math.ceil(base64.length * 0.75);
+      const sizeKB = sizeBytes / 1024;
+      totalSizeBytes += sizeBytes;
+
+      if (sizeKB > IMAGE_LIMITS.MAX_INDIVIDUAL_SIZE_KB) {
+        validationErrors.push(`Image ${i + 1} is too large (${Math.round(sizeKB)}KB). Max: ${IMAGE_LIMITS.MAX_INDIVIDUAL_SIZE_KB}KB`);
+      }
+    }
+
+    // Validate count
+    if (matches.length > IMAGE_LIMITS.MAX_IMAGES) {
+      validationErrors.push(`Too many images (${matches.length}). Maximum allowed: ${IMAGE_LIMITS.MAX_IMAGES}`);
+    }
+
+    // Validate total size
+    const totalSizeMB = totalSizeBytes / (1024 * 1024);
+    if (totalSizeMB > IMAGE_LIMITS.MAX_TOTAL_SIZE_MB) {
+      validationErrors.push(`Total size too large (${totalSizeMB.toFixed(2)}MB). Max: ${IMAGE_LIMITS.MAX_TOTAL_SIZE_MB}MB`);
+    } else if (totalSizeMB > IMAGE_LIMITS.WARN_TOTAL_SIZE_MB) {
+      validationWarnings.push(`Approaching size limit (${totalSizeMB.toFixed(2)}MB / ${IMAGE_LIMITS.MAX_TOTAL_SIZE_MB}MB)`);
+    }
+
+    setImageValidation({
+      imageCount: matches.length,
+      totalSizeMB,
+      validationErrors,
+      validationWarnings
+    });
+  }, [editorContent]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -149,9 +211,9 @@ Draw a diagram to represent the Pythagorean theorem.
 
         <div className="mt-6 bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-3">
-            🔧 Debug Info
+            🔧 Debug Info & Image Validation
           </h2>
-          <div className="space-y-2 text-sm">
+          <div className="space-y-3 text-sm">
             <div>
               <span className="font-semibold">Editor Content Length:</span>{' '}
               <span className="text-gray-600">{editorContent.length} characters</span>
@@ -162,9 +224,74 @@ Draw a diagram to represent the Pythagorean theorem.
                 {editorContent.includes('data-scene') ? '✅ Yes' : '❌ No'}
               </span>
             </div>
-            <div>
+
+            {/* Real-time Image Validation Status */}
+            {imageValidation.imageCount > 0 && (
+              <div className="border-t pt-3 mt-3">
+                <div className="font-semibold text-blue-900 mb-2">📎 Image Validation (Real-time)</div>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`font-medium ${
+                      imageValidation.imageCount > IMAGE_LIMITS.MAX_IMAGES ? 'text-red-600' :
+                      imageValidation.imageCount === IMAGE_LIMITS.MAX_IMAGES ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {imageValidation.imageCount} image(s)
+                    </span>
+                    <span className="text-gray-500">/ {IMAGE_LIMITS.MAX_IMAGES} max</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`font-medium ${
+                      imageValidation.totalSizeMB > IMAGE_LIMITS.MAX_TOTAL_SIZE_MB ? 'text-red-600' :
+                      imageValidation.totalSizeMB > IMAGE_LIMITS.WARN_TOTAL_SIZE_MB ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`}>
+                      {imageValidation.totalSizeMB.toFixed(2)}MB
+                    </span>
+                    <span className="text-gray-500">/ {IMAGE_LIMITS.MAX_TOTAL_SIZE_MB}MB max</span>
+                  </div>
+
+                  {/* Validation Errors */}
+                  {imageValidation.validationErrors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded p-2 mt-2">
+                      <div className="font-semibold text-red-900 text-xs mb-1">❌ Validation Errors:</div>
+                      <ul className="text-xs text-red-800 space-y-1 list-disc list-inside">
+                        {imageValidation.validationErrors.map((error, idx) => (
+                          <li key={idx}>{error}</li>
+                        ))}
+                      </ul>
+                      <div className="text-xs text-red-700 mt-2 font-medium">
+                        ⚠️ Submission will be blocked until errors are fixed
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Validation Warnings */}
+                  {imageValidation.validationWarnings.length > 0 && imageValidation.validationErrors.length === 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mt-2">
+                      <div className="font-semibold text-yellow-900 text-xs mb-1">⚠️ Warnings:</div>
+                      <ul className="text-xs text-yellow-800 space-y-1 list-disc list-inside">
+                        {imageValidation.validationWarnings.map((warning, idx) => (
+                          <li key={idx}>{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Success State */}
+                  {imageValidation.validationErrors.length === 0 && imageValidation.validationWarnings.length === 0 && (
+                    <div className="text-xs text-green-600 font-medium">
+                      ✅ All images within limits
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t pt-3">
               <span className="font-semibold">Test URL:</span>{' '}
-              <span className="text-gray-600 font-mono">
+              <span className="text-gray-600 font-mono text-xs">
                 http://localhost:3000/test-lesson-card
               </span>
             </div>

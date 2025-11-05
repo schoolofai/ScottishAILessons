@@ -68,6 +68,14 @@ type LessonCardPresentationArgs = {
   timestamp: string;
 };
 
+// Multi-image vision API limits
+const IMAGE_LIMITS = {
+  MAX_IMAGES: 5,
+  MAX_TOTAL_SIZE_MB: 3,
+  MAX_INDIVIDUAL_SIZE_KB: 800,
+  WARN_TOTAL_SIZE_MB: 2,
+} as const;
+
 export const LessonCardPresentationTool = makeAssistantToolUI<
   LessonCardPresentationArgs,
   unknown
@@ -265,42 +273,167 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     // Calculate progress
     const progress = ((card_index + 1) / total_cards) * 100;
 
+    // Extract base64 images from HTML content with multi-image support and validation
+    const extractImageFromHtml = (html: string): {
+      cleanedHtml: string;
+      images: string[];  // Array of base64 strings
+      imageCount: number;
+      totalSizeBytes: number;
+      validationErrors: string[];
+    } => {
+      const imgRegex = /<img[^>]*src="data:image\/png;base64,([A-Za-z0-9+/=]+)"[^>]*>/g;
+      const matches = Array.from(html.matchAll(imgRegex));
+
+      if (matches.length === 0) {
+        return { cleanedHtml: html, images: [], imageCount: 0, totalSizeBytes: 0, validationErrors: [] };
+      }
+
+      const images: string[] = [];
+      const validationErrors: string[] = [];
+      let totalSizeBytes = 0;
+
+      // Extract and validate each image
+      for (let i = 0; i < matches.length; i++) {
+        const base64 = matches[i][1];
+
+        // Calculate size: base64 string length * 0.75 = approximate byte size
+        const sizeBytes = Math.ceil(base64.length * 0.75);
+        const sizeKB = sizeBytes / 1024;
+
+        totalSizeBytes += sizeBytes;
+
+        // Validate individual image size
+        if (sizeKB > IMAGE_LIMITS.MAX_INDIVIDUAL_SIZE_KB) {
+          validationErrors.push(
+            `Image ${i + 1} is too large (${Math.round(sizeKB)}KB). Maximum size per image is ${IMAGE_LIMITS.MAX_INDIVIDUAL_SIZE_KB}KB.`
+          );
+        }
+
+        images.push(base64);
+      }
+
+      // Validate total image count
+      if (images.length > IMAGE_LIMITS.MAX_IMAGES) {
+        validationErrors.push(
+          `Too many images (${images.length}). Maximum allowed is ${IMAGE_LIMITS.MAX_IMAGES} images.`
+        );
+      }
+
+      // Validate total size
+      const totalSizeMB = totalSizeBytes / (1024 * 1024);
+      if (totalSizeMB > IMAGE_LIMITS.MAX_TOTAL_SIZE_MB) {
+        validationErrors.push(
+          `Total image size is too large (${totalSizeMB.toFixed(2)}MB). Maximum total size is ${IMAGE_LIMITS.MAX_TOTAL_SIZE_MB}MB.`
+        );
+      }
+
+      // Replace images with numbered placeholders
+      let cleanedHtml = html;
+      let imageNum = 1;
+      cleanedHtml = cleanedHtml.replace(
+        imgRegex,
+        () => `<p><em>[Drawing ${imageNum++} submitted]</em></p>`
+      );
+
+      console.log('🎨 IMAGE EXTRACTION - Multi-image support:', {
+        imageCount: images.length,
+        totalSizeBytes,
+        totalSizeMB: totalSizeMB.toFixed(2),
+        validationErrors: validationErrors.length,
+        cleanedHtmlLength: cleanedHtml.length,
+        imageSizes: images.map((img, i) => `Image ${i + 1}: ${Math.round((img.length * 0.75) / 1024)}KB`)
+      });
+
+      return { cleanedHtml, images, imageCount: images.length, totalSizeBytes, validationErrors };
+    };
+
     const handleSubmitAnswer = () => {
-      // Validate: must have text answer OR drawing
-      const hasTextAnswer = studentAnswer.trim() || selectedMCQOption;
-      const hasDrawing = studentDrawing;
+      const finalAnswer = cfu_type === "mcq" ? selectedMCQOption : studentAnswer;
+
+      // ✅ FRONTEND EXTRACTION: Extract images from HTML with multi-image support
+      let allImages: string[] = [];
+      let extractedImageText = studentDrawingText;
+      let cleanedAnswer = finalAnswer;
+      let validationErrors: string[] = [];
+
+      // Step 1: Add studentDrawing from DrawingModal if present
+      if (studentDrawing) {
+        allImages.push(studentDrawing);
+      }
+
+      // Step 2: Extract embedded images from RichTextEditor (for structured_response)
+      if (cfu_type === "structured_response" && finalAnswer) {
+        const extraction = extractImageFromHtml(finalAnswer);
+
+        if (extraction.images.length > 0) {
+          console.log('🎨 FRONTEND EXTRACTION - Found embedded images in RichTextEditor content');
+          allImages = [...allImages, ...extraction.images];
+          cleanedAnswer = extraction.cleanedHtml;
+          validationErrors = extraction.validationErrors;
+
+          // Generate description from cleaned HTML if not already provided
+          if (!extractedImageText) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = extraction.cleanedHtml;
+            extractedImageText = tempDiv.textContent?.trim() || `Student submitted ${extraction.imageCount} diagram(s) with written response`;
+
+            if (extractedImageText.length > 200) {
+              extractedImageText = extractedImageText.substring(0, 200) + "...";
+            }
+          }
+        }
+      }
+
+      // Step 3: Check for validation errors
+      if (validationErrors.length > 0) {
+        alert(`Cannot submit answer due to image validation errors:\n\n${validationErrors.join('\n')}`);
+        return;
+      }
+
+      // Step 4: Validate - must have text answer OR drawing
+      const hasTextAnswer = cleanedAnswer?.trim() || selectedMCQOption;
+      const hasDrawing = allImages.length > 0;
 
       if (!hasTextAnswer && !hasDrawing) {
         alert("Please provide an answer or drawing before submitting.");
         return;
       }
 
-      const finalAnswer = cfu_type === "mcq" ? selectedMCQOption : studentAnswer;
+      // Step 5: Prepare student_drawing field
+      // - Send as JSON stringified array if multiple images
+      // - Send as single string if one image (backward compatible)
+      // - Send as null if no images
+      const studentDrawingField =
+        allImages.length === 0 ? null :
+        allImages.length === 1 ? allImages[0] :
+        JSON.stringify(allImages);
 
       console.log('🚨 TOOL UI DEBUG - Submitting answer via sendCommand:', {
         action: "submit_answer",
-        student_response: finalAnswer,
-        has_drawing: !!studentDrawing,
-        drawing_text: studentDrawingText,
-        card_id: card_data.id
+        student_response: cleanedAnswer,
+        has_drawing: hasDrawing,
+        image_count: allImages.length,
+        drawing_text: extractedImageText,
+        card_id: card_data.id,
+        is_multi_image: allImages.length > 1
       });
 
       // Update interaction state to "evaluating" AND store previous answer for retry
       setCurrentCard(prev => prev ? {
         ...prev,
         interaction_state: "evaluating",
-        previous_answer: finalAnswer,
-        previous_drawing: studentDrawing || undefined,
-        previous_drawing_text: studentDrawingText || undefined
+        previous_answer: cleanedAnswer,
+        previous_drawing: studentDrawingField || undefined,
+        previous_drawing_text: extractedImageText || undefined
       } : null);
 
-      // Send command with resume value as JSON string (always include drawing fields)
+      // Send command with EXTRACTED data (clean HTML + separate drawing array)
       sendCommand({
         resume: JSON.stringify({
           action: "submit_answer",
-          student_response: finalAnswer,
-          student_drawing: studentDrawing || null,         // ✅ Include drawing
-          student_drawing_text: studentDrawingText || null, // ✅ Include drawing text
+          student_response: cleanedAnswer,           // ✅ Clean HTML (no embedded images)
+          student_drawing: studentDrawingField,       // ✅ String (single) OR JSON array (multiple) OR null
+          student_drawing_text: extractedImageText || null, // ✅ Include drawing text
           interaction_type: "answer_submission",
           card_id: card_data.id,
           interaction_id: args.interaction_id,

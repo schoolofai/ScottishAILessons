@@ -22,11 +22,26 @@ const Excalidraw = dynamic(
   }
 );
 
-// Export function must be imported separately
+// Export functions must be imported separately (client-side only)
 let exportToBlob: any = null;
+let exportToCanvas: any = null;
+let exportToSvg: any = null;
+let serializeAsJSON: any = null;
+
 if (typeof window !== "undefined") {
   import("@excalidraw/excalidraw").then((module) => {
     exportToBlob = module.exportToBlob;
+    exportToCanvas = module.exportToCanvas;
+    exportToSvg = module.exportToSvg;
+    serializeAsJSON = module.serializeAsJSON;
+    console.log('✅ Excalidraw export functions loaded:', {
+      hasExportToBlob: !!module.exportToBlob,
+      hasExportToCanvas: !!module.exportToCanvas,
+      hasExportToSvg: !!module.exportToSvg,
+      hasSerializeAsJSON: !!module.serializeAsJSON
+    });
+  }).catch((error) => {
+    console.error('❌ Failed to load Excalidraw export functions:', error);
   });
 }
 
@@ -79,6 +94,22 @@ export interface ExcalidrawCanvasRef {
    * Fixes cursor offset issues when modal/container layout shifts
    */
   refreshCanvas: () => void;
+
+  /**
+   * Export and download the canvas as a PNG file to disk
+   * @param filename - Optional filename (default: "drawing-{timestamp}.png")
+   * @returns Promise that resolves when download is triggered
+   * @throws Error if canvas is not ready or export fails
+   */
+  downloadAsPng: (filename?: string) => Promise<void>;
+
+  /**
+   * Export and download the scene data as .excalidraw JSON file
+   * @param filename - Optional filename (default: "drawing-{timestamp}.excalidraw")
+   * @returns Promise that resolves when download is triggered
+   * @throws Error if canvas is not ready
+   */
+  downloadAsExcalidraw: (filename?: string) => Promise<void>;
 }
 
 /**
@@ -918,6 +949,108 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
           console.error('❌ Canvas refresh failed:', error);
         }
       },
+
+      downloadAsPng: async (filename?: string): Promise<void> => {
+        if (!excalidrawAPI) {
+          throw new Error("Canvas not ready. Please wait for the canvas to load.");
+        }
+
+        if (!exportToBlob) {
+          throw new Error("Export function not loaded. Please try again in a moment.");
+        }
+
+        try {
+          console.log('💾 Downloading canvas as PNG...');
+
+          const elements = excalidrawAPI.getSceneElements();
+          const appState = excalidrawAPI.getAppState();
+          const files = excalidrawAPI.getFiles();
+
+          // Generate filename with timestamp if not provided
+          const finalFilename = filename || `drawing-${Date.now()}.png`;
+
+          console.log(`📊 Exporting ${elements.length} elements to ${finalFilename}`);
+
+          // Export to blob
+          const blob = await exportToBlob({
+            elements,
+            appState,
+            files,
+            mimeType: "image/png",
+          });
+
+          console.log(`📦 PNG blob created: ${blob.size} bytes`);
+
+          // Trigger browser download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = finalFilename;
+          link.style.display = 'none';
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Clean up object URL after a short delay
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+
+          console.log(`✅ PNG download triggered: ${finalFilename}`);
+        } catch (error) {
+          console.error('❌ Failed to download PNG:', error);
+          throw error;
+        }
+      },
+
+      downloadAsExcalidraw: async (filename?: string): Promise<void> => {
+        if (!excalidrawAPI) {
+          throw new Error("Canvas not ready. Please wait for the canvas to load.");
+        }
+
+        if (!serializeAsJSON) {
+          throw new Error("Serialize function not loaded. Please try again in a moment.");
+        }
+
+        try {
+          console.log('💾 Downloading scene as .excalidraw file...');
+
+          const elements = excalidrawAPI.getSceneElements();
+          const appState = excalidrawAPI.getAppState();
+          const files = excalidrawAPI.getFiles();
+
+          // Generate filename with timestamp if not provided
+          const finalFilename = filename || `drawing-${Date.now()}.excalidraw`;
+
+          console.log(`📊 Serializing ${elements.length} elements to ${finalFilename}`);
+
+          // Serialize to JSON
+          const serializedData = serializeAsJSON(elements, appState, files, 'local');
+
+          // Create blob from JSON string
+          const blob = new Blob([serializedData], { type: 'application/json' });
+
+          console.log(`📦 Excalidraw file created: ${blob.size} bytes`);
+
+          // Trigger browser download
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = finalFilename;
+          link.style.display = 'none';
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          // Clean up object URL after a short delay
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+
+          console.log(`✅ Excalidraw file download triggered: ${finalFilename}`);
+        } catch (error) {
+          console.error('❌ Failed to download Excalidraw file:', error);
+          throw error;
+        }
+      },
     }), [excalidrawAPI, loadedLibraryItems]);
 
     return (
@@ -926,6 +1059,7 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
           height: `${height}px`,
           width,
         }}
+        className="excalidraw-wrapper"
       >
         <Excalidraw
           excalidrawAPI={(api) => {
@@ -1182,6 +1316,16 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
           gridModeEnabled={gridMode}
           // Disable localStorage viewport persistence to prevent 300% zoom on reload
           autoFocus={false}
+          // DISABLE native export/save to avoid modal z-index conflicts
+          // Users will use the custom footer buttons instead
+          UIOptions={{
+            canvasActions: {
+              export: false,  // Disable native export dialog (conflicts with modal)
+              loadScene: false,  // Disable to simplify UI
+              saveToActiveFile: false,  // Disable - use footer "Save to Disk" button
+              saveAsImage: false,  // Disable - use footer "Export as PNG" button
+            }
+          }}
         />
       </div>
     );

@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import os
 import logging
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -1290,17 +1290,17 @@ Use this assessment to acknowledge specific strengths in your transition.
 
     def evaluate_drawing_response(
         self,
-        student_drawing: str,
+        student_drawing: Union[str, List[str]],  # Single image or multiple images
         student_drawing_text: Optional[str],
         card_context: Dict,
         attempt_number: int,
         max_attempts: int = 3,
         state: Optional[Dict] = None
     ) -> EvaluationResponse:
-        """Evaluate student's drawing submission using Claude's vision capabilities.
+        """Evaluate student's drawing submission(s) using Claude's vision capabilities.
 
         Args:
-            student_drawing: Base64-encoded PNG image of student's drawing
+            student_drawing: Base64-encoded PNG image (string) OR list of images for multi-image evaluation
             student_drawing_text: Optional text explanation provided by student
             card_context: Card context dict containing CFU with rubric
             attempt_number: Current attempt number
@@ -1331,6 +1331,19 @@ Use this assessment to acknowledge specific strengths in your transition.
                 level_description = ""
                 curriculum_context = {"course_context_block": ""}
 
+            # Normalize student_drawing to list for consistent handling
+            if isinstance(student_drawing, str):
+                drawing_list = [student_drawing]
+                is_multi_image = False
+            elif isinstance(student_drawing, list):
+                drawing_list = student_drawing
+                is_multi_image = len(drawing_list) > 1
+            else:
+                raise ValueError(f"student_drawing must be str or List[str], got {type(student_drawing)}")
+
+            image_count = len(drawing_list)
+            logger.info(f"🎨 Evaluating {image_count} image(s) with vision API")
+
             # Format rubric for prompt
             rubric_text = self._format_rubric_for_prompt(rubric)
 
@@ -1338,12 +1351,16 @@ Use this assessment to acknowledge specific strengths in your transition.
             misconceptions = card_context.get("misconceptions", [])
             misconceptions_text = self._format_misconceptions_for_prompt(misconceptions)
 
-            # Build vision-enabled prompt
-            prompt_text = f"""You are evaluating a student's drawing submission for a {subject_area} question{f' at {level_description}' if level_description else ''}.
+            # Build vision-enabled prompt with multi-image support
+            diagram_reference = f"{image_count} diagram(s)" if is_multi_image else "drawing"
+            multi_image_note = "\n**Note:** The student has submitted multiple diagrams. Evaluate them together as a complete response." if is_multi_image else ""
+
+            prompt_text = f"""You are evaluating a student's {diagram_reference} submission for a {subject_area} question{f' at {level_description}' if level_description else ''}.
 
 **Question:** {question_text}
 
 **Student's Text Explanation:** {student_drawing_text or "(No text explanation provided)"}
+{multi_image_note}
 
 **Rubric (Total: {total_points} points):**
 {rubric_text}
@@ -1353,10 +1370,10 @@ Use this assessment to acknowledge specific strengths in your transition.
 {curriculum_context.get('course_context_block', '')}
 
 **Your Task:**
-1. Carefully examine the student's drawing image
-2. Evaluate it against EACH criterion in the rubric
+1. Carefully examine {"ALL " + str(image_count) + " images" if is_multi_image else "the student's drawing image"}
+2. Evaluate {"them" if is_multi_image else "it"} against EACH criterion in the rubric
 3. Assign points for each criterion (0 up to the max points listed)
-4. Provide specific, constructive feedback referencing what you see in the drawing
+4. Provide specific, constructive feedback referencing what you see in the {"diagrams" if is_multi_image else "drawing"}
 5. Note any common misconceptions the student may have demonstrated
 6. Determine if the student should progress based on their performance
 
@@ -1365,37 +1382,42 @@ Use this assessment to acknowledge specific strengths in your transition.
 - For geometry/diagrams: Check for correct shapes, labels, angles, and measurements
 - For graphs/plots: Verify axes labels, data points, scales, and trends
 - For scientific diagrams: Validate structures, labels, and relationships
-- If the drawing is blank or unrelated, award 0 points
+{"- When multiple diagrams are present, consider how they work together to answer the question" if is_multi_image else ""}
+- If the {"diagrams are" if is_multi_image else "drawing is"} blank or unrelated, award 0 points
 - Consider the attempt number ({attempt_number}/{max_attempts}) when deciding progression
 - Partial credit is appropriate when some criteria are met
 
 Respond with structured evaluation including:
 - is_correct: true if student earned >= 70% of points
 - confidence: your confidence in this evaluation (0.0-1.0)
-- feedback: specific, encouraging feedback referencing the drawing
+- feedback: specific, encouraging feedback referencing the {"diagrams" if is_multi_image else "drawing"}
 - reasoning: internal analysis of what you observed
 - should_progress: whether to advance (true if correct OR at max attempts)
 - partial_credit: fraction of points earned (0.0-1.0)
 - rubric_breakdown: points awarded for each criterion
 """
 
-            # Create message with vision content
+            # Create message with vision content (single or multiple images)
             from langchain_core.messages import HumanMessage
 
-            message = HumanMessage(
-                content=[
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{student_drawing}"
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": prompt_text
+            # Build content array with ALL images
+            content = []
+            for idx, drawing in enumerate(drawing_list):
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{drawing}"
                     }
-                ]
-            )
+                })
+                logger.debug(f"🎨 Added image {idx + 1}/{image_count} to vision API request")
+
+            # Add text prompt after all images
+            content.append({
+                "type": "text",
+                "text": prompt_text
+            })
+
+            message = HumanMessage(content=content)
 
             # Use structured output for consistent evaluation
             structured_llm = self.llm.with_structured_output(EvaluationResponse)

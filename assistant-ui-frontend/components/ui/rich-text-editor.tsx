@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -11,6 +11,14 @@ import { DrawingModal } from './drawing-modal';
 import { Math } from '@/lib/tiptap-math-extension';
 import { Image } from '@/lib/tiptap-image-extension';
 import katex from 'katex';
+
+// Multi-image vision API limits
+const IMAGE_LIMITS = {
+  MAX_IMAGES: 5,
+  MAX_TOTAL_SIZE_MB: 3,
+  MAX_INDIVIDUAL_SIZE_KB: 800,
+  WARN_TOTAL_SIZE_MB: 2,
+} as const;
 
 interface RichTextEditorProps {
   value: string;
@@ -31,6 +39,7 @@ export function RichTextEditor({
   const [isMathfieldReady, setIsMathfieldReady] = useState(false);
   const [showDrawModal, setShowDrawModal] = useState(false);
   const [editingSceneData, setEditingSceneData] = useState<any>(null);
+  const [imageCount, setImageCount] = useState(0);
   const mathfieldRef = useRef<any>(null);
 
   const editor = useEditor({
@@ -243,6 +252,16 @@ export function RichTextEditor({
     };
   }, [editor]);
 
+  // Track image count in real-time
+  useEffect(() => {
+    if (!editor) return;
+
+    const html = editor.getHTML();
+    const imgRegex = /<img[^>]*src="data:image\/png;base64,([A-Za-z0-9+/=]+)"[^>]*>/g;
+    const matches = Array.from(html.matchAll(imgRegex));
+    setImageCount(matches.length);
+  }, [editor?.state.doc, value]); // Re-run when editor content changes
+
   if (!editor) {
     return <div className="h-[150px] border rounded-lg bg-gray-50 animate-pulse" />;
   }
@@ -345,12 +364,48 @@ export function RichTextEditor({
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => setShowDrawModal(true)}
+          onClick={() => {
+            // Prevent adding more diagrams when at limit
+            if (imageCount >= IMAGE_LIMITS.MAX_IMAGES) {
+              alert(`You've reached the maximum of ${IMAGE_LIMITS.MAX_IMAGES} diagrams. Please remove one to add a new diagram.`);
+              return;
+            }
+            setShowDrawModal(true);
+          }}
           className="md:text-sm text-base md:min-w-0 min-w-[100px] md:px-3 px-4 md:py-2 py-3"
         >
           <span className="text-lg md:text-base">✏️</span>
           <span className="ml-1">Draw</span>
         </Button>
+
+        {/* Image Count Badge - Real-time feedback */}
+        {imageCount > 0 && (
+          <div className={`
+            inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+            ${imageCount > IMAGE_LIMITS.MAX_IMAGES ? 'bg-red-100 text-red-700 border border-red-300' :
+              imageCount === IMAGE_LIMITS.MAX_IMAGES ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' :
+              'bg-green-100 text-green-700 border border-green-300'}
+          `}>
+            <span className="text-sm">
+              {imageCount > IMAGE_LIMITS.MAX_IMAGES ? '❌' :
+               imageCount === IMAGE_LIMITS.MAX_IMAGES ? '⚠️' : '📎'}
+            </span>
+            <span className="font-semibold">{imageCount}</span>
+            <span className="text-gray-500">/</span>
+            <span>{IMAGE_LIMITS.MAX_IMAGES}</span>
+            {imageCount === IMAGE_LIMITS.MAX_IMAGES && (
+              <span className="ml-1 text-xs font-bold">
+                (Max)
+              </span>
+            )}
+            {imageCount > IMAGE_LIMITS.MAX_IMAGES && (
+              <span className="ml-1 text-xs font-bold">
+                (Remove {imageCount - IMAGE_LIMITS.MAX_IMAGES})
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="w-px h-6 bg-border mx-1" />
         <Button
           type="button"
