@@ -18,10 +18,15 @@ export function useSafeLangGraphInterruptState() {
   const threadExtras = useThread((t) => t.extras);
 
   useEffect(() => {
+    // DEBUG: Log thread extras to understand what we're getting
+    console.log('🔍 [INTERRUPT HOOK] Thread extras:', threadExtras);
+
     // Check if we have interrupt property in extras (indicates LangGraph or our replay runtime)
     if (threadExtras && typeof threadExtras === 'object' && 'interrupt' in threadExtras) {
+      console.log('✅ [INTERRUPT HOOK] Found interrupt in extras:', (threadExtras as any).interrupt);
       setInterrupt((threadExtras as any).interrupt);
     } else {
+      console.log('❌ [INTERRUPT HOOK] No interrupt found in extras');
       setInterrupt(null);
     }
   }, [threadExtras]);

@@ -87,11 +87,20 @@ export class DiagramDriver extends BaseDriver {
     cardId: string,
     diagramContext: 'lesson' | 'cfu'
   ): Promise<LessonDiagram | null> {
+    console.log('📐 DiagramDriver.getDiagramForCardByContext - Entry');
+    console.log('📐 DiagramDriver - Parameters:', { lessonTemplateId, cardId, diagramContext });
+
     if (!lessonTemplateId || !cardId) {
+      console.error('📐 DiagramDriver - ERROR: Missing required parameters');
       throw new Error('lessonTemplateId and cardId are required');
     }
 
     try {
+      console.log('📐 DiagramDriver - Building query with:');
+      console.log('  - lessonTemplateId:', lessonTemplateId);
+      console.log('  - cardId:', cardId);
+      console.log('  - diagram_context:', diagramContext);
+
       const diagrams = await this.list<LessonDiagram>('lesson_diagrams', [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('cardId', cardId),
@@ -99,12 +108,44 @@ export class DiagramDriver extends BaseDriver {
         Query.limit(1) // Only need first match
       ]);
 
+      console.log('📐 DiagramDriver - Query returned:', diagrams.length, 'diagrams');
+      if (diagrams.length > 0) {
+        console.log('📐 DiagramDriver - First diagram:', diagrams[0]);
+      } else {
+        console.log('📐 DiagramDriver - No diagrams found with cardId="lesson", checking all diagrams for this lesson...');
+
+        // Debug: List ALL diagrams for this lesson to see what cardIds exist
+        try {
+          const allDiagrams = await this.list<LessonDiagram>('lesson_diagrams', [
+            Query.equal('lessonTemplateId', lessonTemplateId),
+            Query.limit(100)
+          ]);
+          console.log('📐 DiagramDriver - All diagrams for this lesson:', allDiagrams.length);
+          allDiagrams.forEach((d, idx) => {
+            console.log(`📐 DiagramDriver - Diagram ${idx + 1}:`, {
+              cardId: d.cardId,
+              diagram_context: d.diagram_context,
+              diagram_type: d.diagram_type,
+              title: d.title,
+              image_file_id: d.image_file_id
+            });
+          });
+        } catch (debugError) {
+          console.error('📐 DiagramDriver - Error listing all diagrams:', debugError);
+        }
+      }
+
       // Return first diagram or null if no diagrams found
       return diagrams.length > 0 ? diagrams[0] : null;
 
     } catch (error) {
+      console.error('📐 DiagramDriver - Caught error:', error);
+      console.error('📐 DiagramDriver - Error code:', error.code);
+      console.error('📐 DiagramDriver - Error message:', error.message);
+
       // Silent fail if diagram not found - this is expected for cards without diagrams
       if (error.code === 404) {
+        console.log('📐 DiagramDriver - 404 error, returning null');
         return null;
       }
       throw this.handleError(error, `get ${diagramContext} diagram for card ${cardId} in lesson ${lessonTemplateId}`);

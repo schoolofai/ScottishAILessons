@@ -268,27 +268,16 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       const isRetry = (args.attempt_number && args.attempt_number > 1) || previousAttempt;
 
       if (!isRetry || !previousAttempt) {
-        console.log('🆕 PREPOPULATION - First attempt, starting fresh');
         return;
       }
 
-      // ═══════════════════════════════════════════════════════════════
-      // 🔄 SCENE DATA RESTORED - Critical Event #3
-      // ═══════════════════════════════════════════════════════════════
-      console.group('%c🔄 RETRY: RESTORING PREVIOUS ATTEMPT', 'color: #8B5CF6; font-weight: bold; font-size: 14px;');
-      console.log('%cAttempt #:', 'color: #7C3AED;', args.attempt_number);
-      console.log('%cCard ID:', 'color: #7C3AED;', cardId);
-      console.log('%cText Response:', 'color: #7C3AED;', previousAttempt.response ? '✅ RESTORED' : 'None');
-      console.log('%cDrawing Text:', 'color: #7C3AED;', previousAttempt.drawing_text ? '✅ RESTORED' : 'None');
-      console.log('%cScene Data:', 'color: #7C3AED;', previousAttempt.drawing_scene_data ? '✅ RESTORED' : '❌ NONE');
-      if (previousAttempt.drawing_scene_data) {
-        console.log('%c   └─ Elements:', 'color: #6B7280;', previousAttempt.drawing_scene_data.elements?.length || 0);
-        console.log('%c   └─ Drawing will be EDITABLE', 'color: #10B981;');
-      } else {
-        console.log('%c   └─ No scene data - student must draw from scratch', 'color: #F59E0B;');
-      }
-      console.groupEnd();
-      // ═══════════════════════════════════════════════════════════════
+      // Log retry restoration
+      console.log('🔄 Retry - restoring previous attempt:', {
+        cardId,
+        attemptNumber: args.attempt_number,
+        hasSceneData: !!previousAttempt.drawing_scene_data,
+        elements: previousAttempt.drawing_scene_data?.elements?.length || 0
+      });
 
       // Prepopulate text/MCQ response
       if (previousAttempt.response) {
@@ -297,7 +286,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         } else if (args.cfu_type === 'structured_response' && previousAttempt.response_with_images) {
           // For structured_response, use original HTML with images (not cleaned HTML)
           setStudentAnswer(previousAttempt.response_with_images);
-          console.log('✅ RETRY - Restored original HTML with embedded images for structured_response');
         } else {
           setStudentAnswer(previousAttempt.response);
         }
@@ -360,22 +348,13 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           const sceneDataJson = imgWithScene.getAttribute('data-scene');
 
           if (sceneDataJson) {
-            const sceneData = JSON.parse(sceneDataJson);
-
-            console.log('🎨 SCENE DATA EXTRACTION - Found scene data in HTML:', {
-              elementsCount: sceneData.elements?.length || 0,
-              filesCount: Object.keys(sceneData.files || {}).length,
-              jsonLength: sceneDataJson.length
-            });
-
-            return sceneData;
+            return JSON.parse(sceneDataJson);
           }
         }
 
-        console.log('🎨 SCENE DATA EXTRACTION - No data-scene attribute found in HTML');
         return null;
       } catch (error) {
-        console.error('❌ SCENE DATA EXTRACTION - Failed to parse scene data:', error);
+        console.error('Failed to extract scene data from HTML:', error);
         return null;
       }
     };
@@ -470,22 +449,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       // Step 2: Extract embedded images from RichTextEditor (for structured_response)
       let extractedSceneData: any | null = null;
       if (cfu_type === "structured_response" && finalAnswer) {
-        console.log('🔍 STRUCTURED_RESPONSE DEBUG - Checking for images:', {
-          cfu_type,
-          hasFinalAnswer: !!finalAnswer,
-          finalAnswerLength: finalAnswer?.length,
-          finalAnswerPreview: finalAnswer?.substring(0, 200)
-        });
-
         const extraction = extractImageFromHtml(finalAnswer);
 
-        console.log('🔍 EXTRACTION RESULT:', {
-          imageCount: extraction.images.length,
-          hasImages: extraction.images.length > 0
-        });
-
         if (extraction.images.length > 0) {
-          console.log('🎨 FRONTEND EXTRACTION - Found embedded images in RichTextEditor content');
           allImages = [...allImages, ...extraction.images];
           cleanedAnswer = extraction.cleanedHtml;
           validationErrors = extraction.validationErrors;
@@ -501,15 +467,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             }
           }
 
-          // ✨ NEW: Extract scene data from HTML for editable restoration
+          // Extract scene data from HTML for editable restoration
           extractedSceneData = extractSceneDataFromHtml(finalAnswer);
-          if (extractedSceneData) {
-            console.log('✅ STRUCTURED_RESPONSE - Scene data extracted for retry prepopulation');
-          } else {
-            console.warn('⚠️ STRUCTURED_RESPONSE - Images found but NO scene data extracted');
-          }
-        } else {
-          console.warn('⚠️ STRUCTURED_RESPONSE - No images found in HTML during extraction');
         }
       }
 
@@ -579,17 +538,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         allImages.length === 1 ? allImages[0] :
         JSON.stringify(allImages);
 
-      console.log('🚨 TOOL UI DEBUG - Submitting answer via sendCommand:', {
-        action: "submit_answer",
-        student_response: cleanedAnswer,
-        has_drawing: hasDrawing,
-        image_count: allImages.length,
-        file_ids: studentDrawingFileIds,
-        using_storage: fileIds.length > 0,
-        drawing_text: extractedImageText,
-        card_id: card_data.id,
-        is_multi_image: allImages.length > 1
-      });
 
       // Update interaction state to "evaluating" AND store previous answer for retry
       setCurrentCard(prev => prev ? {
@@ -600,23 +548,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         previous_drawing_text: extractedImageText || undefined
       } : null);
 
-      // ✅ NEW: Store attempt for retry prepopulation BEFORE sending
-      console.log('💾 SUBMIT - Storing attempt for retry prepopulation:', {
-        cardId: args.card_data.id,
-        hasResponse: !!cleanedAnswer,
-        hasFileIds: studentDrawingFileIds ? studentDrawingFileIds.length > 0 : false,
-        hasLegacyDrawing: !!studentDrawingField
-      });
-
-      // 🔍 DEBUG: Log what we're storing for retry prepopulation
-      console.log('🔍 SUBMIT DEBUG - About to store attempt data:', {
-        cardId: args.card_data.id,
-        response: cleanedAnswer || selectedMCQOption || "",
-        drawing_file_ids: studentDrawingFileIds || [],
-        drawing_file_ids_length: (studentDrawingFileIds || []).length,
-        has_legacy_drawing: !!studentDrawingField,
-        drawing_text: extractedImageText || ""
-      });
+      // Store attempt for retry prepopulation
 
       const attemptData = {
         response: cleanedAnswer || selectedMCQOption || "",
@@ -628,19 +560,13 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         timestamp: Date.now()
       };
 
-      // ═══════════════════════════════════════════════════════════════
-      // 💾 SCENE DATA STORED - Critical Event #2
-      // ═══════════════════════════════════════════════════════════════
-      console.group('%c💾 SCENE DATA STORED IN CONTEXT', 'color: #3B82F6; font-weight: bold; font-size: 14px;');
-      console.log('%cCard ID:', 'color: #2563EB;', args.card_data.id);
-      console.log('%cText Response:', 'color: #2563EB;', attemptData.response ? `${attemptData.response.substring(0, 50)}...` : 'None');
-      console.log('%cDrawing File IDs:', 'color: #2563EB;', attemptData.drawing_file_ids.length);
-      console.log('%cScene Data:', 'color: #2563EB;', attemptData.drawing_scene_data ? '✅ STORED' : '❌ NONE');
+      // Store attempt data for retry prepopulation
       if (attemptData.drawing_scene_data) {
-        console.log('%c   └─ Elements:', 'color: #6B7280;', attemptData.drawing_scene_data.elements?.length || 0);
+        console.log('💾 Attempt stored with editable scene data:', {
+          cardId: args.card_data.id,
+          elements: attemptData.drawing_scene_data.elements?.length || 0
+        });
       }
-      console.groupEnd();
-      // ═══════════════════════════════════════════════════════════════
 
       storeAttempt(args.card_data.id, attemptData);
 
@@ -954,51 +880,31 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 />
 
                 {/* Display previous drawing if available (prepopulation) */}
-                {(() => {
-                  console.log('🎨 RENDER [STRUCTURED_RESPONSE] - Drawing block evaluating:', {
-                    hasStudentDrawing: !!studentDrawing,
-                    studentDrawingValue: studentDrawing,
-                    isStoragePreview: studentDrawing?.startsWith('storage_preview:')
-                  });
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    {(() => {
+                      const isStoragePreview = studentDrawing.startsWith('storage_preview:');
 
-                  if (!studentDrawing) {
-                    console.log('⚠️ RENDER [STRUCTURED_RESPONSE] - No studentDrawing, skipping render');
-                    return null;
-                  }
+                      if (isStoragePreview) {
+                        const imageUrl = studentDrawing.replace('storage_preview:', '');
 
-                  console.log('✅ RENDER [STRUCTURED_RESPONSE] - Rendering drawing display block');
-
-                  return (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                      {(() => {
-                        const isStoragePreview = studentDrawing.startsWith('storage_preview:');
-                        console.log('🎨 RENDER [STRUCTURED_RESPONSE] - Inner conditional:', { isStoragePreview });
-
-                        if (isStoragePreview) {
-                          const imageUrl = studentDrawing.replace('storage_preview:', '');
-                          console.log('📷 RENDER [STRUCTURED_RESPONSE] - Rendering storage preview with URL:', imageUrl);
-
-                          return (
-                            <div className="space-y-2">
-                              <div>📷 Previous drawing from last attempt (for reference):</div>
-                              <img
-                                src={imageUrl}
-                                alt="Previous drawing"
-                                className="max-w-full h-auto max-h-32 rounded border border-green-300"
-                                onLoad={() => console.log('✅ RENDER [STRUCTURED_RESPONSE] - Image loaded successfully:', imageUrl)}
-                                onError={(e) => console.error('❌ RENDER [STRUCTURED_RESPONSE] - Image failed to load:', imageUrl, e)}
-                              />
-                              <div className="text-xs text-green-600">Use the draw button (✏️) in the editor to create a new drawing based on this</div>
-                            </div>
-                          );
-                        } else {
-                          console.log('✏️ RENDER [STRUCTURED_RESPONSE] - Rendering diagram attached message');
-                          return <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>;
-                        }
-                      })()}
-                    </div>
-                  );
-                })()}
+                        return (
+                          <div className="space-y-2">
+                            <div>📷 Previous drawing from last attempt (for reference):</div>
+                            <img
+                              src={imageUrl}
+                              alt="Previous drawing"
+                              className="max-w-full h-auto max-h-32 rounded border border-green-300"
+                            />
+                            <div className="text-xs text-green-600">Use the draw button (✏️) in the editor to create a new drawing based on this</div>
+                          </div>
+                        );
+                      } else {
+                        return <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>;
+                      }
+                    })()}
+                  </div>
+                )}
 
                 <p className="text-xs text-gray-500">
                   💡 Tip: Use <strong>bold/italic</strong> for emphasis, bullet points for lists, the formula button (Σ) for math, and the draw button (✏️) for diagrams

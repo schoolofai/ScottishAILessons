@@ -116,19 +116,13 @@ export function RichTextEditor({
 
       const sceneDataString = sceneData ? JSON.stringify(sceneData) : undefined;
 
-      // ═══════════════════════════════════════════════════════════════
-      // 🎨 DRAWING INSERTED - Critical Event #1 (RichTextEditor)
-      // ═══════════════════════════════════════════════════════════════
-      console.group('%c🎨 DRAWING INSERTED (RichTextEditor)', 'color: #10B981; font-weight: bold; font-size: 14px;');
-      console.log('%c✅ Base64:', 'color: #059669;', base64Image ? `${(base64Image.length / 1024).toFixed(1)}KB` : '❌ MISSING');
-      console.log('%c✅ Scene Data:', 'color: #059669;', sceneData ? 'CAPTURED' : '❌ MISSING');
-      if (sceneData) {
-        console.log('%c   └─ Elements:', 'color: #6B7280;', sceneData.elements?.length || 0);
-        console.log('%c   └─ Files:', 'color: #6B7280;', Object.keys(sceneData.files || {}).length);
-      }
-      console.log('%c   └─ Mode:', 'color: #6B7280;', editingSceneData ? 'EDITING' : 'NEW');
-      console.groupEnd();
-      // ═══════════════════════════════════════════════════════════════
+      // Log drawing insertion
+      console.log('🎨 Drawing inserted in RichTextEditor:', {
+        size: base64Image ? `${(base64Image.length / 1024).toFixed(1)}KB` : 'missing',
+        hasSceneData: !!sceneData,
+        elements: sceneData?.elements?.length || 0,
+        mode: editingSceneData ? 'edit' : 'new'
+      });
 
       editor.chain()
         .focus()
@@ -164,82 +158,30 @@ export function RichTextEditor({
   const handleImageClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
 
-    console.log('🖱️ ═══════════════════════════════════════════════════');
-    console.log('🖱️ IMAGE CLICKED IN EDITOR');
-    console.log('🖱️ ═══════════════════════════════════════════════════');
-    console.log('🖱️ Click event details:', {
-      tagName: target.tagName,
-      isImg: target.tagName === 'IMG',
-      clientX: event.clientX,
-      clientY: event.clientY,
-      timestamp: new Date().toISOString()
-    });
-
     // Check if clicked element is an image with scene data
     if (target.tagName === 'IMG') {
       const img = target as HTMLImageElement;
       const sceneDataAttr = img.getAttribute('data-scene');
 
-      console.log('🎨 Image attributes:', {
-        src: img.src?.substring(0, 50) + '...',
-        width: img.width,
-        height: img.height,
-        hasDataScene: !!sceneDataAttr,
-        dataSceneLength: sceneDataAttr?.length || 0
-      });
-
       if (sceneDataAttr) {
         try {
           const sceneData = JSON.parse(sceneDataAttr);
-          console.log('✅ SCENE DATA PARSED SUCCESSFULLY:', {
-            elements: sceneData.elements?.length || 0,
-            hasAppState: !!sceneData.appState,
-            hasFiles: !!sceneData.files,
-            fileCount: sceneData.files ? Object.keys(sceneData.files).length : 0
+          console.log('🖱️ Image clicked - opening for edit:', {
+            elements: sceneData.elements?.length || 0
           });
-
-          // Log element positions from stored scene data
-          if (sceneData.elements && sceneData.elements.length > 0) {
-            console.log('🎯 STORED SCENE DATA - Element positions (first 3):');
-            sceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
-              console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
-            });
-          }
-
-          // Log appState if present
-          if (sceneData.appState) {
-            console.log('📊 STORED SCENE DATA - AppState:', {
-              zoom: sceneData.appState.zoom,
-              scrollX: sceneData.appState.scrollX,
-              scrollY: sceneData.appState.scrollY,
-              viewBackgroundColor: sceneData.appState.viewBackgroundColor
-            });
-          } else {
-            console.log('⚠️ STORED SCENE DATA - No appState found');
-          }
 
           // Select the image node in editor
           const pos = editor?.view.posAtDOM(img, 0);
           if (pos !== undefined && editor) {
             editor.commands.setNodeSelection(pos);
-            console.log('✅ Image selected in editor at position:', pos);
           }
 
           // Open modal with scene data for editing
-          console.log('🚀 Setting editing scene data and opening modal...');
           setEditingSceneData(sceneData);
           setShowDrawModal(true);
-          console.log('🚀 DrawingModal state updated (should open now)');
-          console.log('🖱️ ═══════════════════════════════════════════════════');
         } catch (error) {
-          console.error('❌ Failed to parse scene data:', error);
-          console.error('❌ Raw scene data:', sceneDataAttr?.substring(0, 200));
-          console.log('🖱️ ═══════════════════════════════════════════════════');
+          console.error('Failed to parse scene data:', error);
         }
-      } else {
-        console.log('⚠️ No data-scene attribute found on image');
-        console.log('⚠️ Available attributes:', Array.from(img.attributes).map(attr => attr.name));
-        console.log('🖱️ ═══════════════════════════════════════════════════');
       }
     }
   };

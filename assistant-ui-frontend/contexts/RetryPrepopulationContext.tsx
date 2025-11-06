@@ -36,7 +36,6 @@ export function RetryPrepopulationProvider({ children }: { children: ReactNode }
   const [attempts, setAttempts] = useState<Map<string, AttemptData>>(new Map());
 
   const storeAttempt = (cardId: string, data: AttemptData) => {
-    console.log('💾 RetryContext - Storing attempt for card:', cardId, data);
     setAttempts(prev => {
       const next = new Map(prev);
       next.set(cardId, data);
@@ -45,13 +44,10 @@ export function RetryPrepopulationProvider({ children }: { children: ReactNode }
   };
 
   const getAttempt = (cardId: string): AttemptData | null => {
-    const data = attempts.get(cardId) || null;
-    console.log('🔍 RetryContext - Getting attempt for card:', cardId, data ? 'FOUND' : 'NOT FOUND');
-    return data;
+    return attempts.get(cardId) || null;
   };
 
   const clearAttempt = (cardId: string) => {
-    console.log('🗑️ RetryContext - Clearing attempt for card:', cardId);
     setAttempts(prev => {
       const next = new Map(prev);
       next.delete(cardId);
@@ -60,7 +56,6 @@ export function RetryPrepopulationProvider({ children }: { children: ReactNode }
   };
 
   const clearAllAttempts = () => {
-    console.log('🗑️ RetryContext - Clearing ALL attempts');
     setAttempts(new Map());
   };
 

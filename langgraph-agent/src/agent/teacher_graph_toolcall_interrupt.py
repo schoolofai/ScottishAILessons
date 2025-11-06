@@ -401,7 +401,37 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     message_obj = _generate_card_message(
         teacher, state["lesson_snapshot"], current_card, current_index, cfu_type, state  # Pass full state
     )
-    
+
+    # Check for lesson diagram (diagram_context="lesson" for first card) and present it BEFORE first card
+    messages_to_send = []
+    lesson_diagram = state.get("lesson_diagram")
+
+    if current_index == 0 and lesson_diagram:
+        # Create tool call for lesson diagram presentation (display-only, no interrupt)
+        print(f"📐 DIAGRAM DEBUG - Lesson diagram found, creating tool call")
+        print(f"📐 DIAGRAM DEBUG - Diagram data: {lesson_diagram}")
+
+        diagram_tool_call = ToolCall(
+            id="lesson_diagram_intro",
+            name="present_lesson_diagram",
+            args={
+                "lessonTemplateId": state.get("lesson_template_id", ""),
+                "cardId": lesson_diagram.get("cardId", "card_001"),  # Use actual cardId from diagram
+                "diagramFileId": lesson_diagram.get("image_file_id"),
+                "diagramType": lesson_diagram.get("diagram_type"),
+                "title": lesson_diagram.get("title", "Lesson Diagram")
+            }
+        )
+
+        # Create AIMessage with diagram tool call
+        diagram_tool_message = AIMessage(
+            content="",  # Empty content to avoid duplication
+            tool_calls=[diagram_tool_call]
+        )
+
+        print(f"📐 DIAGRAM DEBUG - Created diagram tool call with cardId: {lesson_diagram.get('cardId')}")
+        messages_to_send.append(diagram_tool_message)
+
     # Create tool call for lesson card presentation
     tool_call_id = f"lesson_card_{current_index}"
     lesson_context = {
@@ -409,7 +439,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         "student_name": state.get("student_id", "Student"),
         "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
     }
-    
+
     tool_call = ToolCall(
         id=tool_call_id,
         name="lesson_card_presentation",
@@ -427,22 +457,27 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "timestamp": datetime.now().isoformat()
         }
     )
-    
+
     # Create AIMessage with empty content and tool call for UI
     tool_message = AIMessage(
         content="",  # Empty to avoid duplication
         tool_calls=[tool_call]
     )
-    
+
     print(f"🚨 TOOL DEBUG - Created AIMessage with tool call for UI rendering")
     print(f"🚨 TOOL DEBUG - Tool call ID: {tool_call_id}")
     print(f"🚨 TOOL DEBUG - Tool name: {tool_call['name'] if isinstance(tool_call, dict) else tool_call.name}")
     print(f"🚨 TOOL DEBUG - Card index: {current_index}")
     print(f"🚨 TOOL DEBUG - Tool call type: {type(tool_call)}")
-    
+
+    # Add card greeting and tool call to messages
+    messages_to_send.extend([message_obj, tool_message])
+
     print(f"🔍 NODE_EXIT: design_node | decision: new_card | next_stage: get_answer")
+    print(f"📨 MESSAGES DEBUG - Sending {len(messages_to_send)} messages (diagram={bool(lesson_diagram and current_index == 0)})")
+
     return {
-        "messages": [message_obj, tool_message],  # Both messages
+        "messages": messages_to_send,  # Diagram (if first card) + greeting + card tool call
         "current_card": current_card,
         "current_card_index": current_index,
         "stage": "get_answer",  # Route to get_answer_node

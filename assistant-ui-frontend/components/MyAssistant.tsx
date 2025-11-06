@@ -14,6 +14,7 @@ import { ReplayModeProvider } from "@/contexts/ReplayModeContext";
 
 // Import interrupt-enabled Tool UI components
 import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
+import { LessonDiagramPresentationTool } from "@/components/tools/LessonDiagramPresentationTool";
 import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
 import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
@@ -32,6 +33,13 @@ export interface SessionContext {
   enriched_outcomes?: CourseOutcome[];  // Full CourseOutcome objects from course_outcomes collection
   // Accessibility preferences
   use_plain_text?: boolean;     // Use explainer_plain for dyslexia-friendly content
+  // Lesson diagram (diagram_context="lesson") for first card
+  lesson_diagram?: {
+    image_file_id: string;
+    diagram_type?: string;
+    title?: string;
+    cardId?: string;  // Actual cardId (e.g., "card_001") for backend tool call
+  } | null;
 }
 
 export interface MyAssistantProps {
@@ -163,6 +171,7 @@ export function MyAssistant({
           {/* Tool UI components render automatically based on tool calls in messages */}
           {/* They work in both live and replay modes */}
           <LessonCardPresentationTool />
+          <LessonDiagramPresentationTool />
           <FeedbackPresentationTool />
           <ProgressAcknowledgmentTool />
           <LessonSummaryPresentationTool />

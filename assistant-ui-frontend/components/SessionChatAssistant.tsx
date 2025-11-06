@@ -6,6 +6,7 @@ import { MyAssistant, SessionContext } from "./MyAssistant";
 import { useAppwrite, SessionDriver } from "@/lib/appwrite";
 import { CourseDriver } from "@/lib/appwrite/driver/CourseDriver";
 import { CourseOutcomesDriver } from "@/lib/appwrite/driver/CourseOutcomesDriver";
+import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
 import { enrichOutcomeRefs } from "@/lib/sessions/outcome-enrichment";
 import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
@@ -127,6 +128,54 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           console.log('SessionChatAssistant - Skipping outcome enrichment (no courseId or outcomeRefs)');
         }
 
+        // Check for lesson diagrams (diagram_context="lesson" for first card)
+        // Note: Lesson diagrams are stored with actual cardIds (e.g., "card_001", "card_002")
+        // We fetch the first card's lesson diagram to show before the greeting
+        let lessonDiagram = null;
+        const lessonTemplateId = parsedSnapshot.lessonTemplateId;
+        const firstCardId = parsedSnapshot.cards?.[0]?.id;  // Cards use 'id' property, not 'cardId'
+
+        console.log('📐 DIAGRAM FETCH DEBUG - Starting lesson diagram check');
+        console.log('📐 DIAGRAM FETCH DEBUG - lessonTemplateId:', lessonTemplateId);
+        console.log('📐 DIAGRAM FETCH DEBUG - firstCardId:', firstCardId);
+
+        if (lessonTemplateId && firstCardId) {
+          try {
+            console.log('📐 DIAGRAM FETCH DEBUG - Creating DiagramDriver');
+            const diagramDriver = createDriver(DiagramDriver);
+
+            console.log('📐 DIAGRAM FETCH DEBUG - Calling getDiagramForCardByContext with:');
+            console.log('  - lessonTemplateId:', lessonTemplateId);
+            console.log('  - cardId:', firstCardId);
+            console.log('  - context: "lesson"');
+
+            const diagramResult = await diagramDriver.getDiagramForCardByContext(
+              lessonTemplateId,
+              firstCardId,  // Use actual first card ID (e.g., "card_001")
+              'lesson'      // Fetch lesson diagram (not CFU diagram)
+            );
+
+            console.log('📐 DIAGRAM FETCH DEBUG - getDiagramForCardByContext returned:', diagramResult);
+
+            if (diagramResult) {
+              lessonDiagram = {
+                image_file_id: diagramResult.image_file_id,
+                diagram_type: diagramResult.diagram_type,
+                title: diagramResult.title || 'Lesson Diagram',
+                cardId: firstCardId  // Include cardId for backend tool call
+              };
+              console.log('📐 DIAGRAM FETCH SUCCESS - Lesson diagram found:', lessonDiagram);
+            } else {
+              console.log('📐 DIAGRAM FETCH RESULT - No lesson diagram found for first card');
+            }
+          } catch (diagramError) {
+            console.error('📐 DIAGRAM FETCH ERROR - Failed to fetch lesson diagram:', diagramError);
+            // Continue without diagram - it's optional
+          }
+        } else {
+          console.log('📐 DIAGRAM FETCH SKIP - Missing lessonTemplateId or firstCardId');
+        }
+
         const context: SessionContext = {
           session_id: session.$id,
           student_id: session.studentId,
@@ -134,6 +183,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           use_plain_text: false, // TODO: Get from user preferences when implemented
           ...courseCurriculumMetadata, // Add course_subject, course_level, sqa_course_code, course_title
           enriched_outcomes: enrichedOutcomes, // Add enriched CourseOutcome objects
+          lesson_diagram: lessonDiagram, // Add lesson diagram if available
         };
 
         console.log('✅ SessionChatAssistant - Session context built successfully:', {
