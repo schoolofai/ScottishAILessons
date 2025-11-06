@@ -235,6 +235,14 @@ export interface Evidence {
   reasoning?: string;
   feedback?: string;
   timestamp?: string;
+
+  // Student drawing fields (storage-based approach - NEW)
+  student_drawing_file_ids?: string[]; // Array of Appwrite Storage file IDs
+  student_drawing_text?: string; // Optional text explanation of drawing
+
+  // DEPRECATED: Legacy base64 drawing field (for backward compatibility)
+  // Old format: base64 string or JSON.stringify([base64_1, base64_2, ...])
+  student_drawing?: string;
 }
 
 export interface EvidenceData {
@@ -247,6 +255,13 @@ export interface EvidenceData {
   reasoning?: string;
   feedback?: string;
   timestamp?: string;
+
+  // Student drawing fields (storage-based approach - NEW)
+  student_drawing_file_ids?: string[]; // Array of Appwrite Storage file IDs
+  student_drawing_text?: string; // Optional text explanation of drawing
+
+  // DEPRECATED: Legacy base64 drawing field (for backward compatibility)
+  student_drawing?: string;
 }
 
 export interface Mastery {

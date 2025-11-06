@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionClient } from "@/lib/appwrite/server";
 import { ID, Query } from "appwrite";
-import { handleCourseEnrollment } from "@/lib/services/enrollment-service";
+import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
 
       // Phase 4.1 MVP2.5: Copy Authored SOW to student's SOWV2
       try {
-        await handleCourseEnrollment(student.$id, 'C844 73', databases);
+        await enrollStudentInCourse(student.$id, 'C844 73', databases);
         console.log(`[StudentInitialize] ✅ SOW copied for student ${student.$id}`);
       } catch (sowError) {
         // Log but don't fail enrollment if SOW copy fails

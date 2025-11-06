@@ -116,13 +116,19 @@ export function RichTextEditor({
 
       const sceneDataString = sceneData ? JSON.stringify(sceneData) : undefined;
 
-      console.log('🎨 SCENE DATA DEBUG - handleDrawingInsert:', {
-        hasSceneData: !!sceneData,
-        elements: sceneData?.elements?.length || 0,
-        sceneDataStringLength: sceneDataString?.length || 0,
-        firstChars: sceneDataString?.substring(0, 100),
-        isEdit: !!editingSceneData
-      });
+      // ═══════════════════════════════════════════════════════════════
+      // 🎨 DRAWING INSERTED - Critical Event #1 (RichTextEditor)
+      // ═══════════════════════════════════════════════════════════════
+      console.group('%c🎨 DRAWING INSERTED (RichTextEditor)', 'color: #10B981; font-weight: bold; font-size: 14px;');
+      console.log('%c✅ Base64:', 'color: #059669;', base64Image ? `${(base64Image.length / 1024).toFixed(1)}KB` : '❌ MISSING');
+      console.log('%c✅ Scene Data:', 'color: #059669;', sceneData ? 'CAPTURED' : '❌ MISSING');
+      if (sceneData) {
+        console.log('%c   └─ Elements:', 'color: #6B7280;', sceneData.elements?.length || 0);
+        console.log('%c   └─ Files:', 'color: #6B7280;', Object.keys(sceneData.files || {}).length);
+      }
+      console.log('%c   └─ Mode:', 'color: #6B7280;', editingSceneData ? 'EDITING' : 'NEW');
+      console.groupEnd();
+      // ═══════════════════════════════════════════════════════════════
 
       editor.chain()
         .focus()
@@ -133,19 +139,17 @@ export function RichTextEditor({
         .insertContent('<p></p>') // Add paragraph after image for continued typing
         .run();
 
-      console.log('✅ Drawing inserted into rich text editor');
-
       // Verify the image was inserted with scene data
       setTimeout(() => {
         const images = editor.view.dom.querySelectorAll('img');
         const lastImage = images[images.length - 1];
         if (lastImage) {
           const storedSceneData = lastImage.getAttribute('data-scene');
-          console.log('🔍 VERIFICATION - Image inserted with data-scene:', {
-            hasDataScene: !!storedSceneData,
-            length: storedSceneData?.length || 0,
-            firstChars: storedSceneData?.substring(0, 100)
-          });
+          if (storedSceneData) {
+            console.log('%c✅ Scene data verified in DOM', 'color: #10B981; font-weight: bold;', `${storedSceneData.length} chars`);
+          } else {
+            console.warn('%c⚠️ Scene data NOT found in DOM', 'color: #F59E0B; font-weight: bold;');
+          }
         }
       }, 100);
 

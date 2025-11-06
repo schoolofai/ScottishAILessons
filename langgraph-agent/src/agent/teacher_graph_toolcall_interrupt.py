@@ -248,27 +248,34 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
             # Extract drawing data if present (universal - works with ANY CFU type)
-            student_drawing = interrupt_response.get("student_drawing")
+            # Phase 10: Support both storage file IDs (NEW) and base64 (LEGACY)
+            student_drawing_file_ids = interrupt_response.get("student_drawing_file_ids")  # NEW
+            student_drawing = interrupt_response.get("student_drawing")  # LEGACY
             student_drawing_text = interrupt_response.get("student_drawing_text")
 
             print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
-            if student_drawing:
-                print(f"🎨 UNIVERSAL DRAWING - Drawing received: {len(student_drawing)} bytes base64 (works with all CFU types)")
-                print(f"📝 UNIVERSAL DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            if student_drawing_file_ids:
+                print(f"🎨 STORAGE DRAWING - File IDs received: {student_drawing_file_ids} (Phase 10 storage-based)")
+                print(f"📝 STORAGE DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            elif student_drawing:
+                print(f"🎨 LEGACY DRAWING - Base64 received: {len(student_drawing)} bytes (legacy format)")
+                print(f"📝 LEGACY DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
 
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
+            has_drawing = student_drawing_file_ids or student_drawing
             message_content = f"Your Answer: {student_response}" if student_response else (
-                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if student_drawing else "Your Answer: [No response]"
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if has_drawing else "Your Answer: [No response]"
             )
             answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
-                "student_drawing": student_drawing,
+                "student_drawing_file_ids": student_drawing_file_ids,  # NEW: storage file IDs
+                "student_drawing": student_drawing,  # LEGACY: base64 strings
                 "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
@@ -414,6 +421,8 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "cfu_type": cfu_type,
             "lesson_context": lesson_context,
             "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
+            "session_id": state.get("session_id", ""),  # For storage file naming (Phase 10)
+            "student_id": state.get("student_id", ""),  # For storage permissions (Phase 10)
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }
@@ -767,27 +776,34 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
             # Extract drawing data if present (universal - works with ANY CFU type)
-            student_drawing = interrupt_response.get("student_drawing")
+            # Phase 10: Support both storage file IDs (NEW) and base64 (LEGACY)
+            student_drawing_file_ids = interrupt_response.get("student_drawing_file_ids")  # NEW
+            student_drawing = interrupt_response.get("student_drawing")  # LEGACY
             student_drawing_text = interrupt_response.get("student_drawing_text")
 
             print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
-            if student_drawing:
-                print(f"🎨 UNIVERSAL DRAWING - Drawing received on retry: {len(student_drawing)} bytes base64 (works with all CFU types)")
-                print(f"📝 UNIVERSAL DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            if student_drawing_file_ids:
+                print(f"🎨 STORAGE DRAWING - File IDs received on retry: {student_drawing_file_ids} (Phase 10 storage-based)")
+                print(f"📝 STORAGE DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            elif student_drawing:
+                print(f"🎨 LEGACY DRAWING - Base64 received on retry: {len(student_drawing)} bytes (legacy format)")
+                print(f"📝 LEGACY DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
 
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
+            has_drawing = student_drawing_file_ids or student_drawing
             message_content = f"Your Answer: {student_response}" if student_response else (
-                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if student_drawing else "Your Answer: [No response]"
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if has_drawing else "Your Answer: [No response]"
             )
             answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
-                "student_drawing": student_drawing,
+                "student_drawing_file_ids": student_drawing_file_ids,  # NEW: storage file IDs
+                "student_drawing": student_drawing,  # LEGACY: base64 strings
                 "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
@@ -882,7 +898,8 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "lesson_context": lesson_context,
             "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "attempt_number": attempts  # NEW: Signal retry (1=first, 2+=retry)
         }
     )
     

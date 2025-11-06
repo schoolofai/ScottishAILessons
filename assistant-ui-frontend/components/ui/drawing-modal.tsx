@@ -227,6 +227,21 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
     }
   };
 
+  const handleLoadFromFile = async () => {
+    try {
+      await canvasRef.current?.loadFromFile();
+      console.log('✅ Drawing loaded from file successfully');
+    } catch (error: any) {
+      // Don't show alert for user cancellation
+      if (error.message === 'File picker cancelled' || error.message === 'No file selected') {
+        console.log('ℹ️ User cancelled file selection');
+        return;
+      }
+      console.error('❌ Failed to load file:', error);
+      alert(`Failed to load drawing file: ${error.message}`);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
@@ -280,8 +295,17 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
         </div>
 
         <DialogFooter className="px-6 py-4 border-t flex justify-between items-center flex-shrink-0">
-          {/* Left side - Export options */}
+          {/* Left side - File operations */}
           <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleLoadFromFile}
+              disabled={isInserting}
+              className="text-sm"
+            >
+              📂 Load from File
+            </Button>
             <Button
               type="button"
               variant="outline"

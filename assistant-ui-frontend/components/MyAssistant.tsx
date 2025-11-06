@@ -142,12 +142,9 @@ export function MyAssistant({
 
   const isSessionMode = !!sessionContext;
 
-  console.log('🎬 MyAssistant - Mode:', {
-    isReplayMode,
-    hasReplayRuntime: !!replayRuntime,
-    isSessionMode,
-    usingRuntime: isReplayMode && replayRuntime ? 'replay' : 'langGraph'
-  });
+  // Removed noisy render log - use React DevTools for component debugging
+  // Only log mode changes, not every render
+  // console.log('🎬 MyAssistant - Mode:', {...})
 
   return (
     <ReplayModeProvider isReplayMode={isReplayMode}>

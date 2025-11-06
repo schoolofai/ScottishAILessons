@@ -30,8 +30,9 @@ class UnifiedState(TypedDict, total=False):
     student_response: Optional[str]
 
     # Drawing submission fields (for drawing CFU type)
-    student_drawing: Optional[str]  # Base64-encoded PNG from Excalidraw canvas
+    student_drawing: Optional[str]  # Base64-encoded PNG from Excalidraw canvas (LEGACY - Phase 9)
     student_drawing_text: Optional[str]  # Optional text explanation accompanying drawing
+    student_drawing_file_ids: Optional[List[str]]  # Appwrite Storage file IDs (NEW - Phase 10)
 
     # Teaching progression fields
     course_id: str

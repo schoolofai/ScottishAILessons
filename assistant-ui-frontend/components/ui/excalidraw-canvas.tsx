@@ -110,6 +110,14 @@ export interface ExcalidrawCanvasRef {
    * @throws Error if canvas is not ready
    */
   downloadAsExcalidraw: (filename?: string) => Promise<void>;
+
+  /**
+   * Load a scene from an .excalidraw file
+   * Opens a file picker dialog and loads the selected .excalidraw file
+   * @returns Promise that resolves when file is loaded, or rejects if user cancels/error occurs
+   * @throws Error if canvas is not ready or file is invalid
+   */
+  loadFromFile: () => Promise<void>;
 }
 
 /**
@@ -1050,6 +1058,197 @@ export const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvas
           console.error('❌ Failed to download Excalidraw file:', error);
           throw error;
         }
+      },
+
+      loadFromFile: async (): Promise<void> => {
+        if (!excalidrawAPI) {
+          throw new Error("Canvas not ready. Please wait for the canvas to load.");
+        }
+
+        return new Promise((resolve, reject) => {
+          try {
+            console.log('📂 Opening file picker for .excalidraw file...');
+
+            // Create hidden file input element
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.excalidraw,application/json';
+            input.style.display = 'none';
+
+            // Handle file selection
+            input.onchange = async (event: Event) => {
+              const target = event.target as HTMLInputElement;
+              const file = target.files?.[0];
+
+              if (!file) {
+                console.log('ℹ️ No file selected');
+                reject(new Error('No file selected'));
+                return;
+              }
+
+              console.log(`📄 File selected: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`);
+
+              try {
+                // Read file as text
+                const text = await file.text();
+                console.log(`📖 File content read: ${text.length} characters`);
+
+                // Parse JSON
+                const data = JSON.parse(text);
+                console.log('✅ JSON parsed successfully');
+
+                // Validate excalidraw format
+                if (data.type !== 'excalidraw') {
+                  console.warn('⚠️ File is not an Excalidraw file (missing type field)');
+                  // Still try to load if it has elements - might be an older format
+                  if (!Array.isArray(data.elements)) {
+                    throw new Error('Invalid .excalidraw file: missing elements array');
+                  }
+                }
+
+                // Validate required fields
+                if (!Array.isArray(data.elements)) {
+                  throw new Error('Invalid .excalidraw file: elements must be an array');
+                }
+
+                console.log(`📊 Loading ${data.elements.length} elements from file`);
+
+                // Load scene data using existing method
+                const sceneData = {
+                  elements: data.elements,
+                  appState: data.appState || {},
+                  files: data.files || {}
+                };
+
+                // Use the loadSceneData method that has all the viewport reset logic
+                if (!excalidrawAPI) {
+                  throw new Error("Canvas API lost during file processing");
+                }
+
+                // Call loadSceneData directly on the ref (we're inside the ref implementation)
+                // We need to call it through the imperative handle
+                console.log('🔄 Calling loadSceneData to apply scene...');
+
+                // IMPORTANT: We're inside the useImperativeHandle, so we can't call the ref method
+                // We need to inline the loadSceneData logic here
+                if (!sceneData || !sceneData.elements) {
+                  throw new Error("Invalid scene data provided");
+                }
+
+                console.log('📥 ═══════════════════════════════════════════════════');
+                console.log('📥 LOADING SCENE DATA FROM FILE');
+                console.log('📥 ═══════════════════════════════════════════════════');
+                console.log(`📊 Restoring ${sceneData.elements.length} elements`);
+
+                // Log element positions for debugging offset issues
+                console.log('🎯 ELEMENT POSITIONS (first 3 elements):');
+                sceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
+                  console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
+                });
+
+                // Log viewport state BEFORE loading
+                const beforeState = excalidrawAPI.getAppState();
+                console.log('📊 VIEWPORT BEFORE LOAD:', {
+                  zoom: beforeState.zoom?.value,
+                  scrollX: beforeState.scrollX,
+                  scrollY: beforeState.scrollY,
+                  width: beforeState.width,
+                  height: beforeState.height
+                });
+
+                // CRITICAL: Match the exact initialization configuration from initialData
+                excalidrawAPI.updateScene({
+                  elements: sceneData.elements,
+                  appState: {
+                    // Preserve visual settings from saved scene (but NOT viewport)
+                    viewBackgroundColor: sceneData.appState?.viewBackgroundColor,
+                    gridSize: sceneData.appState?.gridSize,
+                    gridColor: sceneData.appState?.gridColor,
+                    // FORCE RESET viewport state to 100% zoom
+                    zoom: { value: 1 },
+                    scrollX: 0,
+                    scrollY: 0,
+                  },
+                  files: sceneData.files || {},
+                  // CRITICAL FIX: scrollToContent: false prevents auto-scrolling cursor offset
+                  scrollToContent: false,
+                });
+
+                // Log viewport state AFTER loading
+                const afterState = excalidrawAPI.getAppState();
+                console.log('📊 VIEWPORT AFTER LOAD:', {
+                  zoom: afterState.zoom?.value,
+                  scrollX: afterState.scrollX,
+                  scrollY: afterState.scrollY,
+                  width: afterState.width,
+                  height: afterState.height
+                });
+
+                console.log('✅ Scene loaded from file with zoom: 1, scrollX: 0, scrollY: 0');
+
+                // Multi-stage viewport reset to combat localStorage pollution
+                setTimeout(() => {
+                  if (!excalidrawAPI) return;
+
+                  try {
+                    // Force viewport reset again to override localStorage
+                    excalidrawAPI.updateScene({
+                      appState: {
+                        zoom: { value: 1 },
+                        scrollX: 0,
+                        scrollY: 0,
+                      },
+                    });
+
+                    const currentState = excalidrawAPI.getAppState();
+                    console.log(`🔍 Viewport verification: zoom=${currentState.zoom?.value || 'unknown'}, scrollX=${currentState.scrollX}, scrollY=${currentState.scrollY}`);
+
+                    // Center the viewport without changing zoom
+                    excalidrawAPI.scrollToContent(sceneData.elements, {
+                      fitToViewport: false,  // Keep current zoom (100%)
+                      animate: false,
+                    });
+
+                    const afterScrollState = excalidrawAPI.getAppState();
+                    console.log('📊 VIEWPORT AFTER SCROLL-TO-CONTENT:', {
+                      zoom: afterScrollState.zoom?.value,
+                      scrollX: afterScrollState.scrollX,
+                      scrollY: afterScrollState.scrollY
+                    });
+                    console.log('🎯 Viewport centered at 100% zoom (no auto-fit)');
+                  } catch (error) {
+                    console.warn('⚠️ Post-load viewport adjustment failed:', error);
+                  }
+                }, 200);
+
+                console.log(`✅ Successfully loaded ${file.name}`);
+                console.log('📥 ═══════════════════════════════════════════════════');
+
+                resolve();
+              } catch (parseError: any) {
+                console.error('❌ Failed to parse or load file:', parseError);
+                reject(new Error(`Failed to load file: ${parseError.message}`));
+              } finally {
+                // Clean up file input
+                document.body.removeChild(input);
+              }
+            };
+
+            // Handle file picker cancellation
+            input.oncancel = () => {
+              console.log('ℹ️ File picker cancelled');
+              document.body.removeChild(input);
+              reject(new Error('File picker cancelled'));
+            };
+
+            // Trigger file picker
+            document.body.appendChild(input);
+            input.click();
+          } catch (error) {
+            console.error('❌ Failed to open file picker:', error);
+            reject(error);
+          }
+        });
       },
     }), [excalidrawAPI, loadedLibraryItems]);
 
