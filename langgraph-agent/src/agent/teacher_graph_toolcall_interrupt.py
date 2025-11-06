@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Dict, List
 from datetime import datetime
 import uuid
+import time
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langgraph.graph import StateGraph, START , END
@@ -220,14 +221,69 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
 
 
 
+def _create_diagram_tool_call(state: InterruptUnifiedState, current_card: Dict, current_index: int) -> AIMessage | None:
+    """Create diagram tool call message if diagram exists for current card.
+
+    Args:
+        state: Current graph state containing lesson_snapshot and diagram metadata
+        current_card: The current card being presented
+        current_index: Index of the current card
+
+    Returns:
+        AIMessage with diagram tool call, or None if no diagram exists
+    """
+    # Get the lesson_snapshot to find diagram for this card
+    lesson_snapshot = state.get("lesson_snapshot", {})
+    lesson_template_id = lesson_snapshot.get("lessonTemplateId", "")
+    card_id = current_card.get("id", "")
+
+    if not lesson_template_id or not card_id:
+        print(f"📐 DIAGRAM HELPER - Missing lessonTemplateId or cardId, skipping diagram")
+        return None
+
+    # ALWAYS create a tool call so the frontend LessonDiagramPresentationTool can render
+    # The tool will fetch the diagram if it exists, or gracefully degrade if not
+
+    # Check if there's pre-fetched diagram data in state (first card optimization)
+    lesson_diagram = state.get("lesson_diagram")
+    diagram_args = {
+        "lessonTemplateId": lesson_template_id,
+        "cardId": card_id
+    }
+
+    if lesson_diagram and current_index == 0:
+        # Include pre-fetched diagram data to avoid redundant fetch
+        print(f"📐 DIAGRAM HELPER - Using pre-fetched diagram from state for card {card_id}")
+        diagram_args["diagramFileId"] = lesson_diagram.get("image_file_id")
+        diagram_args["diagramType"] = lesson_diagram.get("diagram_type")
+        diagram_args["title"] = lesson_diagram.get("title", "Lesson Diagram")
+    else:
+        # For other cards, let frontend fetch on-demand using lessonTemplateId + cardId
+        print(f"📐 DIAGRAM HELPER - Creating tool call for on-demand fetch for {card_id}")
+
+    diagram_tool_call = ToolCall(
+        id=f"lesson_diagram_{card_id}",
+        name="present_lesson_diagram",
+        args=diagram_args
+    )
+
+    diagram_tool_message = AIMessage(
+        content="",  # Empty content to avoid duplication
+        tool_calls=[diagram_tool_call]
+    )
+
+    print(f"📐 DIAGRAM HELPER - Created diagram tool call for {card_id}")
+    return diagram_tool_message
+
+
 def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Design node - handles all routing decisions and creates tool calls for lesson card presentation."""
     from .llm_teacher import LLMTeacher
-    
+
     # Entry logging with FULL STATE DEBUG
     current_idx = state.get("current_card_index", 0)
     stage = state.get("stage", "unknown")
-    
+
     print(f"🔍 NODE_ENTRY: design_node | card_idx: {current_idx} | stage: {stage}")
     
     # CRITICAL DEBUG: Log all state keys and values to understand what's available
@@ -398,39 +454,18 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     teacher = LLMTeacher()
     current_card, current_index, cfu_type = _get_current_card_info(state)
 
+    # Check for lesson diagram and present it BEFORE card (using helper function)
+    messages_to_send = []
+    diagram_message = _create_diagram_tool_call(state, current_card, current_index)
+    if diagram_message:
+        messages_to_send.append(diagram_message)
+        # Add small delay to allow diagram to render before AI greeting appears
+        time.sleep(0.5)
+        print(f"⏱️ TIMING - Delayed 0.5s after diagram tool call before generating greeting")
+
     message_obj = _generate_card_message(
         teacher, state["lesson_snapshot"], current_card, current_index, cfu_type, state  # Pass full state
     )
-
-    # Check for lesson diagram (diagram_context="lesson" for first card) and present it BEFORE first card
-    messages_to_send = []
-    lesson_diagram = state.get("lesson_diagram")
-
-    if current_index == 0 and lesson_diagram:
-        # Create tool call for lesson diagram presentation (display-only, no interrupt)
-        print(f"📐 DIAGRAM DEBUG - Lesson diagram found, creating tool call")
-        print(f"📐 DIAGRAM DEBUG - Diagram data: {lesson_diagram}")
-
-        diagram_tool_call = ToolCall(
-            id="lesson_diagram_intro",
-            name="present_lesson_diagram",
-            args={
-                "lessonTemplateId": state.get("lesson_template_id", ""),
-                "cardId": lesson_diagram.get("cardId", "card_001"),  # Use actual cardId from diagram
-                "diagramFileId": lesson_diagram.get("image_file_id"),
-                "diagramType": lesson_diagram.get("diagram_type"),
-                "title": lesson_diagram.get("title", "Lesson Diagram")
-            }
-        )
-
-        # Create AIMessage with diagram tool call
-        diagram_tool_message = AIMessage(
-            content="",  # Empty content to avoid duplication
-            tool_calls=[diagram_tool_call]
-        )
-
-        print(f"📐 DIAGRAM DEBUG - Created diagram tool call with cardId: {lesson_diagram.get('cardId')}")
-        messages_to_send.append(diagram_tool_message)
 
     # Create tool call for lesson card presentation
     tool_call_id = f"lesson_card_{current_index}"
@@ -474,7 +509,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     messages_to_send.extend([message_obj, tool_message])
 
     print(f"🔍 NODE_EXIT: design_node | decision: new_card | next_stage: get_answer")
-    print(f"📨 MESSAGES DEBUG - Sending {len(messages_to_send)} messages (diagram={bool(lesson_diagram and current_index == 0)})")
+    print(f"📨 MESSAGES DEBUG - Sending {len(messages_to_send)} messages (diagram={bool(diagram_message)})")
 
     return {
         "messages": messages_to_send,  # Diagram (if first card) + greeting + card tool call
@@ -912,7 +947,16 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     else:
         feedback_message = AIMessage(content=feedback)
         combined_feedback = feedback
-    
+
+    # Check for lesson diagram and present it BEFORE card retry (using helper function)
+    messages_to_send = []
+    diagram_message = _create_diagram_tool_call(state, current_card, current_index)
+    if diagram_message:
+        messages_to_send.append(diagram_message)
+        # Add small delay to allow diagram to render before feedback appears
+        time.sleep(0.5)
+        print(f"⏱️ TIMING - Delayed 0.5s after diagram tool call before adding feedback")
+
     # Create tool call for retry using SAME tool as design_node
     tool_call_id = f"retry_card_{current_index}_{attempts}"
     lesson_context = {
@@ -920,7 +964,7 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         "student_name": state.get("student_id", "Student"),
         "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
     }
-    
+
     tool_call = ToolCall(
         id=tool_call_id,
         name="lesson_card_presentation",  # SAME tool name as design_node
@@ -937,19 +981,23 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "attempt_number": attempts  # NEW: Signal retry (1=first, 2+=retry)
         }
     )
-    
+
     # Create AIMessage with empty content and tool call for UI
     tool_message = AIMessage(
         content="",  # Empty to avoid duplication
         tool_calls=[tool_call]
     )
-    
+
+    # Append feedback and card tool messages
+    messages_to_send.append(feedback_message)
+    messages_to_send.append(tool_message)
+
     print(f"🚨 RETRY DEBUG - Created lesson_card_presentation tool call for retry attempt {attempts}")
     print(f"🚨 RETRY DEBUG - Tool call content: {'feedback + explanation' if explanation else 'feedback only'}")
     print(f"🔍 NODE_EXIT: retry_node | decision: retry_presentation | next_stage: get_answer_retry")
 
     return {
-        "messages": [feedback_message, tool_message],
+        "messages": messages_to_send,
         "stage": "get_answer_retry",
         "pending_tool_call_id": tool_call_id,
         "student_response": None,  # Clear any previous response
