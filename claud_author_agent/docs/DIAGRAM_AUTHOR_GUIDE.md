@@ -69,11 +69,12 @@ A complete diagram generation produces:
 │     Output: /workspace/lesson_template.json                     │
 │     Purpose: Fetch complete lesson with all cards              │
 │                                                                   │
-│  2. Eligible Cards Filter (Simple Heuristic)                    │
-│     Input:  lesson_template.json                                │
-│     Logic:  Filter cards by cardType + content analysis         │
+│  2. Eligible Cards Filter (LLM-Based Semantic Analysis)         │
+│     Input:  lesson_template.json + Claude API                   │
+│     Logic:  LLM analyzes card content for JSXGraph compatibility│
 │     Output: /workspace/eligible_cards.json                      │
-│     Purpose: Identify cards needing visual diagrams             │
+│     Purpose: Identify cards needing mathematical diagrams       │
+│     Note:   Excludes rubrics, worksheets, concept maps, photos  │
 │                                                                   │
 │  3. DiagramScreenshot Service Health Check                      │
 │     Endpoint: GET http://localhost:3001/health                  │
@@ -294,11 +295,18 @@ A complete diagram generation produces:
 - **Fast-fail error handling**: Timeout 30s, no retry at tool level
 - **Base64 image return**: PNG encoded for direct storage
 
+**5. LLM-Based Eligibility Determination**
+- **Semantic analysis**: Claude analyzes card content for JSXGraph compatibility
+- **Dual-context evaluation**: Separate decisions for lesson diagrams and CFU diagrams
+- **Structured reasoning**: Returns boolean decision + human-readable explanation
+- **No fallback pattern**: LLM analysis is required - no keyword heuristic fallback
+- **Explicit exclusions**: Rubrics, worksheets, concept maps, photographs filtered out
+
 ---
 
 ## Quick Start
 
-### Minimal Example (Command-Line)
+### Single Lesson Mode (Minimal Example)
 
 ```bash
 cd claud_author_agent
@@ -359,6 +367,128 @@ Metrics:
   Total Cost (USD):    $0.4268
   Execution Time:      3m 42s
 ```
+
+---
+
+### Batch Mode (All Lessons in Course)
+
+**NEW**: Generate diagrams for all lessons in a course with one command:
+
+```bash
+cd claud_author_agent
+source ../venv/bin/activate
+
+# 1. Dry-run preview (recommended first step)
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --dry-run
+
+# 2. Review estimates and execution plan, then execute
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --yes
+
+# 3. Force regenerate all diagrams (deletes existing)
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --force \
+  --yes
+```
+
+**Dry-Run Preview Output**:
+```
+================================================================================
+Batch Diagram Generator
+================================================================================
+
+Course ID: course_c84874
+Mode: Dry-run
+Force: No (will skip existing)
+
+✅ DiagramScreenshot service is healthy at http://localhost:3001
+
+Step 1: Fetching lesson orders from SOW...
+✅ Found 10 lessons in SOW
+
+Step 2: Validating all lessons...
+✅ Validation complete: 10 valid, 0 invalid
+
+Step 3: Checking existing diagrams...
+✅ Found existing diagrams for 2 lessons
+
+Step 4: Building execution plan...
+✅ Execution plan ready
+
+================================================================================
+DRY RUN PREVIEW - No changes will be made
+================================================================================
+
+Total Lessons: 10
+  - Generate: 8
+  - Overwrite: 0
+  - Skip: 2
+  - Malformed (validation failed): 0
+
+Order    Action       Reason
+--------------------------------------------------------------------------------
+1        SKIP         Already has 3 diagrams (use --force to regenerate)
+2        GENERATE     Generate 5 new diagrams
+3        GENERATE     Generate 2 new diagrams
+4        SKIP         Already has 4 diagrams (use --force to regenerate)
+5        GENERATE     Generate 3 new diagrams
+...
+
+ESTIMATES:
+  Lessons to process: 8
+  Time: ~40 minutes (~0.7 hours)
+  Cost: ~$4.00
+  Per lesson: ~5 min, ~$0.50
+
+Dry-run mode: No changes made
+```
+
+**Batch Execution Output**:
+```
+================================================================================
+Starting batch execution...
+================================================================================
+
+⏭️  Lesson 1: SKIPPED - Already has 3 diagrams (use --force to regenerate)
+
+🚀 Processing lesson 2...
+✅ Lesson 2: 5 diagrams generated
+
+🚀 Processing lesson 3...
+✅ Lesson 3: 2 diagrams generated
+
+...
+
+Writing batch summary...
+✅ Summary written to logs/batch_runs/batch_diagram_20251107_143025/batch_summary.json
+
+================================================================================
+BATCH EXECUTION COMPLETE
+================================================================================
+
+Summary:
+  Total Lessons: 10
+  Success: 8
+  Failed: 0
+  Skipped: 2
+  Total Diagrams Generated: 24
+  Total Cost: $3.85
+  Total Time: 38 minutes
+
+🎉 Batch completed successfully!
+```
+
+**Key Features**:
+- ✅ **Dry-run preview** with time/cost estimates before execution
+- ✅ **Validation** of all lessons before starting (fast-fail)
+- ✅ **Skip existing** diagrams automatically (use `--force` to regenerate)
+- ✅ **Per-lesson logging** in `logs/batch_runs/{batch_id}/order_{N}.log`
+- ✅ **Batch summary** JSON report with metrics and results
+- ✅ **Progress tracking** with colored console output
 
 ---
 
@@ -447,7 +577,7 @@ python -m src.diagram_author_cli --help
 
 ## Usage
 
-### CLI Options
+### Single Lesson CLI Options
 
 ```bash
 python -m src.diagram_author_cli [OPTIONS]
@@ -465,7 +595,37 @@ HELP:
   --help                 Show help message
 ```
 
-### Method 1: Command-Line Arguments (Recommended)
+### Batch Mode CLI Options
+
+```bash
+python -m src.batch_diagram_generator [OPTIONS]
+
+REQUIRED OPTIONS:
+  --courseId TEXT        Course identifier (e.g., "course_c84874")
+
+OPTIONAL OPTIONS:
+  --order INTEGER        Single lesson order (if provided, delegates to diagram_author_cli)
+  --dry-run              Preview execution plan without generating diagrams
+  --force                Force regenerate existing diagrams (deletes and recreates)
+  --yes                  Skip confirmation prompt (use with caution)
+
+CONFIGURATION:
+  --mcp-config PATH      Path to MCP config (default: .mcp.json)
+  --log-level LEVEL      Logging level: DEBUG|INFO|WARNING|ERROR (default: INFO)
+
+HELP:
+  --help                 Show help message
+
+NOTES:
+  - Without --order: Processes ALL lessons in course (batch mode)
+  - With --order: Processes single lesson (delegates to diagram_author_cli)
+  - Dry-run is recommended before actual execution to preview plan
+  - Force flag will delete existing diagrams before regenerating (destructive!)
+  - Per-lesson logs saved to logs/batch_runs/{batch_id}/order_{N}.log
+  - Batch summary saved to logs/batch_runs/{batch_id}/batch_summary.json
+```
+
+### Method 1: Single Lesson (Command-Line Arguments)
 
 ```bash
 source ../venv/bin/activate
@@ -474,7 +634,32 @@ python -m src.diagram_author_cli \
   --order 1
 ```
 
-### Method 2: With Custom Configuration
+### Method 2: Batch Mode (All Lessons with Dry-Run)
+
+```bash
+# Step 1: Dry-run to preview execution plan
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --dry-run
+
+# Step 2: Review output, then execute if satisfied
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --yes
+```
+
+### Method 3: Batch Mode (Force Regenerate All)
+
+```bash
+# Force regenerate all diagrams (deletes existing first)
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --force \
+  --yes \
+  --log-level DEBUG
+```
+
+### Method 4: With Custom Configuration
 
 ```bash
 python -m src.diagram_author_cli \
@@ -484,7 +669,7 @@ python -m src.diagram_author_cli \
   --mcp-config custom.mcp.json
 ```
 
-### Method 3: Programmatic API
+### Method 5: Programmatic API (Single Lesson)
 
 ```python
 import asyncio
@@ -647,6 +832,86 @@ Each successful diagram creates a document in `default.lesson_diagrams`:
   "$updatedAt": "2025-11-02T14:30:45.123Z"
 }
 ```
+
+---
+
+## Card Eligibility Determination
+
+### LLM-Based Semantic Analysis
+
+The system uses **Claude's language understanding** to analyze each card's content and determine if it requires a JSXGraph mathematical diagram. This replaces simple keyword matching with semantic comprehension of the card's educational purpose.
+
+**Analysis Process**:
+1. Extract card explainer and CFU (check for understanding) text
+2. Submit to Claude with eligibility criteria prompt
+3. Receive structured decision: `{lesson_needs_diagram: bool, cfu_needs_diagram: bool, reason: string}`
+4. Log exclusion reasons for transparency and debugging
+
+### Eligible Content Examples
+
+**These cards WILL receive JSXGraph diagrams:**
+
+✅ **"Calculate the area of a right triangle with base 5cm and height 12cm"**
+   - Reason: Geometric construction with measurements
+
+✅ **"Plot the function f(x) = x² - 4x + 3 on a coordinate grid from x = -2 to x = 6"**
+   - Reason: Function graph on coordinate axes
+
+✅ **"Draw a bar chart showing the frequency distribution: 0-10 (freq: 5), 11-20 (freq: 12), 21-30 (freq: 8)"**
+   - Reason: Statistical chart with data visualization
+
+✅ **"Sketch a circle with center O(3, 4) and radius 5 units on a coordinate plane"**
+   - Reason: Geometric shape on coordinate system
+
+✅ **"Represent the inequality x + 2y ≤ 6 on a number plane"**
+   - Reason: Algebraic visualization with graphical solution region
+
+### Excluded Content Examples
+
+**These cards will NOT receive JSXGraph diagrams:**
+
+❌ **"Self-Assessment: Rate your understanding of Pythagoras' Theorem on a scale from 0 (Beginning) to 100 (Secure)"**
+   - Reason: Assessment rubric/performance scale - not a mathematical diagram
+
+❌ **"Complete the worksheet: Fill in the missing angle measurements in the triangle diagram provided"**
+   - Reason: Worksheet template requiring student input - not a generated diagram
+
+❌ **"Create a concept map linking the properties of different types of quadrilaterals"**
+   - Reason: Concept map/mind map - not JSXGraph compatible
+
+❌ **"Show a photograph of a real-world example of a right angle (e.g., corner of a building)"**
+   - Reason: Real-world photograph request - not a mathematical construction
+
+❌ **"Define what is meant by 'hypotenuse' in the context of right-angled triangles"**
+   - Reason: Text-only definition - no geometric visualization needed
+
+❌ **"List three properties of isosceles triangles"**
+   - Reason: Text list - no graphical component required
+
+### Decision Criteria
+
+**INCLUDED** if card requires:
+- Geometric shapes with measurements or constructions
+- Coordinate graphs showing mathematical relationships
+- Statistical charts or data distributions
+- Algebraic representations on number lines or graphs
+
+**EXCLUDED** if card contains:
+- Assessment rubrics, performance scales, or self-evaluation forms
+- Worksheet templates with fill-in blanks
+- Concept maps, mind maps, or non-mathematical relationship diagrams
+- Requests for real-world photographs or illustrations
+- Pure text explanations, definitions, or lists
+- Step-by-step procedures without geometric visualization
+
+### Benefits of LLM-Based Approach
+
+**Over keyword matching:**
+- ✅ **Contextual understanding**: "Draw a triangle" (diagram) vs "Draw a concept map" (not a diagram)
+- ✅ **Semantic precision**: "Calculate area" (needs visualization) vs "List properties" (text only)
+- ✅ **Explainability**: Human-readable reasons for exclusion decisions
+- ✅ **Maintainability**: Update criteria by changing prompt, not code
+- ✅ **Reduced false positives**: Significantly fewer inappropriate diagram attempts
 
 ---
 
@@ -1345,23 +1610,46 @@ docker compose restart diagram-screenshot
 
 ### Error: "No cards need diagrams"
 
-**Cause**: All cards filtered out by eligibility check
+**Cause**: All cards filtered out by LLM-based eligibility analysis
 
 **Solution**:
 ```bash
-# Check workspace for eligible_cards.json
+# Check workspace for eligible_cards.json and eligibility decisions
 cd workspace/exec_TIMESTAMP
 cat eligible_cards.json
 
-# If empty, verify lesson has visual content:
-# - Geometry problems (triangles, circles, coordinates)
-# - Algebra graphs (functions, equations)
-# - Statistics charts (bar charts, histograms)
+# If empty, review why cards were excluded
+# The system logs exclusion reasons during pre-processing
 
-# Cards excluded:
-# - Plain text definitions
-# - Accessibility cards (explainer_plain)
-# - Pure text explanations
+# Check execution logs for exclusion breakdown:
+# Example output:
+#   📊 Eligibility Analysis Complete:
+#      ✅ Eligible cards: 0
+#      ❌ Excluded cards: 8
+#
+#   📋 Exclusion Breakdown:
+#      - Assessment rubric/performance scale: 2 cards
+#      - Text-only definition without visualization: 3 cards
+#      - Worksheet template: 1 card
+#      - Concept map request: 2 cards
+
+# If all cards are legitimately excluded:
+# - This is expected behavior for lessons with no visual content
+# - The lesson may focus on definitions, procedures, or assessments
+
+# If cards SHOULD have been included but weren't:
+# 1. Review the card content - does it truly need a mathematical diagram?
+# 2. Check for JSXGraph compatibility:
+#    ✅ Geometric constructions (triangles, circles, coordinates)
+#    ✅ Algebra graphs (functions, equations)
+#    ✅ Statistics charts (bar charts, histograms)
+#    ❌ Assessment rubrics and performance scales
+#    ❌ Worksheets and fill-in templates
+#    ❌ Concept maps and mind maps
+#    ❌ Real-world photographs
+# 3. If the LLM incorrectly excluded a mathematical diagram:
+#    - Report as a bug with the specific card content
+#    - This indicates a need to refine eligibility criteria in the prompt
 ```
 
 ---
@@ -1750,7 +2038,67 @@ result = asyncio.run(generate_diagrams_with_retry())
 
 ---
 
-### Example 3: Batch Processing Multiple Lessons
+### Example 3: Batch Mode CLI with Dry-Run
+
+```bash
+# Step 1: Dry-run to preview execution plan
+cd claud_author_agent
+source ../venv/bin/activate
+
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --dry-run
+
+# Output shows:
+# - Total lessons in course
+# - Validation status for each lesson
+# - Existing diagrams found
+# - Execution plan (Generate/Skip/Overwrite)
+# - Time and cost estimates
+
+# Step 2: Review output and proceed if satisfied
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --yes
+
+# Step 3: Check batch summary
+cat logs/batch_runs/batch_diagram_YYYYMMDD_HHMMSS/batch_summary.json | jq '.'
+
+# Step 4: Check individual lesson logs
+cat logs/batch_runs/batch_diagram_YYYYMMDD_HHMMSS/order_1.log
+cat logs/batch_runs/batch_diagram_YYYYMMDD_HHMMSS/order_2.log
+```
+
+---
+
+### Example 4: Batch Mode with Force Regenerate
+
+```bash
+# Force regenerate all diagrams (deletes existing first)
+# Useful for:
+# - Updating diagrams after prompt changes
+# - Fixing systematic errors across all lessons
+# - Testing new diagram generation logic
+
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --force \
+  --yes \
+  --log-level DEBUG
+
+# WARNING: This will DELETE all existing diagrams before regenerating!
+# Always dry-run first to understand the impact:
+python -m src.batch_diagram_generator \
+  --courseId course_c84874 \
+  --force \
+  --dry-run
+```
+
+---
+
+### Example 5: Manual Batch Processing (Programmatic)
+
+**Note**: The batch_diagram_generator CLI is recommended over manual looping. This example is for reference only.
 
 ```python
 import asyncio
@@ -1758,7 +2106,7 @@ from pathlib import Path
 from src.diagram_author_claude_client import DiagramAuthorClaudeAgent
 
 async def batch_generate_diagrams():
-    """Generate diagrams for all lessons in a course."""
+    """Generate diagrams for all lessons in a course (manual approach)."""
 
     courseId = "course_c84874"
     lesson_orders = range(1, 11)  # Lessons 1-10
@@ -1813,9 +2161,17 @@ async def batch_generate_diagrams():
 results = asyncio.run(batch_generate_diagrams())
 ```
 
+**Recommendation**: Use the batch_diagram_generator CLI instead of manual looping for:
+- Automatic SOW fetching (no need to hardcode lesson orders)
+- Pre-validation with fast-fail
+- Skip existing diagrams (avoids wasted regeneration)
+- Dry-run preview with estimates
+- Per-lesson logging
+- Batch summary reports
+
 ---
 
-### Example 4: Custom Workspace Inspection
+### Example 6: Custom Workspace Inspection
 
 ```bash
 # After successful generation

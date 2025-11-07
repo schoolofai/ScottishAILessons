@@ -113,6 +113,116 @@ You receive:
 - No overlapping text labels
 - Proper element sizing (points, lines, labels)
 
+#### Overlap Detection Protocol
+
+**CRITICAL**: Overlapping labels are a common clarity failure that requires systematic detection and scoring.
+
+Analyze the rendered diagram for THREE types of overlaps:
+
+**1. Text-on-Text Overlap**
+- Labels overlapping other labels
+- Axis labels colliding with point labels
+- Multiple annotations in the same visual space
+
+**2. Text-on-Element Overlap**
+- Labels obscuring lines, curves, or shapes
+- Annotations covering vertices or important points
+- Text blocking visual understanding of geometric relationships
+
+**3. Element-on-Element Overlap**
+- Lines or curves too close to distinguish
+- Points placed on top of other points
+- Shapes intersecting in confusing ways
+
+#### Overlap Severity Scoring
+
+Apply **penalty deductions** based on overlap severity:
+
+| Severity | Overlap % | Clarity Penalty | Critical? | Example |
+|----------|-----------|-----------------|-----------|---------|
+| **Minor** | 10-20% | -0.05 | No | Label corner touches line edge |
+| **Moderate** | 20-50% | -0.15 | No | Label partially covers vertex marker |
+| **Severe** | >50% | -0.30 | **YES** | Label completely obscures point, text unreadable |
+
+**Formula**:
+```
+clarity_score_with_overlaps = base_clarity_score - Σ(overlap_penalties)
+```
+
+**Example Calculation**:
+- Base clarity score: 0.90
+- Minor overlap (label touches axis): -0.05
+- Moderate overlap (vertex label on line): -0.15
+- **Final clarity score**: 0.90 - 0.05 - 0.15 = **0.70**
+
+#### Severe Overlap = Automatic REFINE
+
+**If ANY overlap is classified as "Severe" (>50% obstruction):**
+1. **MUST** set `decision = "REFINE"` regardless of overall score
+2. **MUST** add detailed explanation to `critical_issues` array
+3. **MUST** provide specific offset/position changes in `specific_changes`
+
+Even if the final weighted score is 0.86 (above 0.85 threshold), severe overlaps **override** the accept decision.
+
+#### Overlap Remediation Examples
+
+When you detect severe overlaps, provide **exact JSXGraph fixes** in `critical_issues` and `specific_changes`:
+
+**Example 1: Vertex Label Overlapping Line**
+```json
+{
+  "critical_issues": [
+    "SEVERE OVERLAP: Point A label at offset [5, 5] completely covers the adjacent line segment AB. Approximately 80% of label overlaps the line, making both illegible."
+  ],
+  "specific_changes": [
+    "Change point A label offset from [5, 5] to [15, 15] to move label away from line",
+    "Add 'anchorX': 'left', 'anchorY': 'bottom' to A's label attributes to align label top-right of point",
+    "Alternatively, change offset to [-15, 15] with 'anchorX': 'right' if space is available to the left"
+  ]
+}
+```
+
+**Example 2: Multiple Labels in Same Region**
+```json
+{
+  "critical_issues": [
+    "SEVERE OVERLAP: Point B and point C labels both positioned at offset [10, -10] in bottom-right quadrant. Labels overlap by 60%, text is unreadable."
+  ],
+  "specific_changes": [
+    "Keep point B at offset [10, -10] (bottom-right)",
+    "Change point C to offset [-10, -10] (bottom-left) with 'anchorX': 'right', 'anchorY': 'top'",
+    "Verify minimum 20px horizontal separation between labels in rendered PNG"
+  ]
+}
+```
+
+**Example 3: Label Covering Shape Interior**
+```json
+{
+  "critical_issues": [
+    "SEVERE OVERLAP: Triangle area label 'A = 12 cm²' placed at centroid with offset [0, 0] completely covers the right angle marker and interior angle labels. 90% overlap."
+  ],
+  "specific_changes": [
+    "Move area label outside triangle to offset [20, -30] relative to centroid",
+    "Add semi-transparent background to label: 'cssStyle': 'background-color: rgba(255, 255, 255, 0.8); padding: 2px;'",
+    "Reduce label fontSize from 16 to 14 if still too large for available space"
+  ]
+}
+```
+
+#### Overlap Detection Checklist
+
+For every diagram, systematically check:
+
+- [ ] **All vertex labels**: Do any overlap lines, other labels, or shape interiors?
+- [ ] **Axis labels**: Do x-axis and y-axis labels collide at origin?
+- [ ] **Point coordinates**: If showing coordinates like "(3, 4)", do they overlap point markers?
+- [ ] **Angle labels**: Do degree measurements overlap angle arcs or arms?
+- [ ] **Length labels**: Do side length labels overlap the sides they're labeling?
+- [ ] **Area/formula labels**: Are internal labels (like area formulas) placed in clear space?
+
+**Report ALL overlaps** in `improvements` (minor/moderate) or `critical_issues` (severe).
+
 ### 2. Accuracy (Weight: 0.35)
 
 **Question**: Is the diagram mathematically correct?
@@ -318,6 +428,268 @@ Return JSON with this exact structure:
 - ❌ Imperial units (feet, yards, miles) without metric equivalent
 - ❌ Non-Scottish place names in context examples
 - ❌ Wrong primary color (any color except #0066CC for main elements)
+
+## Label Overlap Examples
+
+This section provides visual descriptions of common overlap scenarios to help you identify and score overlap severity accurately.
+
+### Example 1: Minor Text-on-Text Overlap (10-15% overlap, -0.05 penalty)
+
+**Scenario**: Right triangle diagram with vertices A, B, C
+
+**Visual Description**:
+```
+     A
+    /|
+   / |
+  /  | (label "height = 4cm" here)
+ /   |
+/____|
+B    C
+(label "base = 3cm" here)
+```
+
+**Problem**: The "height = 4cm" label positioned with offset [5, -10] from the midpoint of AC. The bottom edge of the text **barely touches** the top edge of the "base = 3cm" label below it. Approximately 10% overlap - a single pixel line of contact.
+
+**Impact**: Both labels are still fully legible, but visual separation is insufficient. Looks cluttered.
+
+**Critique Response**:
+```json
+{
+  "dimension_scores": {
+    "clarity": 0.80  // 0.85 base - 0.05 minor overlap penalty
+  },
+  "improvements": [
+    "Minor overlap between height and base labels - increase vertical spacing",
+    "Labels are readable but could benefit from better separation"
+  ],
+  "specific_changes": [
+    "Change height label offset from [5, -10] to [5, -15] to add 5px vertical spacing",
+    "Alternatively, move base label offset from [0, -15] to [0, -20]"
+  ]
+}
+```
+
+### Example 2: Moderate Text-on-Element Overlap (30-40% overlap, -0.15 penalty)
+
+**Scenario**: Quadratic function graph with labeled vertex
+
+**Visual Description**:
+```
+    |
+    |     *
+    |    / \  (parabola)
+    |   /   \
+    | Vertex (2, 4)  ← label here
+    |  /       \
+----+-------------
+    |
+```
+
+**Problem**: The text "Vertex (2, 4)" positioned with offset [5, 5] from the vertex point. The left side of the text (approximately 35% of the label width) **overlaps the descending left arm of the parabola curve**.
+
+**Impact**: The curve line runs THROUGH the letters "Ver" making them harder to read. The parabola's shape is partially obscured.
+
+**Critique Response**:
+```json
+{
+  "dimension_scores": {
+    "clarity": 0.70  // 0.85 base - 0.15 moderate overlap penalty
+  },
+  "improvements": [
+    "Moderate overlap: Vertex label partially covers the parabola's left arm",
+    "Approximately 35% of label overlaps curve - reduces readability of both"
+  ],
+  "specific_changes": [
+    "Move vertex label to offset [15, 10] to clear the parabola curve completely",
+    "Add 'anchorX': 'left', 'anchorY': 'bottom' to position label top-right of vertex",
+    "Alternatively, use offset [-15, 10] with 'anchorX': 'right' if space available on left"
+  ]
+}
+```
+
+### Example 3: Severe Text-on-Element Overlap (75% overlap, -0.30 penalty, CRITICAL)
+
+**Scenario**: Triangle with angle measurements
+
+**Visual Description**:
+```
+       A
+      /|\
+     / | \
+    /  |  \
+   / angle \
+  / 90° here\
+ /_________\
+B           C
+```
+
+**Problem**: The text "90°" positioned at offset [0, 0] from point A (the right angle vertex). The label is **centered directly on top of the vertex point marker AND the right angle square symbol**. Approximately 75% of both the point marker and the right angle symbol are completely covered by the text.
+
+**Impact**:
+- Cannot see the right angle square marker that indicates 90°
+- Vertex point marker is invisible
+- Creates visual confusion - is this labeling point A or the angle?
+- Defeats the purpose of having both symbol and text
+
+**Critique Response**:
+```json
+{
+  "decision": "REFINE",  // Forced REFINE regardless of overall score
+  "dimension_scores": {
+    "clarity": 0.55  // 0.85 base - 0.30 severe overlap penalty
+  },
+  "critical_issues": [
+    "SEVERE OVERLAP: Angle label '90°' at offset [0, 0] completely obscures the right angle marker symbol and vertex point. Approximately 75% overlap makes both the symbol and the point marker invisible. This is a critical clarity failure."
+  ],
+  "specific_changes": [
+    "Move angle label to offset [15, 15] to position it OUTSIDE the right angle marker",
+    "Add 'anchorX': 'left', 'anchorY': 'bottom' to align label away from vertex",
+    "Reduce fontSize from 16 to 14 if the label is still too large for the available space",
+    "Verify in rendered PNG that both the right angle symbol and the angle label are fully visible and clearly separated"
+  ],
+  "iteration_notes": "This severe overlap is a blocking issue. Even if all other dimensions score well, this must be fixed before acceptance."
+}
+```
+
+### Example 4: Severe Text-on-Text Overlap (60% overlap, -0.30 penalty, CRITICAL)
+
+**Scenario**: Bar chart with multiple data labels
+
+**Visual Description**:
+```
+    |
+  8 |    ___
+    |   |   |
+  6 |   |   | ___
+    |   |   ||   |
+  4 |___|___||___|
+    | A   B   C
+    "12" "14" "8" ← value labels
+    (B overlaps both A and C labels)
+```
+
+**Problem**: Three value labels positioned with identical offset [0, -5] from the top of each bar. The "14" label is **wider** than the bar width, so it extends both left and right, overlapping approximately 60% of the "12" label on the left AND 60% of the "8" label on the right.
+
+**Impact**:
+- All three numbers are illegible due to overlapping text rendering
+- Cannot determine actual values from the diagram
+- Complete failure of the data visualization's primary purpose
+- This is a data accuracy issue, not just aesthetics
+
+**Critique Response**:
+```json
+{
+  "decision": "REFINE",  // Forced REFINE regardless of overall score
+  "dimension_scores": {
+    "clarity": 0.50,  // 0.80 base - 0.30 severe overlap penalty
+    "accuracy": 0.60  // Also penalize accuracy - data is unreadable
+  },
+  "critical_issues": [
+    "SEVERE OVERLAP: Bar chart value labels '12', '14', '8' positioned with identical offset [0, -5] causing 60% overlap. The central label '14' overlaps both adjacent labels making all three illegible. Data cannot be read - defeats the purpose of the chart.",
+    "This is both a clarity AND accuracy issue - numerical data must be readable for the diagram to be mathematically useful."
+  ],
+  "specific_changes": [
+    "Option 1 (Vertical Stack): Alternate label positions - Bar A at offset [0, -5], Bar B at offset [0, -15], Bar C at offset [0, -5]",
+    "Option 2 (Rotation): Rotate all labels 90° and position vertically: 'labelRotation': 90, offset [5, 0]",
+    "Option 3 (Internal Labels): Move labels inside bars at offset [0, -20] with white text color for contrast against bar fill",
+    "Verify minimum 10px horizontal clearance between adjacent labels in final PNG"
+  ],
+  "iteration_notes": "Bar chart labels must be readable for the diagram to serve its purpose. This is a blocking issue that affects both clarity and mathematical accuracy."
+}
+```
+
+### Example 5: Element-on-Element Overlap (Geometric Confusion)
+
+**Scenario**: Two intersecting lines with point markers
+
+**Visual Description**:
+```
+    |
+    |   \
+    |    \  Line L1
+    |     \
+----+------\--------
+    |     /X\
+    |    /   \ Line L2
+    |   /
+```
+
+**Problem**: Two lines L1 and L2 intersect at point X. Both lines are drawn with the same color (blue #0066CC), same stroke width (2px), AND the intersection point marker is the exact same size and color as the regular point markers on each line. When the lines cross, it's **visually impossible** to distinguish:
+- Which line is which at the intersection
+- Whether there are 1, 2, or 3 points at the intersection
+- The angle of intersection
+
+**Impact**: Geometric relationships are unclear. If this is teaching about angles of intersection or solving simultaneous equations graphically, the student cannot see the key visual feature.
+
+**Critique Response**:
+```json
+{
+  "dimension_scores": {
+    "clarity": 0.65,
+    "pedagogy": 0.60  // Also penalize - unclear geometric relationships hurt learning
+  },
+  "improvements": [
+    "Element overlap: Two lines with identical styling cross at point X causing visual confusion",
+    "Cannot distinguish individual lines at intersection due to same color and width",
+    "Intersection point marker blends with line endpoints - unclear how many points exist"
+  ],
+  "specific_changes": [
+    "Change Line L2 color to Success Green (#28a745) to differentiate from Line L1 (keep blue)",
+    "Increase intersection point marker size from 3px to 5px to make it visually dominant",
+    "Add stroke contrast: set intersection point strokeColor to black (#000000) with strokeWidth 1",
+    "Add labels 'L1' and 'L2' near each line (away from intersection) to clearly identify them",
+    "Consider adding dashed strokeStyle to one line: 'dash': 2 for additional visual distinction"
+  ]
+}
+```
+
+### Example 6: GOOD - No Overlap (Clean Label Positioning)
+
+**Scenario**: Right triangle with all labels properly positioned
+
+**Visual Description**:
+```
+           A "A"
+          /|
+         / |
+   "c"  /  | "b"
+       /   |
+      /    |
+     /_____|
+    B  "a" C
+   "B"    "C"
+```
+
+**Label Positioning Details**:
+- Point A label: offset [-10, 10], anchorX 'right', anchorY 'bottom' (top-left of point)
+- Point B label: offset [-10, -10], anchorX 'right', anchorY 'top' (bottom-left of point)
+- Point C label: offset [10, -10], anchorX 'left', anchorY 'top' (bottom-right of point)
+- Side a label: offset [0, -15] from midpoint (below bottom side, centered)
+- Side b label: offset [15, 0] from midpoint (right of vertical side)
+- Side c label: offset [-10, 10] from midpoint (top-left of hypotenuse, avoiding point A)
+
+**Why This Works**:
+- All labels positioned in OPPOSITE quadrants from their geometric elements
+- Minimum 10px clearance between all labels and all lines
+- Anchors align labels AWAY from the elements they're labeling
+- No text-on-text, text-on-element, or element-on-element overlaps
+- Clean, professional, immediately understandable
+
+**Critique Response**:
+```json
+{
+  "dimension_scores": {
+    "clarity": 0.95  // Excellent - no overlaps, optimal spacing
+  },
+  "strengths": [
+    "Perfect label positioning - zero overlaps detected",
+    "All labels use quadrant-based offsets with appropriate anchors",
+    "Minimum 10px clearance maintained between all text and geometric elements",
+    "Professional visual hierarchy - immediately clear which label refers to which element"
+  ]
+}
+```
 
 ## Example Critiques
 

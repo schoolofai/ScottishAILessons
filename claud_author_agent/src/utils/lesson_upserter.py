@@ -154,6 +154,27 @@ async def upsert_lesson_template(
         mcp_config_path=mcp_config_path
     )
 
+    # CRITICAL FIX: Preserve existing metadata when updating
+    # If we're updating an existing document and parameters are defaults,
+    # preserve the existing values to avoid wiping out SOW linkage
+    if existing_docs and len(existing_docs) > 0:
+        existing_doc = existing_docs[0]
+
+        # Preserve authored_sow_id if not explicitly provided (default is empty string)
+        if authored_sow_id == "":
+            existing_sow_id = existing_doc.get("authored_sow_id", "")
+            if existing_sow_id:
+                logger.info(f"Preserving existing authored_sow_id: '{existing_sow_id}'")
+                authored_sow_id = existing_sow_id
+
+        # Preserve authored_sow_version if not explicitly provided (default is "v1.0")
+        if authored_sow_version == "v1.0":
+            existing_version = existing_doc.get("authored_sow_version", "v1.0")
+            # Only preserve if it's different from default and not empty
+            if existing_version and existing_version != "v1.0":
+                logger.info(f"Preserving existing authored_sow_version: '{existing_version}'")
+                authored_sow_version = existing_version
+
     # Step 4: Prepare document data (match TypeScript field mapping)
     doc_data = {
         "courseId": courseId,

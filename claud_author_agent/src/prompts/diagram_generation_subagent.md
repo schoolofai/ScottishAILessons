@@ -172,6 +172,255 @@ Use ONLY these colors:
 }
 ```
 
+### Advanced Label Control Attributes
+
+**Master these JSXGraph attributes for precise label positioning and overlap prevention.**
+
+#### Anchor Points (`anchorX`, `anchorY`)
+
+Control how labels align relative to their position point:
+
+**`anchorX` options:**
+- `"left"`: Label extends **right** from the position (label starts at position)
+- `"middle"`: Label **centers** horizontally on the position
+- `"right"`: Label extends **left** from the position (label ends at position)
+
+**`anchorY` options:**
+- `"top"`: Label extends **down** from the position (label starts at position)
+- `"middle"`: Label **centers** vertically on the position
+- `"bottom"`: Label extends **up** from the position (label ends at position)
+
+**Example combinations:**
+
+```json
+// Label positioned below-left of point
+{
+  "type": "point",
+  "args": [[2, 3]],
+  "attributes": {
+    "name": "P",
+    "label": {
+      "offset": [-10, -10],
+      "anchorX": "right",   // Extends left from offset position
+      "anchorY": "top"      // Extends down from offset position
+    }
+  }
+}
+// Result: Label "P" appears below and to the left of the point
+
+// Label positioned above-right of point
+{
+  "type": "point",
+  "args": [[5, 7]],
+  "attributes": {
+    "name": "Q",
+    "label": {
+      "offset": [10, 10],
+      "anchorX": "left",    // Extends right from offset position
+      "anchorY": "bottom"   // Extends up from offset position
+    }
+  }
+}
+// Result: Label "Q" appears above and to the right of the point
+```
+
+#### Position Attribute (Lines and Segments)
+
+Use `position` for automatic label placement relative to the line direction:
+
+```json
+{
+  "type": "segment",
+  "args": [pointA, pointB],
+  "attributes": {
+    "name": "AB",
+    "label": {
+      "position": "top",  // Automatic positioning
+      "offset": [0, 15]   // Distance from line
+    }
+  }
+}
+```
+
+**Position options:**
+| Value | Description | Use Case |
+|-------|-------------|----------|
+| `"top"` | Above the line | Horizontal or diagonal lines |
+| `"bot"` | Below the line | Horizontal or diagonal lines |
+| `"lft"` | Left of the line | Vertical lines |
+| `"rt"` | Right of the line | Vertical lines |
+| `"ulft"` | Upper-left | Diagonal lines (NE-SW) |
+| `"urt"` | Upper-right | Diagonal lines (NW-SE) |
+| `"llft"` | Lower-left | Diagonal lines (NW-SE) |
+| `"lrt"` | Lower-right | Diagonal lines (NE-SW) |
+
+**Recommendation**: Always use `offset: [0, 15]` minimum to ensure label clears the line.
+
+#### CSS Styling for Enhanced Readability
+
+Add background to labels for readability over complex backgrounds:
+
+```json
+{
+  "type": "text",
+  "args": [x, y, "Important Label"],
+  "attributes": {
+    "fontSize": 16,
+    "cssStyle": "background-color: rgba(255, 255, 255, 0.9); padding: 4px 8px; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"
+  }
+}
+```
+
+**When to use CSS backgrounds:**
+- Labels over gridlines
+- Labels on complex statistical charts
+- Labels over filled shapes (polygons, circles)
+- Multi-word labels that need visual separation
+
+**Color options:**
+- White background: `rgba(255, 255, 255, 0.9)` (standard)
+- Light blue: `rgba(0, 102, 204, 0.1)` (for emphasis)
+- Light yellow: `rgba(255, 255, 0, 0.3)` (for highlights)
+
+#### Offset Arrays for Fine-Tuned Control
+
+The `offset` array `[x_offset, y_offset]` controls pixel-level positioning:
+
+```json
+"label": {
+  "offset": [15, -20],  // 15px right, 20px up
+  "anchorX": "left",
+  "anchorY": "top"
+}
+```
+
+**Common offset patterns:**
+- **Standard spacing**: `[10, 10]` (10 pixels)
+- **Dense clusters**: `[15, 15]` or `[20, 20]` (more spacing)
+- **Axis labels**: `[20, 0]` or `[0, 20]` (along one axis)
+- **Diagonal positioning**: `[15, -15]` (right and up)
+
+**Rule of thumb**: If two points are within 2 units, use offset ≥ 15px.
+
+#### Complete Example: Labeled Right Triangle
+
+Demonstrates all advanced attributes:
+
+```json
+{
+  "board": {
+    "boundingbox": [-1, 5, 5, -1],
+    "axis": false
+  },
+  "elements": [
+    // Vertex A (bottom-left)
+    {
+      "type": "point",
+      "args": [[0, 0]],
+      "attributes": {
+        "name": "A",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [-15, -15],
+          "anchorX": "right",
+          "anchorY": "top"
+        }
+      }
+    },
+    // Vertex B (bottom-right)
+    {
+      "type": "point",
+      "args": [[4, 0]],
+      "attributes": {
+        "name": "B",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [15, -15],
+          "anchorX": "left",
+          "anchorY": "top"
+        }
+      }
+    },
+    // Vertex C (top - right angle)
+    {
+      "type": "point",
+      "args": [[4, 3]],
+      "attributes": {
+        "name": "C",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [15, 15],
+          "anchorX": "left",
+          "anchorY": "bottom"
+        }
+      }
+    },
+    // Side AB (horizontal)
+    {
+      "type": "segment",
+      "args": [[[0,0], [4,0]]],
+      "attributes": {
+        "name": "4cm",
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "label": {
+          "position": "bot",
+          "offset": [0, -20]
+        }
+      }
+    },
+    // Side BC (vertical)
+    {
+      "type": "segment",
+      "args": [[[4,0], [4,3]]],
+      "attributes": {
+        "name": "3cm",
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "label": {
+          "position": "rt",
+          "offset": [15, 0]
+        }
+      }
+    },
+    // Hypotenuse AC
+    {
+      "type": "segment",
+      "args": [[[0,0], [4,3]]],
+      "attributes": {
+        "name": "5cm",
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "label": {
+          "position": "ulft",
+          "offset": [-10, 10]
+        }
+      }
+    },
+    // Right angle marker at C
+    {
+      "type": "angle",
+      "args": [[[4,0], [4,3], [0,0]]],
+      "attributes": {
+        "radius": 0.5,
+        "strokeColor": "#DC3545",
+        "fillColor": "#DC3545",
+        "fillOpacity": 0.2
+      }
+    }
+  ]
+}
+```
+
+**Note**: This example shows:
+- Vertex labels extending away from triangle
+- Side labels using `position` attribute
+- Appropriate offsets (15-20px) for clarity
+- Right angle marker without overlapping vertex
+
 ## Mathematical Domain Patterns
 
 ### Geometry
@@ -281,6 +530,50 @@ When the tool returns successfully:
 
 **Extract `image_path` and return it to the main agent. DO NOT return base64 data.**
 
+## When to Return NO_DIAGRAM_NEEDED
+
+Although cards are **pre-filtered by LLM-based semantic analysis**, you may occasionally receive content that cannot be visualized with JSXGraph. This should be **rare** but can happen if filtering fails.
+
+### Return NO_DIAGRAM_NEEDED if the card contains:
+
+❌ **Assessment rubrics or performance scales**:
+   - Example: "Self-Assessment: Rate your understanding from 0-100 (Beginning/Developing/Secure)"
+   - Reason: These are forms/templates, not mathematical diagrams
+
+❌ **Worksheets or templates with fill-in blanks**:
+   - Example: "Complete the worksheet by filling in the missing angle measurements"
+   - Reason: Student input templates cannot be rendered with JSXGraph
+
+❌ **Concept maps or mind maps**:
+   - Example: "Create a concept map showing relationships between quadrilateral types"
+   - Reason: Non-mathematical relationship diagrams - not JSXGraph compatible
+
+❌ **Requests for real-world photographs**:
+   - Example: "Show a picture of a protractor being used to measure an angle"
+   - Reason: Photographs cannot be generated with geometric elements
+
+❌ **Pure text explanations without geometric/graphical component**:
+   - Example: "List three properties of isosceles triangles"
+   - Reason: No visual representation needed or possible
+
+### NO_DIAGRAM_NEEDED Response Format
+
+```json
+{
+  "status": "NO_DIAGRAM_NEEDED",
+  "reason": "Brief explanation of why JSXGraph cannot render this content (e.g., 'Assessment rubric/performance scale - not a mathematical diagram')",
+  "card_id": "card_001",
+  "diagram_context": "lesson"
+}
+```
+
+### Important Notes
+
+- **This should be rare**: Cards are pre-validated, so receiving ineligible content indicates a filtering bug
+- **Document clearly**: Your `reason` helps improve the eligibility filtering system
+- **Don't guess**: If unsure whether content can be visualized, attempt diagram generation first
+- **Report upstream**: NO_DIAGRAM_NEEDED responses trigger investigation of filtering accuracy
+
 ### Error Recovery
 
 If render_diagram tool fails:
@@ -317,6 +610,217 @@ Always iterate until you produce a valid diagram or exhaust 3 rendering attempts
 - **Lines**: Place labels at midpoint or end
 - **Axes**: Label both x and y axes with units if relevant
 - **Angles**: Use degree symbol (°) or radians (rad)
+
+### Advanced Label Placement Strategies
+
+**CRITICAL**: Overlapping labels are a common quality failure. Use these strategies to prevent overlaps during initial generation.
+
+#### Positional Offsets Based on Quadrant
+
+Adjust label offsets based on element position in coordinate space to ensure labels extend away from diagram center:
+
+**Points in different quadrants:**
+```json
+// Top-right quadrant (+x, +y) - label extends right and down
+{
+  "type": "point",
+  "args": [[3, 4]],
+  "attributes": {
+    "name": "A",
+    "label": {
+      "offset": [10, 10],
+      "anchorX": "left",
+      "anchorY": "bottom"
+    }
+  }
+}
+
+// Top-left quadrant (-x, +y) - label extends left and down
+{
+  "type": "point",
+  "args": [[-3, 4]],
+  "attributes": {
+    "name": "B",
+    "label": {
+      "offset": [-10, 10],
+      "anchorX": "right",
+      "anchorY": "bottom"
+    }
+  }
+}
+
+// Bottom-right quadrant (+x, -y) - label extends right and up
+{
+  "type": "point",
+  "args": [[3, -4]],
+  "attributes": {
+    "name": "C",
+    "label": {
+      "offset": [10, -10],
+      "anchorX": "left",
+      "anchorY": "top"
+    }
+  }
+}
+
+// Bottom-left quadrant (-x, -y) - label extends left and up
+{
+  "type": "point",
+  "args": [[-3, -4]],
+  "attributes": {
+    "name": "D",
+    "label": {
+      "offset": [-10, -10],
+      "anchorX": "right",
+      "anchorY": "top"
+    }
+  }
+}
+```
+
+#### Line and Segment Labels
+
+Use the `position` attribute for cleaner label placement on lines:
+
+```json
+{
+  "type": "segment",
+  "args": [pointA, pointB],
+  "attributes": {
+    "name": "AB",
+    "strokeColor": "#0066CC",
+    "strokeWidth": 2,
+    "label": {
+      "position": "top",  // Options: "top", "bot", "lft", "rt", "ulft", "urt", "llft", "lrt"
+      "offset": [0, 15]   // Distance from line (increase to 15-20 to avoid overlap)
+    }
+  }
+}
+```
+
+**Position options explained:**
+- `"top"`: Above the line (most common for horizontal/diagonal lines)
+- `"bot"`: Below the line
+- `"lft"`: To the left of the line (for vertical lines)
+- `"rt"`: To the right of the line
+- `"ulft"`, `"urt"`, `"llft"`, `"lrt"`: Upper-left, upper-right, lower-left, lower-right
+
+#### Overlap Prevention for Dense Point Clusters
+
+When points are within 2 units of each other, use these techniques:
+
+**1. Increase offset distance to 15-20px:**
+```json
+"label": {"offset": [15, 15]}  // Instead of default [5, 5]
+```
+
+**2. Stagger labels vertically if points are horizontally aligned:**
+```json
+// Point 1: High offset
+{"label": {"offset": [10, 20]}}
+
+// Point 2: Low offset
+{"label": {"offset": [10, -20]}}
+```
+
+**3. Use alternating offset patterns:**
+```json
+// Pattern: [+10, +10], [+10, -10], [-10, +10], [-10, -10]
+```
+
+#### Example: Triangle with Non-Overlapping Labels
+
+Complete triangle where vertices are close together:
+
+```json
+{
+  "elements": [
+    // Vertex A (bottom-left)
+    {
+      "type": "point",
+      "args": [[0, 0]],
+      "attributes": {
+        "name": "A",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [-15, -15],
+          "anchorX": "right",
+          "anchorY": "top"
+        }
+      }
+    },
+    // Vertex B (bottom-right)
+    {
+      "type": "point",
+      "args": [[4, 0]],
+      "attributes": {
+        "name": "B",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [15, -15],
+          "anchorX": "left",
+          "anchorY": "top"
+        }
+      }
+    },
+    // Vertex C (top)
+    {
+      "type": "point",
+      "args": [[2, 3]],
+      "attributes": {
+        "name": "C",
+        "size": 3,
+        "fillColor": "#0066CC",
+        "label": {
+          "offset": [0, 20],
+          "anchorX": "middle",
+          "anchorY": "bottom"
+        }
+      }
+    }
+  ]
+}
+```
+
+**Note**: Each label extends away from the triangle center, ensuring no overlaps.
+
+#### Label Readability Enhancement
+
+For complex diagrams with gridlines or multiple overlapping elements, add background padding to labels:
+
+```json
+{
+  "type": "text",
+  "args": [2, 3, "Important Label"],
+  "attributes": {
+    "fontSize": 16,
+    "cssStyle": "background-color: rgba(255, 255, 255, 0.9); padding: 4px 8px; border-radius: 3px;"
+  }
+}
+```
+
+**This ensures labels remain readable over:**
+- Grid lines
+- Other shapes or lines
+- Statistical data points
+
+#### Pre-Generation Overlap Mental Check
+
+Before calling `render_diagram`, mentally map label positions:
+
+1. **Identify crowded areas**: Find all points within 2 units of each other
+2. **Assign strategic offsets**: Use quadrant-based strategy above
+3. **Angle labels**: Place inside angle if >30°, outside if <30°
+4. **Axis labels**: Keep at least 1 unit away from origin labels (use offset [20, 0] or [0, 20])
+5. **Line labels**: Use `position: "top"` with offset [0, 15] minimum
+
+**Common overlap scenarios to avoid:**
+- ❌ Origin label "O" overlapping x-axis label "x" → Use `anchorX: "right"` for origin
+- ❌ Two adjacent points both using `offset: [5, 5]` → Use alternating offsets
+- ❌ Line label sitting on line → Increase offset to 15-20px
+- ❌ Angle label overlapping vertex → Position based on angle size
 
 ## Refinement Iterations
 

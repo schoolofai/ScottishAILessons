@@ -5,8 +5,9 @@ bucket instead of storing them as document fields (best practice for large files
 
 Architecture:
 - Images uploaded to 'image' bucket (ID: 6907775a001b754c19a6)
-- File IDs are deterministic (MD5 hash of lessonTemplateId + cardId)
-- Idempotent: Same card always gets same file ID (overwrites on re-upload)
+- File IDs are deterministic (MD5 hash of lessonTemplateId + cardId + diagram_context)
+- Dual-context support: Separate file IDs for lesson vs CFU diagrams
+- Idempotent: Same card+context always gets same file ID (overwrites on re-upload)
 - Fast-fail: Throws exceptions on upload failures
 
 Usage:
@@ -34,30 +35,36 @@ logger = logging.getLogger(__name__)
 DIAGRAM_IMAGE_BUCKET_ID = "6907775a001b754c19a6"
 
 
-def generate_file_id(lesson_template_id: str, card_id: str) -> str:
+def generate_file_id(lesson_template_id: str, card_id: str, diagram_context: Optional[str] = None) -> str:
     """Generate deterministic file ID for diagram image.
 
-    Uses MD5 hash of lessonTemplateId + cardId for reproducibility.
+    Uses MD5 hash of lessonTemplateId + cardId + diagram_context for reproducibility.
+    Including diagram_context ensures unique file IDs for lesson vs CFU diagrams.
     Format: dgm_image_{8-char-hash}
 
     Args:
         lesson_template_id: Lesson template document ID
         card_id: Card identifier (e.g., "card_001")
+        diagram_context: Diagram usage context ("lesson" or "cfu") - optional for backward compatibility
 
     Returns:
         str: Deterministic file ID (e.g., "dgm_image_a1b2c3d4")
 
     Examples:
-        >>> generate_file_id("lesson_template_123", "card_001")
+        >>> generate_file_id("lesson_template_123", "card_001", "lesson")
         'dgm_image_f4e5d6c7'
+        >>> generate_file_id("lesson_template_123", "card_001", "cfu")
+        'dgm_image_9a8b7c6d'  # Different hash for different context
     """
-    combined = f"{lesson_template_id}_{card_id}"
+    # Include diagram_context in hash to generate unique IDs for lesson vs CFU
+    context_suffix = f"_{diagram_context}" if diagram_context else ""
+    combined = f"{lesson_template_id}_{card_id}{context_suffix}"
     hash_suffix = hashlib.md5(combined.encode()).hexdigest()[:8]
     file_id = f"dgm_image_{hash_suffix}"
 
     logger.debug(
         f"Generated file ID: {file_id} "
-        f"(hash of {lesson_template_id}_{card_id})"
+        f"(hash of {lesson_template_id}_{card_id}{context_suffix})"
     )
 
     return file_id
@@ -67,6 +74,7 @@ async def upload_diagram_image(
     lesson_template_id: str,
     card_id: str,
     image_base64: str,
+    diagram_context: Optional[str] = None,
     mcp_config_path: str = ".mcp.json"
 ) -> str:
     """Upload base64-encoded PNG image to Appwrite Storage.
@@ -78,6 +86,7 @@ async def upload_diagram_image(
         lesson_template_id: Lesson template document ID
         card_id: Card identifier (e.g., "card_001")
         image_base64: Base64-encoded PNG image string
+        diagram_context: Diagram usage context ("lesson" or "cfu") - optional for backward compatibility
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -92,13 +101,14 @@ async def upload_diagram_image(
             lesson_template_id="lesson_template_123",
             card_id="card_001",
             image_base64="iVBORw0KGgoAAAANS...",
+            diagram_context="lesson",
             mcp_config_path=".mcp.json"
         )
         # Returns: "dgm_image_f4e5d6c7"
     """
     logger.info(
         f"Uploading diagram image: lessonTemplateId={lesson_template_id}, "
-        f"cardId={card_id}"
+        f"cardId={card_id}, context={diagram_context}"
     )
 
     # Validation
@@ -111,8 +121,8 @@ async def upload_diagram_image(
     if not card_id:
         raise ValueError("card_id is required")
 
-    # Generate deterministic file ID
-    file_id = generate_file_id(lesson_template_id, card_id)
+    # Generate deterministic file ID (includes diagram_context for unique lesson vs CFU file IDs)
+    file_id = generate_file_id(lesson_template_id, card_id, diagram_context)
 
     try:
         # Import Appwrite SDK

@@ -42,7 +42,11 @@ export function CardEditor({
   onMoveDown
 }: CardEditorProps) {
   const [expanded, setExpanded] = useState(false);
-  const [editedCard, setEditedCard] = useState<LessonCard>(card);
+  const [editedCard, setEditedCard] = useState<LessonCard>({
+    ...card,
+    misconceptions: card.misconceptions || [],
+    context_hooks: card.context_hooks || []
+  });
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [showValidation, setShowValidation] = useState(false);
 
@@ -64,8 +68,12 @@ export function CardEditor({
   };
 
   const handleCancel = () => {
-    // Reset to original card state
-    setEditedCard(card);
+    // Reset to original card state with defensive defaults
+    setEditedCard({
+      ...card,
+      misconceptions: card.misconceptions || [],
+      context_hooks: card.context_hooks || []
+    });
     setErrors({});
     setShowValidation(false);
     setExpanded(false);
@@ -89,7 +97,7 @@ export function CardEditor({
             <div className="flex-1">
               <h3 className="font-semibold text-lg">{card.title}</h3>
               <p className="text-sm text-gray-500">
-                {card.cfu.type.toUpperCase()} • {card.misconceptions.length} misconceptions •{' '}
+                {card.cfu.type.toUpperCase()} • {card.misconceptions?.length || 0} misconceptions •{' '}
                 {card.context_hooks?.length || 0} context hooks
               </p>
             </div>

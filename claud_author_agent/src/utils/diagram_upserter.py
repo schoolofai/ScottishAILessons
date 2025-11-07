@@ -15,7 +15,7 @@ Collection Schema (default.lesson_diagrams):
     - critique_iterations (integer, required): Number of refinement iterations (1-3)
     - critique_feedback (string, required): Serialized critique history (JSON)
     - execution_id (string, required): Unique generation execution ID
-    - Unique index: (lessonTemplateId, cardId)
+    - Unique index: (lessonTemplateId, cardId, diagram_context)
 
 Usage:
     from diagram_upserter import upsert_lesson_diagram, batch_upsert_diagrams
@@ -199,6 +199,7 @@ async def upsert_lesson_diagram(
             lesson_template_id=lesson_template_id,
             card_id=card_id,
             image_base64=image_base64,
+            diagram_context=diagram_context,  # Pass diagram_context for unique file IDs (lesson vs CFU)
             mcp_config_path=mcp_config_path
         )
         logger.info(f"✓ Image uploaded to Storage: {image_file_id}")
@@ -229,13 +230,18 @@ async def upsert_lesson_diagram(
     try:
         from .appwrite_mcp import list_appwrite_documents
 
+        # Build queries - include diagram_context if provided to distinguish lesson vs CFU diagrams
+        queries = [
+            f'equal("lessonTemplateId", "{lesson_template_id}")',
+            f'equal("cardId", "{card_id}")'
+        ]
+        if diagram_context is not None:
+            queries.append(f'equal("diagram_context", "{diagram_context}")')
+
         existing_docs = await list_appwrite_documents(
             database_id="default",
             collection_id="lesson_diagrams",
-            queries=[
-                f'equal("lessonTemplateId", "{lesson_template_id}")',
-                f'equal("cardId", "{card_id}")'
-            ],
+            queries=queries,
             mcp_config_path=mcp_config_path
         )
 
@@ -282,8 +288,10 @@ async def upsert_lesson_diagram(
         else:
             # Create new document with hash-based ID (Appwrite 36-char limit)
             # Format: dgm_<8-char-hash> (12 chars total)
-            # Hash is deterministic MD5 of lessonTemplateId + cardId for reproducibility
-            combined = f"{lesson_template_id}_{card_id}"
+            # Hash is deterministic MD5 of lessonTemplateId + cardId + diagram_context for reproducibility
+            # Include diagram_context in hash to generate unique IDs for lesson vs CFU diagrams
+            context_suffix = f"_{diagram_context}" if diagram_context else ""
+            combined = f"{lesson_template_id}_{card_id}{context_suffix}"
             hash_suffix = hashlib.md5(combined.encode()).hexdigest()[:8]
             document_id = f"dgm_{hash_suffix}"
 

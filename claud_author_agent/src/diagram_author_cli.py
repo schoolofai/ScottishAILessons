@@ -17,8 +17,13 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from dotenv import load_dotenv
+
 from .diagram_author_claude_client import DiagramAuthorClaudeAgent
 from .tools.diagram_screenshot_tool import check_diagram_service_health
+
+# Load environment variables from .env file
+load_dotenv()
 
 # ANSI color codes for terminal output
 GREEN = '\033[92m'

@@ -1,10 +1,10 @@
-"""Isolated filesystem management for SOW authoring process.
+"""Isolated filesystem management for agent workspaces.
 
-Provides a workspace with flat file structure for subagent communication:
-- Course_data.txt
-- research_pack_json
-- authored_sow_json
-- sow_critic_result_json
+Provides a workspace with context-specific structure for different agent types:
+- SOW Author: Course_data.txt, research_pack_json, authored_sow_json
+- Lesson Migration: current_lesson.json, validation_errors.txt, migrated_lesson.json
+- Diagram Author: lesson_template.json, diagrams/, diagram_metadata.json
+- Lesson Author: (multi-stage lesson authoring workspace)
 """
 
 import shutil
@@ -16,26 +16,33 @@ logger = logging.getLogger(__name__)
 
 
 class IsolatedFilesystem:
-    """Manages isolated temporary filesystem for SOW authoring.
+    """Manages isolated temporary filesystem for agent workspaces.
 
-    Creates a flat file structure workspace that persists across subagent executions
+    Creates a context-specific workspace structure that persists across agent executions
     and can optionally be preserved after completion for debugging.
 
     Attributes:
         execution_id: Unique identifier for this execution
         persist: Whether to preserve workspace after completion
+        workspace_type: Type of workspace (sow_author, migration, diagram, lesson_author)
         root: Path to the workspace root directory
     """
 
-    def __init__(self, execution_id: str, persist: bool = True):
+    def __init__(self, execution_id: str, persist: bool = True, workspace_type: str = "sow_author"):
         """Initialize isolated filesystem.
 
         Args:
             execution_id: Unique identifier for this execution (e.g., timestamp-based)
             persist: If True, preserve workspace after completion. If False, cleanup on exit.
+            workspace_type: Workspace context type. Options:
+                - "sow_author": SOW authoring workspace (default for backward compatibility)
+                - "migration": Lesson migration workspace
+                - "diagram": Diagram generation workspace
+                - "lesson_author": Lesson authoring workspace
         """
         self.execution_id = execution_id
         self.persist = persist
+        self.workspace_type = workspace_type
         self.root: Optional[Path] = None
 
     def __enter__(self) -> "IsolatedFilesystem":
@@ -51,31 +58,14 @@ class IsolatedFilesystem:
             logger.info(f"Workspace preserved at: {self.root}")
         return False
 
-    def setup(self) -> Path:
-        """Create workspace directory and initialize README.
+    def _get_readme_content(self) -> str:
+        """Generate context-specific README content based on workspace type.
 
         Returns:
-            Path to the workspace root directory
-
-        Raises:
-            OSError: If directory creation fails
+            Markdown-formatted README content for the workspace
         """
-        # Get project root (claud_author_agent/)
-        project_root = Path(__file__).parent.parent.parent
-        workspace_base = project_root / "workspace"
-
-        # Create workspace base directory if it doesn't exist
-        workspace_base.mkdir(parents=True, exist_ok=True)
-
-        # Create execution-specific subfolder
-        self.root = workspace_base / self.execution_id
-        self.root.mkdir(parents=True, exist_ok=True)
-
-        logger.info(f"Created workspace: {self.root}")
-
-        # Write README to document workspace structure
-        readme_path = self.root / "README.md"
-        readme_content = f"""# SOW Author Workspace - Execution {self.execution_id}
+        if self.workspace_type == "sow_author":
+            return f"""# SOW Author Workspace - Execution {self.execution_id}
 
 ## Workspace Structure (Flat Files)
 
@@ -107,8 +97,133 @@ All subagents access files via:
 
 The `/workspace/` path is mapped to: `{self.root}`
 """
+
+        elif self.workspace_type == "migration":
+            return f"""# Lesson Migration Workspace - Execution {self.execution_id}
+
+## Purpose
+Upgrades existing lesson template to meet current schema requirements
+
+## Workspace Files
+
+### Input Files
+- `current_lesson.json` - Existing lesson template that needs migration
+- `validation_errors.txt` - Pydantic schema validation errors
+
+### Output Files
+- `migrated_lesson.json` - Upgraded lesson template (REQUIRED OUTPUT)
+
+## Migration Process
+
+1. **Migration Agent** reads `current_lesson.json` and `validation_errors.txt`
+2. **Agent adds missing fields** (rubrics, misconceptions, etc.)
+3. **Agent writes** complete migrated lesson to `migrated_lesson.json`
+4. **Validation** confirms schema compliance
+5. **Upsert** writes migrated lesson back to Appwrite
+
+## Important Notes
+
+⚠️ **The agent MUST create `migrated_lesson.json` as a new file**
+- DO NOT modify `current_lesson.json` in-place
+- Preserve ALL existing educational content
+- Add ONLY missing required fields
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
+        elif self.workspace_type == "diagram":
+            return f"""# Diagram Generation Workspace - Execution {self.execution_id}
+
+## Purpose
+Generates Excalidraw diagrams for lesson cards
+
+## Workspace Files
+
+### Input Files
+- `lesson_template.json` - Lesson template with cards to visualize
+
+### Output Files
+- `diagrams/` - Directory containing generated Excalidraw JSON files
+- `diagram_metadata.json` - Metadata about generated diagrams
+
+## Diagram Generation Process
+
+1. **Diagram Agent** reads `lesson_template.json`
+2. **For each card** eligible for visualization:
+   - Generates Excalidraw JSON diagram
+   - Saves to `diagrams/card_{{n}}_diagram.json`
+3. **Metadata** tracks which cards have diagrams
+4. **Upserter** uploads diagrams to Appwrite Storage
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
+        elif self.workspace_type == "lesson_author":
+            return f"""# Lesson Author Workspace - Execution {self.execution_id}
+
+## Purpose
+Multi-stage lesson authoring with research, authoring, and critique
+
+## Workspace Files
+
+### Input/Output Files
+- `research_pack.json` - Educational research and examples
+- `lesson_template.json` - Generated lesson template
+- `critique_results.json` - Validation and feedback from critic
+- `final_lesson.json` - Final validated lesson template
+
+## Authoring Pipeline
+
+1. **Research Subagent** → Creates research pack
+2. **Lesson Author Subagent** → Generates lesson template
+3. **Critic Subagent** → Validates and provides feedback
+4. **Refinement Loop** → Iterates until validation passes
+5. **Upserter** → Writes final lesson to Appwrite
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
+        else:
+            # Generic fallback for unknown workspace types
+            return f"""# Agent Workspace - Execution {self.execution_id}
+
+## Workspace Type
+{self.workspace_type}
+
+## Purpose
+Isolated workspace for agent execution
+
+## Location
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
+    def setup(self) -> Path:
+        """Create workspace directory and initialize context-specific README.
+
+        Returns:
+            Path to the workspace root directory
+
+        Raises:
+            OSError: If directory creation fails
+        """
+        # Get project root (claud_author_agent/)
+        project_root = Path(__file__).parent.parent.parent
+        workspace_base = project_root / "workspace"
+
+        # Create workspace base directory if it doesn't exist
+        workspace_base.mkdir(parents=True, exist_ok=True)
+
+        # Create execution-specific subfolder
+        self.root = workspace_base / self.execution_id
+        self.root.mkdir(parents=True, exist_ok=True)
+
+        logger.info(f"Created workspace: {self.root} (type: {self.workspace_type})")
+
+        # Write context-specific README to document workspace structure
+        readme_path = self.root / "README.md"
+        readme_content = self._get_readme_content()
         readme_path.write_text(readme_content)
-        logger.info(f"Workspace initialized with README at: {readme_path}")
+        logger.info(f"Workspace initialized with {self.workspace_type} README at: {readme_path}")
 
         return self.root
 

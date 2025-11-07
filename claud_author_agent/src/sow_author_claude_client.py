@@ -380,7 +380,7 @@ class SOWAuthorClaudeAgent:
 
         try:
             # Create isolated workspace
-            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace) as filesystem:
+            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace, workspace_type="sow_author") as filesystem:
                 workspace_path = filesystem.root
 
                 logger.info(f"Workspace created: {workspace_path}")

@@ -45,16 +45,42 @@ Additionally, you may find an `eligible_cards.json` file with pre-filtered cards
 
 **YOU DO NOT** access Appwrite directly. Read inputs from workspace files and write outputs to workspace files.
 
-## Card Eligibility
+## Card Eligibility - What Qualifies as a "Diagram"?
 
-The `eligible_cards.json` file contains cards that need diagrams, identified by contextual analysis. These are typically cards with:
-- Mathematical concepts (geometry, algebra, statistics)
-- Visual problems (coordinate geometry, graphs, functions)
-- Real-world applications (distance, area, volume calculations)
+The `eligible_cards.json` file contains cards that have been **pre-filtered by LLM-based semantic analysis**. Only cards requiring JSXGraph mathematical diagrams are included.
 
-Skip diagrams for:
-- **explain_plain**: Text-only accessibility cards
-- **Definition cards**: Pure text definitions without visual components
+### Cards INCLUDED in eligible_cards.json (JSXGraph-Compatible)
+
+✅ **Geometric constructions**: Triangles, circles, polygons, angles, measurements, right-angle markers
+✅ **Coordinate graphs**: Functions, lines, points, slopes, intercepts, parabolas
+✅ **Statistical charts**: Bar charts, histograms, scatter plots, data distributions
+✅ **Algebraic visualizations**: Number lines, equation graphs, inequality regions, simultaneous equations
+
+**Examples of INCLUDED content**:
+- "Calculate the area of a right triangle with base 5cm and height 12cm" (geometric construction)
+- "Plot the function f(x) = x² - 4x + 3 on a coordinate grid" (function graph)
+- "Draw a bar chart showing frequency: 0-10 (5), 11-20 (12), 21-30 (8)" (statistical chart)
+
+### Cards EXCLUDED from eligible_cards.json (Not JSXGraph-Compatible)
+
+❌ **Assessment rubrics and performance scales**: Self-assessment forms, grading criteria, performance levels
+❌ **Worksheets and fill-in forms/templates**: Student input templates, completion exercises
+❌ **Concept maps and mind maps**: Non-mathematical relationship diagrams, brainstorming tools
+❌ **Real-world photographs or illustrations**: Pictures of objects, people, or scenarios
+❌ **Text-only explanations or definitions**: Pure text content without geometric/graphical component
+❌ **Lists or step-by-step procedures**: Text procedures without geometric visualization
+
+**Examples of EXCLUDED content**:
+- "Self-Assessment: Rate your understanding of Pythagoras' Theorem (0-100)" (rubric)
+- "Complete the worksheet by filling in missing angles" (template)
+- "Create a concept map linking quadrilateral properties" (concept map)
+- "Show a photograph of a real-world right angle" (photograph)
+
+### Your Role
+
+**For each eligible card**: Generate a high-quality JSXGraph diagram that visualizes the mathematical content.
+
+**Important**: All cards you receive have been pre-validated for JSXGraph compatibility. If you encounter content that seems ineligible (e.g., a rubric or worksheet), document this in the error report as it indicates a filtering issue.
 
 ## Workflow
 

@@ -22,6 +22,7 @@ Exit codes:
 
 import argparse
 import asyncio
+import base64
 import json
 import logging
 import sys
@@ -157,16 +158,30 @@ Examples:
     # Transform diagrams data for batch_upsert_diagrams function
     diagrams_data = []
     for diagram in diagrams:
+        # Convert image_path to base64 (diagrams_output.json has image_path, not image_base64)
+        # Image paths in diagrams_output.json are absolute paths
+        image_path = Path(diagram["image_path"])
+
+        if not image_path.exists():
+            logger.error(f"❌ Image file not found: {image_path}")
+            print_banner(f"❌ FAILED - Image file not found: {image_path}", RED)
+            return 1
+
+        with open(image_path, "rb") as img_file:
+            image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+
         diagrams_data.append({
             "lesson_template_id": diagram["lessonTemplateId"],
             "card_id": diagram["cardId"],
             "jsxgraph_json": diagram["jsxgraph_json"],
-            "image_base64": diagram["image_base64"],
+            "image_base64": image_base64,  # Converted from PNG file
             "diagram_type": diagram["diagram_type"],
             "visual_critique_score": diagram["visual_critique_score"],
             "critique_iterations": diagram["critique_iterations"],
             "critique_feedback": diagram["critique_feedback"],
-            "execution_id": execution_id
+            "execution_id": execution_id,
+            "diagram_context": diagram.get("diagram_context"),  # NEW: Support dual-context diagrams
+            "diagram_description": diagram.get("diagram_description")  # NEW: Brief description for LLMs
         })
 
     # Import batch upsert function

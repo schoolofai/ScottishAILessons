@@ -32,8 +32,9 @@ from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_diagram_author_input
 from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
-from .utils.diagram_extractor import fetch_lesson_template, extract_diagram_cards
+from .utils.diagram_extractor import fetch_lesson_template
 from .utils.diagram_upserter import batch_upsert_diagrams
+from .eligibility_analyzer_agent import EligibilityAnalyzerAgent
 from .tools.diagram_screenshot_tool import create_diagram_screenshot_server_with_workspace, check_diagram_service_health
 
 logger = logging.getLogger(__name__)
@@ -178,7 +179,7 @@ class DiagramAuthorClaudeAgent:
 
         try:
             # Create isolated workspace
-            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace) as filesystem:
+            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace, workspace_type="diagram") as filesystem:
                 workspace_path = filesystem.root
 
                 logger.info(f"Workspace created: {workspace_path}")
@@ -206,15 +207,43 @@ class DiagramAuthorClaudeAgent:
                     json.dump(lesson_template, f, indent=2)
                 logger.info(f"✅ lesson_template.json written to workspace")
 
-                # Filter eligible cards (simple heuristic for MVP - FR-014, FR-015, FR-016)
-                logger.info("Pre-processing: Filtering eligible cards via Python utility...")
+                # Filter eligible cards (Claude Agent SDK-based semantic analysis - FR-014, FR-015, FR-016)
+                logger.info("Pre-processing: Filtering eligible cards via Claude Agent SDK eligibility analyzer...")
 
-                eligible_cards = await extract_diagram_cards(
-                    lesson_template=lesson_template,
-                    llm_client=None  # Simple heuristic for MVP (no LLM costs)
-                )
+                eligibility_agent = EligibilityAnalyzerAgent()
+                eligible_cards = await eligibility_agent.analyze(lesson_template)
+
+                # ═══════════════════════════════════════════════════════════════
+                # Eligibility Analysis Logging
+                # ═══════════════════════════════════════════════════════════════
 
                 cards_needing_diagrams = len(eligible_cards)
+                excluded_count = total_cards - cards_needing_diagrams
+
+                logger.info(f"📊 Eligibility Analysis Complete:")
+                logger.info(f"   ✅ Eligible cards: {cards_needing_diagrams}")
+                logger.info(f"   ❌ Excluded cards: {excluded_count}")
+
+                # Log exclusion reasons breakdown (if any cards were excluded)
+                if excluded_count > 0:
+                    # Collect exclusion reasons from all cards
+                    all_cards = lesson_template.get("cards", [])
+                    eligible_ids = {card.get("id") for card in eligible_cards}
+
+                    exclusion_reasons = {}
+                    for card in all_cards:
+                        card_id = card.get("id", "UNKNOWN")
+                        if card_id not in eligible_ids:
+                            # Card was excluded - find the reason (logged during extraction)
+                            # For now, we'll indicate "Not eligible for JSXGraph diagram"
+                            # In future, we could pass back reasons from extract_diagram_cards
+                            reason = "Not eligible for JSXGraph diagram (LLM analysis)"
+                            exclusion_reasons[reason] = exclusion_reasons.get(reason, 0) + 1
+
+                    logger.info("📋 Exclusion Breakdown:")
+                    for reason, count in sorted(exclusion_reasons.items(), key=lambda x: -x[1]):
+                        logger.info(f"   - {reason}: {count} card(s)")
+
                 logger.info(f"✅ Identified {cards_needing_diagrams}/{total_cards} cards needing diagrams")
 
                 if cards_needing_diagrams == 0:

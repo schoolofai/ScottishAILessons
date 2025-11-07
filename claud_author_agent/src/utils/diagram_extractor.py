@@ -194,20 +194,20 @@ async def extract_diagram_cards(
 
     Implements FR-014, FR-015, FR-016: LLM-based card eligibility analysis.
 
-    Uses Claude agent LLM to analyze card content, cardType, and title for contextual
+    Uses Claude LLM to analyze card content, cardType, and title for contextual
     understanding of diagram needs. This replaces keyword-based heuristics with semantic
     understanding (e.g., distinguishes "calculate gradient" from "define gradient").
 
     Args:
         lesson_template: Lesson template document from Appwrite
-        llm_client: Optional Claude LLM client for eligibility analysis
-                    If None, uses simple heuristic (for testing without LLM costs)
+        llm_client: DiagramAuthorClaudeClient instance for LLM-based eligibility analysis
+                    REQUIRED - no fallback pattern (fast-fail design)
 
     Returns:
         list: Filtered list of cards requiring diagrams with eligibility rationale
 
     Raises:
-        ValueError: If lesson_template has no cards array
+        ValueError: If lesson_template has no cards array or llm_client is None
         Exception: If LLM analysis fails (fast-fail)
     """
     cards = lesson_template.get("cards", [])
@@ -216,22 +216,134 @@ async def extract_diagram_cards(
         logger.info("Lesson template has no cards - returning empty list")
         return []
 
-    logger.info(f"Analyzing {len(cards)} cards for diagram eligibility...")
-
-    # For MVP: Use simple heuristic if no LLM client provided
-    # This allows testing without LLM costs, but production should use LLM analysis
+    # Strict requirement for LLM client - no fallback pattern
     if llm_client is None:
-        logger.warning(
-            "No LLM client provided - using simple heuristic for card eligibility. "
-            "For production, provide LLM client for semantic analysis."
+        raise ValueError(
+            "LLM client is required for diagram eligibility analysis. "
+            "No fallback pattern - this is a strict requirement for semantic analysis. "
+            "Provide a DiagramAuthorClaudeClient instance."
         )
-        return _simple_eligibility_heuristic(cards)
 
-    # TODO: Implement LLM-based eligibility analysis
-    # This will be implemented in Phase 3 when integrating with Claude agent
-    # For now, fall back to simple heuristic
-    logger.warning("LLM-based eligibility analysis not yet implemented - using heuristic")
-    return _simple_eligibility_heuristic(cards)
+    logger.info(f"Analyzing {len(cards)} cards for JSXGraph diagram eligibility using LLM...")
+
+    # Use LLM-based semantic analysis
+    return await _llm_based_eligibility_analysis(cards, llm_client)
+
+
+async def _llm_based_eligibility_analysis(
+    cards: List[Dict[str, Any]],
+    llm_client: Any
+) -> List[Dict[str, Any]]:
+    """Use LLM to semantically determine which cards need JSXGraph diagrams.
+
+    Replaces keyword-based heuristics with Claude's language understanding to analyze
+    card content and determine JSXGraph compatibility.
+
+    Args:
+        cards: List of card dictionaries from lesson template
+        llm_client: DiagramAuthorClaudeClient instance with analyze_eligibility() method
+
+    Returns:
+        list: Filtered list of cards with diagram context information:
+            - needs_lesson_diagram (bool): True if explainer needs diagram
+            - needs_cfu_diagram (bool): True if cfu needs diagram
+            - lesson_diagram_reason (str): LLM's reason for lesson diagram decision
+            - cfu_diagram_reason (str): LLM's reason for cfu diagram decision
+            - diagram_contexts (list): List of contexts ("lesson", "cfu", or both)
+            - _eligibility_method (str): "llm_semantic_analysis"
+
+    Raises:
+        Exception: If LLM analysis fails (fast-fail)
+    """
+    # Eligibility criteria prompt for LLM analysis
+    eligibility_prompt = """Analyze this lesson card and determine if it needs a JSXGraph mathematical diagram.
+
+ELIGIBLE Content (return true):
+- Geometric constructions requiring shapes, angles, measurements
+- Coordinate graphs showing functions, lines, or points
+- Statistical data requiring charts (bar, histogram, scatter)
+- Algebraic visualizations on number lines or graphs
+
+NOT ELIGIBLE Content (return false):
+- Assessment rubrics, performance scales, grading criteria
+- Worksheets, templates, fill-in forms
+- Concept maps, mind maps, flowcharts
+- Real-world photographs or illustrations
+- Pure text definitions or explanations
+- Step-by-step procedures without geometric visualization
+
+Analyze BOTH the explainer (lesson teaching content) and cfu (assessment questions) separately.
+They may have different eligibility (e.g., explainer needs diagram but cfu doesn't, or vice versa).
+
+Return your analysis as structured data."""
+
+    eligible_cards = []
+
+    for card in cards:
+        card_id = card.get("id", "UNKNOWN")
+        title = card.get("title", "")
+        explainer = card.get("explainer", "")
+        cfu = card.get("cfu", {})
+
+        # Format CFU for analysis (may be dict or string)
+        cfu_text = json.dumps(cfu) if isinstance(cfu, dict) else str(cfu)
+
+        try:
+            # Call LLM client's analyze_eligibility method
+            analysis = await llm_client.analyze_eligibility(
+                explainer=f"{title}\n\n{explainer}",
+                cfu=cfu_text,
+                prompt=eligibility_prompt
+            )
+
+            needs_lesson_diagram = analysis.get("lesson_needs_diagram", False)
+            needs_cfu_diagram = analysis.get("cfu_needs_diagram", False)
+            reason = analysis.get("reason", "No reason provided")
+
+            # Split reason into lesson and cfu components if available
+            lesson_diagram_reason = f"LLM analysis: {reason}"
+            cfu_diagram_reason = f"LLM analysis: {reason}"
+
+            # Determine diagram contexts needed
+            diagram_contexts = []
+            if needs_lesson_diagram:
+                diagram_contexts.append("lesson")
+            if needs_cfu_diagram:
+                diagram_contexts.append("cfu")
+
+            # Add card to eligible list if ANY context needs diagram
+            if diagram_contexts:
+                logger.info(
+                    f"✓ Card {card_id} eligible for diagrams: "
+                    f"contexts={', '.join(diagram_contexts)} | "
+                    f"Reason: {reason}"
+                )
+                eligible_cards.append({
+                    **card,
+                    "needs_lesson_diagram": needs_lesson_diagram,
+                    "needs_cfu_diagram": needs_cfu_diagram,
+                    "lesson_diagram_reason": lesson_diagram_reason,
+                    "cfu_diagram_reason": cfu_diagram_reason,
+                    "diagram_contexts": diagram_contexts,
+                    "_eligibility_method": "llm_semantic_analysis"
+                })
+            else:
+                logger.info(
+                    f"  Card {card_id} excluded: {reason}"
+                )
+
+        except Exception as e:
+            # Fast-fail on LLM analysis errors
+            raise Exception(
+                f"Failed to analyze eligibility for card {card_id} using LLM: {str(e)}"
+            ) from e
+
+    logger.info(
+        f"📊 LLM eligibility analysis complete: "
+        f"{len(eligible_cards)}/{len(cards)} cards eligible for diagrams"
+    )
+
+    return eligible_cards
 
 
 def _simple_eligibility_heuristic(cards: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
