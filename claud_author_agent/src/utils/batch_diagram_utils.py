@@ -113,9 +113,10 @@ async def check_existing_diagrams_batch(
             )
 
             # Extract (cardId, diagram_context) tuples
+            # Note: list_appwrite_documents returns List[Dict], not {documents: [...]}
             existing[order] = [
                 (d["cardId"], d.get("diagram_context", "lesson"))
-                for d in diagrams.get("documents", [])
+                for d in diagrams
             ]
 
             if existing[order]:
@@ -182,7 +183,7 @@ def build_execution_plan(
             plan.append({
                 "order": order,
                 "action": "SKIP",
-                "reason": f"Already has {len(existing)} diagrams (use --force to regenerate)",
+                "reason": "Already has diagrams (use --force to regenerate)",
                 "existing_count": len(existing),
                 "eligible_count": eligible_count
             })
@@ -191,7 +192,7 @@ def build_execution_plan(
             plan.append({
                 "order": order,
                 "action": "OVERWRITE",
-                "reason": f"Force regenerate {len(existing)} existing diagrams",
+                "reason": f"Force regenerate (replacing {len(existing)} existing diagrams)",
                 "existing_count": len(existing),
                 "eligible_count": eligible_count
             })
@@ -200,7 +201,7 @@ def build_execution_plan(
             plan.append({
                 "order": order,
                 "action": "GENERATE",
-                "reason": f"Generate {eligible_count} new diagrams",
+                "reason": "Lesson validated - will generate diagrams",
                 "eligible_count": eligible_count
             })
 
@@ -234,6 +235,10 @@ def display_dry_run_preview(execution_plan: List[Dict[str, Any]]) -> None:
     print("\n" + "=" * 80)
     print("DRY RUN PREVIEW - No changes will be made")
     print("=" * 80 + "\n")
+
+    # Note about skipped eligibility analysis
+    print("\033[93m⚠️  NOTE: Eligibility analysis skipped in dry-run mode for speed\033[0m")
+    print("\033[93m   Full eligibility analysis will run during actual execution\033[0m\n")
 
     # Summary stats
     total = len(execution_plan)

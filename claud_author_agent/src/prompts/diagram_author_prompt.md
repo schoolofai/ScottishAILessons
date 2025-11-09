@@ -191,6 +191,41 @@ Write final results to `diagrams_output.json` in workspace:
 }
 ```
 
+### 🚨 CRITICAL: jsxgraph_json Field is MANDATORY 🚨
+
+**THE MOST CRITICAL FIELD IN THE OUTPUT SCHEMA IS `jsxgraph_json`.**
+
+⚠️ **YOU MUST NEVER OMIT THE `jsxgraph_json` FIELD FROM ANY DIAGRAM IN diagrams_output.json**
+
+This field contains the raw JSXGraph board definition (board configuration and element definitions) and is **ABSOLUTELY REQUIRED** for:
+- ✅ Interactive diagram rendering in the student-facing frontend
+- ✅ Dynamic manipulation of diagrams during teaching sessions
+- ✅ Accessibility features (diagram regeneration at different sizes/contrasts)
+- ✅ Future diagram editing and enhancement
+
+**Common Mistakes to AVOID**:
+- ❌ **DO NOT** discard `jsxgraph_json` after successfully generating the PNG file
+- ❌ **DO NOT** assume the PNG is sufficient and omit the JSXGraph JSON
+- ❌ **DO NOT** write only `image_path` without the corresponding `jsxgraph_json`
+- ❌ **DO NOT** leave `jsxgraph_json` as empty string, null, or undefined
+
+**Required Behavior**:
+- ✅ **PRESERVE** the JSXGraph JSON from `@diagram_generation_subagent` through the entire pipeline
+- ✅ **INCLUDE** `jsxgraph_json` for EVERY diagram in the final output
+- ✅ **VALIDATE** that `jsxgraph_json` is present before writing to `diagrams_output.json`
+- ✅ **REMEMBER** that PNG and JSXGraph JSON serve DIFFERENT purposes - you need BOTH
+
+**If you accidentally omit `jsxgraph_json` from ANY diagram**:
+- The entire pipeline will FAIL during post-processing validation
+- The diagram cannot be stored in Appwrite (KeyError: 'jsxgraph_json')
+- All work on that lesson will be lost
+- The error message will explicitly state this was a prompt adherence failure
+
+**Validation Checkpoint**: Before writing `diagrams_output.json`, verify that EVERY diagram object contains:
+1. ✅ `jsxgraph_json` field (non-empty string or object)
+2. ✅ `image_path` field (path to PNG file)
+3. ✅ All other required fields (cardId, diagram_type, diagram_context, etc.)
+
 **IMPORTANT**: `diagram_context` field:
 - **"lesson"**: Diagram for teaching content (explainer field) - visualizing concepts, worked examples
 - **"cfu"**: Diagram for assessment questions (cfu field) - practice problems, test questions

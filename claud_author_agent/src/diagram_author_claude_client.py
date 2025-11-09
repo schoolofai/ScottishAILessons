@@ -34,6 +34,7 @@ from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
 from .utils.diagram_extractor import fetch_lesson_template
 from .utils.diagram_upserter import batch_upsert_diagrams
+from .utils.diagram_validator import validate_diagram_output_schema
 from .eligibility_analyzer_agent import EligibilityAnalyzerAgent
 from .tools.diagram_screenshot_tool import create_diagram_screenshot_server_with_workspace, check_diagram_service_health
 
@@ -466,6 +467,45 @@ class DiagramAuthorClaudeAgent:
                     }
 
                 logger.info(f"✅ All {len(diagrams)} diagrams have valid PNG files loaded")
+
+                # ═══════════════════════════════════════════════════════════════
+                # FAST-FAIL VALIDATION: Ensure all diagrams have required fields
+                # ═══════════════════════════════════════════════════════════════
+                # This prevents KeyError during upsert and enforces agent prompt adherence
+                logger.info("Validating diagram output schema (checking for jsxgraph_json field)...")
+
+                validation_failures = {}
+                for diagram in diagrams:
+                    card_id = diagram.get("cardId", "UNKNOWN")
+                    is_valid, errors = validate_diagram_output_schema(diagram, card_id)
+                    if not is_valid:
+                        validation_failures[card_id] = errors
+
+                if validation_failures:
+                    # Build detailed error message
+                    total_failures = len(validation_failures)
+                    error_details = []
+                    for card_id, errors in validation_failures.items():
+                        error_details.append(f"  • {card_id}: {', '.join(errors)}")
+
+                    error_msg = (
+                        f"❌ Agent output validation FAILED: {total_failures}/{len(diagrams)} diagrams "
+                        f"missing required fields.\n\n"
+                        f"Validation errors:\n" + "\n".join(error_details) + "\n\n"
+                        f"This is a PROMPT ADHERENCE issue - the diagram generation subagent "
+                        f"must include ALL required fields (especially jsxgraph_json) in diagrams_output.json.\n\n"
+                        f"Troubleshooting:\n"
+                        f"  1. Check workspace file: {workspace_path}/diagrams_output.json\n"
+                        f"  2. Verify agent prompt includes jsxgraph_json in output schema\n"
+                        f"  3. Check if agent is discarding JSXGraph JSON after PNG generation\n"
+                        f"  4. Review agent logs for prompt adherence issues"
+                    )
+                    logger.error(error_msg)
+
+                    # Throw exception to fail fast (no fallback mechanism)
+                    raise ValueError(error_msg)
+
+                logger.info(f"✅ Schema validation passed: All {len(diagrams)} diagrams have required fields (including jsxgraph_json)")
 
                 # Prepare diagrams for batch upsert
                 logger.info("Starting batch upsert to Appwrite lesson_diagrams collection...")

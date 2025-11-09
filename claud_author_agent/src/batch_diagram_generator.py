@@ -14,14 +14,14 @@ Key features:
 - Batch summary report
 
 Usage:
-    # Dry-run for all lessons
+    # Dry-run for all lessons (preview only, no execution)
     python -m src.batch_diagram_generator --courseId course_c84874 --dry-run
 
-    # Generate diagrams for all lessons
-    python -m src.batch_diagram_generator --courseId course_c84874 --yes
+    # Generate diagrams for all lessons (executes immediately)
+    python -m src.batch_diagram_generator --courseId course_c84874
 
-    # Force regenerate all diagrams
-    python -m src.batch_diagram_generator --courseId course_c84874 --force --yes
+    # Force regenerate all diagrams (deletes and recreates)
+    python -m src.batch_diagram_generator --courseId course_c84874 --force
 
     # Single lesson mode (delegates to existing CLI)
     python -m src.batch_diagram_generator --courseId course_c84874 --order 5
@@ -34,6 +34,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +62,14 @@ def parse_arguments() -> argparse.Namespace:
         epilog="""
 Examples:
 
-  # Dry-run for all lessons in course
+  # Dry-run for all lessons (preview only, no execution)
   python -m src.batch_diagram_generator --courseId course_c84874 --dry-run
 
-  # Generate diagrams for all lessons
-  python -m src.batch_diagram_generator --courseId course_c84874 --yes
+  # Generate diagrams for all lessons (executes immediately)
+  python -m src.batch_diagram_generator --courseId course_c84874
 
-  # Force regenerate all diagrams (deletes existing)
-  python -m src.batch_diagram_generator --courseId course_c84874 --force --yes
+  # Force regenerate all diagrams (deletes and recreates immediately)
+  python -m src.batch_diagram_generator --courseId course_c84874 --force
 
   # Single lesson mode (delegates to existing diagram_author_cli)
   python -m src.batch_diagram_generator --courseId course_c84874 --order 5
@@ -72,6 +77,8 @@ Examples:
 Note:
   - Validates all lessons BEFORE starting generation (fast-fail)
   - Skips lessons with existing diagrams (use --force to regenerate)
+  - Dry-run mode is fast (skips eligibility analysis for preview)
+  - Execution mode runs full eligibility analysis and generates immediately
   - Creates per-lesson logs in logs/batch_runs/{batch_id}/
   - Writes batch summary to logs/batch_runs/{batch_id}/batch_summary.json
         """
@@ -102,12 +109,6 @@ Note:
         '--force',
         action='store_true',
         help="Force regenerate existing diagrams (deletes and recreates)"
-    )
-
-    parser.add_argument(
-        '--yes',
-        action='store_true',
-        help="Skip confirmation prompt"
     )
 
     # Configuration
@@ -215,16 +216,26 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
         print(f"{GREEN}✅ Found {len(lesson_orders)} lessons in SOW{RESET}\n")
 
         # Step 2: Validate all lessons (fast-fail)
+        # Skip eligibility analysis in dry-run mode for speed
         print(f"{BLUE}Step 2: Validating all lessons...{RESET}")
+        if args.dry_run:
+            print(f"{YELLOW}(Dry-run: Skipping eligibility analysis for speed - will validate structure only){RESET}")
+
         validation_results = await validate_lessons_batch(
             course_id=args.courseId,
             lesson_orders=lesson_orders,
-            mcp_config_path=args.mcp_config
+            mcp_config_path=args.mcp_config,
+            skip_eligibility=args.dry_run  # Skip Claude agent in dry-run mode
         )
 
         valid_count = sum(1 for v in validation_results.values() if v["valid"])
         invalid_count = len(lesson_orders) - valid_count
-        print(f"{GREEN}✅ Validation complete: {valid_count} valid, {invalid_count} invalid{RESET}\n")
+
+        if args.dry_run:
+            total_cards = sum(v.get("total_cards", 0) for v in validation_results.values() if v["valid"])
+            print(f"{GREEN}✅ Validation complete: {valid_count} valid, {invalid_count} invalid ({total_cards} total cards){RESET}\n")
+        else:
+            print(f"{GREEN}✅ Validation complete: {valid_count} valid, {invalid_count} invalid{RESET}\n")
 
         # Step 3: Check existing diagrams
         print(f"{BLUE}Step 3: Checking existing diagrams...{RESET}")
@@ -255,14 +266,7 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
             print(f"{YELLOW}Dry-run mode: No changes made{RESET}\n")
             return 0
 
-        # Step 6: Confirmation prompt
-        if not args.yes:
-            response = input(f"{YELLOW}Proceed with batch execution? (y/N): {RESET}")
-            if response.lower() != 'y':
-                print(f"{YELLOW}Cancelled by user{RESET}\n")
-                return 0
-
-        # Step 7: Execute batch generation
+        # Step 6: Execute batch generation
         print(f"\n{BLUE}{'=' * 80}{RESET}")
         print(f"{BLUE}Starting batch execution...{RESET}")
         print(f"{BLUE}{'=' * 80}{RESET}\n")

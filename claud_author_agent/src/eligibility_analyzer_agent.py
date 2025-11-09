@@ -127,15 +127,7 @@ class EligibilityAnalyzerAgent:
 
             logger.debug(f"Wrote lesson_template.json to {workspace_path}")
 
-            # Verify API key is available
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise ValueError(
-                    "ANTHROPIC_API_KEY environment variable not set. "
-                    "Required for eligibility analysis."
-                )
-
-            # Configure agent options (ClaudeSDKClient picks up API key from environment)
+            # Configure agent options (ClaudeSDKClient uses Claude subscription or ANTHROPIC_API_KEY from environment)
             options = ClaudeAgentOptions(
                 model=self.model,
                 allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep'],

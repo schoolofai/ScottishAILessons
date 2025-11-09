@@ -1,6 +1,7 @@
-import { Query, Storage } from 'appwrite';
+import { Query, Storage, ID } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { LessonDiagram } from '../types';
+import { base64ToBlob, generateDiagramFileId } from '@/lib/utils/imageUpload';
 
 /**
  * Diagram driver handling lesson diagram fetching and Storage integration
@@ -266,6 +267,198 @@ export class DiagramDriver extends BaseDriver {
     } catch (error) {
       // On error, assume no diagram exists (graceful degradation)
       return false;
+    }
+  }
+
+  /**
+   * Batch fetch both lesson and CFU diagrams for a card
+   *
+   * Efficiently fetches both diagram contexts in parallel
+   * Useful for admin UI that needs to display both types
+   *
+   * @param lessonTemplateId - Lesson template ID
+   * @param cardId - Card ID
+   * @returns Object with lesson and cfu diagrams (either can be null)
+   */
+  async getDiagramsForCard(
+    lessonTemplateId: string,
+    cardId: string
+  ): Promise<{ lesson: LessonDiagram | null; cfu: LessonDiagram | null }> {
+    try {
+      const [lessonDiagram, cfuDiagram] = await Promise.all([
+        this.getDiagramForCardByContext(lessonTemplateId, cardId, 'lesson'),
+        this.getDiagramForCardByContext(lessonTemplateId, cardId, 'cfu')
+      ]);
+
+      return {
+        lesson: lessonDiagram,
+        cfu: cfuDiagram
+      };
+    } catch (error) {
+      throw this.handleError(error, `batch fetch diagrams for card ${cardId}`);
+    }
+  }
+
+  /**
+   * Upload custom diagram image to replace or add new diagram
+   *
+   * This method allows manual diagram uploads bypassing the batch generation tool.
+   * Useful for edge cases where human curation is needed (accessibility, specific styling).
+   *
+   * @param lessonTemplateId - Lesson template ID
+   * @param cardId - Card ID
+   * @param diagramContext - Diagram context ('lesson' or 'cfu')
+   * @param imageBase64 - Base64 encoded image (data URL format)
+   * @returns Created/updated diagram document
+   * @throws Error if upload or database operation fails
+   */
+  async uploadDiagram(
+    lessonTemplateId: string,
+    cardId: string,
+    diagramContext: 'lesson' | 'cfu',
+    imageBase64: string
+  ): Promise<LessonDiagram> {
+    if (!lessonTemplateId || !cardId || !diagramContext || !imageBase64) {
+      throw new Error('All parameters (lessonTemplateId, cardId, diagramContext, imageBase64) are required');
+    }
+
+    try {
+      // 1. Generate deterministic file ID (matches backend naming convention)
+      const fileId = generateDiagramFileId(lessonTemplateId, cardId, diagramContext);
+
+      console.log(`📤 DiagramDriver.uploadDiagram - Uploading file with ID: ${fileId}`);
+
+      // 2. Convert base64 to Blob
+      const blob = base64ToBlob(imageBase64);
+
+      // 3. Check if file already exists and delete it first
+      try {
+        await this.storage.deleteFile(this.STORAGE_BUCKET_ID, fileId);
+        console.log(`📤 DiagramDriver.uploadDiagram - Deleted existing file: ${fileId}`);
+      } catch (deleteError: any) {
+        // File doesn't exist, which is fine
+        if (deleteError?.code !== 404) {
+          console.warn(`📤 DiagramDriver.uploadDiagram - Warning during file deletion:`, deleteError);
+        }
+      }
+
+      // 4. Upload to Appwrite Storage bucket
+      const uploadedFile = await this.storage.createFile(
+        this.STORAGE_BUCKET_ID,
+        fileId,
+        blob
+      );
+
+      console.log(`📤 DiagramDriver.uploadDiagram - File uploaded successfully: ${uploadedFile.$id}`);
+
+      // 5. Check if diagram document already exists
+      const existingDiagram = await this.getDiagramForCardByContext(
+        lessonTemplateId,
+        cardId,
+        diagramContext
+      );
+
+      if (existingDiagram) {
+        // Update existing document
+        const updatedDiagram = await this.update<LessonDiagram>(
+          'lesson_diagrams',
+          existingDiagram.$id,
+          {
+            image_file_id: fileId,
+            jsxgraph_json: '{}', // No JSXGraph for custom uploads
+            diagram_type: 'mixed',
+            visual_critique_score: null,
+            critique_iterations: 0,
+            critique_feedback: 'Custom uploaded image',
+            execution_id: `manual_${Date.now()}`
+          }
+        );
+
+        console.log(`📤 DiagramDriver.uploadDiagram - Updated existing diagram: ${existingDiagram.$id}`);
+        return updatedDiagram;
+      } else {
+        // Create new diagram document
+        const newDiagram = await this.create<LessonDiagram>(
+          'lesson_diagrams',
+          ID.unique(),
+          {
+            lessonTemplateId,
+            cardId,
+            diagram_context: diagramContext,
+            image_file_id: fileId,
+            jsxgraph_json: '{}', // No JSXGraph for custom uploads
+            diagram_type: 'mixed',
+            visual_critique_score: null,
+            critique_iterations: 0,
+            critique_feedback: 'Custom uploaded image',
+            execution_id: `manual_${Date.now()}`,
+            title: `${diagramContext === 'lesson' ? 'Lesson' : 'CFU'} Diagram for ${cardId}`,
+            failure_reason: null
+          }
+        );
+
+        console.log(`📤 DiagramDriver.uploadDiagram - Created new diagram: ${newDiagram.$id}`);
+        return newDiagram;
+      }
+
+    } catch (error: any) {
+      console.error('📤 DiagramDriver.uploadDiagram - Error:', error);
+      throw this.handleError(error, `upload ${diagramContext} diagram for card ${cardId}`);
+    }
+  }
+
+  /**
+   * Delete diagram from both storage and database
+   *
+   * Removes the diagram image file from Appwrite Storage and deletes
+   * the metadata document from lesson_diagrams collection.
+   *
+   * @param lessonTemplateId - Lesson template ID
+   * @param cardId - Card ID
+   * @param diagramContext - Diagram context ('lesson' or 'cfu')
+   * @throws Error if diagram not found or deletion fails
+   */
+  async deleteDiagram(
+    lessonTemplateId: string,
+    cardId: string,
+    diagramContext: 'lesson' | 'cfu'
+  ): Promise<void> {
+    if (!lessonTemplateId || !cardId || !diagramContext) {
+      throw new Error('All parameters (lessonTemplateId, cardId, diagramContext) are required');
+    }
+
+    try {
+      // 1. Find diagram document
+      const diagram = await this.getDiagramForCardByContext(
+        lessonTemplateId,
+        cardId,
+        diagramContext
+      );
+
+      if (!diagram) {
+        throw new Error(`No ${diagramContext} diagram found for card ${cardId}`);
+      }
+
+      console.log(`🗑️ DiagramDriver.deleteDiagram - Deleting diagram: ${diagram.$id}`);
+
+      // 2. Delete from storage bucket
+      try {
+        await this.storage.deleteFile(this.STORAGE_BUCKET_ID, diagram.image_file_id);
+        console.log(`🗑️ DiagramDriver.deleteDiagram - Deleted storage file: ${diagram.image_file_id}`);
+      } catch (storageError: any) {
+        // Log warning but continue - file might already be deleted
+        if (storageError?.code !== 404) {
+          console.warn(`🗑️ DiagramDriver.deleteDiagram - Storage file deletion warning:`, storageError);
+        }
+      }
+
+      // 3. Delete database document
+      await this.delete('lesson_diagrams', diagram.$id);
+      console.log(`🗑️ DiagramDriver.deleteDiagram - Deleted database document: ${diagram.$id}`);
+
+    } catch (error: any) {
+      console.error('🗑️ DiagramDriver.deleteDiagram - Error:', error);
+      throw this.handleError(error, `delete ${diagramContext} diagram for card ${cardId}`);
     }
   }
 }

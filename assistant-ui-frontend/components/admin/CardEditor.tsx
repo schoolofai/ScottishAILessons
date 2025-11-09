@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CFUEditor } from './CFUEditor';
 import { MisconceptionsEditor } from './MisconceptionsEditor';
 import { MetadataEditor } from './MetadataEditor';
+import { DiagramManagementSection } from './DiagramManagementSection';
 import { validateCard, hasValidationErrors } from '@/lib/validation/cardValidator';
 import type { LessonCard, ValidationErrors } from '@/lib/appwrite/types';
 
@@ -26,6 +27,7 @@ interface CardEditorProps {
   card: LessonCard;
   index: number;
   totalCards: number;
+  lessonTemplateId: string;
   onSave: (card: LessonCard) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -36,6 +38,7 @@ export function CardEditor({
   card,
   index,
   totalCards,
+  lessonTemplateId,
   onSave,
   onDelete,
   onMoveUp,
@@ -167,11 +170,12 @@ export function CardEditor({
           )}
 
           <Tabs defaultValue="core" className="w-full">
-            <TabsList className="w-full grid grid-cols-4">
+            <TabsList className="w-full grid grid-cols-5">
               <TabsTrigger value="core">Core Content</TabsTrigger>
               <TabsTrigger value="cfu">CFU & Rubric</TabsTrigger>
               <TabsTrigger value="misconceptions">Misconceptions</TabsTrigger>
               <TabsTrigger value="metadata">Metadata</TabsTrigger>
+              <TabsTrigger value="diagrams">Diagrams</TabsTrigger>
             </TabsList>
 
             {/* Core Content Tab */}
@@ -279,6 +283,14 @@ export function CardEditor({
                   setEditedCard({ ...editedCard, context_hooks })
                 }
                 errors={errors}
+              />
+            </TabsContent>
+
+            {/* Diagrams Tab */}
+            <TabsContent value="diagrams" className="mt-4">
+              <DiagramManagementSection
+                lessonTemplateId={lessonTemplateId}
+                cardId={editedCard.id}
               />
             </TabsContent>
           </Tabs>

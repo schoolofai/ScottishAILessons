@@ -41,7 +41,8 @@ class ValidationResult:
 async def validate_lessons_batch(
     course_id: str,
     lesson_orders: List[int],
-    mcp_config_path: str
+    mcp_config_path: str,
+    skip_eligibility: bool = False
 ) -> Dict[int, Dict[str, Any]]:
     """Validate all lessons in batch before diagram generation.
 
@@ -51,6 +52,7 @@ async def validate_lessons_batch(
         course_id: Course identifier
         lesson_orders: List of lesson order numbers to validate
         mcp_config_path: Path to MCP config file
+        skip_eligibility: If True, skip eligibility analysis (for fast dry-run preview)
 
     Returns:
         Dictionary mapping order → validation result:
@@ -59,7 +61,7 @@ async def validate_lessons_batch(
                 "valid": bool,
                 "errors": List[str],
                 "warnings": List[str],
-                "eligible_cards_count": int
+                "eligible_cards_count": int (0 if skip_eligibility=True)
             }
         }
 
@@ -70,7 +72,8 @@ async def validate_lessons_batch(
         >>> results[1]["eligible_cards_count"]
         3
     """
-    from .diagram_extractor import fetch_lesson_template, extract_diagram_cards
+    from .diagram_extractor import fetch_lesson_template
+    from ..eligibility_analyzer_agent import EligibilityAnalyzerAgent
 
     results = {}
 
@@ -109,19 +112,32 @@ async def validate_lessons_batch(
                 continue
 
             # Extract eligible cards to count how many diagrams needed
-            eligible_cards = await extract_diagram_cards(
-                lesson_template=template,
-                llm_client=None  # Simple heuristic (no LLM costs)
-            )
+            # Skip eligibility analysis in dry-run mode for speed
+            if skip_eligibility:
+                # Fast path: Just use total card count as estimate
+                total_cards = len(template.get("cards", []))
+                results[order] = {
+                    "valid": True,
+                    "errors": [],
+                    "warnings": validation_result.warnings,
+                    "eligible_cards_count": 0,  # Not analyzed in dry-run
+                    "total_cards": total_cards  # Show total card count instead
+                }
+                logger.info(f"✅ Lesson order {order}: Valid ({total_cards} cards total, eligibility skipped)")
+            else:
+                # Full path: Run eligibility analysis with Claude agent
+                # Uses standalone EligibilityAnalyzerAgent (replaced old extract_diagram_cards)
+                eligibility_agent = EligibilityAnalyzerAgent()
+                eligible_cards = await eligibility_agent.analyze(template)
 
-            results[order] = {
-                "valid": True,
-                "errors": [],
-                "warnings": validation_result.warnings,
-                "eligible_cards_count": len(eligible_cards)
-            }
+                results[order] = {
+                    "valid": True,
+                    "errors": [],
+                    "warnings": validation_result.warnings,
+                    "eligible_cards_count": len(eligible_cards)
+                }
 
-            logger.info(f"✅ Lesson order {order}: Valid ({len(eligible_cards)} cards need diagrams)")
+                logger.info(f"✅ Lesson order {order}: Valid ({len(eligible_cards)} cards need diagrams)")
 
         except Exception as e:
             logger.error(f"❌ Lesson order {order}: Validation failed with exception: {e}")
@@ -255,3 +271,86 @@ def validate_lesson_template_structure(template: Dict[str, Any]) -> ValidationRe
             warnings=[],
             eligible_cards_count=0
         )
+
+
+def validate_diagram_output_schema(diagram: Dict[str, Any], card_id: str) -> tuple[bool, List[str]]:
+    """Validate diagram output has all required fields.
+
+    Validates that a diagram object from diagrams_output.json contains all required fields
+    for Appwrite upsert. This prevents KeyErrors during batch processing.
+
+    Required fields:
+    - lessonTemplateId: Lesson template identifier
+    - cardId: Card identifier (e.g., "card_001")
+    - jsxgraph_json: JSXGraph board definition (CRITICAL - enables interactive rendering)
+    - image_path: Path to PNG file in workspace
+    - diagram_type: Type of diagram (lesson/cfu)
+    - diagram_context: Context string from card
+
+    Optional fields (logged as warnings if missing):
+    - diagram_description: AI-generated description
+    - visual_critique_score: Quality score from visual critique
+    - critique_iterations: Number of critique iterations
+    - critique_feedback: Feedback from visual critique
+
+    Args:
+        diagram: Diagram object from diagrams_output.json
+        card_id: Card identifier for error messages
+
+    Returns:
+        (is_valid, errors): Tuple of validation result and error messages
+
+    Example:
+        >>> diagram = {"cardId": "card_001", "jsxgraph_json": "{...}", ...}
+        >>> is_valid, errors = validate_diagram_output_schema(diagram, "card_001")
+        >>> if not is_valid:
+        ...     raise ValueError(f"Validation failed: {errors}")
+    """
+    errors = []
+
+    # Critical required fields - missing these means agent didn't follow prompt
+    required_fields = [
+        "lessonTemplateId",
+        "cardId",
+        "jsxgraph_json",  # MOST CRITICAL - enables interactive diagrams
+        "image_path",
+        "diagram_type",
+        "diagram_context"
+    ]
+
+    # Check for missing or empty required fields
+    for field in required_fields:
+        if field not in diagram:
+            errors.append(f"Missing required field: {field}")
+        elif not diagram[field]:  # Empty string, None, empty list/dict
+            errors.append(f"Required field is empty: {field}")
+
+    # Validate jsxgraph_json is valid JSON (if present)
+    if "jsxgraph_json" in diagram and diagram["jsxgraph_json"]:
+        try:
+            jsxgraph_data = diagram["jsxgraph_json"]
+            # Parse if it's a string, or validate if it's already an object
+            if isinstance(jsxgraph_data, str):
+                json.loads(jsxgraph_data)
+            elif not isinstance(jsxgraph_data, (dict, list)):
+                errors.append(f"jsxgraph_json must be JSON string or object, got: {type(jsxgraph_data).__name__}")
+        except json.JSONDecodeError as e:
+            errors.append(f"jsxgraph_json is not valid JSON: {str(e)[:100]}")
+
+    # Optional fields - warn but don't fail if missing
+    optional_fields = [
+        "diagram_description",
+        "visual_critique_score",
+        "critique_iterations",
+        "critique_feedback"
+    ]
+
+    warnings = []
+    for field in optional_fields:
+        if field not in diagram or not diagram[field]:
+            warnings.append(f"Optional field missing: {field}")
+
+    if warnings:
+        logger.debug(f"Card {card_id}: {len(warnings)} optional fields missing")
+
+    return (len(errors) == 0, errors)

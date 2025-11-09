@@ -273,6 +273,7 @@ export default function LessonCardEditorPage({ params }: PageProps) {
               card={card}
               index={index}
               totalCards={cards.length}
+              lessonTemplateId={templateId}
               onSave={(updatedCard) => handleCardUpdate(index, updatedCard)}
               onDelete={() => handleCardDelete(index)}
               onMoveUp={() => handleCardMoveUp(index)}
