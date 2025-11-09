@@ -146,7 +146,7 @@ export interface LessonTemplate {
   cards: string; // JSON string (or compressed base64)
   version: number;
   sow_order: number;
-  status: 'draft' | 'review' | 'published';
+  status: 'draft' | 'published';
   createdBy: string;
   estMinutes: number;
 

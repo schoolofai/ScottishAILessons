@@ -10,8 +10,11 @@ import { getCourseProgress } from "@/lib/services/progress-service";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen, GraduationCap } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp } from "lucide-react";
 import { DashboardSkeleton } from "../ui/LoadingSkeleton";
+import { CourseCard } from "../courses/CourseCard";
+import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
+import { toast } from "sonner";
 import {
   type Course,
   type Session,
@@ -46,6 +49,10 @@ export function EnhancedStudentDashboard() {
   const [courseProgress, setCourseProgress] = useState<any>(null);
   const [progressLoading, setProgressLoading] = useState(false);
   const [startingLessonId, setStartingLessonId] = useState<string | null>(null);
+
+  // Archived courses state
+  const [archivedCourses, setArchivedCourses] = useState<Course[]>([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     initializeStudent();
@@ -150,24 +157,44 @@ export function EnhancedStudentDashboard() {
 
       const { Query } = await import('appwrite');
 
-      // 1. Get student's enrollments
-      const enrollmentsResult = await databases.listDocuments(
+      // 1. Get ALL enrollments (backward compatible)
+      const allEnrollmentsResult = await databases.listDocuments(
         'default',
         'enrollments',
         [Query.equal('studentId', student.$id)]
       );
 
-      // 2. Check if student has any enrollments
-      if (enrollmentsResult.documents.length === 0) {
-        // NO ENROLLMENTS - Redirect to course catalog
-        console.log('[Dashboard] No enrollments found, redirecting to catalog');
-        // TODO: router.push('/courses/catalog') when catalog page exists
-        setCoursesError('No enrollments found. Please enroll in a course to get started.');
+      // 2. Separate active and archived enrollments (handle missing status field)
+      const activeEnrollments = allEnrollmentsResult.documents.filter((e: any) => {
+        // Treat missing status field as 'active' for backward compatibility
+        return !e.status || e.status === 'active';
+      });
+
+      const archivedEnrollments = allEnrollmentsResult.documents.filter((e: any) => {
+        return e.status === 'archived';
+      });
+
+      console.log('[Dashboard] Enrollment breakdown:', {
+        total: allEnrollmentsResult.documents.length,
+        active: activeEnrollments.length,
+        archived: archivedEnrollments.length
+      });
+
+      // 3. Check if student has any ACTIVE enrollments
+      if (activeEnrollments.length === 0) {
+        // NO ACTIVE ENROLLMENTS - Show appropriate message
+        console.log('[Dashboard] No active enrollments found');
+        setCoursesError('No active enrollments found. Please enroll in a course to get started.');
+
+        // Still load archived courses if they exist
+        if (archivedEnrollments.length > 0) {
+          await loadArchivedCourses(archivedEnrollments, databases);
+        }
         return;
       }
 
-      // 3. Get enrolled course IDs
-      const enrolledCourseIds = enrollmentsResult.documents.map((e: any) => e.courseId);
+      // 4. Get ACTIVE enrolled course IDs
+      const enrolledCourseIds = activeEnrollments.map((e: any) => e.courseId);
 
       // 4. Fetch only enrolled courses
       const coursesResult = await databases.listDocuments(
@@ -184,11 +211,17 @@ export function EnhancedStudentDashboard() {
       setCourseData(transformedCourses);
 
       console.log('[Dashboard] Loaded enrolled courses:', {
-        enrollmentCount: enrollmentsResult.documents.length,
+        activeEnrollmentCount: activeEnrollments.length,
+        archivedEnrollmentCount: archivedEnrollments.length,
         courseCount: transformedCourses.length
       });
 
-      // 6. Set initial active course
+      // 6. Load archived courses separately
+      if (archivedEnrollments.length > 0) {
+        await loadArchivedCourses(archivedEnrollments, databases);
+      }
+
+      // 7. Set initial active course
       if (transformedCourses.length > 0 && !activeCourse) {
         const firstCourse = transformedCourses[0];
         setActiveCourse(firstCourse.id);
@@ -200,6 +233,57 @@ export function EnhancedStudentDashboard() {
       setCoursesError(formatErrorMessage(err));
     } finally {
       setCoursesLoading(false);
+    }
+  };
+
+  // Load archived courses (helper function)
+  const loadArchivedCourses = async (archivedEnrollments: any[], databases: any) => {
+    try {
+      if (archivedEnrollments.length === 0) {
+        setArchivedCourses([]);
+        return;
+      }
+
+      const { Query } = await import('appwrite');
+      const archivedCourseIds = archivedEnrollments.map((e: any) => e.courseId);
+
+      const coursesResult = await databases.listDocuments(
+        'default',
+        'courses',
+        [Query.equal('courseId', archivedCourseIds)]
+      );
+
+      setArchivedCourses(coursesResult.documents);
+      console.log('[Dashboard] Loaded archived courses:', coursesResult.documents.length);
+    } catch (err) {
+      console.error('[Dashboard] Failed to load archived courses:', err);
+    }
+  };
+
+  // Handle re-enrollment from archived courses
+  const handleReenroll = async (courseId: string, courseName: string) => {
+    if (!student) {
+      toast.error('Student data not available');
+      return;
+    }
+
+    try {
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const databases = new Databases(client);
+
+      // Re-enroll (will reactivate archived enrollment)
+      await enrollStudentInCourse(student.$id, courseId, databases);
+
+      // Reload courses to update the UI
+      await loadCoursesClientSide(databases, student);
+
+      toast.success(`Welcome back! Your progress in ${courseName} has been restored.`);
+    } catch (error) {
+      console.error('Failed to re-enroll:', error);
+      toast.error('Failed to re-enroll in course. Please try again.');
+      throw error; // Fast fail, no fallback
     }
   };
 
@@ -789,6 +873,50 @@ export function EnhancedStudentDashboard() {
               variant="sidebar"
             />
           </div>
+        </div>
+      )}
+
+      {/* Archived Courses Section */}
+      {archivedCourses.length > 0 && (
+        <div className="mt-8" data-testid="archived-courses-section">
+          <Button
+            variant="ghost"
+            onClick={() => setShowArchived(!showArchived)}
+            className="mb-4 w-full sm:w-auto flex items-center justify-between sm:justify-start gap-2 hover:bg-gray-100"
+          >
+            <div className="flex items-center gap-2">
+              <Archive className="h-4 w-4 text-gray-600" />
+              <span className="font-semibold text-gray-700">
+                Archived Courses ({archivedCourses.length})
+              </span>
+            </div>
+            {showArchived ? (
+              <ChevronUp className="h-4 w-4 text-gray-600" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-gray-600" />
+            )}
+          </Button>
+
+          {showArchived && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 opacity-75">
+              {archivedCourses.map((course: any) => (
+                <CourseCard
+                  key={course.courseId}
+                  course={course}
+                  enrollmentStatus="archived"
+                  onClick={() => router.push(`/courses/${course.courseId}`)}
+                  onEnroll={() => handleReenroll(course.courseId, course.subject)}
+                  onUnenroll={() => {}}
+                />
+              ))}
+            </div>
+          )}
+
+          {showArchived && archivedCourses.length > 0 && (
+            <p className="text-sm text-gray-500 mt-4 text-center">
+              Archived courses preserve all your progress. Click "Re-enroll" to restore a course to your active list.
+            </p>
+          )}
         </div>
       )}
     </div>

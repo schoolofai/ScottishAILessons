@@ -11,24 +11,30 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, AlertCircle, Edit } from 'lucide-react';
+import { ChevronDown, AlertCircle, Edit, Upload, Archive } from 'lucide-react';
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { toast } from 'sonner';
 import type { LessonTemplate } from '@/lib/appwrite/types';
 
 interface LessonTemplateCardProps {
   template: LessonTemplate;
   onPublish?: () => void;
+  onUnpublish?: () => void;
 }
 
 /**
  * LessonTemplateCard displays a single lesson template with expandable details
- * Shows JSON and markdown preview, allows publishing
+ * Shows JSON and markdown preview, allows publishing and unpublishing
  */
-export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardProps) {
+export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonTemplateCardProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<'json' | 'markdown'>('json');
   const [publishing, setPublishing] = useState(false);
+  const [unpublishing, setUnpublishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
 
   // Decompress cards for display
   let decompressedCards = [];
@@ -46,28 +52,49 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
 
   const markdown = jsonToMarkdown(templateData);
 
-  async function handlePublish(event: React.MouseEvent) {
-    event.stopPropagation();
-
-    if (!confirm('Publish this lesson template? This action cannot be undone.')) {
-      return;
-    }
-
+  async function handlePublishConfirm() {
     try {
       setPublishing(true);
       setError(null);
       const driver = new LessonDriver();
       await driver.publishTemplate(template.$id);
 
+      toast.success('Lesson published successfully!');
       // Refresh parent component
       onPublish?.();
+      setShowPublishConfirm(false);
       setIsOpen(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to publish template';
       setError(message);
+      toast.error(message);
       console.error('[LessonTemplateCard] Error publishing:', err);
+      throw err; // Fast fail
     } finally {
       setPublishing(false);
+    }
+  }
+
+  async function handleUnpublishConfirm() {
+    try {
+      setUnpublishing(true);
+      setError(null);
+      const driver = new LessonDriver();
+      await driver.unpublishTemplate(template.$id);
+
+      toast.success('Lesson unpublished successfully!');
+      // Refresh parent component
+      onUnpublish?.();
+      setShowUnpublishConfirm(false);
+      setIsOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to unpublish template';
+      setError(message);
+      toast.error(message);
+      console.error('[LessonTemplateCard] Error unpublishing:', err);
+      throw err; // Fast fail
+    } finally {
+      setUnpublishing(false);
     }
   }
 
@@ -75,8 +102,6 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
     switch (status) {
       case 'published':
         return 'default';
-      case 'review':
-        return 'secondary';
       default:
         return 'outline';
     }
@@ -104,7 +129,7 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
             </div>
           </CollapsibleTrigger>
 
-          {/* Status Badge, Edit Cards, and Publish Button (Outside Trigger) */}
+          {/* Status Badge, Edit Cards, and Publish/Unpublish Button (Outside Trigger) */}
           <div className="flex gap-2 items-center flex-shrink-0 ml-4">
             <Badge variant={getStatusVariant(template.status)}>{template.status}</Badge>
 
@@ -120,13 +145,30 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
               Edit Cards
             </Button>
 
-            {template.status !== 'published' && (
+            {template.status !== 'published' ? (
               <Button
                 size="sm"
-                onClick={handlePublish}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPublishConfirm(true);
+                }}
                 disabled={publishing}
               >
+                <Upload className="h-4 w-4 mr-2" />
                 {publishing ? 'Publishing...' : 'Publish'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowUnpublishConfirm(true);
+                }}
+                disabled={unpublishing}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                {unpublishing ? 'Unpublishing...' : 'Unpublish'}
               </Button>
             )}
           </div>
@@ -169,6 +211,32 @@ export function LessonTemplateCard({ template, onPublish }: LessonTemplateCardPr
           </div>
         </CollapsibleContent>
       </div>
+
+      {/* Publish Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showPublishConfirm}
+        title="Publish Lesson?"
+        message={`This will publish "${template.title}" and make it visible to students in the course.`}
+        confirmText="Publish"
+        cancelText="Cancel"
+        variant="default"
+        onConfirm={handlePublishConfirm}
+        onCancel={() => setShowPublishConfirm(false)}
+        icon={<Upload className="h-5 w-5 text-green-600" />}
+      />
+
+      {/* Unpublish Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showUnpublishConfirm}
+        title="Unpublish Lesson?"
+        message={`This will unpublish "${template.title}" and revert it to draft status. Students will no longer see this lesson in the course.`}
+        confirmText="Unpublish"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleUnpublishConfirm}
+        onCancel={() => setShowUnpublishConfirm(false)}
+        icon={<Archive className="h-5 w-5 text-amber-600" />}
+      />
     </Collapsible>
   );
 }

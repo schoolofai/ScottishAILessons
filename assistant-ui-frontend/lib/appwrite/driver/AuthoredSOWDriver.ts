@@ -194,8 +194,29 @@ export class AuthoredSOWDriver extends BaseDriver {
 
     try {
       await this.update<AuthoredSOW>(this.COLLECTION_ID, sowId, { status: 'published' });
+      console.info(`✅ SOW ${sowId} published successfully`);
     } catch (error) {
+      console.error(`❌ Failed to publish SOW ${sowId}:`, error);
       throw this.handleError(error, `publish SOW ${sowId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Unpublish a specific SOW
+   * Reverts SOW status from published to draft
+   * FAST FAIL: Throws error immediately if operation fails
+   */
+  async unpublishSOW(sowId: string): Promise<void> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required for unpublishing');
+    }
+
+    try {
+      await this.update<AuthoredSOW>(this.COLLECTION_ID, sowId, { status: 'draft' });
+      console.info(`✅ SOW ${sowId} unpublished successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to unpublish SOW ${sowId}:`, error);
+      throw this.handleError(error, `unpublish SOW ${sowId}`);
     }
   }
 }

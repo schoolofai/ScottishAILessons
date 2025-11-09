@@ -29,7 +29,12 @@ export interface Enrollment {
   courseId: string;
   role: string;
   enrolledAt: string;
+  status?: 'active' | 'archived';  // Optional for backward compatibility
+  archivedAt?: string;
+  archiveReason?: string;
 }
+
+export type EnrollmentStatus = 'active' | 'archived' | null;
 
 export interface SOWV2 {
   $id: string;
@@ -55,7 +60,14 @@ export interface MasteryV2 {
 
 export class EnrollmentError extends Error {
   constructor(
-    public code: 'DUPLICATE_ENROLLMENT' | 'NO_AUTHORED_SOW' | 'DATABASE_ERROR' | 'INVALID_COURSE',
+    public code:
+      | 'DUPLICATE_ENROLLMENT'
+      | 'NO_AUTHORED_SOW'
+      | 'DATABASE_ERROR'
+      | 'INVALID_COURSE'
+      | 'ENROLLMENT_NOT_FOUND'
+      | 'ARCHIVED_ENROLLMENT_NOT_FOUND'
+      | 'ALREADY_ARCHIVED',
     message: string,
     public details?: any,
     public userMessage?: string  // User-friendly message override
@@ -84,6 +96,12 @@ export class EnrollmentError extends Error {
         return 'This course is not available for enrollment at this time. Please contact support if you believe this is an error.';
       case 'DATABASE_ERROR':
         return 'We encountered a technical issue while processing your enrollment. Please try again in a few moments.';
+      case 'ENROLLMENT_NOT_FOUND':
+        return 'No active enrollment found for this course. Please enroll first to access course content.';
+      case 'ARCHIVED_ENROLLMENT_NOT_FOUND':
+        return 'No archived enrollment found. You may need to enroll in this course.';
+      case 'ALREADY_ARCHIVED':
+        return 'This enrollment is already archived.';
       default:
         return 'An unexpected error occurred during enrollment. Please contact support if this persists.';
     }
@@ -113,15 +131,68 @@ export async function enrollStudentInCourse(
 ): Promise<EnrollmentResult> {
   console.log('[Enrollment Service] Starting enrollment:', { studentId, courseId });
 
-  // 1. Check for existing enrollment (fast-fail)
-  const existingEnrollment = await checkEnrollmentExists(studentId, courseId, databases);
-  if (existingEnrollment) {
+  // 1. Check enrollment status
+  const enrollmentStatus = await getEnrollmentStatus(studentId, courseId, databases);
+
+  // If active enrollment exists, throw error
+  if (enrollmentStatus === 'active') {
     throw new EnrollmentError(
       'DUPLICATE_ENROLLMENT',
       `Student ${studentId} is already enrolled in course ${courseId}`
     );
   }
 
+  // If archived enrollment exists, reactivate it
+  if (enrollmentStatus === 'archived') {
+    console.log('[Enrollment Service] Found archived enrollment, reactivating...');
+    await reactivateEnrollment(studentId, courseId, databases);
+
+    // Fetch and return existing records
+    const enrollment = await databases.listDocuments(
+      'default',
+      'enrollments',
+      [
+        Query.equal('studentId', studentId),
+        Query.equal('courseId', courseId),
+        Query.equal('status', 'active')
+      ]
+    );
+
+    const sowv2 = await databases.listDocuments(
+      'default',
+      'SOWV2',
+      [
+        Query.equal('studentId', studentId),
+        Query.equal('courseId', courseId)
+      ]
+    );
+
+    const masteryv2 = await databases.listDocuments(
+      'default',
+      'MasteryV2',
+      [
+        Query.equal('studentId', studentId),
+        Query.equal('courseId', courseId)
+      ]
+    );
+
+    // Get the source Authored_SOW for verification
+    const authoredSOW = await databases.getDocument(
+      'default',
+      'Authored_SOW',
+      sowv2.documents[0].source_authored_sow_id
+    );
+
+    console.log('[Enrollment Service] Reactivated with existing progress');
+    return {
+      enrollment: enrollment.documents[0],
+      sowv2: sowv2.documents[0],
+      masteryv2: masteryv2.documents[0],
+      authoredSOW
+    };
+  }
+
+  // No existing enrollment, proceed with normal enrollment flow
   let enrollmentId: string | null = null;
   let sowv2Id: string | null = null;
 
@@ -196,7 +267,8 @@ export async function enrollStudentInCourse(
 // ============================================================================
 
 /**
- * Checks if student is already enrolled in course.
+ * Checks if student has an ACTIVE enrollment in course.
+ * Archived enrollments are not considered active.
  */
 export async function checkEnrollmentExists(
   studentId: string,
@@ -208,7 +280,8 @@ export async function checkEnrollmentExists(
     'enrollments',
     [
       Query.equal('studentId', studentId),
-      Query.equal('courseId', courseId)
+      Query.equal('courseId', courseId),
+      Query.equal('status', 'active')  // Only check active enrollments
     ]
   );
 
@@ -348,6 +421,141 @@ async function getUserIdFromStudentId(
 ): Promise<string> {
   const student = await databases.getDocument('default', 'students', studentId);
   return student.userId;
+}
+
+// ============================================================================
+// Enrollment Status & Archive Functions
+// ============================================================================
+
+/**
+ * Gets the enrollment status for a student in a course.
+ * Returns 'active', 'archived', or null if no enrollment exists.
+ */
+export async function getEnrollmentStatus(
+  studentId: string,
+  courseId: string,
+  databases: Databases
+): Promise<EnrollmentStatus> {
+  const result = await databases.listDocuments(
+    'default',
+    'enrollments',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId)
+    ]
+  );
+
+  if (result.documents.length === 0) {
+    return null;
+  }
+
+  // Return status, defaulting to 'active' for backward compatibility
+  const enrollment = result.documents[0] as Enrollment;
+  return enrollment.status || 'active';
+}
+
+/**
+ * Archives an enrollment (non-destructive).
+ * Preserves SOWV2, MasteryV2, and Sessions for potential re-enrollment.
+ *
+ * @throws {EnrollmentError} ENROLLMENT_NOT_FOUND if no active enrollment exists
+ */
+export async function archiveEnrollment(
+  studentId: string,
+  courseId: string,
+  databases: Databases,
+  reason: string = 'user_requested'
+): Promise<void> {
+  console.log('[Enrollment Service] Archiving enrollment:', { studentId, courseId, reason });
+
+  // Find enrollment (backward compatible - don't filter by status initially)
+  const enrollments = await databases.listDocuments(
+    'default',
+    'enrollments',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId)
+    ]
+  );
+
+  if (enrollments.documents.length === 0) {
+    throw new EnrollmentError(
+      'ENROLLMENT_NOT_FOUND',
+      `No enrollment found for student ${studentId} in course ${courseId}`
+    );
+  }
+
+  const enrollment = enrollments.documents[0] as any;
+
+  // Check if already archived
+  if (enrollment.status === 'archived') {
+    throw new EnrollmentError(
+      'ALREADY_ARCHIVED',
+      `Enrollment for student ${studentId} in course ${courseId} is already archived`
+    );
+  }
+
+  // Update status to archived (handles both old records without status and active records)
+  await databases.updateDocument(
+    'default',
+    'enrollments',
+    enrollment.$id,
+    {
+      status: 'archived',
+      archivedAt: new Date().toISOString(),
+      archiveReason: reason
+    }
+  );
+
+  console.log('[Enrollment Service] Enrollment archived successfully');
+  // IMPORTANT: Do NOT delete SOWV2, MasteryV2, or Sessions
+  // Progress is preserved for potential re-enrollment
+}
+
+/**
+ * Reactivates an archived enrollment, restoring student's previous progress.
+ *
+ * @throws {EnrollmentError} ARCHIVED_ENROLLMENT_NOT_FOUND if no archived enrollment exists
+ */
+export async function reactivateEnrollment(
+  studentId: string,
+  courseId: string,
+  databases: Databases
+): Promise<void> {
+  console.log('[Enrollment Service] Reactivating enrollment:', { studentId, courseId });
+
+  // Find archived enrollment
+  const enrollments = await databases.listDocuments(
+    'default',
+    'enrollments',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId),
+      Query.equal('status', 'archived')
+    ]
+  );
+
+  if (enrollments.documents.length === 0) {
+    throw new EnrollmentError(
+      'ARCHIVED_ENROLLMENT_NOT_FOUND',
+      `No archived enrollment found for student ${studentId} in course ${courseId}`
+    );
+  }
+
+  // Reactivate enrollment
+  await databases.updateDocument(
+    'default',
+    'enrollments',
+    enrollments.documents[0].$id,
+    {
+      status: 'active',
+      archivedAt: null,
+      archiveReason: null
+    }
+  );
+
+  console.log('[Enrollment Service] Enrollment reactivated successfully');
+  // Progress automatically restored (SOWV2, MasteryV2 never deleted)
 }
 
 // ============================================================================
