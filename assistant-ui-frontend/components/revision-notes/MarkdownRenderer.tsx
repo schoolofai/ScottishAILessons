@@ -78,7 +78,7 @@ export function MarkdownRenderer({
   try {
     return (
       <div
-        className={`markdown-renderer prose prose-slate max-w-none dark:prose-invert ${className}`}
+        className={`markdown-renderer prose prose-lg prose-slate max-w-none dark:prose-invert prose-headings:mb-4 prose-headings:mt-8 prose-p:my-4 prose-p:leading-relaxed prose-li:my-2 prose-table:my-6 prose-hr:my-8 ${className}`}
         style={{ maxWidth: maxWidth }}
       >
         {renderError ? (
@@ -104,8 +104,8 @@ export function MarkdownRenderer({
 
                 if (!inline && supportsSyntaxHighlighting) {
                   return (
-                    <pre className={`bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto ${className}`}>
-                      <code className={`language-${language}`} {...props}>
+                    <pre className={`bg-gray-100 dark:bg-gray-800 p-6 rounded-md overflow-x-auto my-6 ${className}`}>
+                      <code className={`language-${language} text-sm leading-relaxed`} {...props}>
                         {children}
                       </code>
                     </pre>
@@ -113,20 +113,73 @@ export function MarkdownRenderer({
                 }
 
                 return (
-                  <code className={`bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded ${className}`} {...props}>
+                  <code className={`bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm ${className}`} {...props}>
                     {children}
                   </code>
                 );
               },
 
-              // Mobile-responsive table styling
+              // List styling with better spacing
+              ul({ children, ...props }) {
+                return (
+                  <ul className="space-y-2 my-4" {...props}>
+                    {children}
+                  </ul>
+                );
+              },
+
+              ol({ children, ...props }) {
+                return (
+                  <ol className="space-y-2 my-4" {...props}>
+                    {children}
+                  </ol>
+                );
+              },
+
+              // Blockquote styling with better spacing
+              blockquote({ children, ...props }) {
+                return (
+                  <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-6 py-2 my-6 italic text-gray-700 dark:text-gray-300" {...props}>
+                    {children}
+                  </blockquote>
+                );
+              },
+
+              // Mobile-responsive table styling with better spacing
               table({ children, ...props }) {
                 return (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-300" {...props}>
+                  <div className="overflow-x-auto my-6">
+                    <table className="min-w-full divide-y divide-gray-300 border-collapse" {...props}>
                       {children}
                     </table>
                   </div>
+                );
+              },
+
+              // Table header styling
+              thead({ children, ...props }) {
+                return (
+                  <thead className="bg-gray-100 dark:bg-gray-800" {...props}>
+                    {children}
+                  </thead>
+                );
+              },
+
+              // Table header cell styling
+              th({ children, ...props }) {
+                return (
+                  <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 dark:text-gray-100" {...props}>
+                    {children}
+                  </th>
+                );
+              },
+
+              // Table body cell styling
+              td({ children, ...props }) {
+                return (
+                  <td className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300 border-t border-gray-200 dark:border-gray-700" {...props}>
+                    {children}
+                  </td>
                 );
               },
 
