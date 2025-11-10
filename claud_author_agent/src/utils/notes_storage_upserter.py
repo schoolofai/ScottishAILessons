@@ -425,8 +425,8 @@ async def upsert_all_revision_notes(
     results = {
         "course_id": course_id,
         "execution_id": execution_id,
-        "cheat_sheet": None,
-        "lesson_notes": [],
+        "cheat_sheet": {},  # Will be populated with {document_id, file_id}
+        "lesson_notes": [],  # Will be populated with [{lesson_order, document_id, file_id}, ...]
         "success": True,
         "errors": []
     }
@@ -450,7 +450,11 @@ async def upsert_all_revision_notes(
                 force=force,
                 **metadata
             )
-            results["cheat_sheet"] = cheat_sheet_doc["$id"]
+            # Return structured data for print_results compatibility
+            results["cheat_sheet"] = {
+                "document_id": cheat_sheet_doc["$id"],
+                "file_id": cheat_sheet_doc.get("markdownFileId", "N/A")
+            }
             logger.info(f"✓ Uploaded course cheat sheet")
         except Exception as e:
             error_msg = f"Failed to upload cheat sheet: {e}"
@@ -482,7 +486,12 @@ async def upsert_all_revision_notes(
                 force=force,
                 **metadata
             )
-            results["lesson_notes"].append(lesson_doc["$id"])
+            # Return structured data for print_results compatibility
+            results["lesson_notes"].append({
+                "lesson_order": lesson_num,
+                "document_id": lesson_doc["$id"],
+                "file_id": lesson_doc.get("markdownFileId", "N/A")
+            })
             logger.info(f"  ✓ Uploaded lesson note {lesson_num}")
         except Exception as e:
             error_msg = f"Failed to upload lesson {lesson_num}: {e}"
