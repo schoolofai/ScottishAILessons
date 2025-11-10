@@ -181,32 +181,40 @@ async def list_appwrite_documents(
         query_objects = []
         if queries:
             for query_str in queries:
-                # Parse query string like 'equal("subject", "mathematics")' or 'equal("sow_order", 1)'
-                # This parser handles both string and numeric values
+                # Parse query string like:
+                # - 'equal("subject", "mathematics")'
+                # - 'equal("sow_order", 1)'
+                # - 'equal("lessonTemplateId", ["id1", "id2", ...])'  # NEW: JSON array support
                 if 'equal(' in query_str:
                     # Extract field and value
-                    parts = query_str.replace('equal(', '').replace(')', '').split(',')
+                    # Split only on FIRST comma to handle arrays with commas
+                    content = query_str.replace('equal(', '').replace(')', '')
+                    parts = content.split(',', 1)  # Split on first comma only
                     if len(parts) == 2:
                         # Strip both double and single quotes from field name
                         field = parts[0].strip().strip('"').strip("'")
                         value_str = parts[1].strip()
 
+                        # Check if value is a JSON array
+                        if value_str.startswith('['):
+                            # Parse JSON array (e.g., ["id1", "id2", "id3"])
+                            value = json.loads(value_str)
                         # Detect if value is quoted (string) or unquoted (numeric)
-                        # Handle both double and single quotes
-                        if (value_str.startswith('"') and value_str.endswith('"')) or \
-                           (value_str.startswith("'") and value_str.endswith("'")):
-                            value = value_str.strip('"').strip("'")  # String value
+                        elif (value_str.startswith('"') and value_str.endswith('"')) or \
+                             (value_str.startswith("'") and value_str.endswith("'")):
+                            value = [value_str.strip('"').strip("'")]  # String value in list
                         else:
                             # Try to parse as numeric (int first, then float)
                             try:
-                                value = int(value_str)
+                                value = [int(value_str)]
                             except ValueError:
                                 try:
-                                    value = float(value_str)
+                                    value = [float(value_str)]
                                 except ValueError:
-                                    value = value_str  # Keep as string if not numeric
+                                    value = [value_str]  # Keep as string in list
 
-                        query_objects.append(Query.equal(field, [value]))
+                        # Query.equal() expects value to be a list
+                        query_objects.append(Query.equal(field, value))
 
         # List documents
         try:
@@ -500,3 +508,21 @@ async def delete_appwrite_document(
     except Exception as e:
         logger.error(f"Failed to delete document: {e}")
         raise
+
+
+# ========================================================================
+# Infrastructure Management - Re-exported from appwrite_infrastructure.py
+# ========================================================================
+# Import infrastructure functions from separate module to maintain <500 line limit
+
+from .appwrite_infrastructure import (
+    create_appwrite_collection,
+    create_appwrite_string_attribute,
+    create_appwrite_integer_attribute,
+    create_appwrite_float_attribute,
+    create_appwrite_datetime_attribute,
+    create_appwrite_enum_attribute,
+    create_appwrite_index,
+    create_appwrite_bucket,
+    upload_to_appwrite_storage
+)

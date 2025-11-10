@@ -183,6 +183,53 @@ Multi-stage lesson authoring with research, authoring, and critique
 The `/workspace/` path is mapped to: `{self.root}`
 """
 
+        elif self.workspace_type == "notes_author":
+            return f"""# Revision Notes Author Workspace - Execution {self.execution_id}
+
+## Purpose
+Generate Cornell-method revision notes from published SOW and lesson templates
+
+## Workspace Structure
+
+### Input Directory: `inputs/`
+- `course_metadata.json` - Course information (title, subject, level)
+- `sow_entry.json` - Published SOW with lesson topics and outcomes
+- `lesson_templates/` - Directory containing all lesson template JSON files
+  - `lesson_01.json`
+  - `lesson_02.json`
+  - ... (one per lesson)
+
+### Output Directory: `outputs/`
+- `course_cheat_sheet.md` - High-level course summary (Cornell method)
+- `lesson_notes_01.md` - Per-lesson revision notes
+- `lesson_notes_02.md` - Per-lesson revision notes
+- ... (one per lesson)
+
+## Notes Generation Pipeline
+
+1. **Pre-processing** → Python utilities extract course data, SOW, lesson templates
+2. **Notes Author Subagent** → Generates all markdown files using Cornell method
+3. **Validation** → Confirms all expected files exist (1 cheat sheet + N lesson notes)
+4. **Upload** → Markdown files uploaded to Storage, metadata to database
+
+## Cornell Method Structure
+
+Each note contains:
+- **Cues** - Key questions/prompts (left column)
+- **Notes** - Main content with examples (right column)
+- **Summary** - Bottom section synthesizing key points
+
+## Spaced Repetition Schedule
+
+Generated notes include review schedule:
+- Day 2 (initial reinforcement)
+- Day 5 (short-term consolidation)
+- Week 2 (medium-term retention)
+- Month 1 (long-term mastery)
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
         else:
             # Generic fallback for unknown workspace types
             return f"""# Agent Workspace - Execution {self.execution_id}

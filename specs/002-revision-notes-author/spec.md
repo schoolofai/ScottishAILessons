@@ -60,7 +60,7 @@ The system administrator or automated workflow needs to execute the revision not
 
 ### Edge Cases
 
-- **What happens when a course has no lesson diagrams?** The system MUST throw an exception with clear guidance indicating which lessons are missing diagrams (fast-fail principle).
+- **What happens when a course has no lesson diagrams?** lesson daigrams are optional - so please generate without any digarams - feel free to use ascii art for daigrams or generate mermaid diagrams , use markdown component that can render mermaid daigrams - the agent critic should render and validate any visuals using visual screenshots.
 - **What happens when a lesson template is missing content for a specific card type (e.g., no worked examples)?** The agent SHOULD generate notes for available cards only and document the gap in a "Notes Coverage" section.
 - **How does the system handle very large courses (e.g., 25+ lessons)?** The course cheat sheet MUST use hierarchical structuring (unit groupings) to maintain readability and avoid exceeding markdown file size limits.
 - **What happens if SOW status is "draft" instead of "published"?** The system MUST throw a validation exception requiring published SOW status before proceeding (consistent with lesson author behavior).
@@ -91,18 +91,19 @@ The system administrator or automated workflow needs to execute the revision not
 - **FR-017**: Notes MUST incorporate pedagogical note-taking methods (e.g., Cornell Method headers, spaced repetition cues, concept mapping indicators).
 - **FR-018**: System MUST incorporate lesson diagram content into notes using textual descriptions when diagrams are of type "lesson" or "cfu_diagram".
 - **FR-019**: Post-processing MUST upsert all generated markdown files to a new Appwrite collection named revision_notes in the default database.
-- **FR-020**: Each revision note document MUST include metadata: courseId, noteType (cheat_sheet or lesson_note), lessonOrder (null for cheat sheets, order number for lesson notes), status (draft or published), execution_id.
-- **FR-021**: Revision notes MUST be stored with markdown content in a field called content_markdown (using compression similar to lesson_templates if content exceeds 10KB).
-- **FR-022**: System MUST support versioning for revision notes (tracking updates when SOW or lessons are modified).
-- **FR-023**: System MUST log detailed execution metrics: token usage, cost per subagent, total execution time.
-- **FR-024**: System MUST provide a CLI interface matching the pattern of sow_author_cli.py and lesson_author_cli.py (--courseId, --mcp-config, --persist-workspace, --log-level flags).
-- **FR-025**: System MUST persist workspace files when persist_workspace=True for debugging purposes.
+- **FR-020**: Each revision note document MUST include metadata: courseId, noteType (cheat_sheet or lesson_note), lessonOrder (null for cheat sheets, order number for lesson notes), status (draft or published), execution_id, markdown_file_id (Appwrite Storage file reference).
+- **FR-021**: System MUST upload markdown content to Appwrite Storage bucket named "documents" and store the returned file ID in the revision note document's markdown_file_id field.
+- **FR-022**: System MUST create the "documents" storage bucket in Appwrite as a one-time setup step using Appwrite MCP (if bucket does not already exist).
+- **FR-023**: System MUST support versioning for revision notes (tracking updates when SOW or lessons are modified).
+- **FR-024**: System MUST log detailed execution metrics: token usage, cost per subagent, total execution time.
+- **FR-025**: System MUST provide a CLI interface matching the pattern of sow_author_cli.py and lesson_author_cli.py (--courseId, --mcp-config, --persist-workspace, --log-level flags).
+- **FR-026**: System MUST persist workspace files when persist_workspace=True for debugging purposes.
 
 ### Key Entities
 
 - **RevisionNote**: Represents a generated revision note document stored in Appwrite.
-  - Attributes: courseId (string), noteType (enum: cheat_sheet | lesson_note), lessonOrder (integer, nullable), status (enum: draft | published), execution_id (string), content_markdown (string/compressed), created_at (datetime), updated_at (datetime)
-  - Relationships: Associated with a single Course via courseId; lesson notes reference a specific lesson via lessonOrder
+  - Attributes: courseId (string), noteType (enum: cheat_sheet | lesson_note), lessonOrder (integer, nullable), status (enum: draft | published), execution_id (string), markdown_file_id (string, Appwrite Storage file reference), created_at (datetime), updated_at (datetime)
+  - Relationships: Associated with a single Course via courseId; lesson notes reference a specific lesson via lessonOrder; markdown content stored in Appwrite Storage "documents" bucket
 
 - **NotesGenerationWorkspace**: Represents the isolated filesystem workspace created during execution.
   - Attributes: workspace_path (directory path), execution_id (string), input files (Authored_SOW.json, lesson_templates/, Course_data.txt, course_outcomes.json, lesson_diagrams/), output files (course_cheat_sheet.md, lesson_notes_*.md)
@@ -133,7 +134,7 @@ The system administrator or automated workflow needs to execute the revision not
 
 2. **Diagram Handling**: Lesson diagrams stored in Appwrite contain textual metadata (alt text or descriptions) that can be extracted and incorporated into markdown notes. If diagrams lack text metadata, the agent will reference the diagram by file ID.
 
-3. **Compression Strategy**: Content markdown will be compressed using gzip+base64 encoding (matching lesson_templates pattern) only when content exceeds 10KB to stay within Appwrite document size limits.
+3. **Storage Strategy**: Markdown content will be uploaded to Appwrite Storage in the "documents" bucket as plain text files (no compression needed as Storage handles large files efficiently). The database will only store the file ID reference.
 
 4. **SOW Status**: Only published SOWs (status="published") are valid for revision note generation, consistent with the lesson_author agent validation logic.
 
@@ -162,7 +163,7 @@ The `revision_notes` collection in the `default` database will store generated r
 | lessonOrder | Integer | nullable | Lesson order number (null for cheat sheets, 1-based for lesson notes) | 3 |
 | status | String (enum) | 20 chars, required | Publication status: "draft" or "published" | "published" |
 | execution_id | String | 50 chars, required | Unique execution identifier for traceability | "20251109_143052" |
-| content_markdown | String | 100,000 chars | Markdown content (compressed if > 10KB) | "# Course Cheat Sheet\\n..." |
+| markdown_file_id | String | 50 chars, required | Appwrite Storage file ID referencing markdown content in "documents" bucket | "file_abc123xyz" |
 | version | String | 10 chars, default="1" | Version number for tracking updates | "1" |
 | sow_version | String | 10 chars, nullable | Version of the SOW used for generation | "1" |
 
@@ -192,6 +193,7 @@ The `revision_notes` collection in the `default` database will store generated r
 
 - `courseId` → `default.courses.courseId` (many-to-one: multiple revision notes per course)
 - For lesson notes: implicit relationship to `default.lesson_templates` via `(courseId, lessonOrder)`
+- `markdown_file_id` → Appwrite Storage "documents" bucket (one-to-one: each revision note references one markdown file)
 
 ### Document ID Format
 
@@ -199,3 +201,39 @@ The `revision_notes` collection in the `default` database will store generated r
 - Lesson notes: `revision_notes_{courseId}_lesson_{lessonOrder:02d}`
 
 Example: `revision_notes_course_c84874_lesson_03`
+
+## Storage Bucket: documents
+
+The `documents` storage bucket will store markdown content files with the following configuration:
+
+### Bucket Configuration
+
+| Property | Value | Description |
+| -------- | ----- | ----------- |
+| Bucket ID | "documents" | Unique identifier for the bucket |
+| Name | "Documents" | Human-readable name |
+| Permissions | Read: Any authenticated user; Create/Update/Delete: Admin and service accounts | Matches security model of images bucket |
+| File Size Limit | 50 MB | Maximum file size (markdown files typically <1 MB) |
+| Allowed Extensions | .md, .txt | Only markdown and text files |
+| Encryption | Enabled | At-rest encryption for stored files |
+| Antivirus | Enabled | Scan files on upload |
+
+### File Naming Convention
+
+Markdown files uploaded to storage will use the same naming pattern as document IDs:
+
+- Course cheat sheet: `revision_notes_{courseId}_cheat_sheet.md`
+- Lesson notes: `revision_notes_{courseId}_lesson_{lessonOrder:02d}.md`
+
+Example: `revision_notes_course_c84874_lesson_03.md`
+
+### One-Time Setup
+
+The "documents" bucket MUST be created using Appwrite MCP before the first revision notes generation. The setup script will:
+
+1. Check if "documents" bucket exists
+2. If not, create bucket with configuration above
+3. Set appropriate permissions for read/write access
+4. Enable encryption and antivirus scanning
+
+This is analogous to the "images" bucket used for lesson diagrams.
