@@ -6,6 +6,7 @@ import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigati
 import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
 import { CourseProgressCard } from "../progress/CourseProgressCard";
 import { CourseCurriculum } from "../curriculum/CourseCurriculum";
+import { CourseCheatSheetButton } from "../revision-notes/CourseCheatSheetButton";
 import { getCourseProgress } from "@/lib/services/progress-service";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -49,6 +50,7 @@ export function EnhancedStudentDashboard() {
   const [courseProgress, setCourseProgress] = useState<any>(null);
   const [progressLoading, setProgressLoading] = useState(false);
   const [startingLessonId, setStartingLessonId] = useState<string | null>(null);
+  const [cheatSheetAvailable, setCheatSheetAvailable] = useState<boolean | null>(null);
 
   // Archived courses state
   const [archivedCourses, setArchivedCourses] = useState<Course[]>([]);
@@ -64,6 +66,28 @@ export function EnhancedStudentDashboard() {
       loadCourseProgress();
     }
   }, [activeCourse, student]);
+
+  // Check course cheat sheet availability when active course changes
+  useEffect(() => {
+    if (!activeCourse) {
+      setCheatSheetAvailable(null);
+      return;
+    }
+
+    const checkCheatSheetAvailability = async () => {
+      try {
+        const { RevisionNotesDriver } = await import('@/lib/appwrite/driver/RevisionNotesDriver');
+        const driver = new RevisionNotesDriver();
+        const isAvailable = await driver.courseCheatSheetExists(activeCourse);
+        setCheatSheetAvailable(isAvailable);
+      } catch (error) {
+        // On error, mark as unavailable
+        setCheatSheetAvailable(false);
+      }
+    };
+
+    checkCheatSheetAvailability();
+  }, [activeCourse]);
 
   // Initialize student using client-side Appwrite SDK
   const initializeStudent = async () => {
@@ -842,6 +866,17 @@ export function EnhancedStudentDashboard() {
           <CourseProgressCard
             progress={courseProgress}
             onViewDetails={handleViewProgress}
+          />
+        </div>
+      )}
+
+      {/* Course Cheat Sheet Button - Course Specific */}
+      {hasActiveCourse && (
+        <div className="mb-6">
+          <CourseCheatSheetButton
+            courseId={activeCourse}
+            isAvailable={cheatSheetAvailable}
+            onClick={() => {}}
           />
         </div>
       )}
