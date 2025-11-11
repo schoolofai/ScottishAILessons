@@ -132,7 +132,8 @@ export async function checkBackendAvailability(): Promise<void> {
   try {
     console.log("🔍 [Backend Status] Checking backend availability:", apiUrl);
 
-    const healthEndpoint = `${apiUrl}/health`;
+    // LangGraph uses /ok endpoint for health checks
+    const healthEndpoint = `${apiUrl}/ok`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
@@ -260,7 +261,8 @@ export async function checkContextChatBackendAvailability(): Promise<void> {
   try {
     console.log("🔍 [Backend Status] Checking context chat backend availability:", apiUrl);
 
-    const healthEndpoint = `${apiUrl}/health`;
+    // LangGraph uses /ok endpoint for health checks
+    const healthEndpoint = `${apiUrl}/ok`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 

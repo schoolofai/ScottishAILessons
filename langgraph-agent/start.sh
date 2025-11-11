@@ -183,7 +183,8 @@ echo -e "${GREEN}✅ LangGraph frontend configuration applied${NC}"
 # Start frontend server
 echo -e "${GREEN}🚀 Starting Assistant-UI frontend...${NC}"
 touch ../langgraph-agent/frontend.log  # Create log file if it doesn't exist
-npm run dev &> ../langgraph-agent/frontend.log &
+# Override port to 3000 for local dev (package.json uses 5000 for Replit)
+npm run dev -- -p 3000 &> ../langgraph-agent/frontend.log &
 FRONTEND_PID=$!
 
 # Wait for frontend to be ready
