@@ -586,21 +586,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       });
     };
 
-    const handleSkipCard = () => {
-      if (confirm("Are you sure you want to skip this card? This will mark it as incomplete.")) {
-        sendCommand({
-          resume: JSON.stringify({
-            action: "skip_card",
-            interaction_type: "card_skip",
-            card_id: card_data.id,
-            reason: "Student chose to skip",
-            interaction_id: args.interaction_id,
-            timestamp: new Date().toISOString()
-          })
-        });
-      }
-    };
-
     const handleRequestHint = () => {
       setShowHint(true);
       // Could trigger hint command if needed
@@ -1043,17 +1028,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           {!isReplayMode && (
             <div className="flex gap-3 pt-4 border-t">
               <Button
-                variant="outline"
-                onClick={handleSkipCard}
-                className="flex-1"
-              >
-                Skip Card
-              </Button>
-
-              <Button
                 onClick={handleSubmitAnswer}
                 disabled={(!studentAnswer.trim() && !selectedMCQOption) || isUploadingDrawing}
-                className="flex-1"
+                className="w-full"
               >
                 {isUploadingDrawing ? "Uploading drawing..." : "Submit Answer"}
               </Button>
