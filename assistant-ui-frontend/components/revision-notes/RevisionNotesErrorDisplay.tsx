@@ -86,11 +86,24 @@ export function RevisionNotesErrorDisplay({
 
   const errorContent = getErrorMessage();
 
-  // Calculate backoff hint for rapid retries
+  // Calculate backoff hint for rapid retries (exponential backoff awareness)
   const getBackoffHint = () => {
+    // Check for rapid retries within 30 seconds
+    if (lastRetryTime) {
+      const timeSinceLastRetry = Date.now() - lastRetryTime;
+      const isRapidRetry = timeSinceLastRetry < 30000; // 30 seconds
+
+      if (isRapidRetry && retryCount >= 3) {
+        const recommendedWait = Math.pow(2, retryCount - 2); // Exponential: 2^1=2s, 2^2=4s, 2^3=8s, etc.
+        return `⏳ You've retried ${retryCount} times in quick succession. Please wait at least ${recommendedWait} seconds before trying again to avoid overwhelming the server.`;
+      }
+    }
+
+    // General backoff for multiple retries
     if (retryCount >= 3) {
       return 'You\'ve tried several times. Consider waiting a few minutes before trying again.';
     }
+
     return null;
   };
 

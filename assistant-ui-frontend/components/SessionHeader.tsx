@@ -11,9 +11,9 @@ interface SessionHeaderProps {
 export function SessionHeader({ sessionContext }: SessionHeaderProps) {
   if (!sessionContext) {
     return (
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+      <div className="flex items-center">
         <h1 className="text-xl font-semibold text-gray-900">Assistant</h1>
-      </header>
+      </div>
     );
   }
 
@@ -40,39 +40,36 @@ export function SessionHeader({ sessionContext }: SessionHeaderProps) {
   const displaySubject = formatCourseSubject(course_subject);
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3">
-      <div className="flex items-center space-x-3">
-        <Link
-          href="/dashboard"
-          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 mr-1" />
-          Dashboard
-        </Link>
+    <div className="flex items-center space-x-3 flex-1">
+      <Link
+        href="/dashboard"
+        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5 mr-1" />
+        Dashboard
+      </Link>
 
-        <div className="text-gray-400">→</div>
+      <div className="text-gray-400">→</div>
 
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            {displayLevel && (
-              <>
-                <span>{displayLevel}</span>
-                <span>•</span>
-              </>
-            )}
-            {displaySubject && (
-              <>
-                <span>{displaySubject}</span>
-                <span>•</span>
-              </>
-            )}
-            <span className="font-medium text-gray-900">
-              {lesson_snapshot?.title || 'Lesson'}
-            </span>
-          </div>
-
+      <div className="flex-1">
+        <div className="flex items-center space-x-2 text-sm text-gray-600">
+          {displayLevel && (
+            <>
+              <span>{displayLevel}</span>
+              <span>•</span>
+            </>
+          )}
+          {displaySubject && (
+            <>
+              <span>{displaySubject}</span>
+              <span>•</span>
+            </>
+          )}
+          <span className="font-medium text-gray-900">
+            {lesson_snapshot?.title || 'Lesson'}
+          </span>
         </div>
       </div>
-    </header>
+    </div>
   );
 }

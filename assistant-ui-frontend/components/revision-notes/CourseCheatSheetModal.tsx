@@ -48,15 +48,15 @@ export function CourseCheatSheetModal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
 
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-900 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[90vh] flex flex-col data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 w-[95vw] sm:w-full max-w-4xl translate-x-[-50%] translate-y-[-50%] bg-white dark:bg-gray-900 rounded-lg sm:rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 max-h-[95vh] sm:max-h-[90vh] flex flex-col data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state-closed]:slide-out-to-left-1/2 data-[state-closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]">
 
           {/* Modal Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-            <div>
-              <Dialog.Title className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex-1 mr-2">
+              <Dialog.Title className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                 {courseTitle ? `${courseTitle} - ` : ''}Course Cheat Sheet
               </Dialog.Title>
-              <Dialog.Description className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+              <Dialog.Description className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Quick reference guide for exam preparation
               </Dialog.Description>
             </div>
@@ -84,7 +84,7 @@ export function CourseCheatSheetModal({
           </div>
 
           {/* Modal Body - Scrollable Content */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
             {/* Loading State */}
             {status === 'loading' && (
               <RevisionNotesLoadingSkeleton noteType="cheat_sheet" />
@@ -94,6 +94,7 @@ export function CourseCheatSheetModal({
             {status === 'success' && content && (
               <MarkdownRenderer
                 content={content.markdownContent}
+                className="prose prose-sm sm:prose-base md:prose-lg max-w-none"
                 config={{
                   supportsLaTeX: true,
                   supportsMermaid: true,
@@ -129,19 +130,9 @@ export function CourseCheatSheetModal({
           </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="text-xs text-gray-500 dark:text-gray-400">
-              {status === 'success' && content && (
-                <p>
-                  Last updated: {new Date(content.metadata.updatedAt).toLocaleDateString()}
-                  {' • '}
-                  {(content.fileSize / 1024).toFixed(2)} KB
-                </p>
-              )}
-            </div>
-
+          <div className="flex items-center justify-end p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
             <Dialog.Close asChild>
-              <button className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md text-gray-900 dark:text-gray-100 font-medium transition-colors">
+              <button className="px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md text-gray-900 dark:text-gray-100 font-medium transition-colors text-sm sm:text-base">
                 Close
               </button>
             </Dialog.Close>
