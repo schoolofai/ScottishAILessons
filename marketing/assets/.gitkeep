@@ -1,0 +1,11 @@
+# Marketing Assets
+
+This directory contains all marketing visual assets, templates, and presentations.
+
+## Directory Structure
+
+- `images/` - Brand logos, social media graphics, screenshots
+- `templates/` - Email templates, social media post templates
+- `presentations/` - Pitch decks, partner presentations
+
+Add your marketing assets to the appropriate subdirectory.
