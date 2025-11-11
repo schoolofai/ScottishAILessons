@@ -237,7 +237,7 @@ class LessonTemplate(BaseModel):
     label: Optional[str] = Field(None, min_length=30, max_length=80, description="Alternative to title")
     outcomeRefs: List[str] = Field(..., min_length=1, description="SQA outcome + assessment standard codes")
     lesson_type: str = Field(..., description="Pedagogical category")
-    estMinutes: int = Field(..., ge=30, le=120, description="Estimated duration")
+    estMinutes: int = Field(..., ge=5, le=180, description="Estimated duration (5-120 regular, 5-180 mock_exam)")
     sow_order: int = Field(..., ge=1, description="Sequential position in SOW (1-indexed)")
 
     # === METADATA FIELDS ===
@@ -291,29 +291,44 @@ class LessonTemplate(BaseModel):
                 )
         return v
 
+    @model_validator(mode='after')
+    def validate_est_minutes_by_lesson_type(self):
+        """Validate estMinutes based on lesson_type.
+
+        Mock exams can be up to 180 minutes (to accommodate full SQA exam simulations
+        with multiple papers, e.g., Paper 1: 50min + Break: 5min + Paper 2: 100min).
+        Regular lessons are capped at 120 minutes (double period).
+        """
+        lesson_type = self.lesson_type
+        est_minutes = self.estMinutes
+
+        is_mock_exam = lesson_type in ('mock_exam', 'mock_assessment')
+        max_minutes = 180 if is_mock_exam else 120
+
+        if not (5 <= est_minutes <= max_minutes):
+            lesson_type_label = "Mock exams" if is_mock_exam else "Regular lessons"
+            raise ValueError(
+                f"Invalid estMinutes for lesson_type '{lesson_type}': {est_minutes}. "
+                f"{lesson_type_label} must be between 5 and {max_minutes} minutes."
+            )
+
+        return self
+
     @field_validator('cards')
     @classmethod
     def validate_card_count_and_sequence(cls, v, info):
-        """Validate card count matches lesson_type and cards have sequential IDs."""
-        lesson_type = info.data.get('lesson_type') if hasattr(info, 'data') else None
+        """Validate card count within universal bounds and cards have sequential IDs."""
         count = len(v)
 
-        # Card count ranges per lesson_type
-        ranges = {
-            "teach": (3, 4),
-            "independent_practice": (3, 5),
-            "formative_assessment": (2, 6),
-            "revision": (4, 8),
-            "mock_exam": (8, 15)
-        }
+        # Universal card count bounds (pedagogical flexibility with practical limits)
+        MIN_CARDS = 1  # At least one card required
+        MAX_CARDS = 20  # Practical upper limit for token constraints and session length
 
-        if lesson_type in ranges:
-            min_cards, max_cards = ranges[lesson_type]
-            if not (min_cards <= count <= max_cards):
-                raise ValueError(
-                    f"lesson_type '{lesson_type}' requires {min_cards}-{max_cards} cards, "
-                    f"got {count}"
-                )
+        if not (MIN_CARDS <= count <= MAX_CARDS):
+            raise ValueError(
+                f"Lesson must have {MIN_CARDS}-{MAX_CARDS} cards, got {count}. "
+                f"Create as many cards as needed based on pedagogical requirements and estMinutes."
+            )
 
         # Validate sequential card IDs (card_001, card_002, ...)
         expected_id_num = 1
@@ -392,7 +407,8 @@ def _format_validation_errors(pydantic_errors: List[Dict[str, Any]]) -> Dict[str
             "Verify CFU type-specific fields (e.g., MCQ needs answerIndex)",
             "Ensure lesson_type enum is valid",
             "Check courseId format (must start with 'course_')",
-            "Verify card count matches lesson_type requirements"
+            "Verify card count is within 1-20 range",
+            "Ensure card count aligns with estMinutes (typically 10-15 min per card)"
         ]
     }
 

@@ -19,6 +19,7 @@ from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_input_schema, format_subject_display, format_level_display
 from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
+from .tools.sow_validator_tool import sow_validation_server
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,6 @@ class SOWAuthorClaudeAgent:
     Attributes:
         mcp_config_path: Path to .mcp.json configuration file
         persist_workspace: Whether to preserve workspace after execution
-        max_critic_retries: Maximum attempts for critic validation loop
         execution_id: Unique identifier for this execution
         cost_tracker: Tracks costs across all subagents
 
@@ -60,7 +60,6 @@ class SOWAuthorClaudeAgent:
         self,
         mcp_config_path: str = ".mcp.json",
         persist_workspace: bool = True,
-        max_critic_retries: int = 3,
         log_level: str = "INFO"
     ):
         """Initialize SOW Author agent.
@@ -68,12 +67,10 @@ class SOWAuthorClaudeAgent:
         Args:
             mcp_config_path: Path to MCP configuration file
             persist_workspace: If True, preserve workspace for debugging
-            max_critic_retries: Maximum attempts for critic validation
             log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
         """
         self.mcp_config_path = Path(mcp_config_path)
         self.persist_workspace = persist_workspace
-        self.max_critic_retries = max_critic_retries
 
         # Generate execution ID (timestamp-based)
         self.execution_id = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -224,17 +221,85 @@ class SOWAuthorClaudeAgent:
             logger.error(error_msg)
             raise ValueError(error_msg)
 
+    async def _check_existing_sow(
+        self,
+        courseId: str,
+        version: str
+    ) -> Optional[Dict[str, Any]]:
+        """Check if SOW already exists for courseId AND version.
+
+        This prevents creating duplicate SOWs for the same version.
+        Uses FAIL FAST pattern - raises exception if corruption detected.
+
+        Args:
+            courseId: Course identifier
+            version: SOW version to check
+
+        Returns:
+            Existing SOW document if found, None otherwise
+
+        Raises:
+            ValueError: If multiple SOWs found with same courseId+version (data corruption)
+        """
+        logger.info(f"Duplicate check: courseId='{courseId}', version='{version}'")
+
+        try:
+            from .utils.appwrite_mcp import list_appwrite_documents
+
+            existing_sows = await list_appwrite_documents(
+                database_id="default",
+                collection_id="Authored_SOW",
+                queries=[
+                    f'equal("courseId", "{courseId}")',
+                    f'equal("version", "{version}")'
+                ],
+                mcp_config_path=str(self.mcp_config_path)
+            )
+
+            if len(existing_sows) > 1:
+                # Data corruption - multiple SOWs with same courseId+version
+                error_msg = (
+                    f"DATA CORRUPTION DETECTED: Found {len(existing_sows)} SOWs for "
+                    f"courseId='{courseId}', version='{version}'. "
+                    f"Database integrity violated. Manual cleanup required.\n"
+                    f"SOW IDs: {[sow.get('$id') for sow in existing_sows]}"
+                )
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+
+            if existing_sows:
+                sow = existing_sows[0]
+                logger.info(
+                    f"Found existing SOW: {sow['$id']} "
+                    f"(status={sow.get('status')}, created={sow.get('$createdAt')})"
+                )
+                return sow
+            else:
+                logger.info(f"No existing SOW found for version '{version}'")
+                return None
+
+        except ValueError:
+            raise  # Re-raise corruption errors
+        except Exception as e:
+            error_msg = f"Failed to check for existing SOW: {str(e)}"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
     async def execute(
         self,
-        courseId: str
+        courseId: str,
+        version: str = "1",
+        force: bool = False
     ) -> Dict[str, Any]:
-        """Execute the complete SOW authoring pipeline.
+        """Execute the complete SOW authoring pipeline with version support.
 
         The pipeline automatically fetches subject and level from the database based on courseId,
         eliminating redundant input and ensuring data consistency.
 
         Args:
             courseId: Course identifier (e.g., 'course_c84874')
+            version: SOW version number (default: "1"). Must be numeric string.
+            force: If True, overwrite existing SOW for this version (default: False)
 
         Returns:
             Dictionary containing:
@@ -246,7 +311,7 @@ class SOWAuthorClaudeAgent:
                 - error: str (if failed)
 
         Raises:
-            ValueError: If input validation fails or course not found
+            ValueError: If input validation fails, course not found, or duplicate version exists
             FileNotFoundError: If MCP config or prompts missing
         """
         # Step 1: Validate courseId format
@@ -254,6 +319,14 @@ class SOWAuthorClaudeAgent:
         if not is_valid:
             logger.error(f"Input validation failed: {error_msg}")
             raise ValueError(error_msg)
+
+        # Step 1b: Validate version format (must be numeric string)
+        if not version.isdigit():
+            error_msg = f"Version must be a numeric string (e.g., '1', '2'), got: '{version}'"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        logger.info(f"SOW Authoring Pipeline: courseId='{courseId}', version='{version}', force={force}")
 
         # Step 2: Fetch subject and level from database (FAIL FAST)
         logger.info(f"Fetching course details from database for courseId '{courseId}'...")
@@ -270,6 +343,35 @@ class SOWAuthorClaudeAgent:
             logger.error(f"Fetched data validation failed: {error_msg}")
             raise ValueError(error_msg)
 
+        # Step 4: Check for existing SOW with this courseId AND version (FAIL FAST)
+        logger.info(f"Checking for existing SOW version '{version}' for courseId '{courseId}'...")
+        existing_sow = await self._check_existing_sow(courseId, version)
+
+        if existing_sow and not force:
+            error_msg = (
+                f"SOW version {version} already exists for courseId '{courseId}'.\n"
+                f"  Document ID: {existing_sow['$id']}\n"
+                f"  Status: {existing_sow.get('status', 'UNKNOWN')}\n"
+                f"  Created: {existing_sow.get('$createdAt', 'UNKNOWN')}\n"
+                f"  Use --force flag to overwrite this specific version."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        if existing_sow and force:
+            logger.warning(
+                f"FORCE MODE: Will overwrite existing SOW version {version} "
+                f"(Document ID: {existing_sow['$id']})"
+            )
+            self.existing_sow_id = existing_sow['$id']
+            self.version_being_overwritten = version
+        else:
+            self.existing_sow_id = None
+            self.version_being_overwritten = None
+
+        # Store version for downstream use
+        self.sow_version = version
+
         logger.info(f"Starting SOW authoring pipeline: {subject} ({level})")
 
         # Format display strings
@@ -278,7 +380,7 @@ class SOWAuthorClaudeAgent:
 
         try:
             # Create isolated workspace
-            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace) as filesystem:
+            with IsolatedFilesystem(self.execution_id, persist=self.persist_workspace, workspace_type="sow_author") as filesystem:
                 workspace_path = filesystem.root
 
                 logger.info(f"Workspace created: {workspace_path}")
@@ -302,41 +404,30 @@ class SOWAuthorClaudeAgent:
                 logger.info(f"✅ Course_data.txt ready at: {course_data_path}")
                 logger.info("   Python extraction complete - no LLM tokens used")
 
-                # Copy SOW schema file to workspace (canonical schema reference)
-                logger.info("Copying SOW schema file to workspace...")
-                schema_source = Path(__file__).parent.parent / "docs" / "schema" / "authored_sow_schema.md"
-                schema_dest = workspace_path / "SOW_Schema.md"
-
-                if not schema_source.exists():
-                    raise FileNotFoundError(
-                        f"SOW schema file not found at {schema_source}. "
-                        f"Expected location: claud_author_agent/docs/schema/authored_sow_schema.md"
-                    )
-
-                import shutil
-                shutil.copy(schema_source, schema_dest)
-                logger.info(f"✅ SOW_Schema.md ready at: {schema_dest}")
-                logger.info("   Schema file copied - ready for agent reference")
-
-                # MCP servers NOT loaded for agents (TOKEN OPTIMIZATION)
-                # Reason: Agents don't use Appwrite tools (see allowed_tools), but loading the MCP config
-                # wastes 3,000-5,000 context tokens on unused tool schemas.
-                # Python utilities (course_data_extractor, sow_upserter) use mcp_config_path directly.
-                mcp_config = {}  # Keep empty for agents
-                logger.info("MCP servers DISABLED for agents (token optimization: saves ~3-5k tokens)")
+                # MCP servers configuration (TOKEN OPTIMIZATION v2.0)
+                # Register SDK MCP server for Pydantic-based schema validation (in-process)
+                # This replaces the 1265-line authored_sow_schema.md file copy, saving ~8-10K tokens
+                mcp_servers_for_sow_author = {
+                    "validator": sow_validation_server  # Provides mcp__validator__validate_sow_schema tool
+                }
+                logger.info("SDK MCP validator server registered (Pydantic-based validation, saves ~13-16k tokens vs v1.0)")
 
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
                 options = ClaudeAgentOptions(
                     model='claude-sonnet-4-5',
                     agents=self._get_subagent_definitions(),
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
-                    mcp_servers={},  # Empty - agents don't use Appwrite (saves 3-5k tokens)
-                    allowed_tools=['Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task', 'WebSearch', 'WebFetch'],
+                    mcp_servers=mcp_servers_for_sow_author,  # Pydantic validator tool (v2.0)
+                    allowed_tools=[
+                        'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
+                        'WebSearch', 'WebFetch',
+                        'mcp__validator__validate_sow_schema'  # Pydantic SOW validation tool
+                    ],
                     max_turns=500,  # High limit to ensure agent can complete complex SOW authoring work
                     cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
 
-                logger.info(f"Agent configured: bypassPermissions + WebSearch/WebFetch + NO MCP (token optimized) + cwd={workspace_path} + max_turns=500")
+                logger.info(f"Agent configured: bypassPermissions + WebSearch/WebFetch + Pydantic validator (v2.0 token optimized) + cwd={workspace_path} + max_turns=500")
 
                 # Execute pipeline (now only 2 subagents: sow_author with WebSearch/WebFetch, critic)
                 async with ClaudeSDKClient(options) as client:
@@ -386,8 +477,10 @@ class SOWAuthorClaudeAgent:
                     subject=subject,
                     level=level,
                     course_id=courseId,
+                    version=self.sow_version,  # Pass version
                     execution_id=self.execution_id,
-                    mcp_config_path=str(self.mcp_config_path)
+                    mcp_config_path=str(self.mcp_config_path),
+                    existing_sow_id=getattr(self, 'existing_sow_id', None)  # Pass for force mode
                 )
 
                 logger.info(f"SOW upserted successfully: {appwrite_document_id}")
@@ -453,21 +546,20 @@ All files will be created in: {workspace_path}
    - Extracted: Official SQA course structure, units, outcomes, assessment standards
    - Location: `/workspace/Course_data.txt`
 
-✅ `SOW_Schema.md` - AI-friendly schema reference (pre-populated by Python copy)
-   - Source: claud_author_agent/docs/schema/authored_sow_schema.md
-   - Content: Complete schema documentation, validation rules, forbidden patterns, examples
-   - Location: `/workspace/SOW_Schema.md`
-   - Purpose: Agents reference this for exact requirements while authoring/validating
+✅ **Pydantic Schema Validator** - Deterministic validation tool (v2.0 TOKEN OPTIMIZATION)
+   - Tool: `mcp__validator__validate_sow_schema`
+   - Source: claud_author_agent/src/tools/sow_validator_tool.py (Pydantic models)
+   - Replaces: 1265-line SOW_Schema.md file (saves ~8-10K tokens)
+   - Purpose: Fast, deterministic schema validation with specific error locations
 
 ## Pipeline Execution
 
 Execute the following 3 subagents in sequence with belt-and-braces validation:
 
 ### 1. SOW Author (with on-demand WebSearch/WebFetch)
-- **Task**: Author complete SOW using Course_data.txt and SOW_Schema.md
+- **Task**: Author complete SOW using Course_data.txt
 - **Inputs**:
   - `/workspace/Course_data.txt` (pre-populated)
-  - `/workspace/SOW_Schema.md` (pre-populated schema reference)
 - **Output**: `/workspace/authored_sow.json`
 - **Delegate to**: @sow_author
 - **Research**: WebSearch and WebFetch tools for on-demand research (Scottish contexts, exemplars, misconceptions)
@@ -477,7 +569,6 @@ Execute the following 3 subagents in sequence with belt-and-braces validation:
 - **Inputs**:
   - `/workspace/Course_data.txt` (pre-populated)
   - `/workspace/authored_sow.json` (from author)
-  - `/workspace/SOW_Schema.md` (pre-populated schema reference)
 - **Output**: `/workspace/sow_critic_result.json`
 - **Delegate to**: @unified_critic
 - **Logic**:
@@ -488,14 +579,14 @@ Execute the following 3 subagents in sequence with belt-and-braces validation:
     - Re-run @unified_critic
   - If overall_pass = true: proceed to schema_critic
 
-### 3. Schema Critic (braces validation - final gate)
-- **Task**: Final schema-only validation before completion (belt-and-braces approach)
+### 3. Schema Critic (braces validation - final gate, v2.0 Pydantic-based)
+- **Task**: Final schema-only validation using Pydantic validation tool
 - **Inputs**:
   - `/workspace/authored_sow.json` (from unified_critic)
-  - `/workspace/SOW_Schema.md` (pre-populated schema reference)
-  - `/workspace/Course_data.txt` (for description matching)
+- **Tool**: `mcp__validator__validate_sow_schema` (Pydantic-based, deterministic)
 - **Output**: `/workspace/schema_validation_result.json`
 - **Delegate to**: @schema_critic
+- **v2.0 Improvement**: Uses Pydantic models instead of reading 1265-line schema file (saves ~13-16K tokens)
 - **Logic**:
   - If schema validation passes: Pipeline COMPLETE
   - If schema validation fails:
@@ -521,7 +612,6 @@ async def main():
     agent = SOWAuthorClaudeAgent(
         mcp_config_path=".mcp.json",
         persist_workspace=True,
-        max_critic_retries=3,
         log_level="INFO"
     )
 

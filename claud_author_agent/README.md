@@ -1,9 +1,10 @@
 # Scottish AI Lessons - Authoring Agents
 
-This repository contains two autonomous agents for Scottish secondary education content creation using Claude Agent SDK:
+This repository contains three autonomous agents for Scottish secondary education content creation using Claude Agent SDK:
 
 1. **SOW Author** - Creates complete Schemes of Work (course-level planning)
 2. **Lesson Author** - Creates detailed lesson templates (lesson-level design)
+3. **Revision Notes Author** - Creates pedagogically-sound revision materials (course cheat sheets + per-lesson notes)
 
 ## Which Agent Do I Need?
 
@@ -11,10 +12,12 @@ This repository contains two autonomous agents for Scottish secondary education 
 |----------|-------|-------|--------|---------------|
 | **Create course overview** with 8-15 lesson entries | SOW Author | subject + level + courseId | Authored_SOW document | [SOW Author docs](#sow-author) |
 | **Create detailed lesson** with 3-15 interactive cards | Lesson Author | courseId + order | lesson_templates document | [Lesson Author docs](LESSON_AUTHOR_README.md) |
+| **Create revision notes** for exam preparation | Revision Notes Author | courseId | revision_notes documents (cheat sheet + per-lesson notes) | [Revision Notes docs](../specs/002-revision-notes-author/quickstart.md) |
 
 **Typical Workflow**:
 1. Use **SOW Author** to create the initial course plan (8-15 lesson entries)
 2. Use **Lesson Author** to flesh out each lesson entry into a full lesson template
+3. Use **Revision Notes Author** to generate student revision materials from completed course
 
 ---
 
@@ -210,11 +213,123 @@ python -m src.lesson_author_cli \
 
 # Continue for all lesson entries in the SOW...
 # Note: Order values start from 1 (not 0). SOW entries are 1-indexed.
+
+# Step 4: Generate revision notes (after all lessons completed)
+python scripts/notes_author_cli.py --courseId course_c84474
 ```
 
 ---
 
+# Revision Notes Author
+
+Autonomous agent for generating pedagogically-sound revision materials from published Schemes of Work using Claude Agent SDK.
+
+## Overview
+
+This agent takes a `courseId` input and produces comprehensive revision notes for exam preparation:
+
+**Pre-Processing (Python)**:
+1. **Course Data Extractor** → Extracts published SOW, lesson templates, outcomes, diagrams → workspace files
+
+**Pipeline Execution (1 Subagent)**:
+2. **Notes Author** → Generates cheat sheet + per-lesson notes → markdown files
+
+**Post-Processing (Python)**:
+3. **Storage & Database Upserter** → Uploads markdown to `documents` storage bucket + creates `revision_notes` documents
+
+## Features
+
+- ✅ **Lesson Type Filtering**: Generates detailed notes (300-600 words) for `teach` lessons, brief references (50-100 words) for `revision`/`assessment` lessons
+- ✅ **Cornell Method**: Structured note templates with Cues, Notes, and Examples columns
+- ✅ **Spaced Repetition**: Evidence-based review schedules (Day 2, Day 5, Week 2, Month 1)
+- ✅ **LaTeX Math Support**: Preserves mathematical notation from lesson templates
+- ✅ **Misconception Extraction**: Surfaces common errors from lesson cards
+- ✅ **Visual Reference Integration**: Links to lesson diagrams where available
+- ✅ **Two-Tier Output**: Course cheat sheet (1500-2500 words) + per-lesson notes (300-600 words per teach lesson)
+- ✅ **Cost Optimization**: ~$1.35-2.55 for 10-20 lesson courses
+
+## Available Scripts
+
+### 1. `scripts/notes_author_cli.py` - Main Generation Pipeline
+
+Full end-to-end pipeline: extract → generate → upsert
+
+```bash
+# Basic execution
+python scripts/notes_author_cli.py --courseId course_c84474
+
+# Persist workspace for inspection
+python scripts/notes_author_cli.py \
+  --courseId course_c84474 \
+  --persist-workspace \
+  --log-level DEBUG
+
+# Force overwrite existing notes
+python scripts/notes_author_cli.py \
+  --courseId course_c84474 \
+  --force
+```
+
+**CLI Options**:
+```
+--courseId TEXT           Course ID (required)
+--version TEXT           SOW version (default: "1")
+--force                  Overwrite existing notes
+--mcp-config PATH        Path to .mcp.json (default: .mcp.json)
+--persist-workspace      Keep workspace after execution
+--log-level TEXT         Logging level (default: INFO)
+```
+
+### 2. `scripts/upsert_revision_notes.py` - Standalone Upsert
+
+Upload notes from existing workspace without regenerating content.
+
+```bash
+# Basic upsert (create-only)
+python scripts/upsert_revision_notes.py \
+  --workspace-path claud_author_agent/workspace/20251110_060554
+
+# Force overwrite existing documents
+python scripts/upsert_revision_notes.py \
+  --workspace-path claud_author_agent/workspace/20251110_060554 \
+  --force
+```
+
+**When to Use**:
+- Re-upload after manual markdown edits
+- Retry failed upsert operations
+- Batch process multiple workspaces
+- Recover from agent crashes (generation succeeded, upsert failed)
+
+**CLI Options**:
+```
+--workspace-path PATH    Workspace directory containing inputs/ and outputs/
+--force                  Overwrite existing documents (default: create new only)
+--mcp-config PATH        Path to .mcp.json (default: .mcp.json)
+```
+
+### 3. `scripts/setup_revision_notes_infrastructure.py` - One-Time Setup
+
+Creates Appwrite collection and storage bucket.
+
+```bash
+python scripts/setup_revision_notes_infrastructure.py --mcp-config .mcp.json
+```
+
+**Creates**:
+- `default.revision_notes` collection (12 attributes, 4 indexes)
+- `documents` storage bucket (50 MB max, .md/.txt extensions)
+
 ## Documentation
+
+**Quick Start**: [specs/002-revision-notes-author/quickstart.md](../specs/002-revision-notes-author/quickstart.md)
+**Full Specification**: [specs/002-revision-notes-author/spec.md](../specs/002-revision-notes-author/spec.md)
+**Implementation Plan**: [specs/002-revision-notes-author/plan.md](../specs/002-revision-notes-author/plan.md)
+**Research Findings**: [specs/002-revision-notes-author/research.md](../specs/002-revision-notes-author/research.md)
+
+---
+
+## Project Documentation
 
 **SOW Author**:
 - Main README: This file

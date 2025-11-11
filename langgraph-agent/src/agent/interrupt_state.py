@@ -55,3 +55,6 @@ class InterruptUnifiedState(UnifiedState, total=False):
 
     # Accessibility preferences
     use_plain_text: Optional[bool]  # Use explainer_plain for dyslexia-friendly content
+
+    # Lesson diagram (type="lesson") if available
+    lesson_diagram: Optional[Dict[str, Any]]  # {image_file_id, diagram_type, title}

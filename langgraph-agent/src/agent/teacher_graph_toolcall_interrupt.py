@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Dict, List
 from datetime import datetime
 import uuid
+import time
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall
 from langgraph.graph import StateGraph, START , END
@@ -42,6 +43,57 @@ except ImportError:
     )
 
 
+# Partial credit threshold for passing (60% = demonstrates sufficient understanding)
+PARTIAL_CREDIT_THRESHOLD = 0.6
+
+
+def _format_enhanced_feedback(evaluation, cfu: Dict) -> str:
+    """Format evaluation feedback with optional visual rubric reinforcement.
+
+    The LLM prompt now generates structured feedback with Assessment Summary,
+    but this function can add additional visual formatting if needed for clarity.
+
+    Args:
+        evaluation: EvaluationResponse from LLMTeacher
+        cfu: CFU dict containing rubric information
+
+    Returns:
+        Enhanced feedback string with rubric breakdown
+    """
+    # Primary feedback from LLM (already structured per updated prompt)
+    feedback = evaluation.feedback
+
+    # Optional: Add visual rubric table if breakdown exists and not already in feedback
+    # This provides a fallback in case LLM doesn't follow format exactly
+    if evaluation.rubric_breakdown and "Rubric Breakdown:" not in feedback:
+        rubric_parts = ["\n\n📊 **Rubric Breakdown:**"]
+
+        for criterion in evaluation.rubric_breakdown:
+            desc = criterion.description
+            awarded = criterion.points_awarded
+            max_pts = criterion.max_points
+
+            # Status emoji based on score
+            if awarded == max_pts:
+                status = "✓ Complete"
+            elif awarded > 0:
+                status = "⚠ Partial"
+            else:
+                status = "✗ Not Met"
+
+            rubric_parts.append(f"• **{desc}**: {awarded}/{max_pts} pts {status}")
+
+        # Add total score summary
+        total_score = sum(c.points_awarded for c in evaluation.rubric_breakdown)
+        total_possible = sum(c.max_points for c in evaluation.rubric_breakdown)
+        overall_pct = (total_score / total_possible * 100) if total_possible > 0 else 0
+        rubric_parts.append(f"\n**Total**: {total_score}/{total_possible} points ({overall_pct:.0f}%)")
+
+        feedback += "\n".join(rubric_parts)
+
+    return feedback
+
+
 def _parse_numeric_response(response: str, money_format: bool = False) -> float:
     """Parse numeric response, handling currency symbols and formatting.
     
@@ -69,8 +121,46 @@ def _parse_numeric_response(response: str, money_format: bool = False) -> float:
     # Round to 2dp if money format
     if money_format:
         value = round(value, 2)
-    
+
     return value
+
+
+def _extract_conversation_history(state: InterruptUnifiedState) -> Dict:
+    """Extract and serialize the conversation history from LangGraph state.
+
+    Returns a structured ConversationHistory object ready for compression and storage.
+    The messages array preserves chronological order with embedded tool calls.
+    """
+    messages = state.get("messages", [])
+
+    serialized_messages = []
+    for msg in messages:
+        msg_data = {
+            "id": getattr(msg, "id", str(uuid.uuid4())),
+            "type": msg.__class__.__name__,
+            "content": getattr(msg, "content", ""),
+        }
+
+        # Extract tool calls if present (embedded in AIMessage)
+        if hasattr(msg, "tool_calls") and msg.tool_calls:
+            msg_data["tool_calls"] = [
+                {
+                    "id": tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", ""),
+                    "name": tc.get("name") if isinstance(tc, dict) else getattr(tc, "name", ""),
+                    "args": tc.get("args") if isinstance(tc, dict) else getattr(tc, "args", {})
+                }
+                for tc in msg.tool_calls
+            ]
+
+        serialized_messages.append(msg_data)
+
+    return {
+        "version": "1.0",
+        "threadId": state.get("session_id", ""),
+        "sessionId": state.get("session_id", ""),
+        "capturedAt": datetime.now().isoformat(),
+        "messages": serialized_messages
+    }
 
 
 def _is_lesson_complete(state: InterruptUnifiedState) -> bool:
@@ -111,7 +201,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
         else:
             return teacher.greet_with_first_card_sync_full(lesson_snapshot, current_card, state)
     else:
-        # Subsequent cards - pass state AND progress information for curriculum context
+        # Subsequent cards - pass lesson_snapshot, state AND progress information for curriculum context
         if cfu_type == "mcq":
             return teacher.present_mcq_card_sync_full(
                 current_card,
@@ -122,6 +212,7 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
         else:
             return teacher.present_card_sync_full(
                 current_card,
+                lesson_snapshot,  # Add lesson_snapshot parameter
                 state,
                 card_index=current_index,
                 total_cards=total_cards
@@ -130,14 +221,69 @@ def _generate_card_message(teacher, lesson_snapshot: dict, current_card: dict, c
 
 
 
+def _create_diagram_tool_call(state: InterruptUnifiedState, current_card: Dict, current_index: int) -> AIMessage | None:
+    """Create diagram tool call message if diagram exists for current card.
+
+    Args:
+        state: Current graph state containing lesson_snapshot and diagram metadata
+        current_card: The current card being presented
+        current_index: Index of the current card
+
+    Returns:
+        AIMessage with diagram tool call, or None if no diagram exists
+    """
+    # Get the lesson_snapshot to find diagram for this card
+    lesson_snapshot = state.get("lesson_snapshot", {})
+    lesson_template_id = lesson_snapshot.get("lessonTemplateId", "")
+    card_id = current_card.get("id", "")
+
+    if not lesson_template_id or not card_id:
+        print(f"📐 DIAGRAM HELPER - Missing lessonTemplateId or cardId, skipping diagram")
+        return None
+
+    # ALWAYS create a tool call so the frontend LessonDiagramPresentationTool can render
+    # The tool will fetch the diagram if it exists, or gracefully degrade if not
+
+    # Check if there's pre-fetched diagram data in state (first card optimization)
+    lesson_diagram = state.get("lesson_diagram")
+    diagram_args = {
+        "lessonTemplateId": lesson_template_id,
+        "cardId": card_id
+    }
+
+    if lesson_diagram and current_index == 0:
+        # Include pre-fetched diagram data to avoid redundant fetch
+        print(f"📐 DIAGRAM HELPER - Using pre-fetched diagram from state for card {card_id}")
+        diagram_args["diagramFileId"] = lesson_diagram.get("image_file_id")
+        diagram_args["diagramType"] = lesson_diagram.get("diagram_type")
+        diagram_args["title"] = lesson_diagram.get("title", "Lesson Diagram")
+    else:
+        # For other cards, let frontend fetch on-demand using lessonTemplateId + cardId
+        print(f"📐 DIAGRAM HELPER - Creating tool call for on-demand fetch for {card_id}")
+
+    diagram_tool_call = ToolCall(
+        id=f"lesson_diagram_{card_id}",
+        name="present_lesson_diagram",
+        args=diagram_args
+    )
+
+    diagram_tool_message = AIMessage(
+        content="",  # Empty content to avoid duplication
+        tool_calls=[diagram_tool_call]
+    )
+
+    print(f"📐 DIAGRAM HELPER - Created diagram tool call for {card_id}")
+    return diagram_tool_message
+
+
 def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Design node - handles all routing decisions and creates tool calls for lesson card presentation."""
     from .llm_teacher import LLMTeacher
-    
+
     # Entry logging with FULL STATE DEBUG
     current_idx = state.get("current_card_index", 0)
     stage = state.get("stage", "unknown")
-    
+
     print(f"🔍 NODE_ENTRY: design_node | card_idx: {current_idx} | stage: {stage}")
     
     # CRITICAL DEBUG: Log all state keys and values to understand what's available
@@ -157,18 +303,36 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
+            # Extract drawing data if present (universal - works with ANY CFU type)
+            # Phase 10: Support both storage file IDs (NEW) and base64 (LEGACY)
+            student_drawing_file_ids = interrupt_response.get("student_drawing_file_ids")  # NEW
+            student_drawing = interrupt_response.get("student_drawing")  # LEGACY
+            student_drawing_text = interrupt_response.get("student_drawing_text")
+
             print(f"🚨 DESIGN DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            if student_drawing_file_ids:
+                print(f"🎨 STORAGE DRAWING - File IDs received: {student_drawing_file_ids} (Phase 10 storage-based)")
+                print(f"📝 STORAGE DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            elif student_drawing:
+                print(f"🎨 LEGACY DRAWING - Base64 received: {len(student_drawing)} bytes (legacy format)")
+                print(f"📝 LEGACY DRAWING - Drawing text: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: design_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
-            answer_message = HumanMessage(
-                content=f"Your Answer: {student_response}"
+            has_drawing = student_drawing_file_ids or student_drawing
+            message_content = f"Your Answer: {student_response}" if student_response else (
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if has_drawing else "Your Answer: [No response]"
             )
+            answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
+                "student_drawing_file_ids": student_drawing_file_ids,  # NEW: storage file IDs
+                "student_drawing": student_drawing,  # LEGACY: base64 strings
+                "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
                 "stage": "mark",
@@ -189,7 +353,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             print(f"🚨 DESIGN DEBUG - Unknown action in interrupt response: {action}")
     else:
         print(f"🚨 DESIGN DEBUG - No interrupt_response found, checking other conditions")
-    
+
     # Check lesson completion FIRST - before trying to access current card
     if _is_lesson_complete(state):
         print(f"🔍 NODE_EXIT: design_node | decision: lesson_complete | generating summary...")
@@ -209,11 +373,15 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             state=state  # Pass full state for curriculum context
         )
 
+        # Extract conversation history for persistence
+        conversation_history = _extract_conversation_history(state)
+
         # Create tool call for lesson completion UI
         mastery_updates = state.get("mastery_updates", [])
         print(f"🚨 COMPLETION DEBUG - Tool call data:")
         print(f"🚨 COMPLETION DEBUG - Evidence entries: {len(evidence)}")
         print(f"🚨 COMPLETION DEBUG - Mastery updates: {len(mastery_updates)}")
+        print(f"🚨 COMPLETION DEBUG - Conversation history messages: {len(conversation_history.get('messages', []))}")
         print(f"🚨 COMPLETION DEBUG - Session context: session_id={state.get('session_id')}, student_id={state.get('student_id')}, course_id={state.get('course_id')}")
 
         tool_call = ToolCall(
@@ -232,7 +400,9 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
                 # Session context for frontend persistence
                 "session_id": state.get("session_id"),
                 "student_id": state.get("student_id"),
-                "course_id": state.get("course_id")
+                "course_id": state.get("course_id"),
+                # Conversation history for replay (frontend will compress before saving)
+                "conversation_history": conversation_history
             }
         )
 
@@ -284,10 +454,19 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     teacher = LLMTeacher()
     current_card, current_index, cfu_type = _get_current_card_info(state)
 
+    # Check for lesson diagram and present it BEFORE card (using helper function)
+    messages_to_send = []
+    diagram_message = _create_diagram_tool_call(state, current_card, current_index)
+    if diagram_message:
+        messages_to_send.append(diagram_message)
+        # Add small delay to allow diagram to render before AI greeting appears
+        time.sleep(0.5)
+        print(f"⏱️ TIMING - Delayed 0.5s after diagram tool call before generating greeting")
+
     message_obj = _generate_card_message(
         teacher, state["lesson_snapshot"], current_card, current_index, cfu_type, state  # Pass full state
     )
-    
+
     # Create tool call for lesson card presentation
     tool_call_id = f"lesson_card_{current_index}"
     lesson_context = {
@@ -295,7 +474,7 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         "student_name": state.get("student_id", "Student"),
         "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
     }
-    
+
     tool_call = ToolCall(
         id=tool_call_id,
         name="lesson_card_presentation",
@@ -306,26 +485,34 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": cfu_type,
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
+            "session_id": state.get("session_id", ""),  # For storage file naming (Phase 10)
+            "student_id": state.get("student_id", ""),  # For storage permissions (Phase 10)
             "interaction_id": str(uuid.uuid4()),
             "timestamp": datetime.now().isoformat()
         }
     )
-    
+
     # Create AIMessage with empty content and tool call for UI
     tool_message = AIMessage(
         content="",  # Empty to avoid duplication
         tool_calls=[tool_call]
     )
-    
+
     print(f"🚨 TOOL DEBUG - Created AIMessage with tool call for UI rendering")
     print(f"🚨 TOOL DEBUG - Tool call ID: {tool_call_id}")
     print(f"🚨 TOOL DEBUG - Tool name: {tool_call['name'] if isinstance(tool_call, dict) else tool_call.name}")
     print(f"🚨 TOOL DEBUG - Card index: {current_index}")
     print(f"🚨 TOOL DEBUG - Tool call type: {type(tool_call)}")
-    
+
+    # Add card greeting and tool call to messages
+    messages_to_send.extend([message_obj, tool_message])
+
     print(f"🔍 NODE_EXIT: design_node | decision: new_card | next_stage: get_answer")
+    print(f"📨 MESSAGES DEBUG - Sending {len(messages_to_send)} messages (diagram={bool(diagram_message)})")
+
     return {
-        "messages": [message_obj, tool_message],  # Both messages
+        "messages": messages_to_send,  # Diagram (if first card) + greeting + card tool call
         "current_card": current_card,
         "current_card_index": current_index,
         "stage": "get_answer",  # Route to get_answer_node
@@ -337,16 +524,27 @@ def design_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
 def get_answer_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     """Get answer node - captures interrupt response and returns to design."""
     current_idx = state.get("current_card_index", 0)
-    print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx}")
-    
-    print(f"🚨 INTERRUPT DEBUG - About to interrupt with empty payload, waiting for sendCommand response")
-    
+    current_stage = state.get("stage", "unknown")
+    interrupt_count = state.get("interrupt_count", 0)
+
+    print(f"🔍 NODE_ENTRY: get_answer_node | card_idx: {current_idx} | stage: {current_stage}")
+    print(f"📊 INTERRUPT STATE BEFORE:", {
+        "interrupt_count": interrupt_count,
+        "current_stage": current_stage,
+        "current_card_index": current_idx,
+        "has_student_response": bool(state.get("student_response")),
+        "timestamp": datetime.now().isoformat()
+    })
+
+    print(f"🛑 INTERRUPT TRIGGERED - Waiting for user response (interrupt #{interrupt_count + 1})")
+
     # Interrupt with EMPTY payload - frontend already has data from tool call
     response = interrupt({})
-    
+
     # THIS CODE EXECUTES AFTER RESUME with response from sendCommand
-    print(f"🚨 INTERRUPT DEBUG - Raw response received: {response}")
-    print(f"🚨 INTERRUPT DEBUG - Response type: {type(response)}")
+    print(f"✅ INTERRUPT RESUMED - Response received (interrupt #{interrupt_count + 1})")
+    print(f"📥 INTERRUPT DEBUG - Raw response received: {response}")
+    print(f"📥 INTERRUPT DEBUG - Response type: {type(response)}")
     
     # Parse response robustly (keep existing parsing logic)
     payload = None
@@ -381,10 +579,20 @@ def get_answer_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     
     # Simply store the interrupt response and return to design
     print(f"🔍 NODE_EXIT: get_answer_node | returning to design with payload")
-    return {
+    print(f"📤 INTERRUPT RESPONSE PAYLOAD:", {
+        "payload": payload,
+        "action": payload.get("action") if isinstance(payload, dict) else None,
+        "has_student_response": bool(payload.get("student_response")) if isinstance(payload, dict) else False,
+        "next_stage": "design"
+    })
+
+    return_dict = {
         "interrupt_response": payload,
+        "interrupt_count": interrupt_count + 1,  # Increment interrupt count
         "stage": "design"  # Always go back to design
     }
+    print(f"✅ INTERRUPT COMPLETE - Returning to design_node")
+    return return_dict
 
 
 def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
@@ -394,24 +602,96 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     current_idx = state.get("current_card_index", 0)
     attempts = state.get("attempts", 0)
     student_response = state.get("student_response", "")
+    student_drawing = state.get("student_drawing")
+    student_drawing_text = state.get("student_drawing_text")
     current_card = state.get("current_card")
-    print(f"🔍 NODE_ENTRY: mark_node | card_idx: {current_idx} | attempt: {attempts + 1} | has_response: {bool(student_response)}")
-    
-    if not student_response or not current_card:
-        print("🚨 MARK DEBUG - Missing student response or current card")
+    print(f"🔍 NODE_ENTRY: mark_node | card_idx: {current_idx} | attempt: {attempts + 1} | has_response: {bool(student_response)} | has_drawing: {bool(student_drawing)}")
+
+    # Validate we have either a text response OR a drawing
+    if (not student_response and not student_drawing) or not current_card:
+        print("🚨 MARK DEBUG - Missing student response/drawing or current card")
         return {"stage": "design"}  # Go back to design
-    
-    print(f"🚨 MARK DEBUG - Evaluating response: {student_response[:50]}...")
+
+    if student_response:
+        print(f"🚨 MARK DEBUG - Evaluating text response: {student_response[:50]}...")
+    if student_drawing:
+        print(f"🎨 MARK DEBUG - Evaluating drawing submission: {len(student_drawing)} bytes")
     
     # Perform evaluation
     teacher = LLMTeacher()
     cfu = current_card["cfu"]
     attempts = state.get("attempts", 0) + 1
     max_attempts = state.get("max_attempts", 3)
-    
-    # Pre-validate numeric responses BEFORE LLM evaluation
+
+    # Route to appropriate evaluation based on DRAWING PRESENCE (not CFU type)
     cfu_type = cfu.get("type", "")
-    if cfu_type == "numeric":
+
+    # PRIORITY 1: Check for drawing submission FIRST (works with ANY CFU type)
+    if student_drawing:
+        print(f"🎨 VISION API: Drawing detected for '{cfu_type}' CFU - routing to vision evaluation")
+
+        # Validation: drawing field should not be empty string
+        if not student_drawing.strip():
+            error_msg = f"student_drawing field is present but empty for CFU type: {cfu_type}"
+            print(f"🚨 MARK DEBUG - {error_msg}")
+            raise ValueError(error_msg)
+
+        # Parse student_drawing: can be string (single) or JSON array (multiple)
+        import json
+        drawing_list = []
+        try:
+            parsed = json.loads(student_drawing)
+            if isinstance(parsed, list):
+                drawing_list = parsed  # Multiple images
+                print(f"🎨 MULTI-IMAGE: Parsed {len(drawing_list)} images from JSON array")
+            else:
+                drawing_list = [student_drawing]  # Single image (legacy format that's already JSON)
+                print(f"🎨 SINGLE IMAGE: Treating parsed JSON as single base64 string")
+        except json.JSONDecodeError:
+            drawing_list = [student_drawing]  # Single base64 string (legacy)
+            print(f"🎨 SINGLE IMAGE: Raw base64 string (not JSON)")
+
+        print(f"🎨 MARK DEBUG - Routing to vision-based evaluation (CFU type: {cfu_type}, image count: {len(drawing_list)})")
+        evaluation = teacher.evaluate_drawing_response(
+            student_drawing=drawing_list,  # Pass list of images (single or multiple)
+            student_drawing_text=student_drawing_text,
+            card_context=current_card,
+            attempt_number=attempts,
+            max_attempts=max_attempts,
+            state=state
+        )
+
+        # Process evaluation result (same logic as other CFU types)
+        should_progress = evaluation.should_progress
+
+        evidence_entry = _create_evidence_entry(
+            evaluation,
+            student_drawing_text or "[Drawing submitted]",  # Use text explanation or placeholder
+            cfu,
+            current_card,
+            attempts,
+            should_progress,
+            max_attempts
+        )
+        evidence = state.get("evidence", [])
+        evidence.append(evidence_entry)
+
+        print(f"🎨 MARK DEBUG - Vision evaluation complete: is_correct={evaluation.is_correct}, should_progress={should_progress}, cfu_type={cfu_type}")
+
+        return {
+            "is_correct": evaluation.is_correct,
+            "should_progress": should_progress,
+            "feedback": evaluation.feedback,
+            "attempts": attempts,
+            "evidence": evidence,
+            "stage": "progress",
+            "student_response": None,  # Clear after marking
+            "student_drawing": None,   # Clear after marking
+            "student_drawing_text": None
+        }
+
+    # PRIORITY 2: Pre-validate numeric responses BEFORE LLM evaluation (text-only path)
+    if cfu_type == "numeric" and student_response:
         try:
             # Extract expected answer and tolerance
             expected_numeric = float(cfu.get("expected", 0))
@@ -438,9 +718,9 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
                 # Skip LLM evaluation, use pre-validation result
                 print(f"🚨 MARK DEBUG - Numeric pre-validation passed, skipping LLM")
                 should_progress = True
-                
+
                 # Record evidence and continue
-                evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
+                evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, current_card, attempts, should_progress, max_attempts)
                 evidence = state.get("evidence", [])
                 evidence.append(evidence_entry)
                 
@@ -470,23 +750,56 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         max_attempts=max_attempts,
         state=state  # Pass full state for curriculum context
     )
-    
+
+    # ═══════════════════════════════════════════════════════════════
+    # DETERMINISTIC THRESHOLD-BASED OVERRIDE
+    # Apply 60% partial credit threshold for consistent evaluation
+    # ═══════════════════════════════════════════════════════════════
+    if evaluation.partial_credit is not None:
+        print(f"🎯 EVALUATION DEBUG: partial_credit={evaluation.partial_credit:.2f}, is_correct={evaluation.is_correct}, threshold={PARTIAL_CREDIT_THRESHOLD}")
+
+        # Override is_correct if student meets threshold but LLM marked incorrect
+        if evaluation.partial_credit >= PARTIAL_CREDIT_THRESHOLD and not evaluation.is_correct:
+            print(f"✅ THRESHOLD OVERRIDE: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%} → Setting is_correct=True")
+
+            # Create new evaluation with overridden fields
+            from .llm_teacher import EvaluationResponse
+            evaluation = EvaluationResponse(
+                is_correct=True,  # OVERRIDE to true
+                confidence=min(1.0, evaluation.confidence + 0.1),  # Boost confidence slightly
+                feedback=f"{evaluation.feedback}\n\n✨ **Great work!** You've demonstrated understanding of the key concepts (scored {evaluation.partial_credit:.0%}).",
+                reasoning=f"{evaluation.reasoning}\n[Threshold override applied: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%}]",
+                should_progress=True,  # Progress with threshold pass
+                partial_credit=evaluation.partial_credit,
+                rubric_breakdown=evaluation.rubric_breakdown
+            )
+        elif evaluation.partial_credit >= PARTIAL_CREDIT_THRESHOLD and evaluation.is_correct:
+            print(f"✅ THRESHOLD CONFIRMED: {evaluation.partial_credit:.1%} ≥ {PARTIAL_CREDIT_THRESHOLD:.0%} → is_correct=True (LLM agrees)")
+        else:
+            print(f"❌ BELOW THRESHOLD: {evaluation.partial_credit:.1%} < {PARTIAL_CREDIT_THRESHOLD:.0%} → is_correct={evaluation.is_correct}")
+
     # Record evidence using shared utility
     should_progress = evaluation.is_correct or (attempts >= max_attempts)
-    evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, attempts, should_progress, max_attempts)
+    evidence_entry = _create_evidence_entry(evaluation, student_response, cfu, current_card, attempts, should_progress, max_attempts)
     evidence = state.get("evidence", [])
     evidence.append(evidence_entry)
-    
+
     # Determine progression (already calculated in evidence entry)
     should_progress = evidence_entry["should_progress"]
 
     print(f"🚨 MARK DEBUG - Evaluation result: correct={evaluation.is_correct}, should_progress={should_progress}")
 
+    # Format enhanced feedback with rubric breakdown
+    enhanced_feedback = _format_enhanced_feedback(evaluation, cfu)
+    print(f"🚨 MARK DEBUG - Enhanced feedback length: {len(enhanced_feedback)} chars, has Assessment Summary: {'Assessment Summary:' in enhanced_feedback}")
+
     # NEW: Generate explanation if max attempts reached and incorrect
     explanation_message = None
     if attempts >= max_attempts and not evaluation.is_correct:
         print(f"🚨 MARK DEBUG - Max attempts reached with incorrect answer, generating explanation")
-        previous_attempts = _get_previous_attempts(evidence, cfu["id"])
+        # Use same backward-compatible ID fallback as evidence entry
+        item_id = cfu.get("id", current_card.get("id", "unknown"))
+        previous_attempts = _get_previous_attempts(evidence, item_id)
         explanation_obj = teacher.explain_correct_answer_sync_full(
             current_card=current_card,
             student_attempts=previous_attempts,
@@ -506,7 +819,7 @@ def mark_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     return {
         "is_correct": evaluation.is_correct,
         "should_progress": should_progress,
-        "feedback": evaluation.feedback,
+        "feedback": enhanced_feedback,  # CHANGED: Use enhanced feedback with rubric breakdown
         "explanation": explanation_message,  # NEW field
         "attempts": attempts,
         "evidence": evidence,
@@ -532,18 +845,36 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         
         if action == "submit_answer":
             student_response = interrupt_response.get("student_response", "")
+            # Extract drawing data if present (universal - works with ANY CFU type)
+            # Phase 10: Support both storage file IDs (NEW) and base64 (LEGACY)
+            student_drawing_file_ids = interrupt_response.get("student_drawing_file_ids")  # NEW
+            student_drawing = interrupt_response.get("student_drawing")  # LEGACY
+            student_drawing_text = interrupt_response.get("student_drawing_text")
+
             print(f"🚨 RETRY DEBUG - Submit answer: {student_response[:50] if student_response else 'EMPTY'}...")
+            if student_drawing_file_ids:
+                print(f"🎨 STORAGE DRAWING - File IDs received on retry: {student_drawing_file_ids} (Phase 10 storage-based)")
+                print(f"📝 STORAGE DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+            elif student_drawing:
+                print(f"🎨 LEGACY DRAWING - Base64 received on retry: {len(student_drawing)} bytes (legacy format)")
+                print(f"📝 LEGACY DRAWING - Drawing text on retry: {student_drawing_text[:100] if student_drawing_text else 'None'}")
+
             current_card, current_index, _ = _get_current_card_info(state)
             print(f"🔍 NODE_EXIT: retry_node | decision: submit_answer | next_stage: mark")
 
             # Create HumanMessage with the submitted answer
-            answer_message = HumanMessage(
-                content=f"Your Answer: {student_response}"
+            has_drawing = student_drawing_file_ids or student_drawing
+            message_content = f"Your Answer: {student_response}" if student_response else (
+                f"Your Drawing: [Image submitted]{' - ' + student_drawing_text if student_drawing_text else ''}" if has_drawing else "Your Answer: [No response]"
             )
+            answer_message = HumanMessage(content=message_content)
 
             return_dict = {
                 "messages": [answer_message],  # Add HumanMessage to stack
                 "student_response": student_response,
+                "student_drawing_file_ids": student_drawing_file_ids,  # NEW: storage file IDs
+                "student_drawing": student_drawing,  # LEGACY: base64 strings
+                "student_drawing_text": student_drawing_text,
                 "current_card": current_card,
                 "current_card_index": current_index,
                 "stage": "mark",
@@ -616,7 +947,16 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     else:
         feedback_message = AIMessage(content=feedback)
         combined_feedback = feedback
-    
+
+    # Check for lesson diagram and present it BEFORE card retry (using helper function)
+    messages_to_send = []
+    diagram_message = _create_diagram_tool_call(state, current_card, current_index)
+    if diagram_message:
+        messages_to_send.append(diagram_message)
+        # Add small delay to allow diagram to render before feedback appears
+        time.sleep(0.5)
+        print(f"⏱️ TIMING - Delayed 0.5s after diagram tool call before adding feedback")
+
     # Create tool call for retry using SAME tool as design_node
     tool_call_id = f"retry_card_{current_index}_{attempts}"
     lesson_context = {
@@ -624,7 +964,7 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
         "student_name": state.get("student_id", "Student"),
         "progress": f"{current_index + 1}/{len(state['lesson_snapshot'].get('cards', []))}"
     }
-    
+
     tool_call = ToolCall(
         id=tool_call_id,
         name="lesson_card_presentation",  # SAME tool name as design_node
@@ -635,23 +975,29 @@ def retry_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
             "total_cards": len(state["lesson_snapshot"].get("cards", [])),
             "cfu_type": current_card.get("cfu", {}).get("type", ""),
             "lesson_context": lesson_context,
+            "lesson_template_id": state.get("lesson_template_id", ""),  # For diagram fetching
             "interaction_id": str(uuid.uuid4()),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "attempt_number": attempts  # NEW: Signal retry (1=first, 2+=retry)
         }
     )
-    
+
     # Create AIMessage with empty content and tool call for UI
     tool_message = AIMessage(
         content="",  # Empty to avoid duplication
         tool_calls=[tool_call]
     )
-    
+
+    # Append feedback and card tool messages
+    messages_to_send.append(feedback_message)
+    messages_to_send.append(tool_message)
+
     print(f"🚨 RETRY DEBUG - Created lesson_card_presentation tool call for retry attempt {attempts}")
     print(f"🚨 RETRY DEBUG - Tool call content: {'feedback + explanation' if explanation else 'feedback only'}")
     print(f"🔍 NODE_EXIT: retry_node | decision: retry_presentation | next_stage: get_answer_retry")
 
     return {
-        "messages": [feedback_message, tool_message],
+        "messages": messages_to_send,
         "stage": "get_answer_retry",
         "pending_tool_call_id": tool_call_id,
         "student_response": None,  # Clear any previous response
@@ -737,19 +1083,28 @@ def progress_node(state: InterruptUnifiedState) -> InterruptUnifiedState:
     # Move to next card
     next_card_index = current_card_index + 1
     
-    # Generate transition message
+    # Generate transition message with assessment feedback
     teacher = LLMTeacher()
     cards = state["lesson_snapshot"].get("cards", [])
     next_card = cards[next_card_index] if next_card_index < len(cards) else None
-    
+
+    # Extract detailed feedback from state (set by mark_node)
+    assessment_feedback = state.get("feedback", "")
+    print(f"🚨 PROGRESS DEBUG - Assessment feedback length: {len(assessment_feedback)} chars")
+    print(f"🚨 PROGRESS DEBUG - Has 'Assessment Summary': {'Assessment Summary:' in assessment_feedback}")
+
+    # Build enhanced progress context with assessment feedback
+    progress_context = {
+        "cards_completed": len(cards_completed),
+        "total_cards": len(cards),
+        "current_performance": state.get("is_correct", False),
+        "assessment_feedback": assessment_feedback  # NEW: Include detailed rubric feedback
+    }
+
     transition_obj = teacher.transition_to_next_sync_full(
         completed_card=current_card,
         next_card=next_card,
-        progress_context={
-            "cards_completed": len(cards_completed),
-            "total_cards": len(cards),
-            "current_performance": state.get("is_correct", False)
-        },
+        progress_context=progress_context,
         state=state  # Pass full state for curriculum context
     )
     

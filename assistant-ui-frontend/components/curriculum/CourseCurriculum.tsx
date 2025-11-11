@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
@@ -11,18 +12,33 @@ import {
   Play,
   Loader2,
   BookOpen,
-  Clock
+  Clock,
+  RotateCcw
 } from 'lucide-react';
 import { Client, Databases, Query } from 'appwrite';
+import { formatDistanceToNow } from 'date-fns';
+import { logger } from '@/lib/logger';
+import { cache, createCacheKey } from '@/lib/cache';
+import { LessonQuickNotesButton } from '@/components/revision-notes/LessonQuickNotesButton';
+import { RevisionNotesDriver } from '@/lib/appwrite/driver/RevisionNotesDriver';
 
 interface Lesson {
   order: number;
   label: string;
   lessonTemplateId: string;
   lesson_type: string;
-  status?: 'completed' | 'in_progress' | 'not_started' | 'locked';
+  status: 'completed' | 'not_started' | 'locked'; // v3: removed 'in_progress'
   estimatedMinutes?: number;
-  isPublished?: boolean;
+  isPublished: boolean;
+  completedCount: number;
+  lesson_type_display?: string;
+  engagement_tags?: string[];
+}
+
+interface SessionsByLessonMap {
+  [lessonTemplateId: string]: {
+    completedCount: number; // v3: removed activeSession and lastActivity
+  };
 }
 
 interface CourseCurriculumProps {
@@ -38,14 +54,43 @@ export function CourseCurriculum({
   onStartLesson,
   startingLessonId
 }: CourseCurriculumProps) {
+  const router = useRouter();
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
+  const [lessonNotesAvailability, setLessonNotesAvailability] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadCurriculum();
   }, [courseId, studentId]);
+
+  // Check lesson notes availability for all lessons
+  useEffect(() => {
+    if (lessons.length === 0 || !courseId) return;
+
+    const checkAllLessonNotesAvailability = async () => {
+      const driver = new RevisionNotesDriver();
+      const availabilityMap: Record<number, boolean> = {};
+
+      // Batch check all lessons
+      await Promise.all(
+        lessons.map(async (lesson) => {
+          try {
+            const isAvailable = await driver.lessonNotesExist(courseId, lesson.order);
+            availabilityMap[lesson.order] = isAvailable;
+          } catch (error) {
+            // On error, mark as unavailable
+            availabilityMap[lesson.order] = false;
+          }
+        })
+      );
+
+      setLessonNotesAvailability(availabilityMap);
+    };
+
+    checkAllLessonNotesAvailability();
+  }, [lessons, courseId]);
 
   const loadCurriculum = async () => {
     try {
@@ -148,37 +193,85 @@ export function CourseCurriculum({
 
       console.log('[CourseCurriculum] Lesson sessions found:', allSessions.length);
 
-      const sessionMap = new Map(
-        allSessions.map((s: any) => [
-          s.lessonTemplateId,
-          s.completionStatus
-        ])
-      );
+      // Build session map with strict security filtering
+      const sessionsByLesson: SessionsByLessonMap = {};
 
-      // Map lesson templates with status
-      const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
-        const sessionStatus = sessionMap.get(template.$id);
-        const isPublished = template.status === 'published';
-        let status: Lesson['status'] = 'not_started';
+      // SECURITY: Filter sessions by current student
+      const studentSessions = allSessions.filter((session: any) => {
+        if (session.studentId !== studentId) {
+          logger.warn('session_with_wrong_studentId_in_dataset', {
+            sessionId: session.$id,
+            expectedStudentId: studentId,
+            foundStudentId: session.studentId
+          });
+          return false;
+        }
+        return true;
+      });
 
-        // If lesson is not published, mark it as locked
-        if (!isPublished) {
-          status = 'locked';
-        } else if (sessionStatus === 'completed') {
-          status = 'completed';
-        } else if (sessionStatus === 'in_progress') {
-          status = 'in_progress';
+      // v3: Only count completed sessions, ignore active/abandoned
+      studentSessions.forEach((session: any) => {
+        const lessonId = session.lessonTemplateId;
+
+        if (!sessionsByLesson[lessonId]) {
+          sessionsByLesson[lessonId] = {
+            completedCount: 0
+          };
         }
 
+        // Only count completed sessions
+        if (session.status === 'completed') {
+          sessionsByLesson[lessonId].completedCount++;
+        }
+      });
+
+      // Map lessons with status (v3 simplified logic)
+      const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
+        const lessonSessions = sessionsByLesson[template.$id];
+        const isPublished = template.status === 'published';
+
+        // v3: Only three states - locked, completed, or not_started
+        let status: Lesson['status'] = 'not_started';
+
+        if (!isPublished) {
+          status = 'locked';
+        } else if (lessonSessions?.completedCount > 0) {
+          status = 'completed';
+        }
+
+        // Extract curriculum metadata for richer display
+        let engagement_tags: string[] = [];
+        try {
+          const tags_str = template.engagement_tags || '[]';
+          engagement_tags = typeof tags_str === 'string' ? JSON.parse(tags_str) : tags_str;
+        } catch (e) {
+          logger.warn('failed_to_parse_engagement_tags', { templateId: template.$id });
+        }
+
+        const lesson_type_display = template.lesson_type
+          ? template.lesson_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
+          : 'Lesson';
+
         return {
-          order: template.sow_order || index + 1,  // Use sow_order field
+          order: template.sow_order || index + 1,
           label: template.title || `Lesson ${index + 1}`,
           lessonTemplateId: template.$id,
           lesson_type: template.lesson_type || 'teach',
           status,
-          estimatedMinutes: template.estMinutes || 30,  // Use estMinutes field
-          isPublished
+          estimatedMinutes: template.estMinutes || 30,
+          isPublished,
+          completedCount: lessonSessions?.completedCount || 0,
+          lesson_type_display,
+          engagement_tags
         };
+      });
+
+      // v3: removed in_progress from logging
+      logger.info('lessons_mapped', {
+        totalLessons: lessonsWithStatus.length,
+        completed: lessonsWithStatus.filter(l => l.status === 'completed').length,
+        locked: lessonsWithStatus.filter(l => l.status === 'locked').length,
+        notStarted: lessonsWithStatus.filter(l => l.status === 'not_started').length
       });
 
       setLessons(lessonsWithStatus);
@@ -216,8 +309,6 @@ export function CourseCurriculum({
     switch (status) {
       case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-green-600" />;
-      case 'in_progress':
-        return <Circle className="h-5 w-5 text-blue-600 fill-blue-200" />;
       case 'locked':
         return <Lock className="h-5 w-5 text-gray-400" />;
       default:
@@ -225,61 +316,79 @@ export function CourseCurriculum({
     }
   };
 
+  // v3: Simplified button rendering - no Continue or stale session logic
   const getActionButton = (lesson: Lesson) => {
     const isStarting = startingLessonId === lesson.lessonTemplateId;
 
     if (lesson.status === 'locked') {
       return (
-        <Button variant="ghost" size="sm" disabled className="gap-2">
-          <Lock className="h-4 w-4" />
-          Locked
-        </Button>
+        <div className="text-right">
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled
+            className="gap-2"
+            aria-label={`${lesson.label} is locked`}
+          >
+            <Lock className="h-4 w-4" aria-hidden="true" />
+            Locked
+          </Button>
+        </div>
       );
     }
 
+    // Determine button configuration (v3: only Start or Retake)
+    let buttonText = 'Start Lesson';
+    let buttonVariant: 'default' | 'outline' = 'default';
+    let buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
+    let ariaLabel = `Start ${lesson.label}`;
+
     if (lesson.status === 'completed') {
-      return (
+      buttonText = 'Retake Lesson';
+      buttonVariant = 'outline';
+      buttonIcon = <RotateCcw className="h-4 w-4" aria-hidden="true" />;
+      ariaLabel = `Retake ${lesson.label}`;
+    }
+
+    return (
+      <div className="flex flex-col items-end gap-2">
+        {/* Main action button */}
         <Button
-          variant="outline"
+          variant={buttonVariant}
           size="sm"
           onClick={() => onStartLesson(lesson.lessonTemplateId)}
           disabled={isStarting}
-          className="gap-2"
+          className={`gap-2 ${buttonVariant === 'default' ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+          aria-label={ariaLabel}
+          aria-busy={isStarting}
         >
           {isStarting ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               Starting...
             </>
           ) : (
             <>
-              <Play className="h-4 w-4" />
-              Review
+              {buttonIcon}
+              {buttonText}
             </>
           )}
         </Button>
-      );
-    }
 
-    return (
-      <Button
-        size="sm"
-        onClick={() => onStartLesson(lesson.lessonTemplateId)}
-        disabled={isStarting}
-        className="gap-2 bg-blue-600 hover:bg-blue-700"
-      >
-        {isStarting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Starting...
-          </>
-        ) : (
-          <>
-            <Play className="h-4 w-4" />
-            {lesson.status === 'in_progress' ? 'Continue' : 'Start'}
-          </>
+        {/* History link for completed lessons */}
+        {lesson.completedCount > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/lessons/${lesson.lessonTemplateId}/history`);
+            }}
+            className="text-xs text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            aria-label={`View ${lesson.completedCount} completed attempts for ${lesson.label}`}
+          >
+            View History ({lesson.completedCount} completed)
+          </button>
         )}
-      </Button>
+      </div>
     );
   };
 
@@ -341,9 +450,7 @@ export function CourseCurriculum({
                 key={lesson.lessonTemplateId}
                 className={`
                   flex items-center gap-3 p-4 rounded-lg border transition-all
-                  ${lesson.status === 'in_progress'
-                    ? 'bg-blue-50 border-blue-200'
-                    : isNextLesson
+                  ${isNextLesson
                     ? 'bg-green-50 border-green-200'
                     : 'bg-white border-gray-200'
                   }
@@ -379,8 +486,17 @@ export function CourseCurriculum({
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <div className="flex-shrink-0">
+                {/* Action Buttons */}
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {/* Lesson Quick Notes Button */}
+                  <LessonQuickNotesButton
+                    courseId={courseId}
+                    lessonOrder={lesson.order}
+                    isAvailable={lessonNotesAvailability[lesson.order] ?? null}
+                    onClick={() => {}}
+                  />
+
+                  {/* Start Lesson Button */}
                   {getActionButton(lesson)}
                 </div>
               </div>

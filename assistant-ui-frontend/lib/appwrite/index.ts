@@ -8,6 +8,9 @@ export { SessionDriver } from './driver/SessionDriver';
 export { MasteryDriver } from './driver/MasteryDriver';
 export { RoutineDriver } from './driver/RoutineDriver';
 
+// SessionDriver type exports
+export type { ConversationHistory } from './driver/SessionDriver';
+
 // Hook exports
 export { useAppwrite } from './hooks/useAppwrite';
 export { useAuth } from './hooks/useAuth';

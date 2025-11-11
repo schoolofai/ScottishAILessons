@@ -182,15 +182,17 @@ Valid values:
 
 ### Card Count Validation
 
-Card count must match lesson type requirements:
+**Universal Bounds**:
+- Minimum: 1 card (focused single activity)
+- Maximum: 20 cards (practical limit for token constraints and session length)
 
-| Lesson Type | Min Cards | Max Cards |
-|------------|-----------|-----------|
-| teach | 3 | 4 |
-| independent_practice | 3 | 5 |
-| formative_assessment | 2 | 6 |
-| revision | 4 | 8 |
-| mock_exam | 8 | 15 |
+**Pedagogical Guidance** (not enforced by validator):
+- Align with SOW card_structure count when provided (preferred)
+- Consider estMinutes: typically 10-15 minutes per card
+- Lesson type influences pedagogy, not card count (e.g., "teach" uses scaffolding patterns, not fixed count)
+
+**Validation**: Only checks universal bounds (1-20) and sequential card IDs.
+**Quality Evaluation**: Critic evaluates pedagogical coherence and SOW fidelity.
 
 ### Card-Level Required Fields (OUTPUT Schema)
 
@@ -348,26 +350,28 @@ error: "value is not a valid enumeration member; permitted: 'teach', 'independen
 
 ---
 
-### 3. Wrong Card Count
+### 3. Card Count Out of Bounds
 
-**Problem**: Card count doesn't match lesson type
+**Problem**: Card count exceeds universal limits
 
 ```json
-"lesson_type": "teach",
-"cards": [...]  // 5 cards instead of 3-4
+"lesson_type": "mock_exam",
+"cards": [...]  // 25 cards (exceeds maximum)
 ```
 
 **Error**:
 ```
 field: "cards"
-error: "lesson_type 'teach' requires 3-4 cards, got 5"
+error: "Lesson must have 1-20 cards, got 25. Create as many cards as needed based on pedagogical requirements and estMinutes."
 ```
 
-**Fix**: Adjust card count
+**Fix**: Consolidate cards or split into multiple lessons
 ```json
-"lesson_type": "teach",
-"cards": [...]  // 3-4 cards
+"lesson_type": "mock_exam",
+"cards": [...]  // 15 cards (within limits)
 ```
+
+**Note**: If SOW specifies 25 cards, agent should consolidate related content into fewer, richer cards.
 
 ---
 

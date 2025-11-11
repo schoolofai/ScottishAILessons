@@ -1,5 +1,6 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
+import { StudentDrawingStorageDriver } from './StudentDrawingStorageDriver';
 import type { Evidence, EvidenceData } from '../types';
 
 export interface EnhancedEvidenceData {
@@ -448,5 +449,65 @@ export class EvidenceDriver extends BaseDriver {
     } catch (error) {
       throw this.handleError(error, 'add feedback');
     }
+  }
+
+  // === Phase 10: Drawing Storage Helpers ===
+
+  /**
+   * Get drawing URLs from evidence record (handles both storage and legacy formats)
+   *
+   * Phase 10: Backward-compatible drawing retrieval
+   * - NEW: Converts file IDs to storage preview URLs
+   * - LEGACY: Converts base64 strings to data URLs
+   *
+   * @param evidence - Evidence record that may contain drawings
+   * @returns Array of URLs for displaying drawings in <img> tags
+   */
+  getDrawingUrls(evidence: Evidence): string[] {
+    // NEW FORMAT: Storage file IDs
+    if (evidence.student_drawing_file_ids && evidence.student_drawing_file_ids.length > 0) {
+      const storageDriver = new StudentDrawingStorageDriver(this.client);
+      return storageDriver.getDrawingPreviewUrls(evidence.student_drawing_file_ids);
+    }
+
+    // LEGACY FORMAT: Base64 strings
+    if (evidence.student_drawing) {
+      try {
+        // Try parsing as JSON array (multiple images)
+        const parsed = JSON.parse(evidence.student_drawing);
+        if (Array.isArray(parsed)) {
+          return parsed.map(base64 => this.base64ToDataUrl(base64));
+        }
+      } catch {
+        // Not JSON, treat as single base64 string
+      }
+
+      // Single base64 string
+      return [this.base64ToDataUrl(evidence.student_drawing)];
+    }
+
+    // No drawings
+    return [];
+  }
+
+  /**
+   * Convert base64 string to data URL for <img> src
+   * Handles both raw base64 and data URI formats
+   */
+  private base64ToDataUrl(base64: string): string {
+    // Already a data URL
+    if (base64.startsWith('data:')) {
+      return base64;
+    }
+
+    // Raw base64, add prefix
+    return `data:image/png;base64,${base64}`;
+  }
+
+  /**
+   * Check if evidence has drawings (either format)
+   */
+  hasDrawings(evidence: Evidence): boolean {
+    return !!(evidence.student_drawing_file_ids?.length || evidence.student_drawing);
   }
 }

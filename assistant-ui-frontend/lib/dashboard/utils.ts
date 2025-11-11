@@ -16,6 +16,10 @@ export interface Session {
   startedAt: string;
   endedAt?: string;
   stage: string;
+  status: 'created' | 'active' | 'completed' | 'abandoned' | 'failed';
+  completedAt?: string;
+  durationMinutes?: number;
+  updatedAt?: string;
 }
 
 /**

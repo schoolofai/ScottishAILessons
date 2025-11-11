@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
+import { useSafeLangGraphInterruptState } from "@/lib/replay/useSafeLangGraphHooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ export const FeedbackPresentationTool = makeAssistantToolUI<
 >({
   toolName: "feedback_presentation",
   render: function FeedbackPresentationUI({ args, callTool, status }) {
-    const interrupt = useLangGraphInterruptState();
+    const interrupt = useSafeLangGraphInterruptState();
 
     const {
       is_correct,

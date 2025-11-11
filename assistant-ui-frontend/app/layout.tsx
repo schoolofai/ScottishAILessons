@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { ClientErrorBoundary } from "@/components/ClientErrorBoundary";
+import { ToastProvider } from "@/hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,9 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ClientErrorBoundary>
-          {children}
-        </ClientErrorBoundary>
+        <ToastProvider>
+          <ClientErrorBoundary>
+            {children}
+          </ClientErrorBoundary>
+          <Toaster />
+        </ToastProvider>
       </body>
     </html>
   );

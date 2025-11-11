@@ -310,8 +310,10 @@ export const LessonTemplateSchema = z.object({
   ]).default([]),
 
   // Lesson duration - required field
+  // Range: 5-120 for regular lessons, 5-180 for mock_exam/mock_assessment
+  // Lesson-type-aware validation applied at schema level (see .refine() below)
   estMinutes: z.union([
-    z.number().int().min(30).max(90),
+    z.number().int().min(5).max(180),
     z.null().transform(() => 50), // Default to 50 minutes if null
     z.string().transform(str => parseInt(str, 10) || 50)
   ]).default(50),
@@ -391,7 +393,28 @@ export const LessonTemplateSchema = z.object({
     .describe('Denormalized version string from Authored_SOW'),
   model_version: z.string().max(50).optional()
     .describe('AI model identifier (e.g., gpt4, claude-sonnet-4, legacy)')
-}).passthrough(); // Allow any additional fields from Appwrite
+}).passthrough() // Allow any additional fields from Appwrite
+.refine((data) => {
+  // Lesson-type-aware estMinutes validation
+  // Mock exams can be up to 180 minutes (full SQA exam simulations with multiple papers)
+  // Regular lessons are capped at 120 minutes (double period)
+  const isMockExam = data.lesson_type === 'mock_exam' || data.lesson_type === 'mock_assessment';
+  const maxMinutes = isMockExam ? 180 : 120;
+
+  if (data.estMinutes < 5 || data.estMinutes > maxMinutes) {
+    return false;
+  }
+  return true;
+}, (data) => {
+  const isMockExam = data.lesson_type === 'mock_exam' || data.lesson_type === 'mock_assessment';
+  const maxMinutes = isMockExam ? 180 : 120;
+  const lessonTypeLabel = isMockExam ? 'Mock exams' : 'Regular lessons';
+
+  return {
+    message: `Invalid estMinutes for ${data.lesson_type}: ${data.estMinutes}. ${lessonTypeLabel} must be between 5 and ${maxMinutes} minutes`,
+    path: ['estMinutes']
+  };
+});
 
 // Scheme of Work entry schema
 export const SchemeOfWorkEntrySchema = z.object({
@@ -447,10 +470,12 @@ export const SessionSchema = z.object({
   contextChatThreadId: IdSchema.optional(), // Context chat thread ID for separate context-aware conversations
   lessonTemplateId: IdSchema,
   courseId: IdSchema,
-  status: z.enum(['created', 'active', 'completed', 'abandoned', 'failed']).default('created'),
+  status: z.enum(['created', 'active', 'completed', 'failed']).default('created'),
   startedAt: OptionalTimestampSchema,
   completedAt: OptionalTimestampSchema,
   durationMinutes: z.number().int().min(0).optional(),
+  score: z.number().min(0).max(1).optional(), // Overall lesson performance (0.0-1.0)
+  conversationHistory: z.string().max(50000).optional(), // Compressed (gzip + base64) conversation history for replay
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema
 }).strict();

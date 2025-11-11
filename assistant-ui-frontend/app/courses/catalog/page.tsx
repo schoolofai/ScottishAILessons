@@ -7,17 +7,29 @@ import { CourseFilterBar } from '@/components/courses/CourseFilterBar';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap, ArrowLeft } from 'lucide-react';
 import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
+import { UnenrollConfirmationModal } from '@/components/dialogs/UnenrollConfirmationModal';
+import {
+  archiveEnrollment,
+  enrollStudentInCourse,
+  type EnrollmentStatus
+} from '@/lib/services/enrollment-service';
+import { toast } from 'sonner';
 
 export default function CourseCatalogPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<any[]>([]);
-  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
+  const [enrollmentStatusMap, setEnrollmentStatusMap] = useState<Map<string, EnrollmentStatus>>(new Map());
+  const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     level: 'all',
     subject: 'all',
     search: ''
   });
+
+  // Unenroll modal state
+  const [unenrollModalOpen, setUnenrollModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     loadCourses();
@@ -53,7 +65,7 @@ export default function CourseCatalogPage() {
         `[Catalog] Filtered ${coursesResult.documents.length} courses to ${coursesWithPublishedSOWs.length} with published SOWs`
       );
 
-      // Get student enrollments
+      // Get student enrollments with status
       try {
         const user = await account.get();
         const studentsResult = await databases.listDocuments('default', 'students',
@@ -62,11 +74,22 @@ export default function CourseCatalogPage() {
 
         if (studentsResult.documents.length > 0) {
           const student = studentsResult.documents[0];
+          setStudentId(student.$id);
+
           const enrollmentsResult = await databases.listDocuments('default', 'enrollments',
             [Query.equal('studentId', student.$id)]
           );
 
-          setEnrolledCourseIds(enrollmentsResult.documents.map((e: any) => e.courseId));
+          // Build enrollment status map
+          const statusMap = new Map<string, EnrollmentStatus>();
+          enrollmentsResult.documents.forEach((enrollment: any) => {
+            // Default to 'active' for backward compatibility with old records
+            const status = enrollment.status || 'active';
+            statusMap.set(enrollment.courseId, status);
+          });
+
+          setEnrollmentStatusMap(statusMap);
+          console.log(`[Catalog] Loaded ${statusMap.size} enrollments`);
         }
       } catch (err) {
         // User not logged in - show all courses without enrollment status
@@ -79,6 +102,76 @@ export default function CourseCatalogPage() {
       console.error('Failed to load courses:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Handler for un-enrollment
+  const handleUnenroll = (courseId: string, courseName: string) => {
+    setSelectedCourse({ id: courseId, name: courseName });
+    setUnenrollModalOpen(true);
+  };
+
+  const confirmUnenroll = async () => {
+    if (!selectedCourse || !studentId) {
+      throw new Error('Missing required data for un-enrollment');
+    }
+
+    try {
+      const { Client, Databases } = await import('appwrite');
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const databases = new Databases(client);
+
+      await archiveEnrollment(studentId, selectedCourse.id, databases);
+
+      // Update local state
+      setEnrollmentStatusMap(prev => {
+        const updated = new Map(prev);
+        updated.set(selectedCourse.id, 'archived');
+        return updated;
+      });
+
+      toast.success('Successfully un-enrolled. Your progress is saved and you can re-enroll anytime.');
+    } catch (error) {
+      console.error('Failed to un-enroll:', error);
+      toast.error('Failed to un-enroll from course. Please try again.');
+      throw error; // Fast fail, no fallback
+    } finally {
+      setUnenrollModalOpen(false);
+      setSelectedCourse(null);
+    }
+  };
+
+  // Handler for re-enrollment
+  const handleReenroll = async (courseId: string, courseName: string) => {
+    if (!studentId) {
+      toast.error('You must be logged in to enroll');
+      return;
+    }
+
+    try {
+      const { Client, Databases } = await import('appwrite');
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const databases = new Databases(client);
+
+      // Re-enroll (will reactivate archived enrollment)
+      await enrollStudentInCourse(studentId, courseId, databases);
+
+      // Update local state
+      setEnrollmentStatusMap(prev => {
+        const updated = new Map(prev);
+        updated.set(courseId, 'active');
+        return updated;
+      });
+
+      toast.success(`Welcome back! Your progress in ${courseName} has been restored.`);
+    } catch (error) {
+      console.error('Failed to re-enroll:', error);
+      toast.error('Failed to re-enroll in course. Please try again.');
+      throw error; // Fast fail, no fallback
     }
   };
 
@@ -161,14 +254,19 @@ export default function CourseCatalogPage() {
         {/* Course grid */}
         {filteredCourses.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCourses.map(course => (
-              <CourseCard
-                key={course.courseId}
-                course={course}
-                enrolled={enrolledCourseIds.includes(course.courseId)}
-                onClick={() => router.push(`/courses/${course.courseId}`)}
-              />
-            ))}
+            {filteredCourses.map(course => {
+              const enrollmentStatus = enrollmentStatusMap.get(course.courseId) || null;
+              return (
+                <CourseCard
+                  key={course.courseId}
+                  course={course}
+                  enrollmentStatus={enrollmentStatus}
+                  onClick={() => router.push(`/courses/${course.courseId}`)}
+                  onEnroll={() => handleReenroll(course.courseId, course.subject)}
+                  onUnenroll={() => handleUnenroll(course.courseId, course.subject)}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-16 bg-white rounded-lg shadow-sm">
@@ -188,6 +286,19 @@ export default function CourseCatalogPage() {
           </div>
         )}
       </div>
+
+      {/* Un-enrollment confirmation modal */}
+      {selectedCourse && (
+        <UnenrollConfirmationModal
+          isOpen={unenrollModalOpen}
+          courseName={selectedCourse.name}
+          onConfirm={confirmUnenroll}
+          onCancel={() => {
+            setUnenrollModalOpen(false);
+            setSelectedCourse(null);
+          }}
+        />
+      )}
     </div>
   );
 }

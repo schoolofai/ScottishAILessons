@@ -347,4 +347,170 @@ export class LessonDriver extends BaseDriver {
       throw this.handleError(error, `publish template ${templateId}`);
     }
   }
+
+  /**
+   * [ADMIN] Unpublish a lesson template
+   * Reverts template status to draft
+   * FAST FAIL: Throws error immediately if operation fails
+   */
+  async unpublishTemplate(templateId: string): Promise<void> {
+    if (!templateId || templateId.length === 0) {
+      throw new Error('Template ID is required for unpublishing');
+    }
+
+    try {
+      await this.update<LessonTemplate>('lesson_templates', templateId, { status: 'draft' });
+      console.info(`✅ Template ${templateId} unpublished successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to unpublish template ${templateId}:`, error);
+      throw this.handleError(error, `unpublish template ${templateId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Publish all lesson templates for a given SOW
+   * Batch operation that publishes all templates associated with a SOW
+   * FAST FAIL: Throws error if any operation fails
+   *
+   * @param sowId - The authored_sow_id to filter templates
+   * @throws Error if no templates found or if any publish operation fails
+   */
+  async publishAllTemplatesForSOW(sowId: string): Promise<void> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required for bulk publishing');
+    }
+
+    try {
+      // Get all templates for this SOW
+      const templates = await this.getTemplatesByAuthoredSOWId(sowId);
+
+      if (templates.length === 0) {
+        throw new Error(`No templates found for SOW ${sowId}`);
+      }
+
+      // Filter only non-published templates
+      const unpublishedTemplates = templates.filter(t => t.status !== 'published');
+
+      if (unpublishedTemplates.length === 0) {
+        console.info(`ℹ️ All templates for SOW ${sowId} are already published`);
+        return;
+      }
+
+      // Batch publish all unpublished templates
+      const publishPromises = unpublishedTemplates.map(t => this.publishTemplate(t.$id));
+
+      await Promise.all(publishPromises);
+
+      console.info(`✅ Successfully published ${unpublishedTemplates.length} templates for SOW ${sowId}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Bulk publish failed for SOW ${sowId}:`, errorMsg);
+      throw new Error(`Bulk publish failed for SOW ${sowId}: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Unpublish all lesson templates for a given SOW
+   * Batch operation that reverts all templates to draft status
+   * FAST FAIL: Throws error if any operation fails
+   *
+   * @param sowId - The authored_sow_id to filter templates
+   * @throws Error if no templates found or if any unpublish operation fails
+   */
+  async unpublishAllTemplatesForSOW(sowId: string): Promise<void> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required for bulk unpublishing');
+    }
+
+    try {
+      // Get all templates for this SOW
+      const templates = await this.getTemplatesByAuthoredSOWId(sowId);
+
+      if (templates.length === 0) {
+        throw new Error(`No templates found for SOW ${sowId}`);
+      }
+
+      // Filter only published templates
+      const publishedTemplates = templates.filter(t => t.status === 'published');
+
+      if (publishedTemplates.length === 0) {
+        console.info(`ℹ️ No published templates found for SOW ${sowId}`);
+        return;
+      }
+
+      // Batch unpublish all published templates
+      const unpublishPromises = publishedTemplates.map(t => this.unpublishTemplate(t.$id));
+
+      await Promise.all(unpublishPromises);
+
+      console.info(`✅ Successfully unpublished ${publishedTemplates.length} templates for SOW ${sowId}`);
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error(`❌ Bulk unpublish failed for SOW ${sowId}:`, errorMsg);
+      throw new Error(`Bulk unpublish failed for SOW ${sowId}: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Update lesson template with new data
+   * Validates card data if cards are being updated
+   * Follows FAST FAIL pattern - throws exceptions immediately on errors
+   *
+   * @param templateId - The ID of the template to update
+   * @param updates - Partial template data to update (e.g., { cards: compressedString })
+   * @returns Updated lesson template
+   * @throws Error if validation fails or update fails
+   */
+  async updateLessonTemplate(
+    templateId: string,
+    updates: Partial<LessonTemplate>
+  ): Promise<LessonTemplate> {
+    // Validate templateId
+    if (!templateId || typeof templateId !== 'string' || templateId.trim().length === 0) {
+      throw new Error('Valid templateId is required');
+    }
+
+    // Validate updates object
+    if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
+      throw new Error('No updates provided');
+    }
+
+    // If cards are being updated, validate compression format
+    if (updates.cards !== undefined) {
+      if (typeof updates.cards !== 'string') {
+        throw new Error('Cards must be in compressed string format');
+      }
+
+      // Verify it's valid compressed data by attempting decompression
+      try {
+        const decompressed = decompressCards(updates.cards);
+        if (!Array.isArray(decompressed)) {
+          throw new Error('Decompressed cards must be an array');
+        }
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        throw new Error(`Invalid compressed cards data: ${errorMsg}`);
+      }
+    }
+
+    try {
+      // Perform update via BaseDriver
+      const updatedTemplate = await this.update<LessonTemplate>(
+        'lesson_templates',
+        templateId,
+        updates
+      );
+
+      console.log(`[LessonDriver] Template ${templateId} updated successfully`);
+      return updatedTemplate;
+
+    } catch (error) {
+      // Fast fail with detailed error
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      throw this.handleError(
+        error,
+        `update lesson template ${templateId}: ${errorMsg}`
+      );
+    }
+  }
 }

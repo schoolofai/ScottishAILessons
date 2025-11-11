@@ -5,7 +5,7 @@ from langchain_core.prompts import ChatPromptTemplate
 import os
 import logging
 import json
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -28,6 +28,82 @@ def parse_outcome_refs(outcome_refs_data):
             return [ref.get('title', '') for ref in outcome_refs_data]
         return outcome_refs_data
     return []
+
+
+def _format_sqa_alignment_summary(enriched_outcomes: Optional[List[Dict]]) -> str:
+    """Format enriched outcomes with detailed assessment standards for teaching guidance.
+
+    Transforms generic outcome data into actionable teaching information by exposing:
+    - Unit context (title and code)
+    - Assessment standards with codes (e.g., 2.1, 2.2)
+    - Skills being assessed
+    - Marking guidance for teachers
+
+    Args:
+        enriched_outcomes: List of CourseOutcome dictionaries from course_outcomes collection
+
+    Returns:
+        Formatted multi-line string for LLM system prompts
+    """
+    if not enriched_outcomes:
+        return ""
+
+    lines = ["SQA Learning Outcomes:"]
+    lines.append("━" * 60)
+
+    for outcome in enriched_outcomes[:3]:  # Limit to first 3 for prompt brevity
+        outcome_id = outcome.get("outcomeId", "")
+        unit_code = outcome.get("unitCode", "")
+        unit_title = outcome.get("unitTitle", "")
+
+        # Show unit context for geographical orientation
+        if unit_title and unit_code:
+            lines.append(f"\nUnit: {unit_title} [{unit_code}]")
+
+        # Parse assessment standards JSON (the actually useful teaching data!)
+        assessment_standards_json = outcome.get("assessmentStandards", "[]")
+        try:
+            standards = json.loads(assessment_standards_json) if isinstance(assessment_standards_json, str) else []
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse assessmentStandards for outcome {outcome_id}")
+            standards = []
+
+        if outcome_id and standards:
+            lines.append(f"\nOutcome {outcome_id} Assessment Standards:")
+
+            for standard in standards:
+                code = standard.get("code", "")
+                desc = standard.get("desc", "")
+                skills = standard.get("skills_list", [])
+                marking = standard.get("marking_guidance", "")
+
+                if code and desc:
+                    # Main assessment standard description
+                    lines.append(f"  • {code}: {desc}")
+
+                    # Show skills being assessed (truncate if too long)
+                    if skills:
+                        if isinstance(skills, list):
+                            skills_text = ", ".join(skills)
+                        else:
+                            skills_text = str(skills)
+
+                        if len(skills_text) > 80:
+                            skills_text = skills_text[:77] + "..."
+                        lines.append(f"    ↳ Skills: {skills_text}")
+
+                    # Show marking guidance (truncate if too long)
+                    if marking:
+                        marking_short = marking if len(marking) <= 100 else marking[:97] + "..."
+                        lines.append(f"    ↳ Marking: {marking_short}")
+
+        elif outcome_id:
+            # Fallback: Show generic outcome title if no standards available
+            outcome_title = outcome.get("outcomeTitle", "")
+            if outcome_title:
+                lines.append(f"\nOutcome {outcome_id}: {outcome_title[:80]}...")
+
+    return "\n".join(lines)
 
 
 def format_course_context_for_prompt(
@@ -101,21 +177,10 @@ def format_course_context_for_prompt(
 
     policy_reminders = "\n".join(policy_lines) if policy_lines else ""
 
-    # Build SQA alignment summary
-    sqa_lines = []
-    if enriched_outcomes:
-        sqa_lines.append("SQA Learning Outcomes Covered:")
-        for outcome in enriched_outcomes[:3]:  # Limit to first 3 for brevity
-            outcome_ref = outcome.get("outcomeRef", "")
-            outcome_title = outcome.get("outcomeTitle", "")
-            assessment_standards = outcome.get("assessmentStandards", [])
-
-            if outcome_ref and outcome_title:
-                sqa_lines.append(f"- {outcome_ref}: {outcome_title[:60]}...")
-                if assessment_standards:
-                    sqa_lines.append(f"  ({len(assessment_standards)} assessment standards)")
-
-    sqa_alignment_summary = "\n".join(sqa_lines) if sqa_lines else ""
+    # Build SQA alignment summary using the enhanced formatter
+    # This now shows detailed assessment standards with skills and marking guidance
+    # instead of just generic outcome titles
+    sqa_alignment_summary = _format_sqa_alignment_summary(enriched_outcomes)
 
     return {
         "tutor_role_description": tutor_role,
@@ -160,16 +225,11 @@ def get_lesson_type_pedagogy_guidance(lesson_type: str) -> str:
     guidance_map = {
         "teach": """
 TEACHING APPROACH (Teach Lesson):
-- Use the EXPLAINER and EXAMPLES to teach the concept from first principles
+- Use the EXPLAINER o teach the concept from first principles
 - Build understanding step-by-step using the provided teaching materials
 - Assume minimal prior knowledge - explain thoroughly using the explainer content
-- Take time to work through the provided examples in detail
-- Focus on conceptual clarity before presenting the question
+- At the end of the lesson, the student should be able to answer the question themselves, so cover all the key concepts and examples in the explainer and question.""",
 
-CRITICAL - CFU Question Handling:
-- The Question/CFU is for ASSESSMENT - DO NOT solve it or give away the answer
-- After teaching with explainer/examples, present the CFU question for the student to answer
-- Let the student demonstrate their understanding by solving the CFU themselves""",
 
         "independent_practice": """
 TEACHING APPROACH (Independent Practice):
@@ -250,76 +310,48 @@ class LLMTeacher:
         )
         
         # Teaching prompt templates
-        self.lesson_greeting_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a {tutor_role_description}.
-You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Be warm, supportive, and keep it conversational and engaging.
-Student name: {student_name}"""),
-            ("human", "Start the lesson")
-        ])
-        
+        # Card presentation prompt for subsequent non-MCQ cards
         self.card_presentation_prompt = ChatPromptTemplate.from_messages([
-            ("system", """Present this {subject_area} concept conversationally to a {level_description} student.
+            ("system", """You are a {tutor_role_description}.
+You're continuing a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-Progress: You are on card {card_number} of {total_cards} in this lesson.
+<Teaching Process>
+Teach the lesson using the following process in markdown format:
+1. Continue naturally from the previous content (DO NOT greet - student was already greeted)
+2. Present the current concept/topic
+3. Present Lesson based on the following guidance
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
 
 IMPORTANT CONTINUATION GUIDELINES:
 - DO NOT include a greeting (student was already greeted at the start)
-- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
-- Reference that you're continuing the lesson naturally
-- Keep it conversational and encouraging
+- Focus on teaching the current card's concept clearly
+- Connect naturally to what was learned previously
+</Teaching Process>
 
-{lesson_type_pedagogy}
+<card context>
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-Context: {card_context}
-Explainer: {explainer}
-Examples: {examples}
-Question: {question}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Make it feel like friendly tutoring with clear progress indication.
-End with the question naturally in the conversation. Make sure to include the question for the student to answer.
-
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Present this card: {card_title}")
         ])
-        
-        self.feedback_prompt = ChatPromptTemplate.from_messages([
-            ("system", """You're evaluating a {level_description} {subject_area} student's response.
 
-{course_context_block}
-
-Question: {question}
-Expected Answer: {expected}
-Student Answer: {student_response}
-Attempt Number: {attempt}
-Is Correct: {is_correct}
-
-{engagement_guidance}
-
-Provide encouraging, specific feedback. If incorrect, give a helpful hint for attempt 2,
-more guidance for attempt 3. Always be positive and constructive."""),
-            ("human", "Give feedback on this response")
-        ])
-        
         self.structured_evaluation_prompt = ChatPromptTemplate.from_messages([
             ("system", """You are evaluating a {level_description} {subject_area} student's response with structured output.
 
@@ -339,9 +371,93 @@ Rubric for Evaluation:
 
 When evaluating:
 1. Apply each rubric criterion independently
-2. Award partial credit based on criteria met
+2. Award points based on CONCEPTUAL UNDERSTANDING, not formatting/explanation detail
 3. Provide criterion-specific reasoning
 4. Sum points from all criteria for partial_credit score (0.0-1.0 scale)
+
+CRITICAL EVALUATION THRESHOLD:
+5. Set is_correct=true if partial_credit ≥ 0.6 (60% threshold for passing)
+   - ≥60%: Student demonstrates sufficient understanding → is_correct=true, should_progress=true
+   - <60%: Needs more work → is_correct=false, should_progress depends on attempt_number
+
+6. Rubric Interpretation Philosophy:
+   - Focus on WHETHER student identified correct concepts (yes/no)
+   - Accept minimal reasoning - even 2-3 words counts as "explanation"
+   - "Identifies X as irrelevant" = Award points if they mention X AT ALL
+   - "With brief explanation" = Accept ANY reasoning phrase, don't require full sentences
+   - Partial lists are OK - if rubric says "identify at least two" and they identify one, give 0.5 points
+
+7. Be LENIENT with formatting, phrasing, and explanation detail:
+   - "voltage is relevant" = sufficient explanation
+   - "size not needed" = sufficient explanation
+   - Bullet points, fragments, shorthand = all acceptable
+   - Focus on whether core concept is understood, not how it's expressed
+
+8. **MANDATORY FEEDBACK STRUCTURE - You MUST use this exact format**:
+
+   Start your feedback with:
+   "**Assessment Summary:**
+   Overall Score: [X]/[Y] points ([Z]%)
+
+   Rubric Breakdown:
+   * [Criterion 1 name]: [awarded]/[max] points [status emoji: ✓ Complete / ⚠ Partial / ✗ Not Met]
+   * [Criterion 2 name]: [awarded]/[max] points [status]
+   * ...
+
+   **What You Did Well:**
+   - [Specific strength related to criteria where they scored full/high points]
+   - [Another strength if applicable]
+
+   **Areas for Improvement:**
+   - **[Criterion name where points lost]**: [Concrete suggestion WITHOUT revealing answer - guide toward method/concept]
+   - [Another area if applicable]
+
+   **Next Steps:**
+   - [1-2 actionable hints to improve on weak criteria without giving away solution]"
+
+   EXAMPLE for 60% threshold pass (3/5 points):
+   "**Assessment Summary:**
+   Overall Score: 3/5 points (60%)
+
+   Rubric Breakdown:
+   * Identifying relevant factors: 2/2 points ✓ Complete
+   * Explaining why factors are relevant: 1/2 points ⚠ Partial
+   * Identifying irrelevant factors: 0/1 point ✗ Not Met
+
+   **What You Did Well:**
+   - You correctly identified voltage and current as key factors - excellent recognition of what matters!
+   - Your understanding of the relevant variables is solid
+
+   **Areas for Improvement:**
+   - **Explaining relevance**: You mentioned voltage is relevant, but adding WHY (e.g., 'higher voltage transfers more energy') would make your answer complete
+   - **Irrelevant factors**: You didn't mention which factors are NOT needed - think about properties that don't affect the calculation
+
+   **Next Steps:**
+   - Consider: What property of the wire actually affects resistance? Is the wire's color scientifically relevant?
+   - Try explaining the relationship between your identified factors and energy transfer"
+
+   EXAMPLE for <60% needs improvement (2/5 points):
+   "**Assessment Summary:**
+   Overall Score: 2/5 points (40%)
+
+   Rubric Breakdown:
+   * Identifying relevant factors: 1/2 points ⚠ Partial
+   * Explaining why factors are relevant: 1/2 points ⚠ Partial
+   * Identifying irrelevant factors: 0/1 point ✗ Not Met
+
+   **What You Did Well:**
+   - You mentioned voltage, which is definitely one of the key factors - good start!
+
+   **Areas for Improvement:**
+   - **Identifying relevant factors**: You've found voltage, but there's another important factor you're missing. Think about what flows through the circuit
+   - **Explaining relevance**: Try adding WHY voltage matters - what does higher voltage do to the energy transfer?
+   - **Irrelevant factors**: Consider which properties of the wire don't actually affect the physics here
+
+   **Next Steps:**
+   - Review the circuit diagram - what two things are being measured that affect energy transfer?
+   - Think about the equation: Power = ? × ? (what goes in those spaces?)"
+
+   CRITICAL: Always celebrate strengths first, then guide improvements WITHOUT revealing the answer
 
 Common Misconceptions for This Question:
 {misconceptions_text}
@@ -350,25 +466,31 @@ If the student's error matches a known misconception, reference the provided cla
 
 Evaluation Guidelines:
 1. For numeric questions: Accept reasonable approximations, alternative formats (fractions, decimals), and contextual answers
-2. For MCQ questions: 
+2. For MCQ questions:
    - If expected answer is a dict with MCQ info, compare student response to correct_human_index (1-indexed)
    - Student may respond with numbers (1, 2, 3) or option text
    - Be flexible: "2" should match correct_human_index 2
    - Example: if correct_human_index is 2 and student responds "2", mark as correct
 3. For open-ended: Look for conceptual understanding and key ideas
-4. Consider partial credit for partially correct responses
+4. Consider partial credit for partially correct responses - BE GENEROUS with partial credit
 5. CRITICAL: In feedback, DO NOT reveal the correct answer - only provide hints and guidance
-6. For incorrect responses: Give conceptual hints, point to the method/process, encourage retry
-7. Example good feedback: "Think about what 0.2 means - how many tenths? Can you simplify that fraction?"
-8. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
-9. Be encouraging and guide learning without giving away the solution
-10. The correct answer will be revealed separately if needed after max attempts
+6. For incorrect responses (<60%): Give conceptual hints, point to the method/process, encourage retry
+7. For threshold passes (≥60%): Acknowledge their understanding while gently noting areas for improvement
+8. Example good feedback (≥60%): "You've identified the key information! To make your answer even stronger, you could briefly explain why X is irrelevant."
+9. Example good feedback (<60%): "Think about what 0.2 means - how many tenths? Can you simplify that fraction?"
+10. Example bad feedback: "The answer is 1/5" or "0.2 equals 1/5"
+11. Be encouraging and guide learning without giving away the solution
+12. The correct answer will be revealed separately if needed after max attempts
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions in feedback, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters.
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$
 
 Return your evaluation as structured output."""),
             ("human", "Evaluate this student response")
@@ -383,7 +505,41 @@ Just completed: {completed_card}
 Next up: {next_card}
 Student progress: {progress_context}
 
-Create a smooth, encouraging transition that connects the concepts."""),
+{assessment_feedback}
+
+TRANSITION GUIDELINES:
+1. **Acknowledge Assessment Performance** (if feedback provided):
+   - **MANDATORY**: Name 1-2 specific criteria from the Rubric Breakdown (use the exact criterion names)
+   - Include the point score for those criteria (e.g., "1/1 points" or "2/2 points")
+   - Celebrate what they mastered by referencing the actual rubric criterion name
+   - Keep it brief (1-2 sentences) - don't repeat entire rubric breakdown
+   - Example criterion references: "identifying renewable energy sources (1/1 points)", "explaining why coal is non-renewable (2/2 points)"
+
+2. **Connect to Next Topic:**
+   - Show how completed concept relates to upcoming content
+   - Build confidence by linking their demonstrated skills to what's next
+
+3. **Maintain Momentum:**
+   - Keep transition concise and forward-looking
+   - Focus on learning progression, not just completion
+
+EXAMPLE with assessment feedback (FOLLOW THIS PATTERN):
+"Excellent work on energy sources! You nailed identifying renewable energy sources (1/1 points) and explaining why coal is non-renewable (2/2 points) - that precision shows solid understanding. Those identification and explanation skills will be crucial as we explore Scotland's real-world energy applications. You'll see how the same analysis you just mastered applies to actual Scottish power stations. Ready to connect theory to practice?"
+
+EXAMPLE without assessment feedback (skipped/first card):
+"Great progress on energy sources! Now let's build on that foundation as we explore Scotland's energy applications - you'll see these concepts in action..."
+
+Create a smooth, encouraging transition that celebrates their learning and builds excitement for the next topic.
+
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Transition to the next topic")
         ])
         
@@ -420,11 +576,15 @@ The student has tried their best but hasn't got the correct answer. Now provide 
 
 Be supportive and educational - this is a learning moment, not a failure.
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Explain the correct answer")
         ])
         
@@ -458,11 +618,15 @@ Your task is to:
 
 Be supportive, specific, and educational. Focus on growth and learning rather than just correctness.
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$  
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Analyze this completed lesson and provide comprehensive feedback")
         ])
         
@@ -470,16 +634,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{lesson_type_pedagogy}
-
-{engagement_guidance}
-
-{policy_reminders}
-
+<Teaching Process>
 Teach the lesson using the following process in markdown format:
 1. Welcomes the student warmly
 2. Introduces the lesson topic naturally
@@ -487,21 +642,26 @@ Teach the lesson using the following process in markdown format:
    - {lesson_type_pedagogy}
    - {engagement_guidance}
    - {policy_reminders}
-5. Ends with the card's question
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+</Teaching Process>
 
+<card context>
 Card Details:
 - Title: {card_title}
 - Explainer: {card_explainer}
-- Examples: {card_examples}
-- Question: {card_question}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-Make it feel like one natural conversation flow, not separate sections.
-
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Start the lesson with the first card")
         ])
         
@@ -509,323 +669,84 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             ("system", """You are a {tutor_role_description}.
 You're starting a lesson on {lesson_title} focusing on {outcome_refs}.
 
-{course_context_block}
-
-{sqa_alignment_summary}
-
-{lesson_type_pedagogy}
-
-{engagement_guidance}
-
-{policy_reminders}
-
-Create a cohesive greeting that:
+<Teaching Process>
+Teach the lesson using the following process in markdown format:
 1. Welcomes the student warmly
 2. Introduces the lesson topic naturally
-3. Seamlessly transitions into presenting the first card
-4. Incorporates the card's explainer and examples if provided
-5. Ends with a properly formatted multiple choice question
+3. Present Lesson based on the following guidance - use <card context> to create lesson content. 
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
+</Teaching Process>
 
+<card context>
 Card Details:
 - Title: {card_title}
 - Explainer: {card_explainer}
-- Examples: {card_examples}
-- Question: {mcq_question}
-- Options: {mcq_options}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-Format the multiple choice question as:
-**Question**: {mcq_question}
 
-1. [First option]
-2. [Second option]
-3. [Third option]
-etc.
-
-Please respond with the number of your choice (1, 2, 3, etc.).
-
-Make it feel like one natural conversation flow with a clear, structured question at the end.
-
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Start the lesson with the first MCQ card")
         ])
         
         self.mcq_card_presentation_prompt = ChatPromptTemplate.from_messages([
             ("system", """Present this multiple choice question conversationally to a {level_description} {subject_area} student.
 
-{course_context_block}
+<Teaching Process>
 
-Progress: You are on card {card_number} of {total_cards} in this lesson.
-
+Teach the lesson using the following process in markdown format:
+1. Start the lesson by showing progress like - "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}..."
+2. Introduces the lesson topic naturally
+3. Present Lesson based on the following guidance  
+   - {lesson_type_pedagogy}
+   - {engagement_guidance}
+   - {policy_reminders}
+4. Ends saying - "Let's answer this question before moving on to the next part of the lesson." verbatim, do not generate any questions - question will be preseted by code later.
 IMPORTANT CONTINUATION GUIDELINES:
 - DO NOT include a greeting (student was already greeted at the start)
-- DO include a smooth transition showing progress (e.g., "Let's move to part {card_number} of {total_cards}" or "Now for part {card_number}...")
-- Reference that you're continuing the lesson naturally
-- Keep it conversational and encouraging
+</Teaching Process>
 
-{lesson_type_pedagogy}
+<card context>
+Card Details:
+- Title: {card_title}
+- Explainer: {card_explainer}
+- Card context: {course_context_block}
+- Sqa alignment summary: {sqa_alignment_summary}
+</card context>
 
-{engagement_guidance}
 
-Context: {card_context}
-Explainer: {explainer}
-Examples: {examples}
-Question: {mcq_question}
-Options: {mcq_options}
-
-Create a smooth transition and explanation, then format the question as:
-**Question**: {mcq_question}
-
-1. [First option]
-2. [Second option]
-3. [Third option]
-etc.
-
-Please respond with the number of your choice (1, 2, 3, etc.).
-
-Make it feel like friendly tutoring with clear progress indication and a clearly structured question.
-
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math. Never use other LaTeX delimiters."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
             ("human", "Present this MCQ card: {card_title}")
         ])
 
-    async def greet_student(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
-        """Generate welcoming lesson introduction."""
-        try:
-            response = await self.llm.ainvoke(
-                self.lesson_greeting_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    student_name=student_name
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_student: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "student_name": student_name,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson greeting: {str(e)}"
-            ) from e
 
-    async def present_card(self, card: Dict[str, Any]) -> str:
-        """Present lesson card conversationally."""
-        try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            response = await self.llm.ainvoke(
-                self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
-                    examples=examples,
-                    question=question,
-                    card_title=card.get("title", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in present_card: {e}",
-                extra={
-                    "card_title": card.get("title", "unknown"),
-                    "has_content": bool(card),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
-            ) from e
 
-    async def evaluate_response(
-        self, 
-        student_response: str,
-        expected_answer: Any,
-        card_context: Dict,
-        attempt_number: int,
-        is_correct: bool
-    ) -> str:
-        """Generate contextual feedback for student response."""
-        try:
-            response = await self.llm.ainvoke(
-                self.feedback_prompt.format_messages(
-                    question=card_context["cfu"]["stem"],
-                    expected=str(expected_answer),
-                    student_response=student_response,
-                    attempt=attempt_number,
-                    is_correct=is_correct
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in evaluate_response: {e}",
-                extra={
-                    "student_response": student_response,
-                    "expected_answer": expected_answer,
-                    "attempt_number": attempt_number,
-                    "is_correct": is_correct,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate feedback: {str(e)}"
-            ) from e
 
-    async def transition_to_next(
-        self, 
-        completed_card: Dict, 
-        next_card: Optional[Dict],
-        progress_context: Dict
-    ) -> str:
-        """Generate transition between lesson cards."""
-        if not next_card:
-            return await self.complete_lesson(completed_card, progress_context)
-            
-        try:
-            response = await self.llm.ainvoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in transition_to_next: {e}",
-                extra={
-                    "completed_card_title": completed_card.get("title", "unknown"),
-                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate transition: {str(e)}"
-            ) from e
 
-    async def complete_lesson(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
-        """Generate lesson completion message."""
-        try:
-            response = await self.llm.ainvoke(
-                self.completion_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "the lesson"),
-                    completed_cards=progress_context.get("cards_completed", 0),
-                    progress_summary=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in complete_lesson: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "cards_completed": progress_context.get("cards_completed", 0),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson completion message: {str(e)}"
-            ) from e
     
     # Synchronous versions for LangGraph compatibility
-    def greet_student_sync(self, lesson_snapshot: Dict, student_name: str = "there") -> str:
-        """Generate welcoming lesson introduction (sync version)."""
-        try:
-            response = self.llm.invoke(
-                self.lesson_greeting_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    student_name=student_name
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_student_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "student_name": student_name,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson greeting: {str(e)}"
-            ) from e
 
-    def present_card_sync(self, card: Dict[str, Any]) -> str:
-        """Present lesson card conversationally (sync version)."""
-        try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
-            response = self.llm.invoke(
-                self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=card.get("explainer", ""),
-                    examples=examples,
-                    question=question,
-                    card_title=card.get("title", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in present_card_sync: {e}",
-                extra={
-                    "card_title": card.get("title", "unknown"),
-                    "has_content": bool(card),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
-            ) from e
 
-    def evaluate_response_sync(
-        self, 
-        student_response: str,
-        expected_answer: Any,
-        card_context: Dict,
-        attempt_number: int,
-        is_correct: bool
-    ) -> str:
-        """Generate contextual feedback for student response (sync version) - returns content only."""
-        try:
-            response = self.llm.invoke(
-                self.feedback_prompt.format_messages(
-                    question=card_context["cfu"]["stem"],
-                    expected=str(expected_answer),
-                    student_response=student_response,
-                    attempt=attempt_number,
-                    is_correct=is_correct
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in evaluate_response_sync: {e}",
-                extra={
-                    "student_response": student_response,
-                    "expected_answer": expected_answer,
-                    "attempt_number": attempt_number,
-                    "is_correct": is_correct,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate feedback: {str(e)}"
-            ) from e
 
     def evaluate_response_sync_full(
         self, 
@@ -862,37 +783,6 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate feedback for student response: {str(e)}"
             ) from e
 
-    def transition_to_next_sync(
-        self, 
-        completed_card: Dict, 
-        next_card: Optional[Dict],
-        progress_context: Dict
-    ) -> str:
-        """Generate transition between lesson cards (sync version) - returns content only."""
-        if not next_card:
-            return self.complete_lesson_sync(completed_card, progress_context)
-            
-        try:
-            response = self.llm.invoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in transition_to_next_sync: {e}",
-                extra={
-                    "completed_card_title": completed_card.get("title", "unknown"),
-                    "next_card_title": next_card.get("title", "unknown") if next_card else None,
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate transition: {str(e)}"
-            ) from e
 
     def transition_to_next_sync_full(
         self,
@@ -926,17 +816,52 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 subject_area = "learning"
                 level_description = ""
 
-            response = self.llm.invoke(
-                self.transition_prompt.format_messages(
-                    completed_card=completed_card.get("title", "previous topic"),
-                    next_card=next_card.get("title", "next topic"),
-                    progress_context=str(progress_context),
-                    subject_area=subject_area,
-                    level_description=level_description,
-                    **curriculum_context
-                )
-            )
-            return response
+            # Extract and format assessment feedback from progress_context if present
+            assessment_feedback_text = ""
+            if isinstance(progress_context, dict) and progress_context.get("assessment_feedback"):
+                feedback = progress_context["assessment_feedback"]
+                # Format feedback for transition prompt
+                assessment_feedback_text = f"""
+**Previous Question Assessment:**
+{feedback}
+
+Use this assessment to acknowledge specific strengths in your transition.
+"""
+            else:
+                assessment_feedback_text = "(No assessment feedback - student may have skipped or this is first card)"
+
+            # Remove feedback from progress_context string representation (keep stats separate)
+            progress_stats = {k: v for k, v in progress_context.items() if k != "assessment_feedback"} if isinstance(progress_context, dict) else progress_context
+
+            # Retry logic for OpenAI API errors (with exponential backoff)
+            import time
+            max_retries = 3
+            retry_delay = 1  # seconds
+
+            for attempt in range(max_retries):
+                try:
+                    response = self.llm.invoke(
+                        self.transition_prompt.format_messages(
+                            completed_card=completed_card.get("title", "previous topic"),
+                            next_card=next_card.get("title", "next topic"),
+                            progress_context=str(progress_stats),
+                            assessment_feedback=assessment_feedback_text,  # NEW parameter
+                            subject_area=subject_area,
+                            level_description=level_description,
+                            **curriculum_context
+                        )
+                    )
+                    return response
+                except Exception as llm_error:
+                    if attempt < max_retries - 1:
+                        logger.warning(
+                            f"OpenAI API error in transition (attempt {attempt + 1}/{max_retries}), retrying in {retry_delay}s: {llm_error}"
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, re-raise
+                        raise
         except Exception as e:
             logger.error(
                 f"LLM call failed in transition_to_next_sync_full: {e}",
@@ -950,29 +875,6 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate transition between lesson cards: {str(e)}"
             ) from e
 
-    def complete_lesson_sync(self, lesson_snapshot: Dict, progress_context: Dict) -> str:
-        """Generate lesson completion message (sync version) - returns content only."""
-        try:
-            response = self.llm.invoke(
-                self.completion_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "the lesson"),
-                    completed_cards=progress_context.get("cards_completed", 0),
-                    progress_summary=str(progress_context)
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in complete_lesson_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "cards_completed": progress_context.get("cards_completed", 0),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate lesson completion message: {str(e)}"
-            ) from e
 
     def complete_lesson_sync_full(self, lesson_snapshot: Dict, progress_context: Dict, state: Optional[Dict] = None):
         """Generate lesson completion message (sync version) - returns full response object.
@@ -1020,35 +922,34 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"Failed to generate lesson completion message: {str(e)}"
             ) from e
 
-    def present_card_sync_full(self, card: Dict[str, Any], state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
+    def present_card_sync_full(self, card: Dict[str, Any], lesson_snapshot: Dict, state: Optional[Dict] = None, card_index: int = 0, total_cards: int = 1):
         """Present lesson card conversationally (sync version) - returns full response object.
 
         Args:
             card: Card data
+            lesson_snapshot: Lesson snapshot data containing lesson metadata
             state: Optional full state dict with curriculum metadata
             card_index: Zero-indexed position of current card (default: 0)
             total_cards: Total number of cards in lesson (default: 1)
         """
         try:
-            examples = "\n".join(card.get("example", []))
-            question = card.get("cfu", {}).get("stem", "What do you think?")
+            # Extract lesson metadata
+            lesson_title = lesson_snapshot.get("title", "Lesson")
+            outcome_refs = ", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", [])))
 
             # Extract curriculum context if state provided
             curriculum_context = {}
             if state:
                 curriculum_context = extract_curriculum_context_from_state(state)
-                # Also extract subject_area and level_description for card presentation
-                subject_area = state.get("course_subject_display", "learning")
-                level_description = state.get("course_level_display", "")
             else:
                 # Fallback to default values if no state
                 curriculum_context = {
+                    "tutor_role_description": "friendly, encouraging tutor",
                     "course_context_block": "",
                     "engagement_guidance": "",
-                    "policy_reminders": ""
+                    "policy_reminders": "",
+                    "sqa_alignment_summary": ""
                 }
-                subject_area = "learning"
-                level_description = ""
 
             # Extract lesson_type and generate pedagogy guidance
             lesson_type = state.get("lesson_type", "teach") if state else "teach"
@@ -1060,17 +961,13 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
 
             response = self.llm.invoke(
                 self.card_presentation_prompt.format_messages(
-                    card_context=card.get("title", ""),
-                    explainer=explainer_text,
-                    examples=examples,
-                    question=question,
+                    lesson_title=lesson_title,
+                    outcome_refs=outcome_refs,
                     card_title=card.get("title", ""),
-                    card_number=card_index + 1,  # Convert to 1-indexed for display
-                    total_cards=total_cards,
-                    lesson_type_pedagogy=lesson_type_pedagogy,  # Add pedagogy guidance
-                    subject_area=subject_area,
-                    level_description=level_description,
-                    **curriculum_context
+                    card_explainer=explainer_text,
+                    lesson_type_pedagogy=lesson_type_pedagogy,
+                    **curriculum_context  # Includes: tutor_role_description, course_context_block,
+                                         # engagement_guidance, policy_reminders, sqa_alignment_summary
                 )
             )
             return response
@@ -1079,6 +976,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 f"LLM call failed in present_card_sync_full: {e}",
                 extra={
                     "card_title": card.get("title", "unknown"),
+                    "lesson_title": lesson_snapshot.get("title", "unknown"),
                     "has_explainer": bool(card.get("explainer")),
                     "has_examples": bool(card.get("example")),
                     "has_question": bool(card.get("cfu", {}).get("stem")),
@@ -1089,37 +987,9 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
                 }
             )
             raise RuntimeError(
-                f"Failed to present lesson card: {str(e)}"
+                f"Failed to present lesson card '{card.get('title', 'unknown')}' for lesson '{lesson_snapshot.get('title', 'unknown')}': {str(e)}"
             ) from e
 
-    def greet_with_first_card_sync(self, lesson_snapshot: Dict, first_card: Dict[str, Any]) -> str:
-        """Generate cohesive greeting with first card (sync version) - returns content only."""
-        try:
-            examples = "\n".join(first_card.get("example", []))
-            response = self.llm.invoke(
-                self.greeting_with_first_card_prompt.format_messages(
-                    lesson_title=lesson_snapshot.get("title", "Math Lesson"),
-                    outcome_refs=", ".join(parse_outcome_refs(lesson_snapshot.get("outcomeRefs", []))),
-                    card_title=first_card.get("title", ""),
-                    card_explainer=first_card.get("explainer", ""),
-                    card_examples=examples,
-                    card_question=first_card.get("cfu", {}).get("stem", "")
-                )
-            )
-            return response.content
-        except Exception as e:
-            logger.error(
-                f"LLM call failed in greet_with_first_card_sync: {e}",
-                extra={
-                    "lesson_title": lesson_snapshot.get("title", "unknown"),
-                    "card_title": first_card.get("title", "unknown"),
-                    "has_outcome_refs": bool(lesson_snapshot.get("outcomeRefs")),
-                    "error_type": type(e).__name__
-                }
-            )
-            raise RuntimeError(
-                f"Failed to generate greeting with first lesson card: {str(e)}"
-            ) from e
 
     def greet_with_first_card_sync_full(self, lesson_snapshot: Dict, first_card: Dict[str, Any], state: Optional[Dict] = None):
         """Generate cohesive greeting with first card (sync version) - returns full response object.
@@ -1298,7 +1168,7 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             response = self.llm.invoke(
                 self.mcq_card_presentation_prompt.format_messages(
                     card_context=card.get("title", ""),
-                    explainer=explainer_text,
+                    card_explainer=explainer_text,
                     examples=examples,
                     mcq_question=question,
                     mcq_options=formatted_options,
@@ -1417,7 +1287,202 @@ Always use $ for inline and $$ for display math. Never use other LaTeX delimiter
             raise RuntimeError(
                 f"Failed to generate structured evaluation: {str(e)}"
             ) from e
-    
+
+    def evaluate_drawing_response(
+        self,
+        student_drawing: Union[str, List[str]],  # Single image or multiple images
+        student_drawing_text: Optional[str],
+        card_context: Dict,
+        attempt_number: int,
+        max_attempts: int = 3,
+        state: Optional[Dict] = None
+    ) -> EvaluationResponse:
+        """Evaluate student's drawing submission(s) using Claude's vision capabilities.
+
+        Args:
+            student_drawing: Base64-encoded PNG image (string) OR list of images for multi-image evaluation
+            student_drawing_text: Optional text explanation provided by student
+            card_context: Card context dict containing CFU with rubric
+            attempt_number: Current attempt number
+            max_attempts: Maximum allowed attempts
+            state: Optional full state dict with curriculum metadata
+
+        Returns:
+            EvaluationResponse with scoring and feedback based on rubric
+
+        Raises:
+            RuntimeError: If vision API call fails or drawing cannot be evaluated
+        """
+        try:
+            # Extract CFU and rubric information
+            cfu = card_context.get("cfu", {})
+            question_text = cfu.get("stem", "") or cfu.get("question", "")
+            rubric = cfu.get("rubric", {})
+            total_points = rubric.get("total_points", 0)
+            criteria = rubric.get("criteria", [])
+
+            # Extract curriculum context if state provided
+            if state:
+                subject_area = state.get("course_subject_display", "learning")
+                level_description = state.get("course_level_display", "")
+                curriculum_context = extract_curriculum_context_from_state(state)
+            else:
+                subject_area = "learning"
+                level_description = ""
+                curriculum_context = {"course_context_block": ""}
+
+            # Normalize student_drawing to list for consistent handling
+            if isinstance(student_drawing, str):
+                drawing_list = [student_drawing]
+                is_multi_image = False
+            elif isinstance(student_drawing, list):
+                drawing_list = student_drawing
+                is_multi_image = len(drawing_list) > 1
+            else:
+                raise ValueError(f"student_drawing must be str or List[str], got {type(student_drawing)}")
+
+            image_count = len(drawing_list)
+            logger.info(f"🎨 Evaluating {image_count} image(s) with vision API")
+
+            # Format rubric for prompt
+            rubric_text = self._format_rubric_for_prompt(rubric)
+
+            # Extract misconceptions
+            misconceptions = card_context.get("misconceptions", [])
+            misconceptions_text = self._format_misconceptions_for_prompt(misconceptions)
+
+            # Build vision-enabled prompt with multi-image support
+            diagram_reference = f"{image_count} diagram(s)" if is_multi_image else "drawing"
+            multi_image_note = "\n**Note:** The student has submitted multiple diagrams. Evaluate them together as a complete response." if is_multi_image else ""
+
+            prompt_text = f"""You are evaluating a student's {diagram_reference} submission for a {subject_area} question{f' at {level_description}' if level_description else ''}.
+
+**Question:** {question_text}
+
+**Student's Text Explanation:** {student_drawing_text or "(No text explanation provided)"}
+{multi_image_note}
+
+**Rubric (Total: {total_points} points):**
+{rubric_text}
+
+{misconceptions_text}
+
+{curriculum_context.get('course_context_block', '')}
+
+**Your Task:**
+1. Carefully examine {"ALL " + str(image_count) + " images" if is_multi_image else "the student's drawing image"}
+2. Evaluate {"them" if is_multi_image else "it"} against EACH criterion in the rubric
+3. Assign points for each criterion (0 up to the max points listed)
+4. Provide specific, constructive feedback referencing what you see in the {"diagrams" if is_multi_image else "drawing"}
+5. Note any common misconceptions the student may have demonstrated
+6. Determine if the student should progress based on their performance
+
+**Important Evaluation Guidelines:**
+- Be fair and objective - look for evidence of understanding even if execution isn't perfect
+- For geometry/diagrams: Check for correct shapes, labels, angles, and measurements
+- For graphs/plots: Verify axes labels, data points, scales, and trends
+- For scientific diagrams: Validate structures, labels, and relationships
+{"- When multiple diagrams are present, consider how they work together to answer the question" if is_multi_image else ""}
+- If the {"diagrams are" if is_multi_image else "drawing is"} blank or unrelated, award 0 points
+- Consider the attempt number ({attempt_number}/{max_attempts}) when deciding progression
+- Partial credit is appropriate when some criteria are met
+
+Respond with structured evaluation including:
+- is_correct: true if student earned >= 70% of points
+- confidence: your confidence in this evaluation (0.0-1.0)
+- feedback: specific, encouraging feedback referencing the {"diagrams" if is_multi_image else "drawing"}
+- reasoning: internal analysis of what you observed
+- should_progress: whether to advance (true if correct OR at max attempts)
+- partial_credit: fraction of points earned (0.0-1.0)
+- rubric_breakdown: points awarded for each criterion
+"""
+
+            # Create message with vision content (single or multiple images)
+            from langchain_core.messages import HumanMessage
+
+            # Build content array with ALL images
+            content = []
+            for idx, drawing in enumerate(drawing_list):
+                content.append({
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/png;base64,{drawing}"
+                    }
+                })
+                logger.debug(f"🎨 Added image {idx + 1}/{image_count} to vision API request")
+
+            # Add text prompt after all images
+            content.append({
+                "type": "text",
+                "text": prompt_text
+            })
+
+            message = HumanMessage(content=content)
+
+            # Use structured output for consistent evaluation
+            structured_llm = self.llm.with_structured_output(EvaluationResponse)
+
+            logger.info(f"🎨 Evaluating drawing submission (attempt {attempt_number}/{max_attempts})")
+
+            # Retry logic for OpenAI API errors (with exponential backoff)
+            import time
+            max_retries = 3
+            retry_delay = 1  # seconds
+
+            for api_attempt in range(max_retries):
+                try:
+                    evaluation = structured_llm.invoke(
+                        [message],
+                        config={"tags": ["json", "vision"], "run_name": "drawing_evaluation"}
+                    )
+                    break  # Success, exit retry loop
+                except Exception as api_error:
+                    if api_attempt < max_retries - 1:
+                        logger.warning(
+                            f"OpenAI Vision API error (attempt {api_attempt + 1}/{max_retries}), retrying in {retry_delay}s: {api_error}"
+                        )
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
+                        # Final attempt failed, re-raise
+                        raise
+
+            logger.info(
+                f"✅ Drawing evaluated: is_correct={evaluation.is_correct}, "
+                f"partial_credit={evaluation.partial_credit}, "
+                f"should_progress={evaluation.should_progress}"
+            )
+
+            return evaluation
+
+        except Exception as e:
+            # Extract CFU type for detailed error logging
+            cfu_type = card_context.get("cfu", {}).get("type", "unknown")
+
+            logger.error(
+                f"Vision API evaluation failed - FAST FAIL (no fallback)",
+                extra={
+                    "cfu_type": cfu_type,
+                    "has_drawing": bool(student_drawing),
+                    "drawing_size_bytes": len(student_drawing) if student_drawing else 0,
+                    "has_text_explanation": bool(student_drawing_text),
+                    "text_explanation_length": len(student_drawing_text) if student_drawing_text else 0,
+                    "attempt_number": attempt_number,
+                    "max_attempts": max_attempts,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "card_id": card_context.get("id", "unknown")
+                }
+            )
+
+            # FAST FAIL - No silent fallback (anti-pattern per CLAUDE.md)
+            # Raise exception with detailed context for debugging
+            raise RuntimeError(
+                f"Vision API evaluation failed for '{cfu_type}' CFU type. "
+                f"Student submitted drawing but evaluation could not complete. "
+                f"Error: {type(e).__name__}: {str(e)}"
+            ) from e
+
     def explain_correct_answer_sync_full(self, current_card: Dict, student_attempts: List[str], state: Optional[Dict] = None):
         """Generate explanation showing correct answer after max failed attempts (sync version) - returns full response object.
 
@@ -1661,11 +1726,15 @@ Provide a progressive hint that:
 3. Is encouraging and supportive
 4. References their specific error pattern
 
-IMPORTANT LATEX FORMATTING: When including mathematical expressions, use these exact formats:
-- Inline math: $\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$
-- Display math: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}} = 0.2$$
-- Mixed text: The fraction $\\frac{{1}}{{4}}$ equals 0.25 or 25%.
-Always use $ for inline and $$ for display math."""),
+CRITICAL LATEX FORMATTING RULES - DISPLAY MATH ONLY:
+- ALL mathematical expressions MUST use display math on separate lines: $$expression$$
+- NEVER use inline math ($x$), parentheses notation (x), or brackets [x]
+- Always place math on its own line with blank lines before and after for readability
+- Examples:
+  WRONG: "Calculate ( h = 50 × tan(35°) )" or "the height $h$ is measured..."
+  RIGHT: "Calculate the height:\\n\\n$$h = 50 \\times \\tan(35°)$$\\n\\nNow let's solve..."
+- Use proper LaTeX: \\times for ×, \\tan for tan, \\frac{{num}}{{den}} for fractions
+- Double braces in template strings: $$\\frac{{2}}{{10}} = \\frac{{1}}{{5}}$$"""),
                 ("human", "Generate a hint")
             ])
             

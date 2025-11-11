@@ -151,12 +151,33 @@ def _get_previous_attempts(evidence: list, item_id: str) -> list[str]:
     return [entry["response"] for entry in evidence if entry["item_id"] == item_id]
 
 
-def _create_evidence_entry(evaluation, student_response: str, cfu: dict,
-                          attempts: int, should_progress: bool, max_attempts: int) -> dict:
-    """Create evidence entry for student response evaluation."""
-    return {
+def _create_evidence_entry(evaluation, student_response: str, cfu: dict, current_card: dict,
+                          attempts: int, should_progress: bool, max_attempts: int,
+                          student_drawing_file_ids: list = None, student_drawing_text: str = None,
+                          student_drawing: str = None) -> dict:
+    """Create evidence entry for student response evaluation.
+
+    Args:
+        evaluation: Evaluation response from LLM
+        student_response: Student's answer text
+        cfu: CFU dict (may or may not have 'id' field)
+        current_card: Full card dict containing 'id' field
+        attempts: Number of attempts made
+        should_progress: Whether student should move to next card
+        max_attempts: Maximum allowed attempts
+        student_drawing_file_ids: (NEW - Phase 10) Array of Appwrite Storage file IDs
+        student_drawing_text: Optional text explanation of drawing
+        student_drawing: (LEGACY) Base64 string or JSON array for backward compatibility
+
+    Returns:
+        Evidence entry dict with backward-compatible item_id and drawing fields
+    """
+    # Backward-compatible: prefer cfu.id (new schema), fallback to card.id (old schema)
+    item_id = cfu.get("id", current_card.get("id", "unknown"))
+
+    evidence = {
         "timestamp": datetime.now().isoformat(),
-        "item_id": cfu["id"],
+        "item_id": item_id,
         "response": student_response,
         "correct": evaluation.is_correct,
         "should_progress": should_progress,
@@ -167,6 +188,18 @@ def _create_evidence_entry(evaluation, student_response: str, cfu: dict,
         "feedback": evaluation.feedback,
         "max_attempts_reached": attempts >= max_attempts
     }
+
+    # Add drawing fields if present (Phase 10: storage-based approach)
+    if student_drawing_file_ids:
+        evidence["student_drawing_file_ids"] = student_drawing_file_ids
+    if student_drawing_text:
+        evidence["student_drawing_text"] = student_drawing_text
+
+    # Add legacy drawing field for backward compatibility
+    if student_drawing:
+        evidence["student_drawing"] = student_drawing
+
+    return evidence
 
 
 # ===== Phase 3.4 MVP2.5: Enhanced Lesson Metadata Functions =====

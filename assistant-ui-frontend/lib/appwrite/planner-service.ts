@@ -325,9 +325,20 @@ export class CoursePlannerService {
           }
         }
 
-        // Enhanced validation for template data
-        if (template.estMinutes && (template.estMinutes < 5 || template.estMinutes > 120)) {
-          throw new Error(`Invalid estMinutes for template ${template.$id}: ${template.estMinutes}. Must be between 5 and 120`);
+        // Enhanced validation for template data with lesson_type awareness
+        // Mock exams can be up to 180 minutes (to accommodate full SQA exam simulations)
+        // Regular lessons are capped at 120 minutes (double period)
+        if (template.estMinutes) {
+          const maxMinutes = (template.lesson_type === 'mock_exam' || template.lesson_type === 'mock_assessment') ? 180 : 120;
+          if (template.estMinutes < 5 || template.estMinutes > maxMinutes) {
+            const lessonTypeLabel = (template.lesson_type === 'mock_exam' || template.lesson_type === 'mock_assessment')
+              ? 'Mock exams'
+              : 'Regular lessons';
+            throw new Error(
+              `Invalid estMinutes for ${template.lesson_type || 'lesson'}: ${template.estMinutes}. ` +
+              `${lessonTypeLabel} must be between 5 and ${maxMinutes} minutes`
+            );
+          }
         }
 
         return template;
@@ -657,7 +668,7 @@ export class CoursePlannerService {
 
   async updateSessionStatus(
     sessionId: string,
-    status: 'active' | 'completed' | 'abandoned' | 'failed',
+    status: 'active' | 'completed' | 'failed',
     durationMinutes?: number
   ): Promise<void> {
     try {
@@ -670,7 +681,7 @@ export class CoursePlannerService {
         updateData.startedAt = updateData.updatedAt;
       }
 
-      if (status === 'completed' || status === 'abandoned' || status === 'failed') {
+      if (status === 'completed' || status === 'failed') {
         updateData.completedAt = updateData.updatedAt;
         if (durationMinutes !== undefined) {
           updateData.durationMinutes = durationMinutes;

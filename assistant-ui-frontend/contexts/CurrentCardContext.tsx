@@ -15,6 +15,10 @@ export interface CurrentCardData {
     student_name: string;
     progress: string;
   };
+  // Previous answer data for retry scenarios (Issue 2)
+  previous_answer?: string;
+  previous_drawing?: string;
+  previous_drawing_text?: string;
 }
 
 /**
@@ -25,6 +29,7 @@ export interface CurrentCardData {
 export const CurrentCardContext = createContext<{
   currentCard: CurrentCardData | null;
   setCurrentCard: (card: CurrentCardData | null) => void;
+  onSessionStatusChange?: (status: 'created' | 'active' | 'completed' | 'failed') => void;
 } | null>(null);
 
 /**
@@ -32,13 +37,14 @@ export const CurrentCardContext = createContext<{
  */
 export interface CurrentCardProviderProps {
   children: ReactNode;
+  onSessionStatusChange?: (status: 'created' | 'active' | 'completed' | 'failed') => void;
 }
 
-export function CurrentCardProvider({ children }: CurrentCardProviderProps) {
+export function CurrentCardProvider({ children, onSessionStatusChange }: CurrentCardProviderProps) {
   const [currentCard, setCurrentCard] = useState<CurrentCardData | null>(null);
 
   return (
-    <CurrentCardContext.Provider value={{ currentCard, setCurrentCard }}>
+    <CurrentCardContext.Provider value={{ currentCard, setCurrentCard, onSessionStatusChange }}>
       {children}
     </CurrentCardContext.Provider>
   );
@@ -63,4 +69,13 @@ export function useCurrentCard() {
 export function useCurrentCardData(): CurrentCardData | null {
   const { currentCard } = useCurrentCard();
   return currentCard;
+}
+
+/**
+ * Safe hook to access current card context (doesn't throw if outside provider)
+ * @returns current card context or null if not within provider
+ */
+export function useSafeCurrentCard() {
+  const context = useContext(CurrentCardContext);
+  return context;
 }

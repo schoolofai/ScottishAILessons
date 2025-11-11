@@ -11,19 +11,26 @@ export class AuthoredSOWDriver extends BaseDriver {
   private readonly COLLECTION_ID = 'Authored_SOW';
 
   /**
-   * Get published SOW for a course
+   * Get published SOW for a course - DEFAULTS TO VERSION 1
+   *
+   * Frontend always uses version 1 as the stable/production version
+   * unless explicitly requesting a different version.
+   *
+   * @param courseId - Course identifier
+   * @param version - SOW version (default: "1")
+   * @returns Published SOW data or null if not found
    */
-  async getPublishedSOW(courseId: string): Promise<AuthoredSOWData | null> {
+  async getPublishedSOW(courseId: string, version: string = "1"): Promise<AuthoredSOWData | null> {
     try {
       const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
         Query.equal('courseId', courseId),
+        Query.equal('version', version),  // Filter by specific version
         Query.equal('status', 'published'),
-        Query.orderDesc('version'),
         Query.limit(1)
       ]);
 
       if (!records.length) {
-        console.log(`[AuthoredSOWDriver] No published SOW found for course ${courseId}`);
+        console.log(`[AuthoredSOWDriver] No published SOW v${version} found for course ${courseId}`);
         return null;
       }
 
@@ -38,18 +45,21 @@ export class AuthoredSOWDriver extends BaseDriver {
         accessibility_notes: record.accessibility_notes
       };
     } catch (error) {
-      throw this.handleError(error, `get published SOW for course ${courseId}`);
+      throw this.handleError(error, `get published SOW v${version} for course ${courseId}`);
     }
   }
 
   /**
-   * Get all courseIds that have published SOWs
+   * Get all courseIds that have published VERSION 1 SOWs
    * Used to filter the courses catalog to only show courses with lesson structures
    * Returns a Set for O(1) lookup performance
+   *
+   * IMPORTANT: Only counts version 1 (stable/production) SOWs
    */
   async getPublishedCourseIds(): Promise<Set<string>> {
     try {
       const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
+        Query.equal('version', '1'),  // Only version 1 (production)
         Query.equal('status', 'published'),
         Query.limit(500) // Reasonable limit for production courses
       ]);
@@ -61,7 +71,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         }
       });
 
-      console.log(`[AuthoredSOWDriver] Found ${courseIds.size} courses with published SOWs`);
+      console.log(`[AuthoredSOWDriver] Found ${courseIds.size} courses with published v1 SOWs`);
       return courseIds;
     } catch (error) {
       throw this.handleError(error, 'get published course IDs');
@@ -184,8 +194,29 @@ export class AuthoredSOWDriver extends BaseDriver {
 
     try {
       await this.update<AuthoredSOW>(this.COLLECTION_ID, sowId, { status: 'published' });
+      console.info(`✅ SOW ${sowId} published successfully`);
     } catch (error) {
+      console.error(`❌ Failed to publish SOW ${sowId}:`, error);
       throw this.handleError(error, `publish SOW ${sowId}`);
+    }
+  }
+
+  /**
+   * [ADMIN] Unpublish a specific SOW
+   * Reverts SOW status from published to draft
+   * FAST FAIL: Throws error immediately if operation fails
+   */
+  async unpublishSOW(sowId: string): Promise<void> {
+    if (!sowId || sowId.length === 0) {
+      throw new Error('SOW ID is required for unpublishing');
+    }
+
+    try {
+      await this.update<AuthoredSOW>(this.COLLECTION_ID, sowId, { status: 'draft' });
+      console.info(`✅ SOW ${sowId} unpublished successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to unpublish SOW ${sowId}:`, error);
+      throw this.handleError(error, `unpublish SOW ${sowId}`);
     }
   }
 }

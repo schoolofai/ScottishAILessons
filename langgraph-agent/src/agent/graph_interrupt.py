@@ -205,6 +205,13 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
         # END curriculum metadata extraction
         # ═══════════════════════════════════════════════════════════════
 
+        # Extract lesson diagram if available
+        lesson_diagram = session_context.get("lesson_diagram")
+        if lesson_diagram:
+            logger.info(f"Lesson diagram found: {lesson_diagram.get('image_file_id')}")
+        else:
+            logger.info("No lesson diagram in session context")
+
         return {
             "session_context": session_context,  # Keep for frontend compatibility
             "mode": mode,
@@ -232,7 +239,9 @@ async def entry_node_interrupt(state: InterruptUnifiedState) -> InterruptUnified
             "enriched_outcomes": enriched_outcomes,
             "course_subject_display": course_subject_display,
             "course_level_display": course_level_display,
-            "lesson_type_display": lesson_type_display
+            "lesson_type_display": lesson_type_display,
+            # Lesson diagram
+            "lesson_diagram": lesson_diagram
         }
     else:
         logger.info("💬 CHAT MODE DETECTED (default)")

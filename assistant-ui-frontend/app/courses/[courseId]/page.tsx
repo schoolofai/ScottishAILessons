@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { enrollStudentInCourse } from '@/lib/services/enrollment-service';
+import { CourseCheatSheetButton } from '@/components/revision-notes/CourseCheatSheetButton';
 import {
   ArrowLeft,
   BookOpen,
@@ -202,9 +203,18 @@ export default function CourseDetailPage() {
               <p className="text-xl text-gray-600 mb-4">
                 {course.level}
               </p>
-              <p className="text-gray-700">
+              <p className="text-gray-700 mb-4">
                 {course.description || 'Scottish Curriculum Framework aligned course with personalized AI teaching.'}
               </p>
+
+              {/* Course Cheat Sheet Button */}
+              <div className="mt-4">
+                <CourseCheatSheetButton
+                  courseId={courseId}
+                  isAvailable={null} // Will check availability automatically
+                  onClick={() => {}}
+                />
+              </div>
             </div>
 
             <div className="flex-shrink-0">

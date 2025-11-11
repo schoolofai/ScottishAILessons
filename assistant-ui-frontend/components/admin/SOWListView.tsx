@@ -7,7 +7,9 @@ import { CourseDriver } from '@/lib/appwrite/driver/CourseDriver';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InlineLoadingSkeleton } from '@/components/ui/LoadingSkeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Upload, Archive } from 'lucide-react';
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
+import { toast } from 'sonner';
 import type { AuthoredSOWData } from '@/lib/appwrite/types';
 
 /**
@@ -19,7 +21,10 @@ export function SOWListView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
   const [courseById, setCourseById] = useState<Record<string, { subject: string; level: string }>>({});
+  const [showPublishConfirm, setShowPublishConfirm] = useState<string | null>(null);
+  const [showUnpublishConfirm, setShowUnpublishConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSOWs();
@@ -60,26 +65,47 @@ export function SOWListView() {
     }
   }
 
-  async function handlePublish(sowId: string, event: React.MouseEvent) {
-    event.stopPropagation();
-
-    if (!confirm('Publish this SOW? This action cannot be undone.')) {
-      return;
-    }
-
+  async function handlePublishConfirm(sowId: string) {
     try {
       setPublishingId(sowId);
+      setError(null);
       const driver = new AuthoredSOWDriver();
       await driver.publishSOW(sowId);
 
+      toast.success('SOW published successfully!');
+      setShowPublishConfirm(null);
       // Refresh the list
       await fetchSOWs();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to publish SOW';
       setError(message);
+      toast.error(message);
       console.error('[SOWListView] Error publishing SOW:', err);
+      throw err; // Fast fail
     } finally {
       setPublishingId(null);
+    }
+  }
+
+  async function handleUnpublishConfirm(sowId: string) {
+    try {
+      setUnpublishingId(sowId);
+      setError(null);
+      const driver = new AuthoredSOWDriver();
+      await driver.unpublishSOW(sowId);
+
+      toast.success('SOW unpublished successfully!');
+      setShowUnpublishConfirm(null);
+      // Refresh the list
+      await fetchSOWs();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to unpublish SOW';
+      setError(message);
+      toast.error(message);
+      console.error('[SOWListView] Error unpublishing SOW:', err);
+      throw err; // Fast fail
+    } finally {
+      setUnpublishingId(null);
     }
   }
 
@@ -169,13 +195,32 @@ export function SOWListView() {
                     {sow.status}
                   </Badge>
 
-                  {sow.status !== 'published' && (
+                  {sow.status !== 'published' ? (
                     <Button
                       size="sm"
-                      onClick={(e) => handlePublish(sow.$id, e)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowPublishConfirm(sow.$id);
+                      }}
                       disabled={publishingId === sow.$id}
                     >
+                      <Upload className="h-4 w-4 mr-2" />
                       {publishingId === sow.$id ? 'Publishing...' : 'Publish'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowUnpublishConfirm(sow.$id);
+                      }}
+                      disabled={unpublishingId === sow.$id}
+                    >
+                      <Archive className="h-4 w-4 mr-2" />
+                      {unpublishingId === sow.$id ? 'Unpublishing...' : 'Unpublish'}
                     </Button>
                   )}
                 </div>
@@ -184,6 +229,36 @@ export function SOWListView() {
           </Link>
         ))}
       </div>
+
+      {/* Publish Confirmation Dialog */}
+      {showPublishConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Publish SOW?"
+          message={`This will publish "${sows.find(s => s.$id === showPublishConfirm)?.metadata.course_name}" and make it visible to students.`}
+          confirmText="Publish"
+          cancelText="Cancel"
+          variant="default"
+          onConfirm={() => handlePublishConfirm(showPublishConfirm)}
+          onCancel={() => setShowPublishConfirm(null)}
+          icon={<Upload className="h-5 w-5 text-green-600" />}
+        />
+      )}
+
+      {/* Unpublish Confirmation Dialog */}
+      {showUnpublishConfirm && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Unpublish SOW?"
+          message={`This will unpublish "${sows.find(s => s.$id === showUnpublishConfirm)?.metadata.course_name}" and revert it to draft status. Students will no longer see this course.`}
+          confirmText="Unpublish"
+          cancelText="Cancel"
+          variant="destructive"
+          onConfirm={() => handleUnpublishConfirm(showUnpublishConfirm)}
+          onCancel={() => setShowUnpublishConfirm(null)}
+          icon={<Archive className="h-5 w-5 text-amber-600" />}
+        />
+      )}
     </div>
   );
 }

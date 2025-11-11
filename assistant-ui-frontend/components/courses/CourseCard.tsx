@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { BookOpen, CheckCircle, Clock, Target } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Target, Archive } from 'lucide-react';
 
 interface CourseCardProps {
   course: {
@@ -12,12 +12,24 @@ interface CourseCardProps {
     description?: string;
     outcomes?: any[];
   };
-  enrolled?: boolean;
+  enrollmentStatus?: 'active' | 'archived' | null;
   onClick?: () => void;
   onEnroll?: () => void;
+  onUnenroll?: () => void;
+  // Deprecated: use enrollmentStatus instead
+  enrolled?: boolean;
 }
 
-export function CourseCard({ course, enrolled = false, onClick, onEnroll }: CourseCardProps) {
+export function CourseCard({
+  course,
+  enrollmentStatus = null,
+  enrolled = false, // Deprecated, kept for backward compatibility
+  onClick,
+  onEnroll,
+  onUnenroll
+}: CourseCardProps) {
+  // Support legacy enrolled prop (backward compatibility)
+  const actualStatus = enrollmentStatus || (enrolled ? 'active' : null);
   const levelColors: Record<string, string> = {
     'national-3': 'bg-green-100 text-green-800',
     'national-4': 'bg-blue-100 text-blue-800',
@@ -64,17 +76,43 @@ export function CourseCard({ course, enrolled = false, onClick, onEnroll }: Cour
 
       {/* Action button */}
       <div className="p-4 pt-0">
-        {enrolled ? (
+        {actualStatus === 'active' ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
+              View Course
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnenroll?.();
+              }}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              title="Un-enroll from course"
+            >
+              Un-enroll
+            </Button>
+          </div>
+        ) : actualStatus === 'archived' ? (
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full border-blue-600 text-blue-600 hover:bg-blue-50"
             onClick={(e) => {
               e.stopPropagation();
-              onClick?.();
+              onEnroll?.();
             }}
           >
-            <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
-            Enrolled - View Course
+            <Archive className="h-4 w-4 mr-2" />
+            Re-enroll (Restore Progress)
           </Button>
         ) : (
           <Button

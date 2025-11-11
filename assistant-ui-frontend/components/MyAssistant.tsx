@@ -8,10 +8,13 @@ import { createThread, getThreadState, sendMessage } from "@/lib/chatApi";
 import { Thread } from "@/components/assistant-ui/thread";
 import { AutoStartTrigger } from "./AutoStartTrigger";
 import { LessonSnapshot } from "@/lib/appwrite/types";
+import { CourseOutcome } from "@/lib/types/course-outcomes";
 import { SessionProvider } from "@/lib/SessionContext";
+import { ReplayModeProvider } from "@/contexts/ReplayModeContext";
 
 // Import interrupt-enabled Tool UI components
 import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
+import { LessonDiagramPresentationTool } from "@/components/tools/LessonDiagramPresentationTool";
 import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
 import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
@@ -26,8 +29,17 @@ export interface SessionContext {
   course_level?: string;         // e.g., "national-3", "national-4", "national-5"
   sqa_course_code?: string;      // SQA course code if available
   course_title?: string;         // Full course title
+  // Enriched SQA outcome data
+  enriched_outcomes?: CourseOutcome[];  // Full CourseOutcome objects from course_outcomes collection
   // Accessibility preferences
   use_plain_text?: boolean;     // Use explainer_plain for dyslexia-friendly content
+  // Lesson diagram (diagram_context="lesson") for first card
+  lesson_diagram?: {
+    image_file_id: string;
+    diagram_type?: string;
+    title?: string;
+    cardId?: string;  // Actual cardId (e.g., "card_001") for backend tool call
+  } | null;
 }
 
 export interface MyAssistantProps {
@@ -35,17 +47,22 @@ export interface MyAssistantProps {
   threadId?: string;
   sessionContext?: SessionContext;
   onThreadCreated?: (threadId: string) => void; // Callback when new thread is created
+  isReplayMode?: boolean; // Enable replay mode (disables interactions)
+  replayRuntime?: any; // Custom replay runtime for playing back stored messages
 }
 
-export function MyAssistant({ 
-  sessionId, 
-  threadId: initialThreadId, 
+export function MyAssistant({
+  sessionId,
+  threadId: initialThreadId,
   sessionContext,
-  onThreadCreated
+  onThreadCreated,
+  isReplayMode = false,
+  replayRuntime
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
-  
-  const runtime = useLangGraphRuntime({
+
+  // Use replay runtime if in replay mode, otherwise use LangGraph runtime
+  const langGraphRuntime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (messages, { command }) => {
       // Let runtime handle thread creation if needed
@@ -99,36 +116,68 @@ export function MyAssistant({
 
   // Manually load thread state if we're initializing with an existing thread
   useEffect(() => {
+    console.log('🔄 MyAssistant - useEffect triggered:', {
+      hasInitialThreadId: !!initialThreadId,
+      currentThreadId: threadIdRef.current,
+      willLoadThread: !!(initialThreadId && threadIdRef.current === initialThreadId)
+    });
+
     if (initialThreadId && threadIdRef.current === initialThreadId) {
+      console.log('📥 MyAssistant - Loading existing thread state:', initialThreadId);
+
       getThreadState(initialThreadId)
         .then(state => {
+          console.log('✅ MyAssistant - Thread state loaded:', {
+            threadId: initialThreadId,
+            messageCount: state.values?.messages?.length || 0,
+            hasInterrupts: !!(state.tasks?.[0]?.interrupts),
+            interruptCount: state.tasks?.[0]?.interrupts?.length || 0
+          });
+
           // Use runtime's switchToThread to properly load the messages
           runtime.switchToThread(initialThreadId);
         })
         .catch(error => {
-          console.error('MyAssistant - Failed to load thread state:', error);
+          console.error('❌ MyAssistant - Failed to load thread state:', error);
         });
+    } else {
+      console.log('⏭️ MyAssistant - Skipping thread load (no initial thread or already loaded)');
     }
-  }, [initialThreadId, runtime]);
+  }, [initialThreadId, langGraphRuntime]);
+
+  // Use replay runtime if provided, otherwise use LangGraph runtime
+  const runtime = isReplayMode && replayRuntime ? replayRuntime : langGraphRuntime;
 
   const isSessionMode = !!sessionContext;
 
-  return (
-    <SessionProvider isSessionMode={isSessionMode}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        <AutoStartTrigger
-          sessionContext={sessionContext}
-          existingThreadId={initialThreadId}
-        />
-        <Thread />
+  // Removed noisy render log - use React DevTools for component debugging
+  // Only log mode changes, not every render
+  // console.log('🎬 MyAssistant - Mode:', {...})
 
-        {/* Interrupt-enabled Tool UI components for interactive lesson cards */}
-        <LessonCardPresentationTool />
-        <FeedbackPresentationTool />
-        <ProgressAcknowledgmentTool />
-        <LessonSummaryPresentationTool />
-        <LessonCompletionSummaryTool />
-      </AssistantRuntimeProvider>
-    </SessionProvider>
+  return (
+    <ReplayModeProvider isReplayMode={isReplayMode}>
+      <SessionProvider isSessionMode={isSessionMode}>
+        <AssistantRuntimeProvider runtime={runtime}>
+          {/* Only show AutoStartTrigger in non-replay mode */}
+          {!isReplayMode && (
+            <AutoStartTrigger
+              sessionContext={sessionContext}
+              existingThreadId={initialThreadId}
+            />
+          )}
+
+          <Thread />
+
+          {/* Tool UI components render automatically based on tool calls in messages */}
+          {/* They work in both live and replay modes */}
+          <LessonCardPresentationTool />
+          <LessonDiagramPresentationTool />
+          <FeedbackPresentationTool />
+          <ProgressAcknowledgmentTool />
+          <LessonSummaryPresentationTool />
+          <LessonCompletionSummaryTool />
+        </AssistantRuntimeProvider>
+      </SessionProvider>
+    </ReplayModeProvider>
   );
 }
