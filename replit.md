@@ -56,17 +56,32 @@ The following environment variables are configured in Replit Secrets:
 - `NEXT_PUBLIC_APPWRITE_PROJECT_ID` - Appwrite project ID
 - `APPWRITE_API_KEY` - API key for server-side operations
 
-### LangGraph Configuration
-- `LANGGRAPH_API_URL` - LangGraph service URL
-- `LANGGRAPH_API_KEY` - LangGraph API authentication key
+### LangGraph Configuration (Dual-Backend Architecture)
+- `NEXT_PUBLIC_LANGGRAPH_API_URL` - Main backend for teaching sessions, lessons, course management
+- `NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID` - Assistant ID (set to "agent")
+- `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` - Context chat backend for AI Tutor side panel
+- `LANGGRAPH_API_KEY` - LangGraph API authentication key (optional)
+
+### LangSmith Configuration
+- `NEXT_PUBLIC_LANGSMITH_API_KEY` - LangSmith API key for monitoring deployed LangGraph agents
 
 ## Development Workflow
 
 ### Running the Application
+
+**On Replit:**
 The application runs automatically via the configured workflow:
 - **Command**: `cd assistant-ui-frontend && pnpm run dev`
 - **Port**: 5000
 - **Output**: Webview (accessible in Replit interface)
+
+**On Your Local MacBook:**
+To avoid port conflicts with system processes on macOS:
+```bash
+cd assistant-ui-frontend
+pnpm run dev:local
+```
+This will start the dev server on the default port 3000 instead of 5000.
 
 ### Building for Production
 ```bash
