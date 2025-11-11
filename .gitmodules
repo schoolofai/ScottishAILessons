@@ -1,3 +1,9 @@
 [submodule "aegra-agent"]
 	path = aegra-agent
 	url = https://github.com/schoolofai/aegra.git
+[submodule "langgraph-agent"]
+	path = langgraph-agent
+	url = https://github.com/schoolofai/langgraph-agent.git
+[submodule "langgraph-generic-chat"]
+	path = langgraph-generic-chat
+	url = https://github.com/schoolofai/langgraph-generic-chat.git
