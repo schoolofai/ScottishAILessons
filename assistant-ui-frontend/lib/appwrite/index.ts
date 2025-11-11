@@ -6,6 +6,7 @@ export { LessonDriver } from './driver/LessonDriver';
 export { EvidenceDriver } from './driver/EvidenceDriver';
 export { SessionDriver } from './driver/SessionDriver';
 export { MasteryDriver } from './driver/MasteryDriver';
+export { RoutineDriver } from './driver/RoutineDriver';
 
 // SessionDriver type exports
 export type { ConversationHistory } from './driver/SessionDriver';

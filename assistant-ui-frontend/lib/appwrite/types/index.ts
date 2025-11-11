@@ -219,6 +219,9 @@ export interface Session {
   lessonSnapshot: string; // JSON string
   threadId?: string; // LangGraph thread ID for conversation continuity
   lastMessageAt?: string; // Timestamp of last chat interaction
+  sessionType?: 'initial' | 'review'; // Type of session for spaced repetition tracking
+  reviewCount?: number; // Number of times this lesson has been reviewed
+  originalCompletionDate?: string; // When first completed (for review sessions)
   conversationHistory?: string; // Compressed (gzip + base64) conversation history for replay
 }
 
@@ -297,6 +300,9 @@ export interface CreateSessionData {
   lessonTemplateId: string;
   stage?: string;
   lessonSnapshot: string;
+  sessionType?: 'initial' | 'review';
+  reviewCount?: number;
+  originalCompletionDate?: string;
 }
 
 export interface QueryOptions {
