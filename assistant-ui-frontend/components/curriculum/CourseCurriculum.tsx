@@ -19,6 +19,8 @@ import { Client, Databases, Query } from 'appwrite';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '@/lib/logger';
 import { cache, createCacheKey } from '@/lib/cache';
+import { LessonQuickNotesButton } from '@/components/revision-notes/LessonQuickNotesButton';
+import { RevisionNotesDriver } from '@/lib/appwrite/driver/RevisionNotesDriver';
 
 interface Lesson {
   order: number;
@@ -57,10 +59,38 @@ export function CourseCurriculum({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
+  const [lessonNotesAvailability, setLessonNotesAvailability] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     loadCurriculum();
   }, [courseId, studentId]);
+
+  // Check lesson notes availability for all lessons
+  useEffect(() => {
+    if (lessons.length === 0 || !courseId) return;
+
+    const checkAllLessonNotesAvailability = async () => {
+      const driver = new RevisionNotesDriver();
+      const availabilityMap: Record<number, boolean> = {};
+
+      // Batch check all lessons
+      await Promise.all(
+        lessons.map(async (lesson) => {
+          try {
+            const isAvailable = await driver.lessonNotesExist(courseId, lesson.order);
+            availabilityMap[lesson.order] = isAvailable;
+          } catch (error) {
+            // On error, mark as unavailable
+            availabilityMap[lesson.order] = false;
+          }
+        })
+      );
+
+      setLessonNotesAvailability(availabilityMap);
+    };
+
+    checkAllLessonNotesAvailability();
+  }, [lessons, courseId]);
 
   const loadCurriculum = async () => {
     try {
@@ -456,8 +486,17 @@ export function CourseCurriculum({
                   </div>
                 </div>
 
-                {/* Action Button */}
-                <div className="flex-shrink-0">
+                {/* Action Buttons */}
+                <div className="flex-shrink-0 flex items-center gap-2">
+                  {/* Lesson Quick Notes Button */}
+                  <LessonQuickNotesButton
+                    courseId={courseId}
+                    lessonOrder={lesson.order}
+                    isAvailable={lessonNotesAvailability[lesson.order] ?? null}
+                    onClick={() => {}}
+                  />
+
+                  {/* Start Lesson Button */}
                   {getActionButton(lesson)}
                 </div>
               </div>

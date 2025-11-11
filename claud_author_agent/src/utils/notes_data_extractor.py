@@ -546,12 +546,16 @@ async def extract_all_course_data(
     logger.info("✅ All course data extracted successfully")
     logger.info("=" * 60)
 
+    # Use SOW entries count (authoritative) not lesson_templates count (may include unpublished)
+    sow_lesson_count = len(sow_doc.get("entries", []))
+
     return {
         "course_id": course_id,
         "subject": subject,
         "level": level,
         "sow_version": sow_doc.get("version", "1"),
-        "lesson_count": len(lesson_templates),
+        "lesson_count": sow_lesson_count,  # From SOW, not database query
+        "lesson_templates_in_db": len(lesson_templates),  # For debugging
         "diagram_count": len(lesson_diagrams),
         "outcome_count": len(course_outcomes),
         "workspace_path": str(workspace_path)

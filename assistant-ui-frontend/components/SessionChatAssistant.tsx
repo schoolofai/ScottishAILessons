@@ -7,14 +7,21 @@ import { useAppwrite, SessionDriver } from "@/lib/appwrite";
 import { CourseDriver } from "@/lib/appwrite/driver/CourseDriver";
 import { CourseOutcomesDriver } from "@/lib/appwrite/driver/CourseOutcomesDriver";
 import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
+import { RevisionNotesDriver } from "@/lib/appwrite/driver/RevisionNotesDriver";
 import { enrichOutcomeRefs } from "@/lib/sessions/outcome-enrichment";
 import { SessionHeader } from "./SessionHeader";
 import { ContextChatPanel } from "./ContextChatPanel";
+import { LessonNotesSidePanel } from "./revision-notes/LessonNotesSidePanel";
+import { LessonNotesToggleButton } from "./revision-notes/LessonNotesToggleButton";
+import { AITutorToggleButton } from "./revision-notes/AITutorToggleButton";
+import { SidePanelResizeHandle } from "./revision-notes/SidePanelResizeHandle";
 import { Client } from "@langchain/langgraph-sdk";
 import { CurrentCardProvider } from "@/contexts/CurrentCardContext";
 import { LessonExitWarningModal } from "./session/LessonExitWarningModal";
 import { usePreventNavigation } from "@/hooks/usePreventNavigation";
 import { NavigationPreventionProvider } from "@/contexts/NavigationPreventionContext";
+import { useSidePanelResize } from "@/hooks/useSidePanelResize";
+import { ActiveSidePanel } from "@/hooks/useRevisionNotes";
 
 interface SessionChatAssistantProps {
   sessionId: string;
@@ -28,9 +35,16 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [contextChatThreadId, setContextChatThreadId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isContextChatCollapsed, setIsContextChatCollapsed] = useState(false);
-  const [contextChatWidth, setContextChatWidth] = useState(33); // Width as percentage (1/3 = 33%)
-  const [isResizing, setIsResizing] = useState(false);
+
+  // Side panel state (mutual exclusivity between ContextChat and LessonNotes)
+  const [activeSidePanel, setActiveSidePanel] = useState<ActiveSidePanel>(ActiveSidePanel.None);
+
+  // Lesson notes state (session-scoped cache)
+  const [lessonNotesContent, setLessonNotesContent] = useState<string | null>(null);
+  const [lessonNotesStatus, setLessonNotesStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [lessonNotesError, setLessonNotesError] = useState<any>(null);
+  const [lessonNotesAvailable, setLessonNotesAvailable] = useState<boolean | null>(null);
+  const lessonNotesCacheRef = useRef<string | null>(null);
 
   // Navigation prevention state
   const [sessionStatus, setSessionStatus] = useState<'created' | 'active' | 'completed' | 'failed'>('active');
@@ -39,7 +53,13 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
   const { createDriver } = useAppwrite();
   const threadIdRef = useRef<string | undefined>(existingThreadId);
-  const resizeRef = useRef<HTMLDivElement>(null);
+
+  // Shared resize hook for both panels
+  const { panelWidth, isResizing, handleMouseDown: handleResizeStart } = useSidePanelResize({
+    initialWidth: 33,
+    minWidth: 20,
+    maxWidth: 50
+  });
 
   useEffect(() => {
     console.log('🔄 SessionChatAssistant - useEffect triggered:', {
@@ -217,6 +237,69 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     loadSessionContext();
   }, [sessionId]); // CRITICAL FIX: Remove existingThreadId to prevent re-initialization loop
 
+  // Check lesson notes availability when session context loads
+  useEffect(() => {
+    if (!sessionContext?.lesson_snapshot) return;
+
+    const courseId = sessionContext.lesson_snapshot.courseId;
+    const lessonOrder = sessionContext.lesson_snapshot.sow_order || 1;
+
+    const checkAvailability = async () => {
+      try {
+        const revisionDriver = createDriver(RevisionNotesDriver);
+        const exists = await revisionDriver.lessonNotesExist(courseId, lessonOrder);
+        setLessonNotesAvailable(exists);
+      } catch (err) {
+        console.error('Failed to check lesson notes availability:', err);
+        setLessonNotesAvailable(false);
+      }
+    };
+
+    checkAvailability();
+  }, [sessionContext, createDriver]);
+
+  // Fetch lesson notes when panel opens for the first time
+  useEffect(() => {
+    if (activeSidePanel !== ActiveSidePanel.LessonNotes) return;
+    if (lessonNotesCacheRef.current) {
+      // Use cached content
+      setLessonNotesContent(lessonNotesCacheRef.current);
+      setLessonNotesStatus('success');
+      return;
+    }
+
+    if (!sessionContext?.lesson_snapshot) return;
+
+    const fetchLessonNotes = async () => {
+      setLessonNotesStatus('loading');
+      setLessonNotesError(null);
+
+      try {
+        const courseId = sessionContext.lesson_snapshot.courseId;
+        const lessonOrder = sessionContext.lesson_snapshot.sow_order || 1;
+        const revisionDriver = createDriver(RevisionNotesDriver);
+        const notes = await revisionDriver.getLessonQuickNotes(courseId, lessonOrder);
+
+        lessonNotesCacheRef.current = notes.markdownContent;
+        setLessonNotesContent(notes.markdownContent);
+        setLessonNotesStatus('success');
+      } catch (err) {
+        console.error('Failed to fetch lesson notes:', err);
+        setLessonNotesError(err);
+        setLessonNotesStatus('error');
+      }
+    };
+
+    fetchLessonNotes();
+  }, [activeSidePanel, sessionContext, createDriver]);
+
+  // Clear lesson notes cache when session ends
+  useEffect(() => {
+    return () => {
+      lessonNotesCacheRef.current = null;
+    };
+  }, [sessionId]);
+
   // Handle session status change from child components (e.g., LessonCompletionSummaryTool)
   // IMPORTANT: Must be BEFORE early returns to maintain consistent hook order
   const handleSessionStatusChange = useCallback((status: 'created' | 'active' | 'completed' | 'failed') => {
@@ -281,43 +364,44 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     threadIdRef.current = existingThreadId;
   }, [existingThreadId]);
 
-  // Handle mouse drag for resizing
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsResizing(true);
-  }, []);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
-
-      const windowWidth = window.innerWidth;
-      const mouseX = e.clientX;
-      const newWidth = ((windowWidth - mouseX) / windowWidth) * 100;
-
-      // Constrain to 20% minimum and 50% maximum
-      const constrainedWidth = Math.max(20, Math.min(50, newWidth));
-      setContextChatWidth(constrainedWidth);
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    if (isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = 'col-resize';
-      document.body.style.userSelect = 'none';
+  // Panel toggle handlers (mutual exclusivity)
+  const toggleLessonNotes = useCallback(() => {
+    if (activeSidePanel === ActiveSidePanel.LessonNotes) {
+      setActiveSidePanel(ActiveSidePanel.None);
+    } else {
+      setActiveSidePanel(ActiveSidePanel.LessonNotes);
     }
+  }, [activeSidePanel]);
 
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizing]);
+  const toggleContextChat = useCallback(() => {
+    if (activeSidePanel === ActiveSidePanel.ContextChat) {
+      setActiveSidePanel(ActiveSidePanel.None);
+    } else {
+      setActiveSidePanel(ActiveSidePanel.ContextChat);
+    }
+  }, [activeSidePanel]);
+
+  const handleLessonNotesRetry = useCallback(async () => {
+    if (!sessionContext?.lesson_snapshot) return;
+
+    setLessonNotesStatus('loading');
+    setLessonNotesError(null);
+
+    try {
+      const courseId = sessionContext.lesson_snapshot.courseId;
+      const lessonOrder = sessionContext.lesson_snapshot.sow_order || 1;
+      const revisionDriver = createDriver(RevisionNotesDriver);
+      const notes = await revisionDriver.getLessonQuickNotes(courseId, lessonOrder);
+
+      lessonNotesCacheRef.current = notes.markdownContent;
+      setLessonNotesContent(notes.markdownContent);
+      setLessonNotesStatus('success');
+    } catch (err) {
+      console.error('Failed to retry fetch lesson notes:', err);
+      setLessonNotesError(err);
+      setLessonNotesStatus('error');
+    }
+  }, [sessionContext, createDriver]);
 
   if (loading) {
     return (
@@ -349,7 +433,29 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         <div className="flex h-screen">
         {/* Main Teaching Panel - Always takes available space */}
         <div className="flex flex-col flex-1">
-          <SessionHeader sessionContext={sessionContext} />
+          {/* Session Header with Side Panel Controls */}
+          <header className="bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <SessionHeader sessionContext={sessionContext} />
+
+              {/* Side Panel Button Group - Always Visible */}
+              {sessionContext && (
+                <div className="flex items-center gap-2">
+                  <LessonNotesToggleButton
+                    isOpen={activeSidePanel === ActiveSidePanel.LessonNotes}
+                    onToggle={toggleLessonNotes}
+                    disabled={!lessonNotesAvailable}
+                    isLoading={lessonNotesAvailable === null}
+                  />
+                  <AITutorToggleButton
+                    isOpen={activeSidePanel === ActiveSidePanel.ContextChat}
+                    onToggle={toggleContextChat}
+                  />
+                </div>
+              )}
+            </div>
+          </header>
+
         <div className="flex-1 min-h-0" data-testid="main-teaching-panel">
           <MyAssistant
             sessionId={sessionId}
@@ -360,61 +466,48 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         </div>
       </div>
 
-      {/* Context Chat Panel - Only show in layout when expanded */}
-      {sessionContext && !isContextChatCollapsed && (
+      {/* Context Chat Panel - Show when ContextChat is active */}
+      {sessionContext && activeSidePanel === ActiveSidePanel.ContextChat && (
         <div
           className="relative flex-shrink-0"
-          style={{ width: `${contextChatWidth}%` }}
+          style={{ width: `${panelWidth}%` }}
         >
-          {/* Drag Handle */}
-          <div
-            ref={resizeRef}
-            onMouseDown={handleMouseDown}
-            className={`absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize z-10 transition-colors duration-200 ${
-              isResizing ? 'bg-blue-500' : ''
-            }`}
-            style={{ marginLeft: '-2px' }}
-            data-testid="resize-handle"
-            title="Drag to resize panel"
+          <SidePanelResizeHandle
+            onMouseDown={handleResizeStart}
+            isResizing={isResizing}
           />
           <ContextChatPanel
             sessionId={sessionId}
             sessionContext={sessionContext}
             existingContextThreadId={contextChatThreadId}
             onThreadCreated={handleContextThreadCreated}
-            onCollapseChange={setIsContextChatCollapsed}
+            onCollapseChange={(collapsed) => {
+              if (collapsed) {
+                setActiveSidePanel(ActiveSidePanel.None);
+              }
+            }}
           />
         </div>
       )}
 
-      {/* Chat Bubble with Text - Fixed position when collapsed */}
-      {sessionContext && isContextChatCollapsed && (
-        <button
-          onClick={() => setIsContextChatCollapsed(false)}
-          className="fixed bottom-6 right-6 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg hover:shadow-xl z-50 transition-all duration-300 flex items-center gap-2 px-4 py-3 group"
-          aria-label="Open AI tutor assistant"
-          data-testid="context-chat-bubble"
-        >
-          {/* Speech bubble icon */}
-          <svg
-            className="w-5 h-5 flex-shrink-0"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-
-          {/* Call-to-action text */}
-          <span className="text-sm font-medium whitespace-nowrap">
-            Stuck? Ask Your AI Tutor
-          </span>
-        </button>
+      {/* Lesson Notes Panel - Show when LessonNotes is active */}
+      {sessionContext && activeSidePanel === ActiveSidePanel.LessonNotes && (
+        <LessonNotesSidePanel
+          content={lessonNotesContent}
+          status={lessonNotesStatus}
+          error={lessonNotesError}
+          retryState={{
+            retryCount: 0,
+            lastRetryTime: null,
+            showBackoffHint: false,
+            isRetrying: false
+          }}
+          onRetry={handleLessonNotesRetry}
+          onClose={() => setActiveSidePanel(ActiveSidePanel.None)}
+          panelWidth={panelWidth}
+          isResizing={isResizing}
+          onResizeStart={handleResizeStart}
+        />
       )}
       </div>
 

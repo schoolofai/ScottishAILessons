@@ -16,7 +16,6 @@ from typing import Dict, Any, Optional
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition, ResultMessage
 
 from .utils.filesystem import IsolatedFilesystem
-from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
 from .utils.notes_data_extractor import extract_all_course_data
 from .utils.notes_storage_upserter import upsert_all_revision_notes
@@ -47,7 +46,6 @@ class NotesAuthorClaudeClient:
         mcp_config_path: Path to .mcp.json configuration file
         persist_workspace: Whether to preserve workspace after execution
         execution_id: Unique identifier for this execution
-        cost_tracker: Tracks costs across subagent execution
 
     Architecture Notes:
         - Data extraction moved to Python (no LLM needed, saves tokens)
@@ -74,9 +72,6 @@ class NotesAuthorClaudeClient:
 
         # Generate execution ID (timestamp-based)
         self.execution_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Initialize cost tracker
-        self.cost_tracker = CostTracker(execution_id=self.execution_id)
 
         # Setup logging
         setup_logging(log_level=log_level)
@@ -241,10 +236,6 @@ All data is in your workspace `inputs/` directory:
 
         outputs_dir = workspace_path / "outputs"
 
-        # Get token usage and cost from cost tracker
-        total_cost = self.cost_tracker.total_cost
-        total_tokens = self.cost_tracker.total_input_tokens + self.cost_tracker.total_output_tokens
-
         # Upload all notes
         upload_results = await upsert_all_revision_notes(
             outputs_dir=outputs_dir,
@@ -255,8 +246,6 @@ All data is in your workspace `inputs/` directory:
             mcp_config_path=str(self.mcp_config_path),
             force=force,
             sow_version=extraction_summary.get('sow_version'),
-            token_usage=total_tokens,
-            cost_usd=total_cost,
             workspace_path=str(workspace_path) if self.persist_workspace else None
         )
 
@@ -480,9 +469,6 @@ All data is in your workspace `inputs/` directory:
             # Calculate total execution time
             execution_time = time.time() - start_time
 
-            # Generate cost report
-            cost_report = self.cost_tracker.generate_report()
-
             logger.info("\n" + "=" * 60)
             logger.info("✅ REVISION NOTES AUTHORING COMPLETE")
             logger.info("=" * 60)
@@ -496,8 +482,6 @@ All data is in your workspace `inputs/` directory:
             logger.info(f"     Post-processing:   {timing_metrics['post_processing_time']:.2f}s")
             logger.info(f"     Workspace cleanup: {timing_metrics['workspace_cleanup_time']:.2f}s")
             logger.info("")
-            logger.info(f"   Total cost: ${cost_report['total_cost']:.4f}")
-            logger.info(f"   Total tokens: {cost_report['total_tokens']:,}")
             logger.info(f"   Cheat sheet ID: {upload_results.get('cheat_sheet', 'N/A')}")
             logger.info(f"   Lesson notes: {len(upload_results.get('lesson_notes', []))} uploaded")
             if self.persist_workspace:
@@ -540,8 +524,6 @@ All data is in your workspace `inputs/` directory:
                 "execution_id": self.execution_id,
                 "error": str(e),
                 "metrics": {
-                    "execution_time": execution_time,
-                    "total_cost": self.cost_tracker.total_cost,
-                    "total_tokens": self.cost_tracker.total_input_tokens + self.cost_tracker.total_output_tokens
+                    "execution_time": execution_time
                 }
             }
