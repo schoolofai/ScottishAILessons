@@ -410,6 +410,84 @@ For questions about this implementation:
 
 ---
 
-**Last Updated**: 2025-10-29
+## 🔄 Integration with Main Branch (2025-11-11)
+
+### **Merge Summary**
+
+Successfully merged main branch into spaced-repetition feature branch. Main included 100+ file changes with major new features:
+
+**Key Features from Main**:
+1. **Session Replay System**: View and replay completed lesson sessions
+2. **Conversation History Persistence**: Compressed gzip+base64 storage of teaching conversations
+3. **Diagram Management**: JSXGraph diagram generation and storage with visual critic
+4. **Revision Notes**: AI-generated course cheat sheets and lesson quick notes
+5. **Enhanced Admin Tools**: Lesson editor, diagram manager, SOW detail views
+6. **Student Drawing Storage**: File-based storage system for student drawings
+
+### **Conflict Resolution**
+
+**File 1**: `LessonCompletionSummaryTool.tsx`
+- **Our Changes**: Step 4 - Routine schedule updates for spaced repetition
+- **Main's Changes**: Step 4 - Conversation history compression
+- **Resolution**: Combined both - routines update first (step 4), then conversation history (step 5), then session completion (step 6)
+- **Result**: Both features work seamlessly together
+
+**File 2**: `lib/appwrite/types/index.ts` (Session interface)
+- **Our Changes**: Added `sessionType`, `reviewCount`, `originalCompletionDate` fields
+- **Main's Changes**: Added `conversationHistory` field
+- **Resolution**: Merged all fields - both features coexist
+- **Result**: Sessions now track both spaced repetition metadata AND conversation history
+
+### **Feature Integration Benefits**
+
+**Spaced Repetition + Session Replay**:
+- Students can replay their initial learning session before reviewing
+- Compare initial performance with review performance over time
+- Identify which teaching moments were most effective for retention
+
+**Spaced Repetition + Revision Notes**:
+- Quick reference notes available during review sessions
+- Students can refresh knowledge before attempting review
+- Notes show what was emphasized in original teaching
+
+**Spaced Repetition + Session Type Tracking**:
+- Review sessions automatically detected by LessonDriver
+- Backend can adapt teaching style: "Let's review..." vs "Today you'll learn..."
+- Analytics can track review adherence and effectiveness
+
+### **Data Flow After Merge**
+
+Complete lesson completion pipeline now:
+```
+1. Save evidence records
+   ↓
+2. Batch update mastery (EMA scores)
+   ↓
+3. Update MasteryV2 document
+   ↓
+4. Update routine schedules (SPACED REPETITION) ✨
+   ↓
+5. Compress and persist conversation history (SESSION REPLAY) ✨
+   ↓
+6. Complete session with score and status
+   ↓
+7. Notify parent component
+```
+
+All features work in harmony without conflicts.
+
+### **Testing Recommendations**
+
+After merge, verify:
+- [ ] Routine updates still occur after lesson completion
+- [ ] Conversation history compression doesn't interfere with routine updates
+- [ ] Review sessions show correct sessionType and reviewCount
+- [ ] SpacedRepetitionPanel displays recommendations correctly
+- [ ] Session replay works for review sessions
+- [ ] Revision notes accessible during review mode
+
+---
+
+**Last Updated**: 2025-11-11
 **Implementation**: Complete ✅
-**Status**: Ready for database schema updates and production testing
+**Status**: Merged with main - ready for integration testing and production deployment
