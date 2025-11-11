@@ -317,13 +317,24 @@ export function EnhancedStudentDashboard() {
       setRecommendationsLoading(true);
       setRecommendationsError(null);
 
-      // 1. Get student data first (use parameter or state)
+      // 1. Quick backend availability check BEFORE attempting to load recommendations
+      // This implements fail-fast error handling to avoid slow timeouts
+      try {
+        const { checkBackendAvailability } = await import('@/lib/backend-status');
+        await checkBackendAvailability();
+      } catch (backendError) {
+        // Backend is not available - fail fast with user-friendly message
+        console.error('[Recommendations] Backend availability check failed:', backendError);
+        throw new Error('Your AI recommendation system is currently not available. Please ensure the backend service is running.');
+      }
+
+      // 2. Get student data first (use parameter or state)
       const currentStudent = studentData || student;
       if (!currentStudent) {
         throw new Error('Student data not available');
       }
 
-      // 2. Check cache first (5 minute TTL for recommendations)
+      // 3. Check cache first (5 minute TTL for recommendations)
       const cacheKey = createCacheKey('recommendations', currentStudent.$id, courseId);
       const cachedRecommendations = cache.get<RecommendationsData>(cacheKey);
 
@@ -334,14 +345,14 @@ export function EnhancedStudentDashboard() {
         return;
       }
 
-      // 3. Initialize Appwrite client
+      // 4. Initialize Appwrite client
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
 
       const databases = new Databases(client);
 
-      // 2. Get course data - query by courseId field instead of using it as document ID
+      // 5. Get course data - query by courseId field instead of using it as document ID
       const courseQueryResult = await databases.listDocuments(
         'default',
         'courses',
@@ -354,14 +365,14 @@ export function EnhancedStudentDashboard() {
 
       const course = courseQueryResult.documents[0];
 
-      // 3. Get lesson templates for the course (use original courseId, not document $id)
+      // 6. Get lesson templates for the course (use original courseId, not document $id)
       const templatesResult = await databases.listDocuments(
         'default',
         'lesson_templates',
         [Query.equal('courseId', course.courseId)]
       );
 
-      // 4. Get mastery records using MasteryV2Driver
+      // 7. Get mastery records using MasteryV2Driver
       // Get session token for authenticated driver calls
       // First, set the session from localStorage to the client
       let sessionToken = '';
@@ -391,9 +402,9 @@ export function EnhancedStudentDashboard() {
         }));
       }
 
-      // 5. Routine data removed - keeping spaced repetition separate from recommendations
+      // 8. Routine data removed - keeping spaced repetition separate from recommendations
 
-      // 6. Get SOW data - SOWV2 ONLY (no fallbacks)
+      // 9. Get SOW data - SOWV2 ONLY (no fallbacks)
       console.log('[SOW Query] Attempting SOWV2 query with:', {
         studentId: currentStudent.$id,
         courseId: course.courseId
@@ -429,7 +440,7 @@ export function EnhancedStudentDashboard() {
         sow: sowResult.documents
       });
 
-      // 7. Build complete scheduling context (matching Task 7 isolation test format)
+      // 10. Build complete scheduling context (matching Task 7 isolation test format)
 
       // Debug SOW data transformation
       console.log('[SOW Debug] Raw SOWV2 document:', sowResult.documents[0]);
@@ -483,7 +494,7 @@ export function EnhancedStudentDashboard() {
       // Phase 2: Context Building Complete
       console.log('[Recommendation Phase 2 - Context Building]', context);
 
-      // 8. Call LangGraph Course Manager using SDK
+      // 11. Call LangGraph Course Manager using SDK
       const { Client: LangGraphClient } = await import('@langchain/langgraph-sdk');
       const langGraphClient = new LangGraphClient({
         apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || 'http://localhost:2024'
