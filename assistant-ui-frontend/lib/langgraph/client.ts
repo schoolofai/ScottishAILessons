@@ -13,6 +13,7 @@ import {
 
 export interface LangGraphClientConfig {
   apiUrl?: string;
+  apiKey?: string;
   timeout?: number;
 }
 
@@ -28,7 +29,8 @@ export class LangGraphClient {
 
   constructor(config: LangGraphClientConfig = {}) {
     this.client = new Client({
-      apiUrl: config.apiUrl || "http://localhost:2024"
+      apiUrl: config.apiUrl || "http://localhost:2024",
+      apiKey: config.apiKey,
     });
     this.timeout = config.timeout || 5000; // 5 second timeout
   }

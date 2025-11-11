@@ -9,8 +9,11 @@ const createClient = () => {
   const apiUrl =
     process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
     new URL("/api", window.location.href).href;
+  const apiKey = process.env["NEXT_PUBLIC_LANGSMITH_API_KEY"];
+
   return new Client({
     apiUrl,
+    apiKey: apiKey,
   });
 };
 

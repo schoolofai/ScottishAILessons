@@ -37,11 +37,14 @@ export function ContextChatPanel({
   // Initialize context chat client
   useEffect(() => {
     const contextChatUrl = process.env.NEXT_PUBLIC_CONTEXT_CHAT_API_URL || "http://localhost:2700";
+    const apiKey = process.env.NEXT_PUBLIC_LANGSMITH_API_KEY;
 
     console.log('ContextChatPanel - Initializing client with URL:', contextChatUrl);
+    console.log('ContextChatPanel - API Key present:', !!apiKey);
 
     contextChatClient.current = new Client({
-      apiUrl: contextChatUrl
+      apiUrl: contextChatUrl,
+      apiKey: apiKey,
     });
   }, []);
 

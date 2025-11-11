@@ -497,7 +497,8 @@ export function EnhancedStudentDashboard() {
       // 11. Call LangGraph Course Manager using SDK
       const { Client: LangGraphClient } = await import('@langchain/langgraph-sdk');
       const langGraphClient = new LangGraphClient({
-        apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || 'http://localhost:2024'
+        apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || 'http://localhost:2024',
+        apiKey: process.env.NEXT_PUBLIC_LANGSMITH_API_KEY,
       });
 
       // Create thread for Course Manager
