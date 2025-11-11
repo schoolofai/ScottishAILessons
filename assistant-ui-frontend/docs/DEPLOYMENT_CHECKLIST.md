@@ -5,13 +5,14 @@
 ### Configuration Files
 - [x] `.replit` - Runtime configuration for Replit
 - [x] `replit.nix` - System dependencies (Node.js 22)
-- [x] `.env.replit` - Environment variable template
+- [x] `.env.replit.template` - Environment variable template (dual-backend configuration)
 
 ### Backend Boundary Implementation
-- [x] `lib/backend-status.ts` - Backend availability checker with fail-fast error handling
+- [x] `lib/backend-status.ts` - Backend availability checker with fail-fast error handling (checks BOTH backends)
 - [x] `components/BackendErrorUI.tsx` - User-friendly error display component
 - [x] `components/BackendCheckingUI.tsx` - Loading state component
-- [x] `components/SessionChatAssistant.tsx` - Updated with backend boundary integration
+- [x] `components/SessionChatAssistant.tsx` - Updated to check both main and context chat backends
+- [x] `components/ContextChatPanel.tsx` - Fixed hardcoded URL, now uses environment variable
 
 ### Documentation
 - [x] `/BACKEND_DEPLOYMENT.md` - Comprehensive backend deployment guide
@@ -22,13 +23,17 @@
 ## 🎯 Deployment Strategy
 
 ### Phase 1: Frontend-Only Deployment ✅ READY
-Deploy frontend to Replit **without backend** - users will see clear error messages
+Deploy frontend to Replit **without backends** - users will see clear error messages
 
-### Phase 2: Backend Deployment ⏳ PENDING
-Deploy backend separately (see `/BACKEND_DEPLOYMENT.md`)
+### Phase 2: Backend Deployments ⏳ PENDING
+Deploy **TWO backends** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`):
+- **Main Backend**: Teaching sessions, lessons, course management
+- **Context Chat Backend**: AI Tutor side panel for contextual help
 
-### Phase 3: Connect Frontend to Backend ⏳ PENDING
-Update `NEXT_PUBLIC_LANGGRAPH_API_URL` to connect services
+### Phase 3: Connect Frontend to Backends ⏳ PENDING
+Update **BOTH** backend URLs in Replit Secrets:
+- `NEXT_PUBLIC_LANGGRAPH_API_URL` (main backend)
+- `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` (context chat backend)
 
 ---
 
@@ -36,17 +41,19 @@ Update `NEXT_PUBLIC_LANGGRAPH_API_URL` to connect services
 
 ### Before Deploying to Replit
 
-- [ ] **Verify all required API keys are available**:
+- [ ] **Verify all required API keys and URLs are available**:
   - [ ] `OPENAI_API_KEY`
   - [ ] `ANTHROPIC_API_KEY`
   - [ ] `APPWRITE_API_KEY`
   - [ ] `APPWRITE_PROJECT_ID`
   - [ ] `APPWRITE_ENDPOINT`
+  - [ ] `NEXT_PUBLIC_LANGGRAPH_API_URL` (main backend - placeholder for now)
+  - [ ] `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` (context chat backend - placeholder for now)
 
 - [ ] **Review configuration files**:
   - [ ] `.replit` exists and is properly formatted
   - [ ] `replit.nix` lists correct dependencies
-  - [ ] `.env.replit` is a template (not actual secrets)
+  - [ ] `.env.replit.template` exists and shows BOTH backend URLs
 
 - [ ] **Code review completed**:
   - [ ] Backend boundary implementation follows no-fallback policy
@@ -58,19 +65,21 @@ Update `NEXT_PUBLIC_LANGGRAPH_API_URL` to connect services
 
 ## 🧪 Testing Plan
 
-### Test 1: Backend Unavailable State (Expected Behavior)
+### Test 1: Backends Unavailable State (Expected Behavior)
 
 **Steps**:
 1. Deploy frontend to Replit
-2. Set `NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder.replit.app` (non-existent)
+2. Set placeholder URLs for **BOTH backends**:
+   - `NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder-main.langchain.app` (non-existent)
+   - `NEXT_PUBLIC_CONTEXT_CHAT_API_URL=https://placeholder-context.langchain.app` (non-existent)
 3. Visit deployed URL
 
 **Expected Results**:
 - ✅ Page loads without crashing
-- ✅ Backend checking UI appears briefly
-- ✅ Backend error UI displays with clear message
+- ✅ Backend checking UI appears briefly (shows "Verifying backend connections (main + AI tutor)...")
+- ✅ Backend error UI displays with clear message about which backend(s) failed
 - ✅ Error UI shows:
-  - Main error message
+  - Main error message (identifies which backend is unavailable)
   - Technical details (URL, status, error)
   - Step-by-step resolution instructions
   - Link to backend deployment guide
@@ -79,8 +88,9 @@ Update `NEXT_PUBLIC_LANGGRAPH_API_URL` to connect services
 
 **Pass Criteria**:
 - No console errors unrelated to backend connectivity
-- Error message clearly explains the issue
+- Error message clearly explains which backend failed (main or context chat)
 - User has clear path to resolution
+- Frontend checks BOTH backends before allowing access
 
 ---
 
@@ -125,25 +135,31 @@ Update `NEXT_PUBLIC_LANGGRAPH_API_URL` to connect services
 
 ---
 
-### Test 4: Backend Connection (After Backend Deployed)
+### Test 4: Backend Connection (After BOTH Backends Deployed)
 
 **Steps**:
-1. Deploy backend (see `/BACKEND_DEPLOYMENT.md`)
-2. Update `NEXT_PUBLIC_LANGGRAPH_API_URL` in Replit Secrets
-3. Restart frontend
-4. Visit deployed URL
+1. Deploy **main backend** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`)
+2. Deploy **context chat backend** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`)
+3. Update **BOTH** URLs in Replit Secrets:
+   - `NEXT_PUBLIC_LANGGRAPH_API_URL` (main backend .langchain.app URL)
+   - `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` (context chat .langchain.app URL)
+4. Restart frontend
+5. Visit deployed URL
 
 **Expected Results**:
 - ✅ No backend error UI
-- ✅ Chat interface loads
-- ✅ Can send messages and receive responses
-- ✅ Lesson sessions work
-- ✅ All features functional
+- ✅ Chat interface loads (main backend working)
+- ✅ Can send messages and receive responses (main backend streaming)
+- ✅ Lesson sessions work (main backend)
+- ✅ AI Tutor button appears and works (context chat backend)
+- ✅ AI Tutor side panel opens and responds (context chat backend streaming)
+- ✅ All features functional (dual-backend integration)
 
 **Pass Criteria**:
 - All features work end-to-end
-- Backend responses stream correctly
+- BOTH backend responses stream correctly
 - No connectivity errors
+- Main chat and AI Tutor work independently and simultaneously
 
 ---
 
@@ -185,8 +201,9 @@ TypeError: b.omit is not a function
    APPWRITE_API_KEY=[your-key]
    OPENAI_API_KEY=[your-key]
    ANTHROPIC_API_KEY=[your-key]
-   NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder.replit.app
+   NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder-main.langchain.app
    NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=agent
+   NEXT_PUBLIC_CONTEXT_CHAT_API_URL=https://placeholder-context.langchain.app
    NODE_ENV=production
    ```
 
@@ -230,14 +247,23 @@ TypeError: b.omit is not a function
 - ✅ Console shows backend connectivity errors (expected)
 - ✅ User has clear path to resolution
 
-### Full System Success (After Backend Connected)
+### Full System Success (After BOTH Backends Connected)
 
 - ✅ All criteria from Frontend Deployment Success
-- ✅ Chat interface loads and works
-- ✅ Lesson sessions start and progress correctly
-- ✅ Course management operations succeed
-- ✅ Real-time streaming works
-- ✅ Context chat panel functional
+- ✅ Main backend integration working:
+  - Chat interface loads and works
+  - Lesson sessions start and progress correctly
+  - Course management operations succeed
+  - Real-time streaming works from main backend
+- ✅ Context chat backend integration working:
+  - AI Tutor button appears and is clickable
+  - Context chat panel opens and displays
+  - AI Tutor responds to questions
+  - Real-time streaming works from context chat backend
+- ✅ Dual-backend operation verified:
+  - Both backends work independently
+  - Both backends work simultaneously
+  - No interference between main chat and AI Tutor
 - ✅ All backend-dependent features operational
 
 ---
@@ -252,8 +278,10 @@ tail -f .next/server.log
 ```
 
 Watch for:
-- `✅ [Backend Status] Backend is available` (after backend connected)
-- `❌ [Backend Status] Backend unavailable` (before backend connected)
+- `✅ [Backend Status] ALL backends are available and responding` (after both backends connected)
+- `✅ [Backend Status] Backend is available and responding` (main backend check)
+- `✅ [Backend Status] Context chat backend is available and responding` (context chat check)
+- `❌ [Backend Status] One or more backends unavailable` (before backends connected)
 - Any JavaScript errors (investigate these)
 - Performance warnings (address if needed)
 
@@ -275,11 +303,12 @@ Monitor in Replit dashboard:
 3. Check static pages work
 4. Document any issues found
 
-### Short-term (Deploy Backend)
+### Short-term (Deploy Both Backends)
 1. Follow `/BACKEND_DEPLOYMENT.md`
-2. Deploy backend to Replit or Railway
-3. Get backend public URL
-4. Update frontend environment variable
+2. Deploy **main backend** to LangGraph Platform
+3. Deploy **context chat backend** to LangGraph Platform
+4. Get both backend public URLs (*.langchain.app domains)
+5. Update **BOTH** frontend environment variables in Replit Secrets
 
 ### Long-term (Production Readiness)
 1. Set up monitoring and alerting

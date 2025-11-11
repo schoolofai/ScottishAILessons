@@ -2,9 +2,13 @@
 
 ## 📋 Overview
 
-This guide walks you through deploying the Scottish AI Lessons frontend to Replit. The frontend is configured with **fail-fast error handling** that will display clear error messages until the backend is properly connected.
+This guide walks you through deploying the Scottish AI Lessons frontend to Replit. The frontend is configured with **fail-fast error handling** that will display clear error messages until the backends are properly connected.
 
-**Important**: This deployment creates a **frontend-only** instance. Backend connectivity is required for full functionality. See `/BACKEND_DEPLOYMENT.md` for backend deployment instructions.
+**Important**: This deployment creates a **frontend-only** instance. The system requires **TWO backends** for full functionality:
+- **Main Backend**: Teaching sessions, lessons, course management (port 2024 locally)
+- **Context Chat Backend**: AI Tutor side panel for contextual help (port 2700 locally)
+
+See `/BACKEND_DEPLOYMENT.md` for complete backend deployment instructions to LangGraph Platform.
 
 ---
 
@@ -17,7 +21,9 @@ This guide walks you through deploying the Scottish AI Lessons frontend to Repli
   - ✅ `OPENAI_API_KEY` (for AI features)
   - ✅ `ANTHROPIC_API_KEY` (if using Claude models)
   - ✅ `APPWRITE_API_KEY` (for authentication)
-- Backend deployment (optional now, required for full functionality later)
+- **TWO Backend deployments** (optional now, **both required** for full functionality later):
+  - Main backend: Teaching sessions, lessons, course management
+  - Context chat backend: AI Tutor side panel for contextual help
 
 ---
 
@@ -110,13 +116,17 @@ ANTHROPIC_API_KEY=sk-ant-[your-anthropic-key]
 - OpenAI: https://platform.openai.com/api-keys
 - Anthropic: https://console.anthropic.com/settings/keys
 
-#### Backend Configuration
+#### Backend Configuration (BOTH REQUIRED)
 ```
-NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder-update-later.replit.app
+# Main Backend: Teaching sessions, lessons, course management
+NEXT_PUBLIC_LANGGRAPH_API_URL=https://placeholder-main-backend.langchain.app
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=agent
+
+# Context Chat Backend: AI Tutor side panel for contextual help
+NEXT_PUBLIC_CONTEXT_CHAT_API_URL=https://placeholder-context-chat.langchain.app
 ```
 
-**Important**: The `NEXT_PUBLIC_LANGGRAPH_API_URL` is a placeholder. The frontend will show an error message until you deploy the backend and update this URL.
+**Important**: Both URLs are placeholders. The frontend will show an error message until you deploy **BOTH backends** and update these URLs. Backends are deployed to **LangGraph Platform** (not Replit), see `/BACKEND_DEPLOYMENT.md`.
 
 #### App Configuration
 ```
@@ -189,16 +199,17 @@ npm run dev
 Click "Open in a new tab" in Replit to view the app.
 
 **What you should see**:
-- If backend is not deployed yet: **Backend Error UI** with clear instructions ✅
-- If backend URL is still placeholder: **Backend Error UI** ✅
+- If backends are not deployed yet: **Backend Error UI** with clear instructions ✅
+- If backend URLs are still placeholders: **Backend Error UI** ✅
 - Navigation and static pages should work ✅
 
 **What won't work yet**:
-- Chat functionality ❌
-- Lesson sessions ❌
-- Course management ❌
+- Chat functionality ❌ (requires main backend)
+- Lesson sessions ❌ (requires main backend)
+- Course management ❌ (requires main backend)
+- AI Tutor side panel ❌ (requires context chat backend)
 
-This is **expected behavior** - the fail-fast error handling is working correctly!
+This is **expected behavior** - the fail-fast error handling is working correctly! The frontend checks **BOTH backends** on startup and shows an error if either is unavailable.
 
 ---
 
@@ -278,18 +289,23 @@ Your authentication needs to know about the new deployment URL:
 
 ---
 
-## 🔗 Connecting Backend (When Ready)
+## 🔗 Connecting Backends (When Ready)
 
-Once you've deployed the backend (see `/BACKEND_DEPLOYMENT.md`):
+Once you've deployed **BOTH backends** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`):
 
-### Update Backend URL
+### Update Backend URLs
 
 1. Open Replit Secrets (🔒)
-2. Update `NEXT_PUBLIC_LANGGRAPH_API_URL`:
+2. Update **BOTH** backend URLs:
    ```
-   NEXT_PUBLIC_LANGGRAPH_API_URL=https://your-backend-url.replit.app
+   # Main Backend
+   NEXT_PUBLIC_LANGGRAPH_API_URL=https://your-main-backend.langchain.app
+
+   # Context Chat Backend
+   NEXT_PUBLIC_CONTEXT_CHAT_API_URL=https://your-context-chat-backend.langchain.app
    ```
-3. **Important**: Use the base URL only (no `/api` suffix)
+3. **Important**: Use the base URLs only (no `/api` suffix)
+4. **Critical**: Both URLs must be *.langchain.app domains from LangGraph Platform deployment
 
 ### Restart Frontend
 
@@ -303,7 +319,9 @@ Once you've deployed the backend (see `/BACKEND_DEPLOYMENT.md`):
 2. Login
 3. Try to start a lesson
 4. You should now see the **chat interface** instead of the error UI ✅
-5. Send a message to verify backend is responding
+5. Send a message to verify main backend is responding
+6. Click the **AI Tutor** button (top right) to verify context chat backend is working ✅
+7. Ask a question in the AI Tutor panel to confirm full dual-backend integration ✅
 
 ---
 
@@ -393,10 +411,34 @@ Once you've deployed the backend (see `/BACKEND_DEPLOYMENT.md`):
 **Problem**: Error UI displays old/incorrect backend URL
 
 **Solutions**:
-1. Verify `NEXT_PUBLIC_LANGGRAPH_API_URL` is updated in Secrets
+1. Verify **BOTH** backend URLs are updated in Secrets:
+   - `NEXT_PUBLIC_LANGGRAPH_API_URL` (main backend)
+   - `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` (context chat backend)
 2. Restart deployment (changes require restart)
 3. Clear browser cache
 4. Check in incognito/private window
+
+### Main Backend Works but AI Tutor Doesn't
+
+**Problem**: Lessons work but AI Tutor side panel shows error or doesn't respond
+
+**Solutions**:
+1. Verify `NEXT_PUBLIC_CONTEXT_CHAT_API_URL` is set correctly in Secrets
+2. Check that context chat backend is deployed separately (see `/BACKEND_DEPLOYMENT.md` section on context chat)
+3. Verify context chat backend URL ends with `.langchain.app`
+4. Test context chat backend health endpoint directly: `https://your-context-chat-backend.langchain.app/health`
+5. Check browser console for specific error messages
+
+### AI Tutor Works but Main Chat Doesn't
+
+**Problem**: AI Tutor side panel works but main chat/lessons show error
+
+**Solutions**:
+1. Verify `NEXT_PUBLIC_LANGGRAPH_API_URL` is set correctly in Secrets
+2. Check that main backend is deployed (see `/BACKEND_DEPLOYMENT.md` section on main backend)
+3. Verify main backend URL ends with `.langchain.app`
+4. Test main backend health endpoint directly: `https://your-main-backend.langchain.app/health`
+5. Check browser console for specific error messages
 
 ---
 
@@ -499,12 +541,14 @@ After successful deployment:
 
 1. ✅ Frontend is live and accessible
 2. ✅ Authentication works via Appwrite
-3. ✅ Error handling shows clear messages
-4. ⏳ Deploy backend (see `/BACKEND_DEPLOYMENT.md`)
-5. ⏳ Connect backend to frontend
-6. ⏳ Test full lesson flow
-7. ⏳ Set up monitoring and alerts
-8. ⏳ Configure custom domain (optional)
+3. ✅ Error handling shows clear messages for missing backends
+4. ⏳ Deploy **main backend** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`)
+5. ⏳ Deploy **context chat backend** to LangGraph Platform (see `/BACKEND_DEPLOYMENT.md`)
+6. ⏳ Connect both backends to frontend (update Replit Secrets)
+7. ⏳ Test full lesson flow with main backend
+8. ⏳ Test AI Tutor side panel with context chat backend
+9. ⏳ Set up monitoring and alerts
+10. ⏳ Configure custom domain (optional)
 
 ---
 

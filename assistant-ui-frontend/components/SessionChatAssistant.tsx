@@ -22,7 +22,7 @@ import { usePreventNavigation } from "@/hooks/usePreventNavigation";
 import { NavigationPreventionProvider } from "@/contexts/NavigationPreventionContext";
 import { useSidePanelResize } from "@/hooks/useSidePanelResize";
 import { ActiveSidePanel } from "@/hooks/useRevisionNotes";
-import { checkBackendStatus, BackendUnavailableError } from "@/lib/backend-status";
+import { checkAllBackendsStatus, BackendUnavailableError, ContextChatBackendUnavailableError } from "@/lib/backend-status";
 import { BackendErrorUI } from "./BackendErrorUI";
 import { BackendCheckingUI } from "./BackendCheckingUI";
 
@@ -40,10 +40,11 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [error, setError] = useState<string | null>(null);
 
   // Backend availability state - FAIL FAST (NO FALLBACK)
+  // Checks BOTH main backend AND context chat backend
   const [backendStatus, setBackendStatus] = useState<{
     available: boolean;
     checked: boolean;
-    error?: BackendUnavailableError;
+    error?: BackendUnavailableError | ContextChatBackendUnavailableError;
   }>({ available: false, checked: false });
 
   // Side panel state (mutual exclusivity between ContextChat and LessonNotes)
@@ -71,17 +72,18 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     maxWidth: 50
   });
 
-  // Check backend availability FIRST - FAIL FAST (NO FALLBACK)
+  // Check ALL backends availability FIRST - FAIL FAST (NO FALLBACK)
+  // This checks BOTH main backend (teaching) AND context chat backend (AI Tutor)
   useEffect(() => {
-    console.log('🔍 [Backend Boundary] Checking backend availability...');
+    console.log('🔍 [Backend Boundary] Checking ALL backends availability (main + context chat)...');
 
-    checkBackendStatus()
+    checkAllBackendsStatus()
       .then((result) => {
         if (result.available) {
-          console.log('✅ [Backend Boundary] Backend is available and responding');
+          console.log('✅ [Backend Boundary] ALL backends are available and responding');
           setBackendStatus({ available: true, checked: true });
         } else {
-          console.error('❌ [Backend Boundary] Backend is unavailable:', result.error);
+          console.error('❌ [Backend Boundary] One or more backends unavailable:', result.error);
           setBackendStatus({
             available: false,
             checked: true,
@@ -90,13 +92,13 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         }
       })
       .catch((err) => {
-        console.error('❌ [Backend Boundary] Unexpected error checking backend:', err);
+        console.error('❌ [Backend Boundary] Unexpected error checking backends:', err);
         setBackendStatus({
           available: false,
           checked: true,
-          error: err instanceof BackendUnavailableError
+          error: err instanceof BackendUnavailableError || err instanceof ContextChatBackendUnavailableError
             ? err
-            : new BackendUnavailableError('Unexpected error checking backend'),
+            : new BackendUnavailableError('Unexpected error checking backends'),
         });
       });
   }, []); // Run once on mount
@@ -443,9 +445,9 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
     }
   }, [sessionContext, createDriver]);
 
-  // BACKEND BOUNDARY: Show checking UI while verifying backend
+  // BACKEND BOUNDARY: Show checking UI while verifying ALL backends
   if (!backendStatus.checked) {
-    return <BackendCheckingUI message="Verifying backend connection..." />;
+    return <BackendCheckingUI message="Verifying backend connections (main + AI tutor)..." />;
   }
 
   // BACKEND BOUNDARY: Show error UI if backend unavailable (FAIL FAST - NO FALLBACK)
