@@ -31,13 +31,17 @@ export function ContextChatPanel({
   // Get current card data for dual-source context (replaces getMainGraphState)
   const currentCardData = useCurrentCardData();
 
-  // Context chat client - Port 2700 from backend integration tests
+  // Context chat client - Configurable via environment variable
   const contextChatClient = useRef<Client>();
 
   // Initialize context chat client
   useEffect(() => {
+    const contextChatUrl = process.env.NEXT_PUBLIC_CONTEXT_CHAT_API_URL || "http://localhost:2700";
+
+    console.log('ContextChatPanel - Initializing client with URL:', contextChatUrl);
+
     contextChatClient.current = new Client({
-      apiUrl: "http://localhost:2700" // From backend integration tests
+      apiUrl: contextChatUrl
     });
   }, []);
 

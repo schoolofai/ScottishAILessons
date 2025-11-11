@@ -2,24 +2,47 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { useIsAdmin } from '@/lib/utils/adminCheck';
+import { useAuth } from '@/lib/appwrite/hooks/useAuth';
 import { GraduationCap, Settings } from 'lucide-react';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const router = useRouter();
   const { logout, isLoading } = useLogout();
   const { isAdmin } = useIsAdmin();
+  const { isAuthenticated } = useAuth();
 
   const handleLogout = () => {
     setIsMenuOpen(false);
     logout();
   };
 
+  const handleLogoClick = () => {
+    if (isAuthenticated) {
+      router.push('/dashboard');
+    } else {
+      router.push('/');
+    }
+  };
+
   return (
     <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
       {/* Logo/Title */}
-      <div className="flex items-center gap-2">
+      <div
+        onClick={handleLogoClick}
+        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleLogoClick();
+          }
+        }}
+      >
         <GraduationCap className="h-8 w-8 text-blue-600" />
         <h1 className="text-xl font-semibold text-gray-900">Scottish AI Lessons</h1>
       </div>

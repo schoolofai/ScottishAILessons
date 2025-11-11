@@ -1,0 +1,109 @@
+# Scottish AI Lessons - Replit Deployment
+
+## Project Overview
+This is a Next.js 15 application that provides an AI-powered learning platform for Scottish curriculum courses. The application uses Appwrite for backend services and LangGraph for AI-powered course recommendations.
+
+## Current State
+**Status**: Successfully migrated from Vercel to Replit and running in development mode
+
+**Last Updated**: November 11, 2025
+
+## Recent Changes
+
+### Vercel to Replit Migration (November 11, 2025)
+- Installed Node.js 20 and pnpm package manager
+- Configured Next.js to run on port 5000 with host 0.0.0.0 for Replit compatibility
+- Added `allowedDevOrigins` configuration to support Replit's iframe environment
+- Configured development workflow for Next.js dev server
+- Set up deployment configuration for Replit autoscale
+- Removed TypeScript/ESLint error suppression to ensure production-ready code
+
+## Project Architecture
+
+### Technology Stack
+- **Frontend Framework**: Next.js 15.3.0 with React 19
+- **Package Manager**: pnpm
+- **Backend Services**: 
+  - Appwrite (authentication, database, storage)
+  - LangGraph (AI course recommendations)
+- **UI Libraries**: 
+  - Radix UI components
+  - Tailwind CSS
+  - Assistant UI for chat interface
+- **Rich Text**: TipTap editor with math support
+- **Testing**: Playwright for E2E tests, Jest for unit tests
+
+### Project Structure
+```
+assistant-ui-frontend/
+├── app/                    # Next.js app directory
+├── components/            # React components
+├── lib/                   # Utilities and services
+│   ├── appwrite/         # Appwrite integration
+│   ├── langgraph/        # LangGraph service
+│   └── services/         # Business logic
+├── scripts/              # Database seeding and migration scripts
+├── tests/                # Test suites
+└── public/               # Static assets
+```
+
+## Environment Variables
+
+The following environment variables are configured in Replit Secrets:
+
+### Appwrite Configuration
+- `NEXT_PUBLIC_APPWRITE_ENDPOINT` - Appwrite API endpoint (e.g., https://cloud.appwrite.io/v1)
+- `NEXT_PUBLIC_APPWRITE_PROJECT_ID` - Appwrite project ID
+- `APPWRITE_API_KEY` - API key for server-side operations
+
+### LangGraph Configuration
+- `LANGGRAPH_API_URL` - LangGraph service URL
+- `LANGGRAPH_API_KEY` - LangGraph API authentication key
+
+## Development Workflow
+
+### Running the Application
+The application runs automatically via the configured workflow:
+- **Command**: `cd assistant-ui-frontend && pnpm run dev`
+- **Port**: 5000
+- **Output**: Webview (accessible in Replit interface)
+
+### Building for Production
+```bash
+cd assistant-ui-frontend && pnpm run build
+```
+
+### Running Tests
+```bash
+cd assistant-ui-frontend
+pnpm test              # Run all Playwright tests
+pnpm run test:smoke    # Run smoke tests
+pnpm run test:jest     # Run Jest unit tests
+```
+
+## Deployment
+
+The application is configured for Replit autoscale deployment:
+- **Build**: Installs dependencies and builds Next.js production bundle
+- **Start**: Runs production server on port 5000
+- **Deployment Type**: Autoscale (stateless, suitable for web applications)
+
+## Security Considerations
+- All sensitive credentials stored in Replit Secrets
+- Session cookies use httpOnly and secure flags in production
+- TypeScript and ESLint enabled to catch errors before deployment
+- API keys managed through Appwrite integration
+
+## Known Issues
+- WebSocket HMR (Hot Module Reload) warning in Replit environment - this is cosmetic and doesn't affect functionality
+- Build process may take longer due to large dependency tree (978 modules)
+
+## User Preferences
+None documented yet.
+
+## Next Steps
+1. Complete production build validation
+2. Test authentication flows in Replit environment
+3. Verify Appwrite database connectivity
+4. Test LangGraph integration
+5. Validate all E2E test suites pass

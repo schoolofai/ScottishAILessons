@@ -108,4 +108,9 @@ tasks/*/build/
 # Documentation builds
 docs/_build/
 docs/.dooctrees/
+
+# Playwright MCP (screenshots and browser data)
 .playwright-mcp/
+
+logs/
+*.log

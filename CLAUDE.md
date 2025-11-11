@@ -6,37 +6,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Quick Start
 ```bash
-# Official LangGraph
-cd langgraph-agent && ./start.sh
+# Start all services (main + context chat backends + frontend)
+./start.sh
 
-# Aegra (self-hosted)
+# Stop all services
+./stop.sh
+
+# Aegra (self-hosted alternative)
 cd aegra-agent && ./start-aegra.sh
+```
+
+### Submodule Management
+
+**IMPORTANT**: `langgraph-agent` and `langgraph-generic-chat` are now Git submodules.
+
+```bash
+# First-time clone (get submodules automatically)
+git clone --recurse-submodules https://github.com/schoolofai/ScottishAILessons.git
+
+# Or initialize submodules in existing clone
+git submodule update --init --recursive
+
+# Update all submodules to latest
+git submodule update --remote
+
+# Update specific submodule
+cd langgraph-agent && git pull origin main
+cd .. && git add langgraph-agent && git commit -m "Update submodule"
 ```
 
 ### LangGraph Agent
 
+**Note**: This is a submodule at `https://github.com/schoolofai/langgraph-agent`
+
 #### Development Setup
 ```bash
 cd langgraph-agent
-python3 -m venv ../venv
-source ../venv/bin/activate
+python3 -m venv .venv  # Each submodule has its own venv
+source .venv/bin/activate
 pip install -e . "langgraph-cli[inmem]"
 ```
 
 #### Running Services
 ```bash
-# Backend (port 2024)
+# Standalone backend (port 2024)
+cd langgraph-agent
+source .venv/bin/activate
 langgraph dev
 
-# Frontend (port 3000)
-cd assistant-ui-frontend
-npm install --legacy-peer-deps
-npm run dev
+# Or use root start.sh (recommended - starts all services)
+cd .. && ./start.sh
 ```
 
 #### Testing
 ```bash
 cd langgraph-agent
+source .venv/bin/activate
+pytest tests/
+```
+
+### LangGraph Generic Chat
+
+**Note**: This is a submodule at `https://github.com/schoolofai/langgraph-generic-chat`
+
+#### Development Setup
+```bash
+cd langgraph-generic-chat
+python3 -m venv .venv  # Separate venv from main backend
+source .venv/bin/activate
+pip install -e . "langgraph-cli[inmem]"
+```
+
+#### Running Services
+```bash
+# Standalone backend (port 2700)
+cd langgraph-generic-chat
+source .venv/bin/activate
+langgraph dev --port 2700
+
+# Or use root start.sh (recommended - starts all services)
+cd .. && ./start.sh
+```
+
+#### Testing
+```bash
+cd langgraph-generic-chat
+source .venv/bin/activate
 pytest tests/
 ```
 
@@ -276,34 +331,56 @@ This enables triggering Assistant UI's generative UI features even when the tool
 
 ## Git Submodule Management
 
-Aegra is managed as a Git submodule (fork at `https://github.com/schoolofai/aegra.git`):
+**Three backends are managed as Git submodules:**
+
+1. **langgraph-agent** - Main teaching backend (`https://github.com/schoolofai/langgraph-agent`)
+2. **langgraph-generic-chat** - Context chat backend (`https://github.com/schoolofai/langgraph-generic-chat`)
+3. **aegra-agent** - Self-hosted alternative (`https://github.com/schoolofai/aegra`)
 
 ```bash
-# Clone with submodules
+# Clone with all submodules
 git clone --recurse-submodules https://github.com/schoolofai/ScottishAILessons.git
 
-# Update submodule
-git submodule update --remote aegra-agent
+# Update all submodules to latest
+git submodule update --remote
 
-# Work on Aegra customizations
-cd aegra-agent
-git add . && git commit -m "Changes" && git push
+# Update specific submodule
+git submodule update --remote langgraph-agent
+
+# Work on submodule (example: langgraph-agent)
+cd langgraph-agent
+git checkout -b feature/my-feature
+# Make changes
+git add . && git commit -m "Add feature"
+git push origin feature/my-feature
 cd ..
-git add aegra-agent && git commit -m "Update Aegra submodule"
+git add langgraph-agent && git commit -m "Update langgraph-agent submodule"
 ```
 
 ## Project Structure
 
 ```
 ScottishAILessons/
+├── start.sh                    # Orchestrates all services
+├── stop.sh                     # Stops all services
+├── logs/                       # Centralized log directory
+│   ├── backend.log
+│   ├── context-chat.log
+│   └── frontend.log
 ├── assistant-ui-frontend/       # Shared frontend
 │   ├── components/             # React components
 │   ├── app/                    # Next.js app router
 │   └── .env.local.*           # Environment templates
-├── langgraph-agent/            # Official LangGraph
-│   ├── src/agent/graph.py     # Graph definition
-│   ├── tests/                 # Unit tests
-│   └── start.sh              # Startup script
+├── langgraph-agent/            # Submodule: Main teaching backend
+│   ├── .venv/                 # Own virtual environment
+│   ├── src/agent/             # Graph definitions
+│   ├── tests/                 # Tests
+│   └── langgraph.json         # LangGraph config
+├── langgraph-generic-chat/     # Submodule: Context chat backend
+│   ├── .venv/                 # Own virtual environment
+│   ├── src/react_agent/       # ReAct agent
+│   ├── tests/                 # Tests
+│   └── langgraph.json         # LangGraph config
 ├── aegra-agent/               # Self-hosted (submodule)
 │   ├── src/agent_server/      # FastAPI server
 │   ├── graphs/                # Agent definitions

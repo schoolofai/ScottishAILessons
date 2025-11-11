@@ -1,0 +1,52 @@
+# Replit Configuration for Scottish AI Lessons Frontend
+# This file configures how Replit builds and runs the Next.js application
+
+# Development command - runs the Next.js dev server
+run = "npm run dev"
+
+# Entry point for the application
+entrypoint = "package.json"
+
+# Hide unnecessary files/folders from the file tree
+hidden = [
+  ".config",
+  ".next",
+  "node_modules",
+  "*.log",
+  ".git",
+  "test-results",
+  "playwright-report",
+  "reports",
+  "output",
+  ".vercel"
+]
+
+# Nix configuration channel
+[nix]
+channel = "stable-24_11"
+
+# Production deployment configuration
+[deployment]
+build = ["npm", "run", "build"]
+run = ["npm", "run", "start"]
+deploymentTarget = "cloudrun"
+ignorePorts = false
+
+# Port configuration - maps internal 3000 to external 80
+[[ports]]
+localPort = 3000
+externalPort = 80
+exposeLocalhost = true
+
+# Environment variables for npm and node
+[env]
+PATH = "/home/runner/$REPL_SLUG/.config/npm/node_global/bin:/home/runner/$REPL_SLUG/node_modules/.bin"
+npm_config_prefix = "/home/runner/$REPL_SLUG/.config/npm/node_global"
+
+# Language server configuration for better IDE support
+[languages.typescript]
+pattern = "**/{*.ts,*.js,*.tsx,*.jsx}"
+syntax = "typescript"
+
+[languages.typescript.languageServer]
+start = "typescript-language-server --stdio"
