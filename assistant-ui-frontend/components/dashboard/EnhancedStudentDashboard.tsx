@@ -7,7 +7,9 @@ import { RecommendationSection, type RecommendationsData } from "../recommendati
 import { CourseProgressCard } from "../progress/CourseProgressCard";
 import { CourseCurriculum } from "../curriculum/CourseCurriculum";
 import { CourseCheatSheetButton } from "../revision-notes/CourseCheatSheetButton";
+import { SpacedRepetitionPanel } from "./SpacedRepetitionPanel";
 import { getCourseProgress } from "@/lib/services/progress-service";
+import { getReviewRecommendations, getReviewStats, getUpcomingReviews } from "@/lib/services/spaced-repetition-service";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -40,13 +42,16 @@ export function EnhancedStudentDashboard() {
   const [courseData, setCourseData] = useState<CourseData[]>([]);
   const [activeCourse, setActiveCourse] = useState<string>("");
   const [recommendations, setRecommendations] = useState<RecommendationsData | null>(null);
+  const [spacedRepetitionData, setSpacedRepetitionData] = useState<any | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [coursesLoading, setCoursesLoading] = useState(false);
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  const [spacedRepetitionLoading, setSpacedRepetitionLoading] = useState(false);
   const [error, setError] = useState("");
   const [coursesError, setCoursesError] = useState<string | null>(null);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  const [spacedRepetitionError, setSpacedRepetitionError] = useState<string | null>(null);
   const [courseProgress, setCourseProgress] = useState<any>(null);
   const [progressLoading, setProgressLoading] = useState(false);
   const [startingLessonId, setStartingLessonId] = useState<string | null>(null);
@@ -55,6 +60,9 @@ export function EnhancedStudentDashboard() {
   // Archived courses state
   const [archivedCourses, setArchivedCourses] = useState<Course[]>([]);
   const [showArchived, setShowArchived] = useState(false);
+
+  // Recommendations section state
+  const [showRecommendations, setShowRecommendations] = useState(true);
 
   useEffect(() => {
     initializeStudent();
@@ -249,8 +257,11 @@ export function EnhancedStudentDashboard() {
       if (transformedCourses.length > 0 && !activeCourse) {
         const firstCourse = transformedCourses[0];
         setActiveCourse(firstCourse.id);
-        // Load recommendations for the first course
-        await loadRecommendations(firstCourse.id, student);
+        // Load recommendations and spaced repetition data for the first course in parallel
+        await Promise.all([
+          loadRecommendations(firstCourse.id, student),
+          loadSpacedRepetition(firstCourse.id, student)
+        ]);
       }
     } catch (err) {
       console.error('[Dashboard] Failed to load courses:', err);
@@ -607,6 +618,57 @@ export function EnhancedStudentDashboard() {
     }
   };
 
+  // Load spaced repetition data for the active course
+  const loadSpacedRepetition = async (courseId: string, studentData?: any) => {
+    if (!studentData) {
+      console.log('[loadSpacedRepetition] No student data available');
+      return;
+    }
+
+    try {
+      setSpacedRepetitionLoading(true);
+      setSpacedRepetitionError(null);
+
+      console.log('[loadSpacedRepetition] Loading spaced repetition for:', {
+        courseId,
+        studentId: studentData.$id
+      });
+
+      // Create own Client instance (matching loadRecommendations pattern)
+      const client = new Client()
+        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
+        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+
+      const databases = new Databases(client);
+
+      // Fetch all spaced repetition data in parallel
+      const [recommendations, stats, upcomingReviews] = await Promise.all([
+        getReviewRecommendations(studentData.$id, courseId, databases, 5),
+        getReviewStats(studentData.$id, courseId, databases),
+        getUpcomingReviews(studentData.$id, courseId, databases, 14)
+      ]);
+
+      console.log('[loadSpacedRepetition] Loaded:', {
+        recommendations: recommendations.length,
+        overdueOutcomes: stats.totalOverdueOutcomes,
+        upcomingReviews: upcomingReviews.length
+      });
+
+      setSpacedRepetitionData({
+        recommendations,
+        stats,
+        upcomingReviews
+      });
+    } catch (err) {
+      console.error('[loadSpacedRepetition] Failed to load:', err);
+      setSpacedRepetitionError(
+        err instanceof Error ? err.message : 'Failed to load spaced repetition data'
+      );
+    } finally {
+      setSpacedRepetitionLoading(false);
+    }
+  };
+
   // Load course progress for the active course
   const loadCourseProgress = async () => {
     try {
@@ -632,7 +694,11 @@ export function EnhancedStudentDashboard() {
   // Handle course change
   const handleCourseChange = useCallback(async (courseId: string) => {
     setActiveCourse(courseId);
-    await loadRecommendations(courseId, student);
+    // Load recommendations and spaced repetition data in parallel
+    await Promise.all([
+      loadRecommendations(courseId, student),
+      loadSpacedRepetition(courseId, student)
+    ]);
   }, [student]);
 
   // Handle lesson start with race-condition safe session creation
@@ -766,6 +832,14 @@ export function EnhancedStudentDashboard() {
     }
   }, [activeCourse, student]);
 
+  // Handle spaced repetition retry
+  const handleSpacedRepetitionRetry = useCallback(() => {
+    if (activeCourse && student) {
+      console.log('[Retry] Retrying spaced repetition load for:', { activeCourse, studentId: student.$id });
+      loadSpacedRepetition(activeCourse, student);
+    }
+  }, [activeCourse, student]);
+
   // Handle dashboard retry (for initialization failures)
   const handleDashboardRetry = useCallback(() => {
     initializeStudent();
@@ -878,48 +952,83 @@ export function EnhancedStudentDashboard() {
           <CourseProgressCard
             progress={courseProgress}
             onViewDetails={handleViewProgress}
-          />
-        </div>
-      )}
-
-      {/* Course Cheat Sheet Button - Course Specific */}
-      {hasActiveCourse && (
-        <div className="mb-6">
-          <CourseCheatSheetButton
+            cheatSheetAvailable={cheatSheetAvailable}
             courseId={activeCourse}
-            isAvailable={cheatSheetAvailable}
-            onClick={() => {}}
           />
         </div>
       )}
 
-      {/* Main Content Area - Two Column Layout */}
-      {hasActiveCourse && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
-          {/* Main Area - Course Curriculum (2/3 width on large screens) */}
-          <div className="lg:col-span-2">
-            <CourseCurriculum
-              courseId={activeCourse}
-              studentId={student?.$id}
-              onStartLesson={handleStartLesson}
-              startingLessonId={startingLessonId}
-            />
-          </div>
+      {/* Two Column Layout - Spaced Repetition and AI Recommendations */}
+      {hasActiveCourse && student && (
+        <div className="mb-6">
+          {/* Collapsible Header - More prominent card-like appearance */}
+          <button
+            onClick={() => setShowRecommendations(!showRecommendations)}
+            className="mb-4 w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-white hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-1.5 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                <BookOpen className="h-5 w-5 text-blue-600" />
+              </div>
+              <span className="font-semibold text-gray-900 text-base">Reviews & Recommendations</span>
+              <span className="px-2.5 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
+                AI Recommended
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium">
+                {showRecommendations ? 'Click to hide' : 'Click to expand'}
+              </span>
+              {showRecommendations ? (
+                <ChevronUp className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
+              ) : (
+                <ChevronDown className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
+              )}
+            </div>
+          </button>
 
-          {/* Sidebar - Recommendations (1/3 width on large screens) */}
-          <div className="lg:col-span-1">
-            <RecommendationSection
-              courseId={activeCourse}
-              recommendations={recommendations}
-              loading={recommendationsLoading}
-              error={recommendationsError}
-              onStartLesson={handleStartLesson}
-              onRetry={handleRecommendationsRetry}
-              courseName={courseData.find(c => c.id === activeCourse)?.subject}
-              startingLessonId={startingLessonId}
-              variant="sidebar"
-            />
-          </div>
+          {/* Collapsible Content */}
+          {showRecommendations && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Spaced Repetition */}
+              <div className="h-[250px] flex flex-col">
+                <SpacedRepetitionPanel
+                  data={spacedRepetitionData}
+                  loading={spacedRepetitionLoading}
+                  error={spacedRepetitionError}
+                  onStartReview={handleStartLesson}
+                  onRetry={handleSpacedRepetitionRetry}
+                />
+              </div>
+
+              {/* Right Column - AI Recommendations */}
+              <div className="h-[250px] flex flex-col">
+                <RecommendationSection
+                  courseId={activeCourse}
+                  recommendations={recommendations}
+                  loading={recommendationsLoading}
+                  error={recommendationsError}
+                  onStartLesson={handleStartLesson}
+                  onRetry={handleRecommendationsRetry}
+                  courseName={courseData.find(c => c.id === activeCourse)?.subject}
+                  startingLessonId={startingLessonId}
+                  variant="sidebar"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Course Curriculum - Full Width Below */}
+      {hasActiveCourse && (
+        <div>
+          <CourseCurriculum
+            courseId={activeCourse}
+            studentId={student?.$id}
+            onStartLesson={handleStartLesson}
+            startingLessonId={startingLessonId}
+          />
         </div>
       )}
 

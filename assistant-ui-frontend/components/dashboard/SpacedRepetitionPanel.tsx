@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,60 +15,35 @@ import {
   RefreshCwIcon,
   ChevronRightIcon
 } from 'lucide-react';
-import { useAppwrite } from '@/lib/appwrite';
-import { getReviewRecommendations, getReviewStats, type ReviewRecommendation, type ReviewStats } from '@/lib/services/spaced-repetition-service';
+import {
+  type ReviewRecommendation,
+  type ReviewStats,
+  type UpcomingReview
+} from '@/lib/services/spaced-repetition-service';
 
 interface SpacedRepetitionPanelProps {
-  studentId: string;
-  courseId: string;
+  data?: {
+    recommendations: ReviewRecommendation[];
+    stats: ReviewStats;
+    upcomingReviews: UpcomingReview[];
+  } | null;
+  loading?: boolean;
+  error?: string | null;
   onStartReview: (lessonTemplateId: string) => void;
-  maxRecommendations?: number;
+  onRetry?: () => void;
 }
 
-export function SpacedRepetitionPanel({
-  studentId,
-  courseId,
+export const SpacedRepetitionPanel = memo(function SpacedRepetitionPanel({
+  data,
+  loading = false,
+  error = null,
   onStartReview,
-  maxRecommendations = 5
+  onRetry
 }: SpacedRepetitionPanelProps) {
-  const [recommendations, setRecommendations] = useState<ReviewRecommendation[]>([]);
-  const [stats, setStats] = useState<ReviewStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { databases } = useAppwrite();
-
-  // Load recommendations on mount
-  useEffect(() => {
-    loadRecommendations();
-  }, [studentId, courseId]);
-
-  const loadRecommendations = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      console.log('[SpacedRepetitionPanel] Loading recommendations for:', { studentId, courseId });
-
-      const [recs, reviewStats] = await Promise.all([
-        getReviewRecommendations(studentId, courseId, databases, maxRecommendations),
-        getReviewStats(studentId, courseId, databases)
-      ]);
-
-      setRecommendations(recs);
-      setStats(reviewStats);
-
-      console.log('[SpacedRepetitionPanel] Loaded:', {
-        recommendations: recs.length,
-        overdueOutcomes: reviewStats.totalOverdueOutcomes
-      });
-
-    } catch (err) {
-      console.error('[SpacedRepetitionPanel] Failed to load recommendations:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load review recommendations');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Extract data from props
+  const recommendations = data?.recommendations || [];
+  const stats = data?.stats || null;
+  const upcomingReviews = data?.upcomingReviews || [];
 
   // Urgency badge styling
   const getUrgencyBadge = (level: 'critical' | 'high' | 'medium' | 'low') => {
@@ -96,18 +71,20 @@ export function SpacedRepetitionPanel({
   // Loading state
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <RefreshCwIcon className="h-5 w-5 animate-spin" />
-            Loading Review Recommendations...
-          </CardTitle>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0 pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <RefreshCwIcon className="h-4 w-4 animate-spin text-blue-600" />
+              What to Review
+            </CardTitle>
+            <span className="text-xs text-gray-500">Loading...</span>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-24 bg-gray-100 rounded animate-pulse" />
-            ))}
+        <CardContent className="p-0 flex-1 overflow-hidden flex items-center justify-center">
+          <div className="text-center text-gray-500 text-sm">
+            <RefreshCwIcon className="h-8 w-8 animate-spin mx-auto mb-2 text-blue-600" />
+            Loading reviews...
           </div>
         </CardContent>
       </Card>
@@ -117,49 +94,60 @@ export function SpacedRepetitionPanel({
   // Error state
   if (error) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-600">
-            <AlertTriangleIcon className="h-5 w-5" />
-            Error Loading Recommendations
-          </CardTitle>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0 pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base text-red-600">
+              <AlertTriangleIcon className="h-4 w-4" />
+              What to Review
+            </CardTitle>
+            <span className="text-xs text-gray-500">Error</span>
+          </div>
         </CardHeader>
-        <CardContent>
-          <Alert variant="destructive">
-            <AlertDescription>{error}</AlertDescription>
+        <CardContent className="p-4 flex-1 overflow-hidden flex flex-col items-center justify-center gap-3">
+          <Alert variant="destructive" className="w-full">
+            <AlertDescription className="text-sm">{error}</AlertDescription>
           </Alert>
-          <Button
-            onClick={loadRecommendations}
-            variant="outline"
-            className="mt-4"
-          >
-            <RefreshCwIcon className="h-4 w-4 mr-2" />
-            Try Again
-          </Button>
+          {onRetry && (
+            <Button
+              onClick={onRetry}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCwIcon className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          )}
         </CardContent>
       </Card>
     );
   }
 
-  // No reviews needed
-  if (recommendations.length === 0) {
+  // Check if we have any content to show
+  const hasNoContent = recommendations.length === 0 && upcomingReviews.length === 0;
+
+  // No reviews at all (overdue or upcoming)
+  if (hasNoContent) {
     return (
-      <Card className="border-green-200 bg-green-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-800">
-            <CheckCircleIcon className="h-5 w-5" />
-            All Caught Up!
-          </CardTitle>
-          <CardDescription>
-            No reviews needed right now. Great work staying on top of your learning!
-          </CardDescription>
+      <Card className="h-full flex flex-col">
+        <CardHeader className="flex-shrink-0 pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClockIcon className="h-4 w-4 text-blue-600" />
+              What to Review
+            </CardTitle>
+            <span className="text-xs text-gray-500">No reviews</span>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 text-sm text-green-700">
-            <div className="flex items-center gap-2">
-              <TrendingUpIcon className="h-4 w-4" />
-              <span>Keep up the momentum</span>
-            </div>
+        <CardContent className="p-4 flex-1 overflow-hidden flex items-center justify-center">
+          <div className="text-center text-gray-600">
+            <BookOpenIcon className="h-10 w-10 mx-auto mb-2 text-gray-400" />
+            <p className="text-sm">
+              No reviews scheduled yet.
+            </p>
+            <p className="text-xs mt-1 text-gray-500">
+              Complete lessons to start building your review schedule
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -167,74 +155,57 @@ export function SpacedRepetitionPanel({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Stats Overview */}
-      {stats && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BookOpenIcon className="h-5 w-5" />
-              Review Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-orange-600">
-                  {stats.totalOverdueOutcomes}
-                </div>
-                <div className="text-sm text-gray-600">Overdue Topics</div>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0 pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ClockIcon className="h-4 w-4 text-blue-600" />
+            What to Review
+          </CardTitle>
+          <span className="text-xs text-gray-500">Next 2 weeks</span>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
+        {/* Compact inline "Reviews Overdue" summary */}
+        {stats && (
+          <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b flex-shrink-0">
+            <div className="font-medium text-xs text-gray-700">Reviews Overdue:</div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-orange-600 font-semibold">{stats.totalOverdueOutcomes}</span>
+                <span className="text-gray-600">Overdue</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {stats.criticalCount}
-                </div>
-                <div className="text-sm text-gray-600">Need Practice</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-red-600 font-semibold">{stats.criticalCount}</span>
+                <span className="text-gray-600">Critical</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {stats.recommendedLessons}
-                </div>
-                <div className="text-sm text-gray-600">Lessons to Review</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-blue-600 font-semibold">{stats.recommendedLessons}</span>
+                <span className="text-gray-600">Lessons</span>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {stats.estimatedReviewTime}m
-                </div>
-                <div className="text-sm text-gray-600">Est. Time</div>
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-purple-600 font-semibold">{stats.estimatedReviewTime}m</span>
+                <span className="text-gray-600">Est. Time</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Recommendations List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <TrendingUpIcon className="h-5 w-5" />
-            Recommended Reviews ({recommendations.length})
-          </CardTitle>
-          <CardDescription>
-            Lessons recommended based on spaced repetition for optimal retention
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recommendations.map((rec, index) => (
-              <ReviewLessonCard
-                key={rec.lessonTemplateId}
-                recommendation={rec}
-                rank={index + 1}
-                onStartReview={onStartReview}
-              />
-            ))}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        )}
+
+        {/* Scrollable reviews list */}
+        <div className="divide-y overflow-y-auto flex-1">
+          {upcomingReviews.map((review) => (
+            <UpcomingReviewCard
+              key={review.lessonTemplateId}
+              review={review}
+              onStartReview={onStartReview}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
-}
+});
 
 // ============================================================================
 // Review Lesson Card Component
@@ -335,6 +306,87 @@ function ReviewLessonCard({ recommendation, rank, onStartReview }: ReviewLessonC
           <ChevronRightIcon className="h-4 w-4 ml-1" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Upcoming Review Card Component
+// ============================================================================
+
+interface UpcomingReviewCardProps {
+  review: UpcomingReview;
+  onStartReview: (lessonTemplateId: string) => void;
+}
+
+function UpcomingReviewCard({ review, onStartReview }: UpcomingReviewCardProps) {
+  const {
+    lessonTemplateId,
+    lessonTitle,
+    dueDate,
+    daysUntilDue,
+    outcomes,
+    averageMastery,
+    estimatedMinutes
+  } = review;
+
+  // Format due date (compact format)
+  const formattedDueDate = new Date(dueDate).toLocaleDateString('en-GB', {
+    month: 'short',
+    day: 'numeric'
+  });
+
+  // Mastery percentage for display
+  const masteryPercentage = Math.round(averageMastery * 100);
+
+  // Mastery color
+  const getMasteryColor = () => {
+    if (averageMastery >= 0.8) return 'text-green-600';
+    if (averageMastery >= 0.6) return 'text-blue-600';
+    if (averageMastery >= 0.4) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 px-4 hover:bg-gray-50 transition-colors">
+      {/* Lesson Title (flexible, truncates) */}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm truncate">{lessonTitle}</h4>
+      </div>
+
+      {/* Due Date (compact) */}
+      <div className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+        <span>Due {daysUntilDue}d</span>
+        <span className="text-gray-400">({formattedDueDate})</span>
+      </div>
+
+      {/* Mastery */}
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+        <TrendingUpIcon className={`h-3 w-3 ${getMasteryColor()}`} />
+        <span className={getMasteryColor()}>{masteryPercentage}%</span>
+      </div>
+
+      {/* Topics Count */}
+      <div className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+        <BookOpenIcon className="h-3 w-3" />
+        <span>{outcomes.length}</span>
+      </div>
+
+      {/* Duration */}
+      <div className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+        <ClockIcon className="h-3 w-3" />
+        <span>{estimatedMinutes}m</span>
+      </div>
+
+      {/* Action Button (compact) */}
+      <Button
+        onClick={() => onStartReview(lessonTemplateId)}
+        variant="outline"
+        size="sm"
+        className="flex-shrink-0 h-7 text-xs"
+      >
+        Review
+      </Button>
     </div>
   );
 }

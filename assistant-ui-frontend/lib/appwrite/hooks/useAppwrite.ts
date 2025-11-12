@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Client, Databases } from 'appwrite';
 import type { BaseDriver } from '../driver/BaseDriver';
 
 /**
@@ -20,7 +21,7 @@ export function useAppwrite() {
           const cookieData = JSON.parse(cookieFallback);
           const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
           const storedSession = cookieData[sessionKey];
-          
+
           if (storedSession) {
             setSessionToken(storedSession);
           }
@@ -34,6 +35,22 @@ export function useAppwrite() {
 
     extractSession();
   }, []);
+
+  /**
+   * Create Databases instance with current session
+   */
+  const databases = useMemo(() => {
+    if (!sessionToken) {
+      return null;
+    }
+
+    const client = new Client()
+      .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
+      .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!)
+      .setSession(sessionToken);
+
+    return new Databases(client);
+  }, [sessionToken]);
 
   /**
    * Factory method to create driver instances with the current session
@@ -59,6 +76,7 @@ export function useAppwrite() {
 
   return {
     createDriver,
+    databases,
     sessionToken,
     isAuthenticated,
     isLoading,

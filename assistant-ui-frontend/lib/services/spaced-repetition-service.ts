@@ -5,6 +5,7 @@
  * Implements intelligent prioritization based on mastery levels and due dates.
  */
 
+// Force rebuild
 import { Databases, Query } from 'appwrite';
 import { RoutineDriver } from '../appwrite/driver/RoutineDriver';
 import { MasteryV2Driver } from '../appwrite/driver/MasteryV2Driver';
@@ -39,6 +40,16 @@ export interface ReviewStats {
   criticalCount: number; // EMA < 0.4
   recommendedLessons: number;
   estimatedReviewTime: number; // minutes
+}
+
+export interface UpcomingReview {
+  lessonTemplateId: string;
+  lessonTitle: string;
+  dueDate: string;
+  daysUntilDue: number;
+  outcomes: OutcomeInfo[];
+  averageMastery: number;
+  estimatedMinutes: number;
 }
 
 // ============================================================================
@@ -161,6 +172,101 @@ export async function getReviewStats(
   }
 }
 
+/**
+ * Get upcoming reviews scheduled within the next N days
+ *
+ * @param studentId - Student document ID
+ * @param courseId - Course ID
+ * @param databases - Appwrite Databases instance
+ * @param daysAhead - Number of days to look ahead (default: 14)
+ * @returns Array of upcoming reviews sorted by due date
+ */
+export async function getUpcomingReviews(
+  studentId: string,
+  courseId: string,
+  databases: Databases,
+  daysAhead: number = 14
+): Promise<UpcomingReview[]> {
+  console.log('[SpacedRepetition] Getting upcoming reviews:', { studentId, courseId, daysAhead });
+
+  try {
+    const routineDriver = new RoutineDriver(databases);
+    const masteryDriver = new MasteryV2Driver(databases);
+
+    // 1. Get upcoming outcomes (not overdue, within time window)
+    const upcomingOutcomes = await routineDriver.getUpcomingOutcomes(studentId, courseId, daysAhead);
+
+    if (upcomingOutcomes.length === 0) {
+      console.log('[SpacedRepetition] No upcoming outcomes found');
+      return [];
+    }
+
+    console.log(`[SpacedRepetition] Found ${upcomingOutcomes.length} upcoming outcomes`);
+
+    // 2. Get mastery data for context
+    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
+    const emaByOutcome = masteryData?.emaByOutcomeId || {};
+
+    // 3. Enrich upcoming outcomes with mastery info
+    const enrichedOutcomes = upcomingOutcomes.map(outcome => {
+      const currentEMA = emaByOutcome[outcome.outcomeId] || 0.3;
+      const daysUntilDue = calculateDaysUntil(outcome.dueAt);
+
+      return {
+        outcomeId: outcome.outcomeId,
+        dueAt: outcome.dueAt,
+        daysOverdue: 0, // Not overdue, it's upcoming
+        currentEMA,
+        masteryLevel: getMasteryLevel(currentEMA)
+      };
+    });
+
+    // 4. Find lessons that teach these outcomes (reuse existing helper)
+    console.log('[SpacedRepetition] About to call findLessonsForOutcomes with:', {
+      enrichedOutcomesCount: enrichedOutcomes.length,
+      courseId,
+      studentId,
+      databasesType: typeof databases,
+      databasesExists: !!databases
+    });
+
+    const lessonRecommendations = await findLessonsForOutcomes(
+      enrichedOutcomes,
+      courseId,
+      studentId,
+      databases
+    );
+
+    console.log(`[SpacedRepetition] Found ${lessonRecommendations.length} lessons for upcoming outcomes`);
+
+    // 5. Convert to UpcomingReview format
+    const upcomingReviews: UpcomingReview[] = lessonRecommendations.map(rec => {
+      // Find earliest due date among this lesson's outcomes
+      const earliestDueDate = rec.overdueOutcomes.reduce((earliest, o) =>
+        o.dueAt < earliest ? o.dueAt : earliest,
+        rec.overdueOutcomes[0].dueAt
+      );
+
+      return {
+        lessonTemplateId: rec.lessonTemplateId,
+        lessonTitle: rec.lessonTitle,
+        dueDate: earliestDueDate,
+        daysUntilDue: calculateDaysUntil(earliestDueDate),
+        outcomes: rec.overdueOutcomes,
+        averageMastery: rec.averageMastery,
+        estimatedMinutes: rec.estimatedMinutes
+      };
+    });
+
+    // Sort by due date (soonest first)
+    return upcomingReviews.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  } catch (error) {
+    console.error('[SpacedRepetition] Failed to get upcoming reviews:', error);
+    throw new Error(`Failed to get upcoming reviews: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -174,6 +280,22 @@ async function findLessonsForOutcomes(
   studentId: string,
   databases: Databases
 ): Promise<ReviewRecommendation[]> {
+  console.log('[SpacedRepetition] findLessonsForOutcomes called with:', {
+    outcomesCount: outcomes.length,
+    courseId,
+    studentId,
+    databasesType: typeof databases,
+    databasesExists: !!databases,
+    hasListDocuments: databases && typeof databases.listDocuments === 'function'
+  });
+
+  if (!databases) {
+    throw new Error('databases parameter is undefined in findLessonsForOutcomes');
+  }
+
+  if (!databases.listDocuments) {
+    throw new Error('databases.listDocuments is undefined');
+  }
 
   // Get all lesson templates for this course
   const templatesResult = await databases.listDocuments(
@@ -187,16 +309,48 @@ async function findLessonsForOutcomes(
 
   console.log(`[SpacedRepetition] Found ${templatesResult.documents.length} published lessons`);
 
+  // First, query ALL sessions to see what statuses exist (debug only)
+  const allSessionsResult = await databases.listDocuments(
+    'default',
+    'sessions',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId),
+      Query.limit(100)
+    ]
+  );
+
+  console.log(`[SpacedRepetition] ALL sessions for student/course:`, {
+    total: allSessionsResult.total,
+    count: allSessionsResult.documents.length,
+    sessionDetails: allSessionsResult.documents.map(s => ({
+      id: s.$id,
+      lessonTemplateId: s.lessonTemplateId,
+      status: s.status,  // Using 'status' field like CourseCurriculum
+      stage: s.stage,
+      endedAt: s.endedAt,
+      createdAt: s.$createdAt
+    }))
+  });
+
   // Get completed sessions to track what student has done
+  // IMPORTANT: Using 'status' field (not 'stage') to match CourseCurriculum logic
   const sessionsResult = await databases.listDocuments(
     'default',
     'sessions',
     [
       Query.equal('studentId', studentId),
       Query.equal('courseId', courseId),
-      Query.equal('stage', 'done')
+      Query.equal('status', 'completed')  // Fixed: was 'stage'='done', now 'status'='completed'
     ]
   );
+
+  console.log(`[SpacedRepetition] Sessions with status='completed':`, {
+    totalSessions: sessionsResult.total,
+    documentsFound: sessionsResult.documents.length,
+    statuses: sessionsResult.documents.map(s => s.status),
+    lessonTemplateIds: sessionsResult.documents.map(s => s.lessonTemplateId)
+  });
 
   const completedLessonMap = new Map<string, string>(); // lessonTemplateId -> completedAt
   sessionsResult.documents.forEach(session => {
@@ -235,6 +389,11 @@ async function findLessonsForOutcomes(
 
     if (matchingOutcomes.length === 0) {
       continue; // This lesson doesn't teach any overdue outcomes
+    }
+
+    // Skip lessons that haven't been completed yet - spaced repetition only applies to learned content
+    if (!completedLessonMap.has(template.$id)) {
+      continue; // Only show lessons for spaced repetition that have been completed
     }
 
     // Calculate days since completion
@@ -320,6 +479,16 @@ function calculateDaysSince(dateStr: string): number {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Calculate days until a given date
+ */
+function calculateDaysUntil(dateStr: string): number {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = date.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }
 
 /**

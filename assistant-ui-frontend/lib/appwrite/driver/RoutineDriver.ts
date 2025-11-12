@@ -201,6 +201,45 @@ export class RoutineDriver extends BaseDriver {
   }
 
   /**
+   * Get upcoming outcomes within the next N days (not overdue)
+   */
+  async getUpcomingOutcomes(studentId: string, courseId: string, daysAhead: number = 14): Promise<OutcomeSchedule[]> {
+    try {
+      const routine = await this.getRoutineForCourse(studentId, courseId);
+      if (!routine) {
+        return [];
+      }
+
+      const now = new Date();
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + daysAhead);
+
+      const nowISO = now.toISOString();
+      const futureDateISO = futureDate.toISOString();
+
+      const upcomingOutcomes: OutcomeSchedule[] = [];
+
+      Object.entries(routine.dueAtByOutcome).forEach(([outcomeId, dueAt]) => {
+        // Include only outcomes that are:
+        // 1. Not overdue (dueAt > now)
+        // 2. Within the time window (dueAt <= futureDate)
+        if (dueAt > nowISO && dueAt <= futureDateISO) {
+          upcomingOutcomes.push({
+            outcomeId,
+            dueAt,
+            isOverdue: false
+          });
+        }
+      });
+
+      // Sort by due date (soonest first)
+      return upcomingOutcomes.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+    } catch (error) {
+      throw this.handleError(error, 'get upcoming outcomes');
+    }
+  }
+
+  /**
    * Calculate next due date using spaced repetition algorithm
    */
   calculateNextDueDate(currentEMA: number, daysSinceLastReview: number = 1): string {

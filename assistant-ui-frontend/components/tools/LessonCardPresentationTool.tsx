@@ -678,18 +678,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   🎨 Add Diagram to Explain Answer (Optional)
                 </Button>
                 {(() => {
-                  console.log('🎨 RENDER [MCQ] - Drawing block evaluating:', {
-                    hasStudentDrawing: !!studentDrawing,
-                    studentDrawingValue: studentDrawing,
-                    isStoragePreview: studentDrawing?.startsWith('storage_preview:')
-                  });
-
                   if (!studentDrawing) {
-                    console.log('⚠️ RENDER [MCQ] - No studentDrawing, skipping render');
                     return null;
                   }
-
-                  console.log('✅ RENDER [MCQ] - Rendering drawing display block');
 
                   return (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
@@ -758,18 +749,9 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                   🎨 Add Diagram / Working (Optional)
                 </Button>
                 {(() => {
-                  console.log('🎨 RENDER [NUMERIC] - Drawing block evaluating:', {
-                    hasStudentDrawing: !!studentDrawing,
-                    studentDrawingValue: studentDrawing,
-                    isStoragePreview: studentDrawing?.startsWith('storage_preview:')
-                  });
-
                   if (!studentDrawing) {
-                    console.log('⚠️ RENDER [NUMERIC] - No studentDrawing, skipping render');
                     return null;
                   }
-
-                  console.log('✅ RENDER [NUMERIC] - Rendering drawing display block');
 
                   return (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">

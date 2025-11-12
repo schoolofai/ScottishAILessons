@@ -7,13 +7,16 @@ import { Button } from '../ui/button';
 import { TrendingUp, Clock } from 'lucide-react';
 import { CourseProgress } from '@/lib/services/progress-service';
 import { getMasteryLabel, getMasteryColor } from '@/lib/services/progress-service';
+import { CourseCheatSheetButton } from '../revision-notes/CourseCheatSheetButton';
 
 interface CourseProgressCardProps {
   progress: CourseProgress;
   onViewDetails: () => void;
+  cheatSheetAvailable?: boolean | null;
+  courseId?: string;
 }
 
-export const CourseProgressCard = memo(function CourseProgressCard({ progress, onViewDetails }: CourseProgressCardProps) {
+export const CourseProgressCard = memo(function CourseProgressCard({ progress, onViewDetails, cheatSheetAvailable, courseId }: CourseProgressCardProps) {
   const masteryLabel = getMasteryLabel(progress.averageMastery);
   const masteryColor = getMasteryColor(progress.averageMastery);
   const hoursRemaining = Math.round(progress.estimatedTimeRemaining / 60);
@@ -90,14 +93,26 @@ export const CourseProgressCard = memo(function CourseProgressCard({ progress, o
         )}
       </div>
 
-      {/* Action button */}
-      <Button
-        variant="outline"
-        className="w-full text-sm sm:text-base"
-        onClick={onViewDetails}
-      >
-        View Detailed Progress
-      </Button>
+      {/* Action buttons */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+        <Button
+          variant="outline"
+          className="w-full text-sm"
+          onClick={onViewDetails}
+        >
+          View Detailed Progress
+        </Button>
+
+        {courseId && (
+          <CourseCheatSheetButton
+            courseId={courseId}
+            isAvailable={cheatSheetAvailable ?? null}
+            onClick={() => {}}
+            className="w-full justify-center"
+            label="Cheat Sheet"
+          />
+        )}
+      </div>
     </div>
   );
 });
