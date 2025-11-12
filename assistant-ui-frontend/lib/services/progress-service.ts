@@ -341,18 +341,38 @@ export async function getOutcomeMasteryBreakdown(
   }
 
   const masteryRecord = masteryResult.documents[0];
-  const emaByOutcomeId = JSON.parse(masteryRecord.emaByOutcomeId || '{}');
+  const emaByOutcome = JSON.parse(masteryRecord.emaByOutcome || '{}');
+
+  console.log(`📊 [ProgressService] MasteryV2 data loaded:`, {
+    masteryRecordId: masteryRecord.$id,
+    emaKeys: Object.keys(emaByOutcome),
+    emaCount: Object.keys(emaByOutcome).length,
+    sampleEMAs: Object.entries(emaByOutcome).slice(0, 3)
+  });
 
   // Get course outcomes
   const outcomesResult = await databases.listDocuments('default', 'course_outcomes',
     [Query.equal('courseId', courseId)]
   );
 
-  return outcomesResult.documents.map((outcome: any) => ({
-    outcomeRef: outcome.outcomeRef,
-    outcomeTitle: outcome.description || outcome.outcomeRef,
-    mastery: emaByOutcomeId[outcome.$id] || 0
-  }));
+  console.log(`📊 [ProgressService] Mapping ${outcomesResult.documents.length} outcomes to mastery scores`);
+
+  const outcomesWithMastery = outcomesResult.documents.map((outcome: any) => {
+    const foundInMastery = outcome.$id in emaByOutcome;
+    const masteryScore = emaByOutcome[outcome.$id] || 0;
+
+    console.log(`📊 [ProgressService EMA Lookup] outcomeId="${outcome.$id}", outcomeRef="${outcome.outcomeRef}", found=${foundInMastery}, mastery=${masteryScore}, usingDefault=${!foundInMastery}`);
+
+    return {
+      outcomeRef: outcome.outcomeRef,
+      outcomeTitle: outcome.description || outcome.outcomeRef,
+      mastery: masteryScore
+    };
+  });
+
+  console.log(`📊 [ProgressService] Completed mapping with ${outcomesWithMastery.filter(o => o.mastery > 0).length} outcomes having non-zero mastery`);
+
+  return outcomesWithMastery;
 }
 
 /**

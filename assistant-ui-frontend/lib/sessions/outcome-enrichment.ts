@@ -25,6 +25,16 @@ export async function enrichOutcomeRefs(
   driver: CourseOutcomesDriver
 ): Promise<CourseOutcome[]> {
   try {
+    // 🔍 DEBUG: Log function entry with detailed input analysis
+    console.log('🔍 [enrichOutcomeRefs DEBUG] Function called with:', {
+      outcomeRefsType: typeof outcomeRefs,
+      outcomeRefsIsArray: Array.isArray(outcomeRefs),
+      outcomeRefsLength: outcomeRefs?.length,
+      outcomeRefsRaw: outcomeRefs,
+      outcomeRefsStringified: JSON.stringify(outcomeRefs),
+      courseId: courseId
+    });
+
     // Validate inputs
     if (!outcomeRefs || outcomeRefs.length === 0) {
       console.log('[enrichOutcomeRefs] No outcomeRefs provided');
@@ -42,11 +52,30 @@ export async function enrichOutcomeRefs(
       courseId: courseId
     });
 
+    // 🔍 DEBUG: Log before extraction
+    console.log('🔍 [enrichOutcomeRefs DEBUG] Before extractOutcomeIds:', {
+      inputArray: outcomeRefs,
+      inputArrayStringified: JSON.stringify(outcomeRefs)
+    });
+
     // Extract only outcomeIds (codes without decimal points)
     const outcomeIds = driver.extractOutcomeIds(outcomeRefs);
 
+    // 🔍 DEBUG: Log extraction result
+    console.log('🔍 [enrichOutcomeRefs DEBUG] After extractOutcomeIds:', {
+      extractedIds: outcomeIds,
+      extractedCount: outcomeIds.length,
+      originalCount: outcomeRefs.length,
+      filteredOut: outcomeRefs.filter(ref => !outcomeIds.includes(ref))
+    });
+
     if (outcomeIds.length === 0) {
       console.log('[enrichOutcomeRefs] No outcomeIds found in outcomeRefs (all were assessment standards)');
+      // 🔍 DEBUG: Log why all were filtered out
+      console.log('🔍 [enrichOutcomeRefs DEBUG] All outcomeRefs filtered out:', {
+        originalRefs: outcomeRefs,
+        reasonLikelyDecimalCheck: 'All refs contain "." (assessment standards)'
+      });
       return [];
     }
 

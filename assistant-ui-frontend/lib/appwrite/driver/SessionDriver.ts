@@ -62,12 +62,24 @@ export class SessionDriver extends BaseDriver {
   async getSessionState(sessionId: string) {
     try {
       const session = await this.get<Session>('sessions', sessionId);
+
+      // 🔍 DEBUG: Log raw snapshot before decompression
+      console.log('🔍 [SessionDriver DEBUG] Raw lessonSnapshot before decompression:',
+        typeof session.lessonSnapshot,
+        session.lessonSnapshot.substring(0, 100) + '...');
+
       const parsedSnapshot = decompressJSON<LessonSnapshot>(session.lessonSnapshot);
 
       // Validate decompression succeeded
       if (!parsedSnapshot) {
         throw new Error('Failed to decompress lesson snapshot');
       }
+
+      // 🔍 DEBUG: Log outcomeRefs after decompression
+      console.log('🔍 [SessionDriver DEBUG] parsedSnapshot.outcomeRefs after decompression:',
+        Array.isArray(parsedSnapshot.outcomeRefs) ? parsedSnapshot.outcomeRefs : typeof parsedSnapshot.outcomeRefs,
+        JSON.stringify(parsedSnapshot.outcomeRefs)
+      );
       
       // Get evidence count for progress calculation
       const evidence = await this.list<Evidence>('evidence', [

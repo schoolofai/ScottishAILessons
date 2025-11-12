@@ -17,7 +17,6 @@ import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresent
 import { LessonDiagramPresentationTool } from "@/components/tools/LessonDiagramPresentationTool";
 import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
-import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
 import { LessonCompletionSummaryTool } from "@/components/tools/LessonCompletionSummaryTool";
 
 export interface SessionContext {
@@ -174,7 +173,6 @@ export function MyAssistant({
           <LessonDiagramPresentationTool />
           <FeedbackPresentationTool />
           <ProgressAcknowledgmentTool />
-          <LessonSummaryPresentationTool />
           <LessonCompletionSummaryTool />
         </AssistantRuntimeProvider>
       </SessionProvider>

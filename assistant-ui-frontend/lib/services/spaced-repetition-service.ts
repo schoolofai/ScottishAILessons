@@ -9,6 +9,7 @@
 import { Databases, Query } from 'appwrite';
 import { RoutineDriver } from '../appwrite/driver/RoutineDriver';
 import { MasteryV2Driver } from '../appwrite/driver/MasteryV2Driver';
+import { CourseOutcomesDriver } from '../appwrite/driver/CourseOutcomesDriver';
 import { decompressJSON } from '../appwrite/utils/compression';
 
 // ============================================================================
@@ -87,14 +88,30 @@ export async function getReviewRecommendations(
 
     console.log(`[SpacedRepetition] Found ${overdueOutcomes.length} overdue outcomes`);
 
-    // 2. Get mastery data for context
-    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcomeId || {};
+    // 2. Build outcomeId → documentId mapping (needed for mastery lookup)
+    const outcomeIds = overdueOutcomes.map(o => o.outcomeId);
+    const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
 
-    // 3. Enrich overdue outcomes with mastery and timing info
+    // 3. Get mastery data (keys are now document IDs, not string refs)
+    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
+    const emaByOutcome = masteryData?.emaByOutcome || {};
+
+    console.log(`🔍 [SpacedRepetition] MasteryV2 data retrieved:`, {
+      hasMasteryData: !!masteryData,
+      emaKeys: Object.keys(emaByOutcome),
+      emaCount: Object.keys(emaByOutcome).length,
+      sampleEMAs: Object.entries(emaByOutcome).slice(0, 3)
+    });
+
+    // 4. Enrich overdue outcomes with mastery and timing info
     const enrichedOutcomes = overdueOutcomes.map(outcome => {
-      const currentEMA = emaByOutcome[outcome.outcomeId] || 0.3; // Default if not tracked
+      // Map outcomeId → documentId for mastery lookup
+      const documentId = outcomeMapping.get(outcome.outcomeId);
+      const foundInMastery = documentId ? (documentId in emaByOutcome) : false;
+      const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3; // Default if not tracked
       const daysOverdue = calculateDaysOverdue(outcome.dueAt);
+
+      console.log(`🔍 [SpacedRepetition EMA Lookup] outcomeId="${outcome.outcomeId}", documentId="${documentId}", found=${foundInMastery}, ema=${currentEMA}, usingDefault=${!foundInMastery}`);
 
       return {
         outcomeId: outcome.outcomeId,
@@ -146,12 +163,18 @@ export async function getReviewStats(
     const masteryDriver = new MasteryV2Driver(databases);
 
     const overdueOutcomes = await routineDriver.getOverdueOutcomes(studentId, courseId);
+
+    // Build outcomeId → documentId mapping
+    const outcomeIds = overdueOutcomes.map(o => o.outcomeId);
+    const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
+
     const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcomeId || {};
+    const emaByOutcome = masteryData?.emaByOutcome || {};
 
     // Count critical outcomes (EMA < 0.4)
     const criticalCount = overdueOutcomes.filter(outcome => {
-      const ema = emaByOutcome[outcome.outcomeId] || 0.3;
+      const documentId = outcomeMapping.get(outcome.outcomeId);
+      const ema = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3;
       return ema < 0.4;
     }).length;
 
@@ -203,13 +226,18 @@ export async function getUpcomingReviews(
 
     console.log(`[SpacedRepetition] Found ${upcomingOutcomes.length} upcoming outcomes`);
 
-    // 2. Get mastery data for context
-    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcomeId || {};
+    // 2. Build outcomeId → documentId mapping
+    const outcomeIds = upcomingOutcomes.map(o => o.outcomeId);
+    const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
 
-    // 3. Enrich upcoming outcomes with mastery info
+    // 3. Get mastery data (keys are now document IDs, not string refs)
+    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
+    const emaByOutcome = masteryData?.emaByOutcome || {};
+
+    // 4. Enrich upcoming outcomes with mastery info
     const enrichedOutcomes = upcomingOutcomes.map(outcome => {
-      const currentEMA = emaByOutcome[outcome.outcomeId] || 0.3;
+      const documentId = outcomeMapping.get(outcome.outcomeId);
+      const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3;
       const daysUntilDue = calculateDaysUntil(outcome.dueAt);
 
       return {
@@ -270,6 +298,110 @@ export async function getUpcomingReviews(
 // ============================================================================
 // Helper Functions
 // ============================================================================
+
+/**
+ * Build a mapping from outcomeId/AS code (string ref) to MasteryV2 key
+ *
+ * This is needed because MasteryV2 keys are document IDs and composite keys,
+ * but RoutineV2 uses simple string refs.
+ *
+ * @param outcomeIds - Array of outcome/AS string refs (e.g., ["O1", "AS1.1"])
+ * @param courseId - Course ID to fetch outcomes for
+ * @param databases - Appwrite Databases instance
+ * @returns Map of string ref → MasteryV2 key
+ *          - Outcomes: "O1" → "outcome_test_simple_o1"
+ *          - AS codes: "AS1.1" → "outcome_test_simple_o1#AS1.1"
+ */
+async function buildOutcomeIdMapping(
+  outcomeIds: string[],
+  courseId: string,
+  databases: Databases
+): Promise<Map<string, string>> {
+  const outcomeDriver = new CourseOutcomesDriver(databases);
+  const mapping = new Map<string, string>();
+
+  try {
+    // 1. Separate outcome IDs from AS codes (AS codes contain decimal point)
+    const outcomeIdsOnly = outcomeIds.filter(id => !id.includes('.'));  // ["O1", "O2"]
+    const asCodesOnly = outcomeIds.filter(id => id.includes('.'));      // ["AS1.1", "AS2.3"]
+
+    console.log(`[SpacedRepetition] Separating IDs:`, {
+      total: outcomeIds.length,
+      outcomeIdsOnly: outcomeIdsOnly.length,
+      asCodesOnly: asCodesOnly.length,
+      outcomeIds: outcomeIdsOnly,
+      asCodes: asCodesOnly
+    });
+
+    // 2. Handle outcome IDs (existing logic)
+    if (outcomeIdsOnly.length > 0) {
+      const outcomes = await outcomeDriver.getOutcomesByIds(courseId, outcomeIdsOnly);
+
+      outcomes.forEach(outcome => {
+        const outcomeId = outcome.outcomeId; // "O1"
+        const documentId = outcome.$id;      // "outcome_test_simple_o1"
+        mapping.set(outcomeId, documentId);
+        console.log(`[SpacedRepetition] Mapped outcome: ${outcomeId} → ${documentId}`);
+      });
+    }
+
+    // 3. Handle AS codes (NEW LOGIC)
+    // Need to find which outcome contains each AS code
+    if (asCodesOnly.length > 0) {
+      // Fetch ALL outcomes for the course (needed to search for AS codes)
+      const allOutcomes = await outcomeDriver.getOutcomesByIds(courseId, outcomeIdsOnly);
+
+      console.log(`[SpacedRepetition] Fetched ${allOutcomes.length} outcomes to search for AS codes`);
+
+      // For each AS code, find which outcome contains it
+      for (const asCode of asCodesOnly) {
+        let found = false;
+
+        for (const outcome of allOutcomes) {
+          // Parse assessmentStandards field
+          const asListJson = outcome.assessmentStandards || "[]";
+          try {
+            const asList = typeof asListJson === 'string' ? JSON.parse(asListJson) : asListJson;
+
+            if (Array.isArray(asList)) {
+              const hasAS = asList.some((as: any) => as.code === asCode);
+
+              if (hasAS) {
+                // Found it! Create composite key mapping
+                const compositeKey = `${outcome.$id}#${asCode}`;
+                mapping.set(asCode, compositeKey);
+                console.log(`[SpacedRepetition] Mapped AS code: ${asCode} → ${compositeKey}`);
+                found = true;
+                break;
+              }
+            }
+          } catch (e) {
+            // Skip parsing errors
+            console.warn(`[SpacedRepetition] Failed to parse assessmentStandards for ${outcome.$id}:`, e);
+          }
+        }
+
+        if (!found) {
+          console.warn(`[SpacedRepetition] Could not find outcome containing AS code: ${asCode}`);
+        }
+      }
+    }
+
+    console.log(`[SpacedRepetition] Built outcomeId mapping:`, {
+      requestedIds: outcomeIds.length,
+      outcomeIdsOnly: outcomeIdsOnly.length,
+      asCodesOnly: asCodesOnly.length,
+      foundIds: mapping.size,
+      mappings: Object.fromEntries(mapping)
+    });
+
+    return mapping;
+  } catch (error) {
+    console.error('[SpacedRepetition] Failed to build outcome mapping:', error);
+    // Return empty map instead of throwing - graceful degradation
+    return mapping;
+  }
+}
 
 /**
  * Find lessons that teach the given outcomes

@@ -172,19 +172,74 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         // Enrich outcomes if outcomeRefs available
         let enrichedOutcomes = [];
+
+        // 🔍 DEBUG: Log outcomeRefs before enrichment attempt
+        console.log('🔍 [SessionChatAssistant DEBUG] Before enrichment:', {
+          hasCourseId: !!courseId,
+          courseId: courseId,
+          outcomeRefsExists: !!parsedSnapshot.outcomeRefs,
+          outcomeRefsLength: parsedSnapshot.outcomeRefs?.length,
+          outcomeRefsType: typeof parsedSnapshot.outcomeRefs,
+          outcomeRefsValue: JSON.stringify(parsedSnapshot.outcomeRefs),
+          outcomeRefsArray: Array.isArray(parsedSnapshot.outcomeRefs) ? parsedSnapshot.outcomeRefs : 'NOT_ARRAY'
+        });
+
         if (courseId && parsedSnapshot.outcomeRefs?.length > 0) {
           try {
             console.log('SessionChatAssistant - Enriching outcomes for:', parsedSnapshot.outcomeRefs);
+
+            // 🔍 DEBUG: Log input to enrichOutcomeRefs
+            console.log('🔍 [SessionChatAssistant DEBUG] Calling enrichOutcomeRefs with:', {
+              outcomeRefsInput: parsedSnapshot.outcomeRefs,
+              courseIdInput: courseId
+            });
+
             const outcomeDriver = createDriver(CourseOutcomesDriver);
             enrichedOutcomes = await enrichOutcomeRefs(
               parsedSnapshot.outcomeRefs,
               courseId,
               outcomeDriver
             );
+
+            // 🔍 DEBUG: Log enrichment output
+            console.log('🔍 [SessionChatAssistant DEBUG] enrichOutcomeRefs returned:', {
+              enrichedCount: enrichedOutcomes.length,
+              enrichedOutcomeSample: enrichedOutcomes.slice(0, 2)
+            });
+
             console.log('SessionChatAssistant - Enriched outcomes count:', enrichedOutcomes.length);
+
+            // ✅ VALIDATION: Fail-fast if enrichment unexpectedly returns empty
+            // Check if there were actual outcomeIds to enrich (not just assessment standards)
+            const outcomeIds = outcomeDriver.extractOutcomeIds(parsedSnapshot.outcomeRefs);
+
+            if (outcomeIds.length > 0 && enrichedOutcomes.length === 0) {
+              // We SHOULD have found outcomes, but didn't - this is a critical error
+              const errorMsg = `Outcome enrichment failed: Expected ${outcomeIds.length} outcomes from refs ${JSON.stringify(outcomeIds)}, but found 0`;
+
+              console.error('❌ ENRICHMENT FAILURE:', {
+                courseId,
+                outcomeRefsInSnapshot: parsedSnapshot.outcomeRefs,
+                outcomeIdsToFind: outcomeIds,
+                enrichedOutcomesFound: enrichedOutcomes.length,
+                errorMessage: errorMsg
+              });
+
+              // ✅ FAIL-FAST: Throw error to prevent session start
+              throw new Error(errorMsg);
+            } else if (outcomeIds.length === 0) {
+              console.log('SessionChatAssistant - No outcome IDs to enrich (only assessment standards) - this is expected');
+            } else {
+              console.log(`SessionChatAssistant - Successfully enriched ${enrichedOutcomes.length} outcomes from ${outcomeIds.length} outcome IDs`);
+            }
           } catch (outcomeError) {
             console.error('SessionChatAssistant - Failed to enrich outcomes:', outcomeError);
-            // Continue without enriched outcomes - it's optional
+            // ✅ FAIL-FAST: Re-throw to prevent session start with corrupted data
+            throw new Error(
+              outcomeError instanceof Error
+                ? outcomeError.message
+                : 'Lesson data incomplete - mastery tracking unavailable. Please contact support.'
+            );
           }
         } else {
           console.log('SessionChatAssistant - Skipping outcome enrichment (no courseId or outcomeRefs)');

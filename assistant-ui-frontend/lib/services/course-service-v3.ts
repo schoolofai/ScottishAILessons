@@ -153,7 +153,7 @@ export class CourseServiceV3 extends BaseDriver {
         outcomeCount: context.outcomes?.length || 0,
         templateCount: context.templates?.length || 0,
         hasMastery: !!context.mastery,
-        masteryOutcomeCount: context.mastery ? Object.keys(context.mastery.emaByOutcomeId || {}).length : 0,
+        masteryOutcomeCount: context.mastery ? Object.keys(context.mastery.emaByOutcome || {}).length : 0,
         hasRoutine: !!context.routine,
         routineOutcomeCount: context.routine ? Object.keys(context.routine.dueAtByOutcome || {}).length : 0,
         hasSOW: !!context.sow

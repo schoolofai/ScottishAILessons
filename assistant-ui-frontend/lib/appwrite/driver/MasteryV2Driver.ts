@@ -4,7 +4,7 @@ import { BaseDriver } from './BaseDriver';
 export interface MasteryV2Data {
   studentId: string;
   courseId: string;
-  emaByOutcomeId: { [outcomeDocumentId: string]: number }; // Keys are course_outcome document IDs
+  emaByOutcome: { [outcomeDocumentId: string]: number }; // Keys are course_outcome document IDs
   updatedAt: string;
 }
 
@@ -43,13 +43,13 @@ export class MasteryV2Driver extends BaseDriver {
       const record = records[0];
       console.log('[MasteryV2Driver] Raw MasteryV2 record:', record);
 
-      const parsedEmaByOutcomeId = JSON.parse(record.emaByOutcome || '{}');
-      console.log('[MasteryV2Driver] Parsed emaByOutcomeId:', parsedEmaByOutcomeId);
+      const parsedEmaByOutcome = JSON.parse(record.emaByOutcome || '{}');
+      console.log('[MasteryV2Driver] Parsed emaByOutcome:', parsedEmaByOutcome);
 
       const result = {
         studentId: record.studentId,
         courseId: record.courseId,
-        emaByOutcomeId: parsedEmaByOutcomeId,
+        emaByOutcome: parsedEmaByOutcome,
         updatedAt: record.updatedAt
       };
 
@@ -79,7 +79,7 @@ export class MasteryV2Driver extends BaseDriver {
       const docData = {
         studentId: masteryData.studentId,
         courseId: masteryData.courseId,
-        emaByOutcome: JSON.stringify(masteryData.emaByOutcomeId),
+        emaByOutcome: JSON.stringify(masteryData.emaByOutcome),
         updatedAt: masteryData.updatedAt
       };
 
@@ -142,13 +142,13 @@ export class MasteryV2Driver extends BaseDriver {
         existing = await this.createInitialMasteryV2(studentId, courseId, outcomeDocId);
       }
 
-      const emaByOutcomeId = { ...existing.emaByOutcomeId };
-      emaByOutcomeId[outcomeDocId] = Math.max(0, Math.min(1, emaScore)); // Clamp to [0,1]
+      const emaByOutcome = { ...existing.emaByOutcome };
+      emaByOutcome[outcomeDocId] = Math.max(0, Math.min(1, emaScore)); // Clamp to [0,1]
 
       return await this.upsertMasteryV2({
         studentId,
         courseId,
-        emaByOutcomeId,
+        emaByOutcome,
         updatedAt: new Date().toISOString()
       });
     } catch (error) {
@@ -174,7 +174,7 @@ export class MasteryV2Driver extends BaseDriver {
       const masteryData: MasteryV2Data = {
         studentId,
         courseId,
-        emaByOutcomeId: initialEMAByOutcomeId,
+        emaByOutcome: initialEMAByOutcomeId,
         updatedAt: new Date().toISOString()
       };
 
@@ -215,22 +215,22 @@ export class MasteryV2Driver extends BaseDriver {
         console.log('[MasteryV2Driver] Initial MasteryV2 created:', existing);
       }
 
-      const emaByOutcomeId = { ...existing.emaByOutcomeId };
-      console.log('[MasteryV2Driver] Current EMAs before update:', emaByOutcomeId);
+      const emaByOutcome = { ...existing.emaByOutcome };
+      console.log('[MasteryV2Driver] Current EMAs before update:', emaByOutcome);
 
       // Apply all updates
       Object.entries(emaUpdates).forEach(([outcomeDocId, score]) => {
         const clampedScore = Math.max(0, Math.min(1, score)); // Clamp to [0,1]
         console.log(`[MasteryV2Driver] Updating outcome ${outcomeDocId}: ${score} -> ${clampedScore}`);
-        emaByOutcomeId[outcomeDocId] = clampedScore;
+        emaByOutcome[outcomeDocId] = clampedScore;
       });
 
-      console.log('[MasteryV2Driver] Merged EMAs to upsert:', emaByOutcomeId);
+      console.log('[MasteryV2Driver] Merged EMAs to upsert:', emaByOutcome);
 
       const result = await this.upsertMasteryV2({
         studentId,
         courseId,
-        emaByOutcomeId,
+        emaByOutcome,
         updatedAt: new Date().toISOString()
       });
 
@@ -258,7 +258,7 @@ export class MasteryV2Driver extends BaseDriver {
         return null;
       }
 
-      return masteryRecord.emaByOutcomeId[outcomeDocId] || null;
+      return masteryRecord.emaByOutcome[outcomeDocId] || null;
     } catch (error) {
       throw this.handleError(error, 'get outcome EMA');
     }
@@ -274,7 +274,7 @@ export class MasteryV2Driver extends BaseDriver {
         return null;
       }
 
-      return masteryRecord.emaByOutcomeId;
+      return masteryRecord.emaByOutcome;
     } catch (error) {
       throw this.handleError(error, 'get course EMAs');
     }
@@ -296,7 +296,7 @@ export class MasteryV2Driver extends BaseDriver {
         };
       }
 
-      const emaValues = Object.values(masteryRecord.emaByOutcomeId);
+      const emaValues = Object.values(masteryRecord.emaByOutcome);
 
       if (emaValues.length === 0) {
         return {

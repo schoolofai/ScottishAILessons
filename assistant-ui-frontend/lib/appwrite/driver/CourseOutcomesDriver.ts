@@ -76,10 +76,29 @@ export class CourseOutcomesDriver extends BaseDriver {
    * // Returns: ["O1", "O2"]
    */
   extractOutcomeIds(outcomeRefs: string[]): string[] {
+    // 🔍 DEBUG: Log extraction entry
+    console.log('🔍 [CourseOutcomesDriver DEBUG] extractOutcomeIds called with:', {
+      inputType: typeof outcomeRefs,
+      inputIsArray: Array.isArray(outcomeRefs),
+      inputLength: outcomeRefs?.length,
+      inputRaw: outcomeRefs,
+      inputStringified: JSON.stringify(outcomeRefs)
+    });
+
+    // 🔍 DEBUG: Log each ref and its filter result
     const outcomeIds = outcomeRefs.filter(ref => {
-      // Filter out nulls, empty strings, and codes with decimal points
-      // Handles both "O1"/"AS1.1" pattern and "2"/"2.1" pattern
-      return ref && typeof ref === 'string' && !ref.includes('.');
+      const isValid = ref && typeof ref === 'string' && !ref.includes('.');
+
+      // 🔍 DEBUG: Log individual filtering decision
+      console.log('🔍 [CourseOutcomesDriver DEBUG] Filtering ref:', {
+        ref: ref,
+        refType: typeof ref,
+        isString: typeof ref === 'string',
+        hasDot: typeof ref === 'string' ? ref.includes('.') : 'N/A',
+        passedFilter: isValid
+      });
+
+      return isValid;
     });
 
     // Deduplicate in case outcomeRefs contains duplicate entries
@@ -87,6 +106,15 @@ export class CourseOutcomesDriver extends BaseDriver {
     const uniqueOutcomeIds = [...new Set(outcomeIds)];
 
     console.log(`[CourseOutcomesDriver] Extracted ${uniqueOutcomeIds.length} unique outcomeIds from ${outcomeRefs.length} refs`);
+
+    // 🔍 DEBUG: Log extraction summary
+    console.log('🔍 [CourseOutcomesDriver DEBUG] Extraction complete:', {
+      originalRefs: outcomeRefs,
+      filteredOutcomeIds: outcomeIds,
+      uniqueOutcomeIds: uniqueOutcomeIds,
+      removedDuplicates: outcomeIds.length - uniqueOutcomeIds.length,
+      filteredOutRefs: outcomeRefs.filter(ref => !uniqueOutcomeIds.includes(ref))
+    });
 
     if (outcomeIds.length !== uniqueOutcomeIds.length) {
       console.warn(`[CourseOutcomesDriver] Removed ${outcomeIds.length - uniqueOutcomeIds.length} duplicate outcomeIds`);

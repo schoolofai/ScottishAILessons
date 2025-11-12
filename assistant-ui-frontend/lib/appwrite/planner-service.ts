@@ -360,22 +360,47 @@ export class CoursePlannerService {
       let mastery: any | undefined;
       try {
         const masteryData = await this.masteryDriver.getMasteryV2(studentId, courseId);
+
+        console.log(`🎯 [Planner] MasteryV2 data retrieved:`, {
+          hasMasteryData: !!masteryData,
+          studentId,
+          courseId
+        });
+
         if (masteryData) {
           mastery = {
             emaByOutcome: masteryData.emaByOutcome
           };
 
+          const parsedEmaByOutcome = typeof mastery.emaByOutcome === 'string'
+            ? JSON.parse(mastery.emaByOutcome)
+            : mastery.emaByOutcome;
+
+          console.log(`🎯 [Planner] MasteryV2 EMAs parsed:`, {
+            emaCount: Object.keys(parsedEmaByOutcome).length,
+            emaKeys: Object.keys(parsedEmaByOutcome),
+            sampleEMAs: Object.entries(parsedEmaByOutcome).slice(0, 3)
+          });
+
           // Enhanced validation for mastery EMA values
           if (mastery.emaByOutcome) {
-            for (const [outcomeId, emaValue] of Object.entries(mastery.emaByOutcome)) {
+            const emaByOutcomeObj = typeof mastery.emaByOutcome === 'string'
+              ? JSON.parse(mastery.emaByOutcome)
+              : mastery.emaByOutcome;
+
+            for (const [outcomeId, emaValue] of Object.entries(emaByOutcomeObj)) {
               if (typeof emaValue !== 'number' || emaValue < 0 || emaValue > 1) {
+                console.error(`❌ [Planner] Invalid EMA: outcomeId=${outcomeId}, value=${emaValue}`);
                 throw new Error(`Invalid EMA value for outcome ${outcomeId}: ${emaValue}. Must be between 0 and 1`);
               }
             }
+            console.log(`✅ [Planner] All ${Object.keys(emaByOutcomeObj).length} EMAs validated successfully`);
           }
+        } else {
+          console.warn('⚠️ [Planner] No MasteryV2 data found for this student+course');
         }
       } catch (error) {
-        console.warn('MasteryV2 data not available:', error.message);
+        console.error('❌ [Planner] MasteryV2 data retrieval failed:', error.message);
         // Fully migrated to MasteryV2 - no legacy fallback needed
       }
 

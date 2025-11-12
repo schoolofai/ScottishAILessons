@@ -276,6 +276,38 @@ export class RoutineDriver extends BaseDriver {
    * Update outcome schedule after lesson completion
    */
   async updateOutcomeSchedule(studentId: string, courseId: string, outcomeId: string, newEMA: number): Promise<any> {
+    // ✅ VALIDATION: Reject invalid key formats (Part 2 of routine-v2-key-format-fix-spec.md)
+    if (!outcomeId || outcomeId.trim().length === 0) {
+      throw new Error(`Invalid outcomeId (empty string) for RoutineV2 update`);
+    }
+
+    if (outcomeId.includes('#')) {
+      throw new Error(
+        `Invalid outcomeId (composite key): '${outcomeId}'. ` +
+        `RoutineV2 expects string refs (e.g., "O1", "AS1.1"), not composite keys. ` +
+        `Caller must parse composite keys and extract AS code.`
+      );
+    }
+
+    if (outcomeId.length >= 20 && !outcomeId.includes('.')) {
+      throw new Error(
+        `Invalid outcomeId (document ID): '${outcomeId}'. ` +
+        `RoutineV2 expects string refs (e.g., "O1", "AS1.1"), not Appwrite document IDs. ` +
+        `Caller must translate document IDs to string refs using CourseOutcomesDriver.`
+      );
+    }
+
+    // Valid format: "O1", "O2", "AS1.1", "AS2.3", "TOPIC_X", "SKILL_X"
+    const validFormat = /^[A-Z_]+(\d+(\.\d+)?)?$/;
+    if (!validFormat.test(outcomeId)) {
+      throw new Error(
+        `Invalid outcomeId format: '${outcomeId}'. ` +
+        `Expected traditional format (O1, AS1.1) or skills-based format (TOPIC_X, SKILL_X).`
+      );
+    }
+
+    console.log(`✅ RoutineDriver: Valid outcomeId format: ${outcomeId}`);
+
     try {
       const routine = await this.getRoutineForCourse(studentId, courseId);
       const currentDueAt = routine?.dueAtByOutcome[outcomeId];

@@ -104,6 +104,12 @@ type LessonCompletionSummaryArgs = {
   course_id: string;
   // Conversation history for replay (will be compressed before saving)
   conversation_history?: ConversationHistory;
+  // Enriched outcomes for RoutineV2 key translation
+  enriched_outcomes?: Array<{
+    $id: string;
+    outcomeId: string;
+    assessmentStandards?: string | any[];
+  }>;
 };
 
 export const LessonCompletionSummaryTool = makeAssistantToolUI<
@@ -115,7 +121,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
     const { isReplayMode } = useReplayMode();
     const interrupt = useSafeLangGraphInterruptState();
     const router = useRouter();
-    const { createDriver } = useAppwrite();
+    const { createDriver, isAuthenticated, isLoading } = useAppwrite();
     const cardContext = useSafeCurrentCard();
     const onSessionStatusChange = cardContext?.onSessionStatusChange;
 
@@ -130,7 +136,8 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
       session_id,
       student_id,
       course_id,
-      conversation_history
+      conversation_history,
+      enriched_outcomes
     } = args;
 
     // Debug logging to check what data we're receiving
@@ -147,11 +154,22 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
 
     const [selectedTab, setSelectedTab] = useState("performance");
     const [persistenceCompleted, setPersistenceCompleted] = useState(false);
-    const isLoading = status.type === "executing";
+    const isToolExecuting = status.type === "executing";
 
     // Automatically persist data when component receives completion summary
     useEffect(() => {
       const persistData = async () => {
+        // Wait for authentication before persisting
+        if (isLoading) {
+          console.log('⏳ Waiting for authentication to complete...');
+          return;
+        }
+
+        if (!isAuthenticated) {
+          console.error('❌ Cannot persist data: User not authenticated');
+          return;
+        }
+
         if (persistenceCompleted) {
           console.log('🔄 Data already persisted, skipping...');
           return;
@@ -233,21 +251,66 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
             });
 
             // 4. Update routine schedules for spaced repetition
+            // IMPORTANT: Translate document IDs → string refs (Part 1 of routine-v2-key-format-fix-spec.md)
             console.log('📅 Updating routine schedules for spaced repetition...');
             console.log('[Routine Debug] Processing mastery updates for routine scheduling:', mastery_updates);
 
+            // Build reverse mapping: documentId → outcomeId (string ref)
+            const documentIdToOutcomeId = new Map<string, string>();
+
+            if (enriched_outcomes && enriched_outcomes.length > 0) {
+              enriched_outcomes.forEach((outcome: any) => {
+                const docId = outcome.$id;          // "outcome_test_simple_o1"
+                const stringRef = outcome.outcomeId; // "O1"
+
+                if (docId && stringRef) {
+                  documentIdToOutcomeId.set(docId, stringRef);
+
+                  // Also map composite keys -> AS codes
+                  const asListJson = outcome.assessmentStandards || "[]";
+                  try {
+                    const asList = typeof asListJson === 'string' ? JSON.parse(asListJson) : asListJson;
+
+                    if (Array.isArray(asList)) {
+                      asList.forEach((as: any) => {
+                        const asCode = as.code; // "AS1.1"
+                        if (asCode) {
+                          const compositeKey = `${docId}#${asCode}`;
+                          documentIdToOutcomeId.set(compositeKey, asCode);
+                        }
+                      });
+                    }
+                  } catch (e) {
+                    console.warn(`Failed to parse assessmentStandards for ${docId}:`, e);
+                  }
+                }
+              });
+            }
+
+            console.log("🔑 Document ID → Outcome ID mapping:", Object.fromEntries(documentIdToOutcomeId));
+
+            // Process mastery data with translation
             for (const masteryUpdate of mastery_updates) {
               try {
-                console.log(`[Routine Debug] Updating schedule for outcome ${masteryUpdate.outcome_id} with EMA ${masteryUpdate.score}`);
+                // Translate document ID or composite key → string ref
+                const masteryKey = masteryUpdate.outcome_id;
+                const stringRef = documentIdToOutcomeId.get(masteryKey);
+
+                if (!stringRef) {
+                  console.warn(`⚠️ No string ref found for mastery key: ${masteryKey}, skipping RoutineV2 update`);
+                  continue;
+                }
+
+                console.log(`✅ Translating mastery key: ${masteryKey} → ${stringRef}`);
 
                 await routineDriver.updateOutcomeSchedule(
                   student_id,
                   course_id,
-                  masteryUpdate.outcome_id,
+                  stringRef,  // ✅ CORRECT: Now using string ref ("O1", "AS1.1")
                   masteryUpdate.score
                 );
 
-                console.log(`✅ Updated routine schedule for outcome ${masteryUpdate.outcome_id}`);
+                console.log(`✅ Updated routine schedule for outcome ${stringRef} (was ${masteryKey})`);
               } catch (routineError) {
                 console.error(`⚠️ Failed to update routine for outcome ${masteryUpdate.outcome_id}:`, routineError);
                 // Continue with other outcomes even if one fails
@@ -327,9 +390,13 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
         }
       };
 
-      // Only persist if we have valid data
-      if (session_id && student_id && course_id && evidence && mastery_updates) {
+      // Only persist if we have valid data and user is authenticated
+      if (session_id && student_id && course_id && evidence && mastery_updates && !isLoading && isAuthenticated) {
         persistData();
+      } else if (isLoading) {
+        console.log('⏳ Waiting for authentication before persisting...');
+      } else if (!isAuthenticated) {
+        console.warn('⚠️ User not authenticated, skipping persistence');
       } else {
         console.warn('⚠️ Missing required data for auto-persistence:', {
           session_id: !!session_id,
@@ -339,7 +406,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
           mastery_updates: !!mastery_updates
         });
       }
-    }, [session_id, student_id, course_id, evidence, mastery_updates, persistenceCompleted, createDriver]);
+    }, [session_id, student_id, course_id, evidence, mastery_updates, persistenceCompleted, createDriver, isLoading, isAuthenticated]);
 
     const handleComplete = async () => {
       // Data already persisted automatically, just handle UI actions
@@ -660,7 +727,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
                 <Button
                   variant="outline"
                   onClick={handleRetry}
-                  disabled={isLoading}
+                  disabled={isToolExecuting}
                   className="flex items-center gap-2"
                 >
                   <RefreshCwIcon className="w-4 h-4" />
@@ -671,7 +738,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
               <Button
                 variant="secondary"
                 onClick={handleComplete}
-                disabled={isLoading || !persistenceCompleted}
+                disabled={isToolExecuting || !persistenceCompleted}
                 className="flex-1"
               >
                 {persistenceCompleted ? "Continue to Dashboard" : "Saving Progress..."}
@@ -679,7 +746,7 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
 
               <Button
                 onClick={handleContinue}
-                disabled={isLoading}
+                disabled={isToolExecuting}
                 className="flex-1 flex items-center gap-2"
               >
                 <span>Continue Learning</span>

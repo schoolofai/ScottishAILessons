@@ -35,6 +35,38 @@ import { cache, createCacheKey } from "../../lib/cache";
 
 // Type imports are handled by the utils file
 
+/**
+ * Parse a mastery key (outcome or composite) for user-friendly display
+ *
+ * @param key - Mastery key from emaByOutcome (document ID or composite key)
+ * @returns Parsed key information
+ *
+ * @example
+ * parseMasteryKey("outcome_test_simple_o1") → { isComposite: false, documentId: "outcome_test_simple_o1" }
+ * parseMasteryKey("outcome_test_simple_o1#AS1.1") → { isComposite: true, documentId: "outcome_test_simple_o1", asCode: "AS1.1" }
+ */
+function parseMasteryKey(key: string): {
+  isComposite: boolean;
+  documentId: string;
+  asCode?: string;
+} {
+  // Check if key contains "#" separator (composite key)
+  if (key.includes('#')) {
+    const [documentId, asCode] = key.split('#');
+    return {
+      isComposite: true,
+      documentId: documentId.trim(),
+      asCode: asCode.trim()
+    };
+  }
+
+  // Regular document ID (outcome-level)
+  return {
+    isComposite: false,
+    documentId: key
+  };
+}
+
 export function EnhancedStudentDashboard() {
   const router = useRouter();
   const [student, setStudent] = useState<any>(null);
@@ -404,13 +436,30 @@ export function EnhancedStudentDashboard() {
       // Convert MasteryV2 to legacy format for compatibility
       let masteryData = [];
       if (masteryV2Record) {
-        const emaByOutcome = masteryV2Record.emaByOutcomeId || {};
+        const emaByOutcome = masteryV2Record.emaByOutcome || {};
 
         // Convert EMA data to legacy mastery format for templates
-        masteryData = Object.entries(emaByOutcome).map(([outcomeId, ema]) => ({
-          outcomeRef: outcomeId,
-          masteryLevel: ema // Use EMA score as mastery level
-        }));
+        // Keys can be:
+        // - Document IDs: "outcome_test_simple_o1" → display as is (will be enriched later)
+        // - Composite keys: "outcome_test_simple_o1#AS1.1" → parse and display AS code
+        masteryData = Object.entries(emaByOutcome).map(([key, ema]) => {
+          // Parse composite keys for user-friendly display
+          const displayRef = parseMasteryKey(key);
+
+          return {
+            outcomeRef: displayRef.isComposite ? displayRef.asCode : key, // Show AS code for composite, full ID for outcomes
+            masteryLevel: ema, // Use EMA score as mastery level
+            rawKey: key, // Keep raw key for debugging
+            keyType: displayRef.isComposite ? 'assessment_standard' : 'outcome'
+          };
+        });
+
+        console.log('[Dashboard] Parsed mastery data:', {
+          totalEntries: masteryData.length,
+          outcomeCount: masteryData.filter(m => m.keyType === 'outcome').length,
+          asCount: masteryData.filter(m => m.keyType === 'assessment_standard').length,
+          sample: masteryData.slice(0, 3)
+        });
       }
 
       // 8. Routine data removed - keeping spaced repetition separate from recommendations
