@@ -51,7 +51,7 @@ async def extract_course_outcomes_to_file(
 
     Note:
         Detects structure_type automatically:
-        - unit_based: If any outcomeId matches /^[A-Z]+\d+$/
+        - unit_based: If any outcomeId matches /^[A-Z]+\\d+$/
         - skills_based: If any outcomeId matches /^(TOPIC|SKILL)_/
 
     Example:

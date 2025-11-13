@@ -243,7 +243,8 @@ class LessonAuthorClaudeAgent:
                 # ═══════════════════════════════════════════════════════════════
                 # Creates empty lesson_template.json with correct schema structure
                 # based on sow_entry_input.json. Agent will fill in content using
-                # Write tool. This prevents schema structure errors.
+                # Edit tool ONLY (NOT Write). This preserves structure and prevents
+                # schema errors.
                 # ═══════════════════════════════════════════════════════════════
                 logger.info("Generating blank lesson_template.json...")
 
@@ -296,7 +297,8 @@ class LessonAuthorClaudeAgent:
                         courseId=courseId,
                         order=order,
                         workspace_path=str(workspace_path),
-                        sow_entry=sow_entry_data
+                        sow_entry=sow_entry_data,
+                        outcomes_data=outcomes_data
                     )
 
                     logger.info("Sending initial prompt to Claude Agent SDK...")
@@ -317,8 +319,36 @@ class LessonAuthorClaudeAgent:
                         logger.info(f"=" * 80)
 
                         if isinstance(message, ResultMessage):
-                            # Agent has completed 3 subagents
+                            # Agent has completed - extract metrics from ResultMessage
                             logger.info(f"✅ Pipeline completed after {message_count} messages")
+
+                            # Extract token usage from ResultMessage
+                            usage = message.usage or {}
+                            input_tokens = usage.get('input_tokens', 0)
+                            cache_creation = usage.get('cache_creation_input_tokens', 0)
+                            cache_read = usage.get('cache_read_input_tokens', 0)
+                            output_tokens = usage.get('output_tokens', 0)
+
+                            # Total input includes base + cache tokens
+                            total_input = input_tokens + cache_creation + cache_read
+                            total_output = output_tokens
+
+                            # Extract cost and duration
+                            total_cost = message.total_cost_usd or 0.0
+                            duration_seconds = (message.duration_ms or 0) / 1000.0
+
+                            # Record metrics in cost tracker
+                            self.cost_tracker.record_subagent(
+                                name="lesson_author_pipeline",
+                                input_tokens=total_input,
+                                output_tokens=total_output,
+                                cost=total_cost,
+                                execution_time=duration_seconds,
+                                success=not message.is_error,
+                                error=""
+                            )
+
+                            logger.info(f"📊 Metrics captured: {total_input:,} input + {total_output:,} output = ${total_cost:.4f}")
                             break
 
                     logger.info("Message stream complete")
@@ -343,8 +373,32 @@ class LessonAuthorClaudeAgent:
 
                 logger.info(f"Lesson template upserted successfully: {appwrite_document_id}")
 
+                # Verify validation step was completed (post-execution check)
+                validation_file = workspace_path / "validation_result.json"
+
+                if not validation_file.exists():
+                    logger.warning(
+                        "⚠️ PROMPT ADHERENCE ISSUE: Agent did not create validation_result.json"
+                    )
+                    logger.warning("Agent may have skipped validation step (Step 5 in prompt)")
+                else:
+                    # Verify validation passed
+                    try:
+                        with open(validation_file) as f:
+                            validation_result = json.load(f)
+
+                        if not validation_result.get("is_valid", False):
+                            logger.warning(
+                                f"⚠️ Agent proceeded to critic despite validation failure: "
+                                f"{validation_result.get('total_errors')} errors found"
+                            )
+                        else:
+                            logger.info("✅ Validation passed before critic (correct workflow)")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Could not read validation_result.json: {e}")
+
                 # Generate final report
-                metrics_report = format_cost_report(self.cost_tracker)
+                metrics_report = format_cost_report(self.cost_tracker, agent_name="LESSON AUTHOR")
                 logger.info("\n" + metrics_report)
 
                 return {
@@ -496,7 +550,8 @@ class LessonAuthorClaudeAgent:
         courseId: str,
         order: int,
         workspace_path: str,
-        sow_entry: Dict[str, Any]
+        sow_entry: Dict[str, Any],
+        outcomes_data: Dict[str, Any]
     ) -> str:
         """Build the initial orchestration prompt for the main agent.
 
@@ -505,6 +560,7 @@ class LessonAuthorClaudeAgent:
             order: Lesson order number
             workspace_path: Path to workspace
             sow_entry: SOW entry dictionary
+            outcomes_data: Course outcomes data with structure_type and outcomes list
 
         Returns:
             Initial prompt string
@@ -560,22 +616,34 @@ Execute the following workflow with 3 available subagents:
   * Pedagogical scaffolding approaches (I-We-You progression)
 
 ### 2. Lesson Author (main authoring - YOU)
-- **Task**: Author complete LessonTemplate using pre-loaded files + research
+- **Task**: Fill blank lesson template using pre-loaded files + research
 - **Pre-loaded Inputs**:
+  - `/workspace/lesson_template.json` (BLANK template - pre-generated with correct structure)
   - `/workspace/sow_entry_input.json` (SOW lesson design with rich pedagogical detail)
   - `/workspace/sow_context.json` (Course-level coherence, accessibility, engagement notes)
   - `/workspace/Course_outcomes.json` (Course outcomes with deterministic outcomeId references)
 - **Additional Resources**: Use @research_subagent for any gaps
-- **Output**: `/workspace/lesson_template.json`
+- **Output**: Filled `/workspace/lesson_template.json` (prefer Edit, use Write if needed)
 - **Process**:
-  1. Read all pre-loaded files
-  2. Identify information gaps (exemplars, misconceptions, contexts)
-  3. Delegate to @research_subagent for targeted queries
-  4. Draft lesson_template.json with comprehensive pedagogical design
-  5. Write lesson_template.json to workspace
+  1. Read blank lesson_template.json (already exists in workspace)
+  2. Read all other pre-loaded files
+  3. **Create todo list with per-card validation** (see Step 3 in lesson_author_prompt_v2.md)
+  4. Identify information gaps (exemplars, misconceptions, contexts)
+  5. Delegate to @research_subagent for targeted queries
+  6. For EACH card:
+     a. Fill all fields (use Edit, or Write if Edit causes syntax errors)
+     b. **🚨 VALIDATE using mcp__validator__validate_lesson_template**
+     c. **Save validation result to /workspace/validation_result.json**
+     d. Fix any errors and re-validate this card
+     e. Mark card complete and move to next card
+  7. After ALL cards validated individually, run final validation and save result
+  8. ONLY THEN call @combined_lesson_critic
 
 ### 3. Lesson Author Strategy
-- **Start with SOW entry**: Extract card structures, worked examples, practice problems
+- **Start with blank template**: The template already has correct card IDs, CFU types, and structure
+- **Prefer Edit tool**: Fill individual fields incrementally (use Write if Edit causes syntax errors)
+- **Fill cards ONE AT A TIME**: Complete all fields in card_001 before moving to card_002
+- **Validate per-card**: After filling each card, validate immediately (prevents error accumulation)
 - **Use research_subagent proactively**: Don't guess Scottish contexts or misconceptions
 - **Example research queries**:
   * "Find 3 common misconceptions when students learn fractions of amounts"
@@ -583,10 +651,32 @@ Execute the following workflow with 3 available subagents:
   * "What is the I-We-You pedagogy progression for teaching mathematics?"
   * "Find exemplar National 5 mock exam question structures"
 
-### 4. Combined Lesson Critic v2 (iterate until pass)
+### 4. CRITICAL: Edit-First + Validate-Always Workflow
+
+**Prefer Edit tool** but use Write if Edit causes syntax errors.
+
+**ALWAYS validate frequently**:
+- After filling EACH card (immediate feedback)
+- After fixing syntax errors from Edit
+- After using Write tool
+- Final validation after all cards filled
+
+Run: mcp__validator__validate_lesson_template {{"file_path": "lesson_template.json"}}
+
+Validation catches schema errors at ~500 tokens.
+Critic costs ~5,000-10,000 tokens.
+Validate first to save 90-95% of error-fixing costs.
+
+The blank template has been pre-generated with correct structure.
+Edit preserves it best, but Write is acceptable if Edit fails.
+See lesson_author_prompt_v2.md for detailed instructions.
+
+---
+
+### 5. Combined Lesson Critic (iterate until pass)
 - **Task**: Validate transformation fidelity (75%) and schema compliance (GATE)
 - **Validation Strategy**:
-  - **Schema Gate**: Hard pass/fail on v2 schema requirements (ANY violation = instant fail)
+  - **Schema Gate**: Hard pass/fail on schema requirements (ANY violation = instant fail)
   - **Dimension 1**: SOW-Template Fidelity (75% weight, ≥0.90 threshold) - Did lesson author preserve ALL SOW content?
   - **Dimension 2**: Basic Quality Checks (25% weight, ≥0.80 threshold) - Minimum quality requirements met?
   - **Focus**: Trust SOW author's pedagogy, validate transformation completeness + schema correctness

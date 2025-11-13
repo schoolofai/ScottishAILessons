@@ -114,11 +114,12 @@ class CostTracker:
         }
 
 
-def format_cost_report(tracker: CostTracker) -> str:
+def format_cost_report(tracker: CostTracker, agent_name: str = "AGENT") -> str:
     """Format cost tracker data as a readable report.
 
     Args:
         tracker: CostTracker instance with recorded metrics
+        agent_name: Name of the agent for report title (default: "AGENT")
 
     Returns:
         Formatted string report
@@ -127,7 +128,7 @@ def format_cost_report(tracker: CostTracker) -> str:
 
     report_lines = [
         "=" * 80,
-        f"SOW AUTHOR EXECUTION REPORT - {summary['execution_id']}",
+        f"{agent_name} EXECUTION REPORT - {summary['execution_id']}",
         "=" * 80,
         "",
         "AGGREGATE METRICS:",

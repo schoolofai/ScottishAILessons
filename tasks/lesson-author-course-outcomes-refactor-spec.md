@@ -806,6 +806,12 @@ Topic Areas:
 - **Validation**: Use script to check for within-course duplicates only
 - High complexity (8+ locations need parsing) vs low benefit
 
+**Bug Fix**:
+- Fixed `NameError: name 'outcomes_data' is not defined` at line 537
+- Root cause: Token optimization removed "Source:" metadata but introduced reference to variable not in scope
+- Solution: Added `outcomes_data: Dict[str, Any]` parameter to `_build_initial_prompt()` method signature
+- Also fixed: SyntaxWarning for invalid escape sequence `\d` in course_outcomes_extractor.py docstring
+
 ---
 
 ## Acceptance Criteria

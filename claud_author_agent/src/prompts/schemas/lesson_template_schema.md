@@ -1,4 +1,16 @@
-# Lesson Template Schema v2.0
+# Lesson Template Schema
+
+## ⚠️ VALIDATION REQUIRED BEFORE CRITIC
+
+You MUST validate lesson_template.json before calling the critic:
+1. Run `mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}`
+2. Save result to `/workspace/validation_result.json`
+3. Fix ALL errors (10 errors shown per validation run)
+4. Get `is_valid: true` before proceeding
+
+The critic cannot efficiently fix schema errors - validation catches them deterministically.
+
+---
 
 ## Top-Level Fields
 
@@ -177,6 +189,11 @@ Misconception {
 **Pattern**: `MISC_[UPPERCASE_SUBJECT]_[UPPERCASE_TOPIC]_[3_DIGIT_NUMBER]`
 
 **Count**: 1-3 misconceptions per card (array can be empty but must exist)
+
+**Common Errors**:
+- ❌ Using `correction` instead of `clarification` (wrong field name)
+- ❌ Missing `id` field
+- ❌ Wrong ID format (must match MISC_[SUBJECT]_[TOPIC]_NNN pattern)
 
 ---
 
