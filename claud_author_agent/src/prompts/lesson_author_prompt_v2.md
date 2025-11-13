@@ -25,9 +25,27 @@ Save output tokens for CONTENT, not explanations. Use TodoWrite for progress tra
 - SOW lesson entry with `order`, `label`, `lesson_type`, `lesson_plan.card_structure`, etc.
 - First action: Read this file (throw error if missing)
 
-**OPTIONAL**: `research_pack.json`, `sow_context.json`, `Course_data.txt`
+**OPTIONAL**: `research_pack.json`, `sow_context.json`, `Course_outcomes.json`
 - Use for exemplars, course context, SQA terminology validation
 - If missing: Proceed using training knowledge (NO warnings/errors)
+
+**IMPORTANT: Course_outcomes.json Structure**
+```json
+{
+  "courseId": "course_c84775",
+  "structure_type": "skills_based",  // or "unit_based"
+  "outcomes": [
+    {
+      "outcomeId": "SKILL_WORKING_WITH_SURDS",  // USE THIS in outcomeRefs
+      "outcomeTitle": "Working with surds",
+      "unitTitle": "Working with surds",
+      "assessmentStandards": "[{\"code\":\"AS1\",\"desc\":\"Simplification, Rationalising denominators\"}]",
+      "teacherGuidance": "...",
+      "keywords": "[\"surds\",\"simplification\"]"
+    }
+  ]
+}
+```
 
 ## Key Input→Output Transformations
 
@@ -42,6 +60,28 @@ Save output tokens for CONTENT, not explanations. Use TodoWrite for progress tra
 | `estMinutes` | `estMinutes` | Direct copy |
 | `accessibility_profile` | (discard) | **INPUT ONLY** - use for CEFR level, then discard |
 | (always set) | `createdBy` | **EXACT**: `"lesson_author_agent"` |
+
+## CRITICAL: outcomeRefs Field Usage
+
+**You MUST use the `outcomeId` field directly from Course_outcomes.json when populating `lesson_template.json`.**
+
+### Traditional Courses (unit_based)
+- outcomeRefs: `["O1", "O2"]` (outcome-level references)
+- OR: `["AS1.1", "AS1.2"]` (assessment standard-level references)
+
+### Skills-Based Courses (skills_based)
+- outcomeRefs: `["SKILL_WORKING_WITH_SURDS", "SKILL_ROUNDING"]` (skill-level references)
+- OR: `["TOPIC_NUMERICAL_SKILLS"]` (topic-level references)
+
+### DO:
+- ✅ Use `outcomeId` field directly: `"SKILL_WORKING_WITH_SURDS"`
+- ✅ Validate all outcomeRefs exist in Course_outcomes.json
+- ✅ Match lesson content to outcome's `teacherGuidance` and `assessmentStandards`
+
+### DON'T:
+- ❌ Use human-readable descriptions: `"Working with surds: Simplification, Rationalising denominators"`
+- ❌ Generate outcome names from free text
+- ❌ Reference outcomes that don't exist in Course_outcomes.json
 
 </inputs>
 
@@ -77,7 +117,7 @@ CFU types: mcq, numeric, structured_response, short_text
 
 ### Step 1: Read Inputs
 1. Read `sow_entry_input.json` (REQUIRED - error if missing)
-2. Optionally read: `research_pack.json`, `sow_context.json`, `Course_data.txt`
+2. Optionally read: `research_pack.json`, `sow_context.json`, `Course_outcomes.json`
 
 ### Step 2: Understand Blank Template Structure
 A blank `lesson_template.json` has been pre-generated in your workspace with:

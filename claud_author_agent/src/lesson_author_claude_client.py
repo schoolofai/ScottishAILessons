@@ -29,7 +29,7 @@ class LessonAuthorClaudeAgent:
 
     Pre-processing (Python):
     0. SOW Entry Extractor → Extracts entry from Authored_SOW (Python utility)
-    1. Course Data Extractor → Creates Course_data.txt from Appwrite (Python utility)
+    1. Course Outcomes Extractor → Creates Course_outcomes.json from default.course_outcomes (Python utility)
 
     Pipeline execution (3 subagents):
     2. Research Subagent → Answers clarifications with Scottish context (WebSearch/WebFetch)
@@ -165,7 +165,7 @@ class LessonAuthorClaudeAgent:
                 logger.info(f"Workspace created: {workspace_path}")
 
                 # ═══════════════════════════════════════════════════════════════
-                # PRE-PROCESSING: Extract SOW entry and Course_data.txt (NO AGENT)
+                # PRE-PROCESSING: Extract SOW entry and Course_outcomes.json (NO AGENT)
                 # ═══════════════════════════════════════════════════════════════
                 logger.info("Pre-processing: Extracting SOW entry via Python utility...")
 
@@ -182,29 +182,24 @@ class LessonAuthorClaudeAgent:
                 logger.info(f"✅ sow_context.json ready at: {workspace_path / 'sow_context.json'}")
                 logger.info("   Python extraction complete - no LLM tokens used")
 
-                logger.info("Pre-processing: Extracting Course_data.txt via Python utility...")
+                logger.info("Pre-processing: Extracting Course_outcomes.json via Python utility...")
 
-                from .utils.course_data_extractor import extract_course_data_to_file
+                from .utils.course_outcomes_extractor import extract_course_outcomes_to_file
 
-                course_data_path = workspace_path / "Course_data.txt"
+                course_outcomes_path = workspace_path / "Course_outcomes.json"
 
-                # Extract subject and level from SOW entry for Course_data.txt lookup
-                # These are stored in the SOW document metadata, not in individual entries
-                from .utils.sow_extractor import get_course_metadata_from_sow
-
-                subject, level = await get_course_metadata_from_sow(
+                # Extract course outcomes directly from default.course_outcomes
+                # This eliminates indirection through sqa_education.sqa_current
+                # and provides deterministic outcome references
+                outcomes_data = await extract_course_outcomes_to_file(
                     courseId=courseId,
-                    mcp_config_path=str(self.mcp_config_path)
-                )
-
-                await extract_course_data_to_file(
-                    subject=subject,
-                    level=level,
                     mcp_config_path=str(self.mcp_config_path),
-                    output_path=course_data_path
+                    output_path=course_outcomes_path
                 )
 
-                logger.info(f"✅ Course_data.txt ready at: {course_data_path}")
+                logger.info(f"✅ Course_outcomes.json ready at: {course_outcomes_path}")
+                logger.info(f"   Extracted {len(outcomes_data['outcomes'])} outcomes from default.course_outcomes")
+                logger.info(f"   Structure type: {outcomes_data['structure_type']}")
                 logger.info("   Python extraction complete - no LLM tokens used")
 
                 # Load MCP config as dict (not path string)
@@ -220,8 +215,8 @@ class LessonAuthorClaudeAgent:
                 # ONLY register validator MCP tool - Appwrite MCP excluded.
                 #
                 # Why Appwrite MCP Not Needed:
-                # - SOW entry and Course_data.txt are PRE-EXTRACTED by Python utilities
-                #   (sow_extractor.py, course_data_extractor.py use Appwrite MCP directly)
+                # - SOW entry and Course_outcomes.json are PRE-EXTRACTED by Python utilities
+                #   (sow_extractor.py, course_outcomes_extractor.py use Appwrite MCP directly)
                 # - Lesson author agent works with FILES in workspace, not database queries
                 # - Removes ~5,000-10,000 tokens per execution (50+ unused Appwrite tools)
                 #
@@ -539,10 +534,13 @@ All files will be created in: {workspace_path}
    - Extracted: Course-level coherence, accessibility, engagement notes
    - Location: `/workspace/sow_context.json`
 
-✅ `Course_data.txt` has been pre-populated by Python extraction (no subagent needed)
-   - Source: sqa_education.sqa_current collection
-   - Extracted: Official SQA course structure, units, outcomes, assessment standards
-   - Location: `/workspace/Course_data.txt`
+✅ `Course_outcomes.json` has been pre-populated by Python extraction (no subagent needed)
+   - Source: default.course_outcomes collection
+   - Extracted: All course outcomes with outcomeId, outcomeTitle, assessmentStandards
+   - Structure Type: {outcomes_data.get('structure_type', 'unit_based')} (unit_based or skills_based)
+   - Total Outcomes: {len(outcomes_data.get('outcomes', []))}
+   - Location: `/workspace/Course_outcomes.json`
+   - Format: Structured JSON array (deterministic outcome references)
 
 ## Pipeline Execution
 
@@ -570,7 +568,7 @@ Execute the following workflow with 3 available subagents:
 - **Pre-loaded Inputs**:
   - `/workspace/sow_entry_input.json` (SOW lesson design with rich pedagogical detail)
   - `/workspace/sow_context.json` (Course-level coherence, accessibility, engagement notes)
-  - `/workspace/Course_data.txt` (Official SQA outcomes, assessment standards)
+  - `/workspace/Course_outcomes.json` (Course outcomes with deterministic outcomeId references)
 - **Additional Resources**: Use @research_subagent for any gaps
 - **Output**: `/workspace/lesson_template.json`
 - **Process**:
@@ -599,7 +597,7 @@ Execute the following workflow with 3 available subagents:
 - **Inputs**:
   - `/workspace/lesson_template.json` (from step 2)
   - `/workspace/sow_entry_input.json` (pre-loaded)
-  - `/workspace/Course_data.txt` (optional validation)
+  - `/workspace/Course_outcomes.json` (optional validation)
 - **Output**: `/workspace/critic_result.json`
 - **Delegate to**: @combined_lesson_critic
 - **Logic**:
