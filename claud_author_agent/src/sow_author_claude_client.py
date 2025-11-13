@@ -541,16 +541,14 @@ You are orchestrating the autonomous authoring of a Scheme of Work (SOW) for Sco
 All files will be created in: {workspace_path}
 
 ## Pre-Processing (Complete)
-✅ `Course_data.txt` - Official SQA course structure (pre-populated by Python extraction)
-   - Source: sqa_education.sqa_current collection
-   - Extracted: Official SQA course structure, units, outcomes, assessment standards
+✅ `Course_data.txt` - Official SQA course structure
    - Location: `/workspace/Course_data.txt`
+   - Format: JSON with units[], outcomes[], assessment_model, marking_guidance
 
 ✅ **Pydantic Schema Validator** - Deterministic validation tool (v2.0 TOKEN OPTIMIZATION)
    - Tool: `mcp__validator__validate_sow_schema`
-   - Source: claud_author_agent/src/tools/sow_validator_tool.py (Pydantic models)
+   - Purpose: Fast schema validation with specific error locations
    - Replaces: 1265-line SOW_Schema.md file (saves ~8-10K tokens)
-   - Purpose: Fast, deterministic schema validation with specific error locations
 
 ## Pipeline Execution
 

@@ -29,8 +29,7 @@ Your job is to comprehensively validate all aspects of the authored Scheme of Wo
 **Required Files** (Verify existence using Read tool before starting):
 
 1. ✓ **`/workspace/Course_data.txt`** (REQUIRED - authoritative SQA data)
-   - Official SQA course structure in raw JSON format
-   - Source: Extracted via Python from sqa_education.sqa_current collection
+   - Official SQA course structure in JSON format
    - Use for: Validating descriptions match exactly, checking standard coverage
 
 2. ✓ **`/workspace/authored_sow.json`** (REQUIRED - SOW to critique)

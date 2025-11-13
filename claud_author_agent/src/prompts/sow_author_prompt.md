@@ -83,14 +83,12 @@ This file contains the COMPLETE schema documentation for `authored_sow.json`, in
 **Required Files** (pre-populated in workspace):
 
 1. **`/workspace/Course_data.txt`** (REQUIRED)
-   - Official SQA course structure as raw JSON
-   - Source: sqa_education.sqa_current collection `data` field (Python extracted)
+   - Official SQA course structure in JSON format
    - Contains: Unit titles, codes, outcomes, assessment standards with full descriptions, recommended sequence
    - Use this to: Extract exact SQA descriptions for enriching standards
 
 2. **`/workspace/SOW_Schema.md`** (REQUIRED - REFERENCE THROUGHOUT AUTHORING)
    - AI-friendly schema documentation (canonical source)
-   - Source: claud_author_agent/docs/schema/authored_sow_schema.md (Python copied)
    - Contains: Field definitions, enriched structures, forbidden patterns, validation rules, checklist, examples
    - Use this to: Ensure your JSON matches schema exactly
 

@@ -524,23 +524,19 @@ You are orchestrating the autonomous authoring of a Lesson Template for Scottish
 All files will be created in: {workspace_path}
 
 ## Pre-Processing (Complete)
-✅ `sow_entry_input.json` has been pre-populated by Python extraction (no subagent needed)
-   - Source: default.Authored_SOW collection
-   - Extracted: Specific lesson entry at order {order}
+✅ `sow_entry_input.json` - Lesson entry at order {order}
    - Location: `/workspace/sow_entry_input.json`
+   - Format: JSON with label, lesson_type, estMinutes, lesson_plan.card_structure[]
 
-✅ `sow_context.json` has been pre-populated by Python extraction (no subagent needed)
-   - Source: SOW document metadata
-   - Extracted: Course-level coherence, accessibility, engagement notes
+✅ `sow_context.json` - Course-level coherence, accessibility, engagement notes
    - Location: `/workspace/sow_context.json`
+   - Format: JSON with policy_notes, sequencing_notes, accessibility_notes
 
-✅ `Course_outcomes.json` has been pre-populated by Python extraction (no subagent needed)
-   - Source: default.course_outcomes collection
-   - Extracted: All course outcomes with outcomeId, outcomeTitle, assessmentStandards
+✅ `Course_outcomes.json` - Course outcomes with deterministic outcomeId references
+   - Location: `/workspace/Course_outcomes.json`
    - Structure Type: {outcomes_data.get('structure_type', 'unit_based')} (unit_based or skills_based)
    - Total Outcomes: {len(outcomes_data.get('outcomes', []))}
-   - Location: `/workspace/Course_outcomes.json`
-   - Format: Structured JSON array (deterministic outcome references)
+   - Format: JSON array with outcomeId, outcomeTitle, assessmentStandards, teacherGuidance
 
 ## Pipeline Execution
 
