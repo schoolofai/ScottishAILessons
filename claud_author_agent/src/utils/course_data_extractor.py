@@ -1,13 +1,30 @@
 """Course Data Extractor - Python utility for SQA course data extraction.
 
+⚠️ DEPRECATED: This module is deprecated and will be removed in a future version.
+
+Reason: Lesson author now uses default.course_outcomes directly instead of sqa_education.sqa_current.
+
+Replacement: Use course_outcomes_extractor.py instead.
+
+Migration: See tasks/lesson-author-course-outcomes-refactor-spec.md
+
+Legacy Description:
 Extracts course data from Appwrite's sqa_education.sqa_current collection
 and formats it as Course_data.txt for SOW authoring agents.
 
 NO FALLBACKS - Fail fast with detailed error messages.
 """
 
+import warnings
 import json
 import logging
+
+warnings.warn(
+    "course_data_extractor.py is deprecated. Use course_outcomes_extractor.py instead. "
+    "See tasks/lesson-author-course-outcomes-refactor-spec.md for migration details.",
+    DeprecationWarning,
+    stacklevel=2
+)
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
