@@ -99,9 +99,20 @@ pnpm run test:jest     # Run Jest unit tests
 ## Deployment
 
 The application is configured for Replit autoscale deployment:
-- **Build**: Installs dependencies and builds Next.js production bundle
-- **Start**: Runs production server on port 5000
+- **Build Command**: `cd assistant-ui-frontend && pnpm install && pnpm run build`
+- **Start Command**: `cd assistant-ui-frontend && pnpm run start`
 - **Deployment Type**: Autoscale (stateless, suitable for web applications)
+
+### Pre-Deployment Checklist
+Before deploying, ensure:
+1. All environment variables are set in Replit Secrets
+2. The build completes successfully (`cd assistant-ui-frontend && pnpm run build`)
+3. All TypeScript/ESLint errors are resolved
+
+### Known Build Issues
+- The `MyAssistant.mock.tsx` file had a reference to a deleted component - this has been fixed
+- There are some ESLint warnings (unused variables) that should be cleaned up before production
+- Build process may take 2-3 minutes due to large codebase (978 modules)
 
 ## Security Considerations
 - All sensitive credentials stored in Replit Secrets

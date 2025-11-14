@@ -28,7 +28,6 @@ import { ReplayModeProvider } from "@/contexts/ReplayModeContext";
 import { LessonCardPresentationTool } from "@/components/tools/LessonCardPresentationTool";
 import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentationTool";
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
-import { LessonSummaryPresentationTool } from "@/components/tools/LessonSummaryPresentationTool";
 import { LessonCompletionSummaryTool } from "@/components/tools/LessonCompletionSummaryTool";
 
 export interface SessionContext {
@@ -145,7 +144,6 @@ export function MockMyAssistant({
                   lesson_card_presentation: LessonCardPresentationTool,
                   feedback_presentation: FeedbackPresentationTool,
                   progress_acknowledgment: ProgressAcknowledgmentTool,
-                  lesson_summary_presentation: LessonSummaryPresentationTool,
                   lesson_completion_summary: LessonCompletionSummaryTool,
                 }}
               />
