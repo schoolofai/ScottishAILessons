@@ -37,11 +37,7 @@ externalPort = 3000
 localPort = 5000
 externalPort = 80
 
-[[ports]]
-localPort = 37409
-externalPort = 3001
-
 [deployment]
 deploymentTarget = "autoscale"
-run = ["pnpm", "run", "start"]
-build = ["pnpm", "run", "build"]
+run = ["sh", "-c", "bash -c cd assistant-ui-frontend && pnpm run start"]
+build = ["sh", "-c", "bash -c cd assistant-ui-frontend && pnpm install && pnpm run build"]
