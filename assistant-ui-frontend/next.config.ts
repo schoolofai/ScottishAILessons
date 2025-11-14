@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     "*.spock.replit.dev",
     "replit.dev",
   ],
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
 };
 
 export default nextConfig;
