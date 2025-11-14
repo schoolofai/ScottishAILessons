@@ -1,0 +1,213 @@
+openapi: 3.0.0
+info:
+  title: Subscription Status API
+  version: 1.0.0
+  description: Check current user's subscription status for paywall enforcement
+
+paths:
+  /api/subscription/status:
+    get:
+      summary: Get subscription status
+      description: |
+        Returns the authenticated user's current subscription status.
+        Used by frontend to determine if user has access to premium features.
+        Implements 1-hour cache with automatic refresh on webhook events.
+
+      responses:
+        '200':
+          description: Subscription found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionStatus'
+              examples:
+                activeSubscription:
+                  summary: Active paid subscription
+                  value:
+                    hasAccess: true
+                    status: "active"
+                    planName: "Student Plus"
+                    nextBillingDate: "2025-02-15T00:00:00Z"
+                    isTestUser: false
+                    cached: true
+                    cachedAt: "2025-01-15T10:30:00Z"
+
+                testUser:
+                  summary: Test user (always has access)
+                  value:
+                    hasAccess: true
+                    status: "test"
+                    planName: "Test Account"
+                    isTestUser: true
+                    cached: false
+
+                cancelledSubscription:
+                  summary: Cancelled but still active until period end
+                  value:
+                    hasAccess: true
+                    status: "cancelled"
+                    planName: "Student Plus"
+                    nextBillingDate: "2025-02-15T00:00:00Z"
+                    cancellationDate: "2025-01-20T14:22:00Z"
+                    isTestUser: false
+                    cached: true
+
+        '404':
+          description: No active subscription found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoSubscription'
+              example:
+                hasAccess: false
+                status: "none"
+                message: "No active subscription. Upgrade to Student Plus for $5.99/month."
+                upgradeUrl: "/api/polar/checkout"
+
+        '401':
+          description: Unauthorized - user not authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Not authenticated"
+                  code:
+                    type: string
+                    example: "UNAUTHORIZED"
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to fetch subscription status"
+                  code:
+                    type: string
+                    example: "DATABASE_ERROR"
+
+      security:
+        - sessionCookie: []
+
+      x-cache-policy:
+        strategy: "Session-level cache with 1-hour TTL"
+        invalidation: "Webhook events, manual refresh"
+
+      x-code-samples:
+        - lang: 'TypeScript'
+          source: |
+            // React hook
+            const { data: subscription, isLoading } = useSWR(
+              '/api/subscription/status',
+              fetcher,
+              { refreshInterval: 3600000 } // 1 hour
+            );
+
+            if (subscription?.hasAccess) {
+              // Allow access to premium features
+            } else {
+              // Show paywall modal
+            }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: a_session_<project_id>
+      description: Appwrite session cookie
+
+  schemas:
+    SubscriptionStatus:
+      type: object
+      required:
+        - hasAccess
+        - status
+        - isTestUser
+      properties:
+        hasAccess:
+          type: boolean
+          description: Whether user can access premium features
+          example: true
+
+        status:
+          type: string
+          enum:
+            - active
+            - cancelled
+            - expired
+            - test
+          description: Subscription status
+          example: "active"
+
+        planName:
+          type: string
+          description: Display name of subscription plan
+          example: "Student Plus"
+
+        nextBillingDate:
+          type: string
+          format: date-time
+          description: Next billing date (if applicable)
+          example: "2025-02-15T00:00:00Z"
+
+        cancellationDate:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date subscription was cancelled (if applicable)
+          example: "2025-01-20T14:22:00Z"
+
+        isTestUser:
+          type: boolean
+          description: Whether user is a test user (bypasses paywall)
+          example: false
+
+        cached:
+          type: boolean
+          description: Whether response is from cache
+          example: true
+
+        cachedAt:
+          type: string
+          format: date-time
+          description: Cache timestamp (if cached)
+          example: "2025-01-15T10:30:00Z"
+
+    NoSubscription:
+      type: object
+      required:
+        - hasAccess
+        - status
+        - message
+        - upgradeUrl
+      properties:
+        hasAccess:
+          type: boolean
+          description: Always false for no subscription
+          example: false
+
+        status:
+          type: string
+          enum:
+            - none
+            - expired
+          description: Subscription status
+          example: "none"
+
+        message:
+          type: string
+          description: User-friendly message explaining lack of access
+          example: "No active subscription. Upgrade to Student Plus for $5.99/month."
+
+        upgradeUrl:
+          type: string
+          format: uri
+          description: URL to initiate upgrade flow
+          example: "/api/polar/checkout"

@@ -1,0 +1,125 @@
+openapi: 3.0.0
+info:
+  title: Polar Checkout API
+  version: 1.0.0
+  description: Create Polar checkout session and redirect to payment page
+
+paths:
+  /api/polar/checkout:
+    get:
+      summary: Create checkout session
+      description: |
+        Creates a Polar checkout session for the authenticated user and redirects to Polar's hosted payment page.
+        Pre-fills customer email from session. On success, user is redirected back to dashboard with subscription activated.
+
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: User ID (extracted from session if not provided)
+
+        - name: returnUrl
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uri
+          description: URL to return to after checkout (defaults to /dashboard)
+
+      responses:
+        '302':
+          description: Redirect to Polar checkout page
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+                example: https://polar.sh/checkout/abc123
+
+        '400':
+          description: Bad request - missing required parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "User email not found"
+                  code:
+                    type: string
+                    example: "MISSING_EMAIL"
+
+        '401':
+          description: Unauthorized - user not authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Not authenticated"
+                  code:
+                    type: string
+                    example: "UNAUTHORIZED"
+
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to create checkout session"
+                  code:
+                    type: string
+                    example: "POLAR_API_ERROR"
+                  details:
+                    type: string
+                    example: "Rate limit exceeded"
+
+      security:
+        - sessionCookie: []
+
+      x-code-samples:
+        - lang: 'JavaScript'
+          source: |
+            // Client-side redirect
+            window.location.href = '/api/polar/checkout';
+
+        - lang: 'TypeScript'
+          source: |
+            // Next.js client component
+            const handleUpgrade = () => {
+              router.push('/api/polar/checkout');
+            };
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: a_session_<project_id>
+      description: Appwrite session cookie
+
+  schemas:
+    CheckoutError:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+        details:
+          type: string
+          description: Additional error context (optional)

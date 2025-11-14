@@ -1,0 +1,250 @@
+openapi: 3.0.0
+info:
+  title: Polar Webhook API
+  version: 1.0.0
+  description: Handle Polar webhook events for subscription lifecycle
+
+paths:
+  /api/polar/webhook:
+    post:
+      summary: Process Polar webhook
+      description: |
+        Receives webhook events from Polar for subscription lifecycle management.
+        Validates signature, processes event, updates database, and returns 200 OK.
+        Implements idempotency using event ID.
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+            examples:
+              checkoutCompleted:
+                summary: Checkout completed
+                value:
+                  id: "evt_polar_abc123"
+                  type: "checkout.completed"
+                  created_at: "2025-01-15T10:30:00Z"
+                  data:
+                    subscription:
+                      id: "sub_polar_xyz"
+                      customer:
+                        id: "cus_polar_123"
+                        email: "user@example.com"
+                      status: "active"
+                      current_period_start: "2025-01-15T00:00:00Z"
+                      current_period_end: "2025-02-15T00:00:00Z"
+                      product:
+                        id: "prod_student_plus"
+                        name: "Student Plus"
+
+              subscriptionCancelled:
+                summary: Subscription cancelled
+                value:
+                  id: "evt_polar_def456"
+                  type: "subscription.cancelled"
+                  created_at: "2025-01-20T14:22:00Z"
+                  data:
+                    subscription:
+                      id: "sub_polar_xyz"
+                      status: "cancelled"
+                      cancelled_at: "2025-01-20T14:22:00Z"
+
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  eventId:
+                    type: string
+                    example: "evt_polar_abc123"
+                  processingDuration:
+                    type: number
+                    description: Processing time in milliseconds
+                    example: 234
+
+        '400':
+          description: Bad request - invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookError'
+              example:
+                error: "Invalid event payload"
+                code: "INVALID_PAYLOAD"
+
+        '401':
+          description: Unauthorized - signature validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookError'
+              example:
+                error: "Webhook signature validation failed"
+                code: "INVALID_SIGNATURE"
+
+        '409':
+          description: Conflict - event already processed (idempotency)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+                  eventId:
+                    type: string
+                    example: "evt_polar_abc123"
+                  alreadyProcessed:
+                    type: boolean
+                    example: true
+
+        '500':
+          description: Internal server error (Polar will retry)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookError'
+              example:
+                error: "Database transaction failed"
+                code: "DATABASE_ERROR"
+                details: "Could not update subscription record"
+
+      security:
+        - polarSignature: []
+
+      x-webhook-retries:
+        description: Polar retries failed webhooks with exponential backoff
+        strategy: "Exponential backoff (1m, 5m, 30m, 1h, 6h)"
+        maxRetries: 5
+
+      x-code-samples:
+        - lang: 'TypeScript'
+          source: |
+            // Route handler (app/api/polar/webhook/route.ts)
+            import { Webhooks } from '@polar-sh/nextjs';
+
+            export const POST = Webhooks({
+              webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
+              onPayload: async (payload) => {
+                // Signature already validated by SDK
+                await processWebhook(payload);
+                return { received: true, eventId: payload.id };
+              }
+            });
+
+components:
+  securitySchemes:
+    polarSignature:
+      type: apiKey
+      in: header
+      name: X-Polar-Signature
+      description: HMAC SHA256 signature of payload
+
+  schemas:
+    WebhookEvent:
+      type: object
+      required:
+        - id
+        - type
+        - created_at
+        - data
+      properties:
+        id:
+          type: string
+          description: Unique event ID
+          example: "evt_polar_abc123"
+        type:
+          type: string
+          enum:
+            - checkout.completed
+            - subscription.created
+            - subscription.updated
+            - subscription.cancelled
+            - benefit.grant.created
+            - benefit.grant.revoked
+          description: Event type
+        created_at:
+          type: string
+          format: date-time
+          description: Event timestamp
+        data:
+          type: object
+          description: Event-specific data (varies by type)
+          properties:
+            subscription:
+              $ref: '#/components/schemas/Subscription'
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Polar subscription ID
+          example: "sub_polar_xyz"
+        customer:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "cus_polar_123"
+            email:
+              type: string
+              format: email
+              example: "user@example.com"
+        status:
+          type: string
+          enum:
+            - active
+            - cancelled
+            - expired
+            - incomplete
+            - incomplete_expired
+        current_period_start:
+          type: string
+          format: date-time
+        current_period_end:
+          type: string
+          format: date-time
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        product:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "prod_student_plus"
+            name:
+              type: string
+              example: "Student Plus"
+
+    WebhookError:
+      type: object
+      required:
+        - error
+        - code
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        code:
+          type: string
+          description: Machine-readable error code
+          enum:
+            - INVALID_PAYLOAD
+            - INVALID_SIGNATURE
+            - DATABASE_ERROR
+            - UNKNOWN_EVENT_TYPE
+        details:
+          type: string
+          description: Additional error context
