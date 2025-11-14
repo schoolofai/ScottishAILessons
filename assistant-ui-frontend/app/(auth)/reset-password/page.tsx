@@ -1,6 +1,7 @@
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import Link from 'next/link';
 import { GraduationCap } from 'lucide-react';
+import { Suspense } from 'react';
 
 export default function ResetPasswordPage() {
   return (
@@ -12,7 +13,9 @@ export default function ResetPasswordPage() {
             <span className="text-xl font-bold">Scottish AI Lessons</span>
           </Link>
           
-          <ResetPasswordForm />
+          <Suspense fallback={<div className="text-center py-8">Loading...</div>}>
+            <ResetPasswordForm />
+          </Suspense>
         </div>
       </div>
     </div>
