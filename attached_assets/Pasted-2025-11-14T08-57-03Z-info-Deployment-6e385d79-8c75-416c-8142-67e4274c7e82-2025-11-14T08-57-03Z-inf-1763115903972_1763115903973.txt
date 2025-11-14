@@ -1,0 +1,72 @@
+2025-11-14T08:57:03Z info: Deployment: 6e385d79-8c75-416c-8142-67e4274c7e82
+2025-11-14T08:57:03Z info: Build: 489fafc5-1dc0-43c6-a90e-0bba7055c27f
+2025-11-14T08:57:03Z info: Connecting to builder
+2025-11-14T08:57:04Z info: Builder connected
+2025-11-14T08:57:04Z info: Installing packages
+--> npm install
+
+
+added 42 packages, and audited 43 packages in 3s
+
+13 packages are looking for funding
+  run `npm fund` for details
+
+
+2 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+npm notice
+npm notice New major version of npm available! 10.8.2 -> 11.6.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.6.2
+npm notice To update run: npm install -g npm@11.6.2
+npm notice
+
+2025-11-14T08:57:08Z info: Starting Build
+ WARN  Moving @types/uuid that was installed by a different package manager to "node_modules/.ignored"
+
+ WARN  Moving markdownlint-cli2 that was installed by a different package manager to "node_modules/.ignored"
+
+ WARN  Moving node-appwrite that was installed by a different package manager to "node_modules/.ignored"
+
+ WARN  Moving uuid that was installed by a different package manager to "node_modules/.ignored"
+
+Progress: resolved 1, reused 0, downloaded 0, added 0
+
+
+   ╭──────────────────────────────────────────╮
+   │                                          │
+   │   Update available! 10.21.0 → 10.22.0.   │
+   │   Changelog: https://pnpm.io/v/10.22.0   │
+   │     To update, run: pnpm add -g pnpm     │
+   │                                          │
+   ╰──────────────────────────────────────────╯
+
+
+Progress: resolved 4, reused 0, downloaded 0, added 0
+
+Packages: +42
+++++++++++++++++++++++++++++++++++++++++++
+
+Progress: resolved 42, reused 4, downloaded 1, added 0
+
+Progress: resolved 42, reused 29, downloaded 13, added 9
+
+Progress: resolved 42, reused 29, downloaded 13, added 42, done
+
+
+devDependencies:
++ @types/uuid 10.0.0 (11.0.0 is available)
++ markdownlint-cli2 0.12.1 (0.19.0 is available)
++ node-appwrite 19.1.0 (20.3.0 is available)
++ uuid 11.1.0 (13.0.0 is available)
+
+
+Done in 4.5s using pnpm v10.21.0
+
+ ERR_PNPM_NO_SCRIPT  Missing script: build
+
+Command "build" not found.
