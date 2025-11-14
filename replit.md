@@ -11,14 +11,14 @@ This is a Next.js 15 application that provides an AI-powered learning platform f
 ## Recent Changes
 
 ### Deployment Configuration Complete (November 14, 2025)
-- ✅ Fixed deployment build configuration with proper bash commands
+- ✅ Added build/start scripts to root package.json for Replit deployment
 - ✅ Added PORT environment variable (set to 5000)
 - ✅ Resolved MyAssistant.mock.tsx import errors
 - ✅ Fixed JSX syntax errors in __mocks__/langgraph-client.tsx (renamed from .ts to .tsx)
 - ✅ Verified all LSP diagnostics are clean
 - ✅ Configured autoscale deployment with:
-  - Build: `cd assistant-ui-frontend && pnpm install && pnpm run build`
-  - Run: `cd assistant-ui-frontend && pnpm run start`
+  - Build: `pnpm run build` (runs from root, delegates to assistant-ui-frontend)
+  - Run: `pnpm run start` (runs from root, delegates to assistant-ui-frontend)
 - Ready for production deployment
 
 ### Vercel to Replit Migration (November 11, 2025)

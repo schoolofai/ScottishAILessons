@@ -4,6 +4,9 @@
   "description": "A structured workflow template for product development using Claude Code AI assistant",
   "main": "index.js",
   "scripts": {
+    "dev": "cd assistant-ui-frontend && pnpm run dev",
+    "build": "cd assistant-ui-frontend && pnpm install && pnpm run build",
+    "start": "cd assistant-ui-frontend && pnpm run start",
     "validate": "node scripts/validate-template.js",
     "lint:docs": "markdownlint docs/**/*.md README.md CONTRIBUTING.md",
     "lint:commands": "node scripts/validate-commands.js",
