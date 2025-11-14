@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "cd assistant-ui-frontend && pnpm run dev",
-    "build": "cd assistant-ui-frontend && pnpm install && pnpm run build",
-    "start": "cd assistant-ui-frontend && pnpm run start",
+    "build": "echo 'Starting build from root...' && echo 'Changing to assistant-ui-frontend directory...' && cd assistant-ui-frontend && echo 'Installing dependencies...' && pnpm install && echo 'Running Next.js build...' && pnpm run build && echo 'Build completed successfully!'",
+    "start": "echo 'Starting production server from root...' && cd assistant-ui-frontend && pnpm run start",
     "validate": "node scripts/validate-template.js",
     "lint:docs": "markdownlint docs/**/*.md README.md CONTRIBUTING.md",
     "lint:commands": "node scripts/validate-commands.js",
