@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DrawingModal } from "@/components/ui/drawing-modal";
 
 export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export default function TestExcalidrawPage() {
   const [showModal, setShowModal] = useState(false);
