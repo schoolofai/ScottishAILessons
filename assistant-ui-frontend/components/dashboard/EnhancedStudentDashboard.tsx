@@ -18,6 +18,8 @@ import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import { CourseCard } from "../courses/CourseCard";
 import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import { SubscriptionPaywallModal, type PriceInfo } from "./SubscriptionPaywallModal";
 import {
   type Course,
   type Session,
@@ -96,6 +98,11 @@ export function EnhancedStudentDashboard() {
   // Recommendations section state
   const [showRecommendations, setShowRecommendations] = useState(true);
 
+  // Subscription paywall state (T042)
+  const { hasAccess, isLoading: subscriptionLoading } = useSubscription();
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [subscriptionPrice, setSubscriptionPrice] = useState<PriceInfo | null>(null);
+
   useEffect(() => {
     initializeStudent();
   }, []);
@@ -129,6 +136,25 @@ export function EnhancedStudentDashboard() {
     checkCheatSheetAvailability();
   }, [activeCourse]);
 
+  // Prefetch subscription price for instant paywall modal display
+  useEffect(() => {
+    const fetchSubscriptionPrice = async () => {
+      try {
+        const response = await fetch('/api/stripe/product-info');
+        if (response.ok) {
+          const data = await response.json();
+          setSubscriptionPrice(data);
+          console.log('[Dashboard] Subscription price prefetched:', data.formatted);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to prefetch subscription price:', error);
+        // Silently fail - modal will use fallback price
+      }
+    };
+
+    fetchSubscriptionPrice();
+  }, []); // Only once on mount
+
   // Initialize student using client-side Appwrite SDK
   const initializeStudent = async () => {
     try {
@@ -142,24 +168,9 @@ export function EnhancedStudentDashboard() {
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
 
-      // Check if we have a session stored in localStorage and set it explicitly
-      // Appwrite stores sessions in cookieFallback as JSON
-      let storedSession = null;
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (cookieFallback) {
-        try {
-          const cookieData = JSON.parse(cookieFallback);
-          const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-          storedSession = cookieData[sessionKey];
-        } catch (e) {
-        }
-      }
-
-      if (storedSession) {
-        client.setSession(storedSession);
-      } else {
-        throw new Error('No active session found. Please log in.');
-      }
+      // With SSR, the session is in httpOnly cookies which Appwrite SDK
+      // can access automatically. We don't need to check localStorage.
+      // If there's no valid session, account.get() will throw an error.
 
       const account = new Account(client);
       const databases = new Databases(client);
@@ -755,6 +766,12 @@ export function EnhancedStudentDashboard() {
     const startTime = Date.now();
 
     try {
+      // T043: Check subscription BEFORE starting lesson
+      if (!hasAccess) {
+        setShowPaywallModal(true);
+        return; // STOP - do not proceed
+      }
+
       // Set loading state for this specific lesson
       setStartingLessonId(lessonTemplateId);
 
@@ -1124,6 +1141,13 @@ export function EnhancedStudentDashboard() {
           )}
         </div>
       )}
+
+      {/* T042: Subscription paywall modal */}
+      <SubscriptionPaywallModal
+        isOpen={showPaywallModal}
+        onClose={() => setShowPaywallModal(false)}
+        priceInfo={subscriptionPrice}
+      />
     </div>
   );
 }

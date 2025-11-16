@@ -7,6 +7,12 @@ import type { BaseDriver } from '../driver/BaseDriver';
 /**
  * Hook for managing Appwrite session and creating driver instances
  * Centralizes the localStorage session extraction logic used across components
+ *
+ * @deprecated This hook uses the old hybrid auth pattern with localStorage.cookieFallback
+ * New code should use server actions from @/lib/actions/auth.actions instead
+ * This hook is kept for backward compatibility with existing components
+ *
+ * TODO: Migrate remaining components to SSR pattern and remove this hook
  */
 export function useAppwrite() {
   const [sessionToken, setSessionToken] = useState<string | null>(null);

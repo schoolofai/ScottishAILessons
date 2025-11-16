@@ -3,18 +3,29 @@ import type { NextRequest } from 'next/server';
 
 const protectedRoutes = ['/chat', '/dashboard', '/session', '/admin'];
 const authRoutes = ['/login', '/signup', '/reset-password'];
+const SESSION_COOKIE = 'appwrite_session';
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  // For now, disable middleware authentication checks since we're using client-side session management
-  // The authentication is handled by the useAppwrite hook and localStorage.cookieFallback
-  
-  // Only block access to protected routes if explicitly requested
-  // Let the client-side handle authentication state
-  
+  // Check for session cookie
+  const session = request.cookies.get(SESSION_COOKIE);
+  const hasSession = Boolean(session?.value);
+
+  // Redirect unauthenticated users away from protected routes
+  if (isProtectedRoute && !hasSession) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // Redirect authenticated users away from auth pages to dashboard
+  if (isAuthRoute && hasSession) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
   return NextResponse.next();
 }
 

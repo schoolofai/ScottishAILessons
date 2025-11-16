@@ -25,6 +25,7 @@ import { ActiveSidePanel } from "@/hooks/useRevisionNotes";
 import { checkAllBackendsStatus, BackendUnavailableError, ContextChatBackendUnavailableError } from "@/lib/backend-status";
 import { BackendErrorUI } from "./BackendErrorUI";
 import { BackendCheckingUI } from "./BackendCheckingUI";
+import { useSubscription } from "@/hooks/useSubscription";
 
 interface SessionChatAssistantProps {
   sessionId: string;
@@ -38,6 +39,9 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [contextChatThreadId, setContextChatThreadId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Subscription access check (T044)
+  const { hasAccess, status } = useSubscription();
 
   // Backend availability state - FAIL FAST (NO FALLBACK)
   // Checks BOTH main backend AND context chat backend
@@ -79,17 +83,28 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
     checkAllBackendsStatus()
       .then((result) => {
-        if (result.available) {
-          console.log('✅ [Backend Boundary] ALL backends are available and responding');
-          setBackendStatus({ available: true, checked: true });
-        } else {
+        if (!result.available) {
           console.error('❌ [Backend Boundary] One or more backends unavailable:', result.error);
           setBackendStatus({
             available: false,
             checked: true,
             error: result.error,
           });
+          return;
         }
+
+        console.log('✅ [Backend Boundary] ALL backends are available and responding');
+
+        // T045: Check subscription access AFTER backend check
+        if (!hasAccess) {
+          console.error('❌ [Subscription] User does not have active subscription');
+          setError('Subscription required to access AI tutor. Please subscribe to continue.');
+          setBackendStatus({ available: false, checked: true });
+          return;
+        }
+
+        console.log('✅ [Subscription] User has access');
+        setBackendStatus({ available: true, checked: true });
       })
       .catch((err) => {
         console.error('❌ [Backend Boundary] Unexpected error checking backends:', err);
@@ -101,7 +116,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
             : new BackendUnavailableError('Unexpected error checking backends'),
         });
       });
-  }, []); // Run once on mount
+  }, [hasAccess]); // Re-check when subscription status changes
 
   useEffect(() => {
     console.log('🔄 SessionChatAssistant - useEffect triggered:', {

@@ -6,6 +6,12 @@ export const appwriteConfig = {
   apiKey: process.env.APPWRITE_API_KEY!,
   databaseId: 'default',
   studentsCollectionId: 'students',
+  // Stripe subscription collections (Feature: 004-stripe-subscription-paywall)
+  // Note: Subscription fields are stored in 'students' collection, not separate 'users' collection
+  subscriptionsCollectionId: 'subscriptions',
+  subscriptionAuditLogsCollectionId: 'subscription_audit_logs',
+  stripeWebhookEventsCollectionId: 'stripe_webhook_events',
+  webhookErrorQueueCollectionId: 'webhook_error_queue',
 };
 
 export const createAdminClient = () => {
