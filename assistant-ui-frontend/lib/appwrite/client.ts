@@ -1,5 +1,15 @@
 import { Client, Account, Databases, ID } from 'appwrite';
 
+// SECURITY: This file contains API keys and MUST only be imported by server-side code
+// Fail fast if imported client-side to prevent API key exposure
+if (typeof window !== 'undefined') {
+  throw new Error(
+    '[SECURITY] lib/appwrite/client.ts cannot be imported in client-side code! ' +
+    'This file contains API keys. Use lib/server/appwrite.ts for server-side operations, ' +
+    'or call API routes from client components.'
+  );
+}
+
 export const appwriteConfig = {
   endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!,
   projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!,

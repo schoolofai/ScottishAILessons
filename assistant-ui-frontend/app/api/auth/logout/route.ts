@@ -1,28 +1,47 @@
 import { NextResponse } from 'next/server';
-import { createSessionClient } from '@/lib/appwrite/client';
-import { getSessionFromCookie, deleteSessionCookie } from '@/lib/appwrite/server';
+import { createSessionClient, SESSION_COOKIE } from '@/lib/server/appwrite';
+import { cookies } from 'next/headers';
 
 export async function POST() {
   try {
-    const session = await getSessionFromCookie();
-    
-    if (session) {
-      const { account } = createSessionClient(session);
-      
-      try {
-        await account.deleteSession('current');
-      } catch (error) {
-        console.error('Error deleting session:', error);
-      }
+    // Try to delete the session server-side if it exists
+    try {
+      const { account } = await createSessionClient();
+      await account.deleteSession('current');
+    } catch (error) {
+      // Session may already be invalid, continue with cookie deletion
+      console.log('[Logout] Session already invalid or not found');
     }
-    
-    await deleteSessionCookie();
-    
+
+    // Clear the httpOnly session cookie
+    // Must specify path to match the cookie that was set during login
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE, '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0, // Expire immediately
+      path: '/', // Must match the path used during cookie creation
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Logout failed' },
-      { status: 500 }
-    );
+    console.error('[Logout] Error:', error);
+
+    // Even if there's an error, try to clear the cookie
+    try {
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/',
+      });
+    } catch (cookieError) {
+      console.error('[Logout] Failed to clear cookie:', cookieError);
+    }
+
+    return NextResponse.json({ success: true });
   }
 }

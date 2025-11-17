@@ -106,24 +106,10 @@ export function CourseCurriculum({
         return;
       }
 
+      // Use unauthenticated client for public lesson template data
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      // Set session from localStorage for authentication
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (cookieFallback) {
-        try {
-          const cookieData = JSON.parse(cookieFallback);
-          const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-          const storedSession = cookieData[sessionKey];
-          if (storedSession) {
-            client.setSession(storedSession);
-          }
-        } catch (e) {
-          console.error('[CourseCurriculum] Failed to set session:', e);
-        }
-      }
 
       const databases = new Databases(client);
 
@@ -170,25 +156,28 @@ export function CourseCurriculum({
       const lessonTemplates = allTemplates;
       console.log('[CourseCurriculum] Found lesson templates:', lessonTemplates.length);
 
-      // Get ALL student's lesson sessions to determine status with pagination
+      // Get ALL student's lesson sessions via secure server-side API
       let allSessions: any[] = [];
-      offset = 0;
-      hasMore = true;
 
-      while (hasMore) {
-        const sessionsResult = await databases.listDocuments(
-          'default',
-          'sessions',
-          [
-            Query.equal('studentId', studentId),
-            Query.limit(limit),
-            Query.offset(offset)
-          ]
-        );
+      try {
+        const sessionsResponse = await fetch('/api/student/sessions', {
+          method: 'GET',
+          credentials: 'include', // Include httpOnly cookies
+        });
 
-        allSessions = allSessions.concat(sessionsResult.documents);
-        offset += limit;
-        hasMore = sessionsResult.documents.length === limit;
+        if (!sessionsResponse.ok) {
+          const errorData = await sessionsResponse.json().catch(() => ({ error: 'Failed to load sessions' }));
+          console.error('[CourseCurriculum] Failed to fetch sessions:', errorData.error);
+          // Continue with empty sessions array - don't fail the whole curriculum load
+          allSessions = [];
+        } else {
+          const sessionsData = await sessionsResponse.json();
+          allSessions = sessionsData.sessions || [];
+        }
+      } catch (sessionError) {
+        console.error('[CourseCurriculum] Session fetch error:', sessionError);
+        // Continue with empty sessions array
+        allSessions = [];
       }
 
       console.log('[CourseCurriculum] Lesson sessions found:', allSessions.length);

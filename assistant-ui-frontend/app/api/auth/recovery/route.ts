@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/appwrite/client';
+import { createAdminClient } from '@/lib/server/appwrite';
 import { getErrorMessage } from '@/lib/appwrite/auth';
 
 export async function POST(request: NextRequest) {

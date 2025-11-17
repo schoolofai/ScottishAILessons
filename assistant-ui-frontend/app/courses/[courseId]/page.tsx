@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { enrollStudentInCourse } from '@/lib/services/enrollment-service';
 import { CourseCheatSheetButton } from '@/components/revision-notes/CourseCheatSheetButton';
 import {
   ArrowLeft,
@@ -37,123 +36,91 @@ export default function CourseDetailPage() {
 
   const loadCourseDetails = async () => {
     try {
-      const { Client, Databases, Account, Query } = await import('appwrite');
+      console.log(`[Course Detail] Fetching course details for: ${courseId}`);
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const response = await fetch(`/api/courses/${courseId}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
 
-      const databases = new Databases(client);
-      const account = new Account(client);
-
-      // Get course details - query by courseId field, not document ID
-      const coursesResult = await databases.listDocuments('default', 'courses',
-        [Query.equal('courseId', courseId)]
-      );
-
-      if (coursesResult.documents.length === 0) {
-        // Course not found
-        setCourse(null);
-        setLoading(false);
-        return;
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Course not found
+          setCourse(null);
+          return;
+        }
+        throw new Error(`Failed to fetch course details: ${response.statusText}`);
       }
 
-      const courseDoc = coursesResult.documents[0];
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load course details');
+      }
+
+      const { course: courseDoc, outcomes: outcomesData, lessons: lessonsData, isEnrolled: enrolled, studentId: sid } = result.data;
+
+      // Set all state
       setCourse(courseDoc);
+      setOutcomes(outcomesData || []);
+      setLessons(lessonsData || []);
+      setIsEnrolled(enrolled || false);
+      setStudentId(sid);
 
-      // Get course outcomes
-      const outcomesResult = await databases.listDocuments('default', 'course_outcomes',
-        [Query.equal('courseId', courseId)]
-      );
-      setOutcomes(outcomesResult.documents);
+      console.log(`[Course Detail] Loaded course: ${courseDoc.subject}, ${lessonsData?.length || 0} lessons, enrolled: ${enrolled}`);
 
-      // Get lesson templates (from latest Authored_SOW)
-      try {
-        const authoredSOWResult = await databases.listDocuments('default', 'Authored_SOW',
-          [
-            Query.equal('courseId', courseId),
-            Query.equal('status', 'published'),
-            Query.orderDesc('version'),
-            Query.limit(1)
-          ]
-        );
-
-        if (authoredSOWResult.documents.length > 0) {
-          const authoredSOW = authoredSOWResult.documents[0];
-          const entries = JSON.parse(authoredSOW.entries || '[]');
-          setLessons(entries);
-        }
-      } catch (err) {
-        console.log('No lesson templates found for course');
-      }
-
-      // Check enrollment status
-      try {
-        const user = await account.get();
-        const studentsResult = await databases.listDocuments('default', 'students',
-          [Query.equal('userId', user.$id)]
-        );
-
-        if (studentsResult.documents.length > 0) {
-          const student = studentsResult.documents[0];
-          setStudentId(student.$id);
-
-          const enrollmentsResult = await databases.listDocuments('default', 'enrollments',
-            [
-              Query.equal('studentId', student.$id),
-              Query.equal('courseId', courseId)
-            ]
-          );
-
-          setIsEnrolled(enrollmentsResult.documents.length > 0);
-        }
-      } catch (err) {
-        console.log('User not logged in');
-      }
-    } catch (error) {
-      console.error('Failed to load course details:', error);
+    } catch (error: any) {
+      console.error('[Course Detail] Failed to load course details:', error);
       setError('Failed to load course details. Please try again.');
+      throw error; // Fast fail, no silent errors
     } finally {
       setLoading(false);
     }
   };
 
   const handleEnroll = async () => {
-    if (!studentId) {
-      router.push('/login');
-      return;
-    }
-
     setEnrolling(true);
     setError(null);
 
     try {
-      const { Client, Databases } = await import('appwrite');
+      console.log(`[Course Detail] Enrolling in course: ${courseId}`);
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const response = await fetch('/api/student/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ courseId }),
+      });
 
-      const databases = new Databases(client);
+      const result = await response.json();
 
-      // Use Phase 1 enrollment service
-      await enrollStudentInCourse(studentId, courseId, databases);
+      if (!response.ok || !result.success) {
+        if (response.status === 401) {
+          // Not authenticated - redirect to login
+          router.push('/login');
+          return;
+        }
+
+        // Handle specific error codes
+        if (response.status === 409) {
+          setError('You are already enrolled in this course.');
+          setIsEnrolled(true);
+          return;
+        }
+
+        throw new Error(result.error || 'Failed to enroll in course');
+      }
 
       console.log('[Course Detail] Enrollment successful');
 
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
-      console.error('Enrollment failed:', err);
-
-      if (err.code === 'DUPLICATE_ENROLLMENT') {
-        setError('You are already enrolled in this course.');
-        setIsEnrolled(true);
-      } else if (err.code === 'NO_AUTHORED_SOW') {
-        setError('This course is not yet available for enrollment.');
-      } else {
-        setError('Failed to enroll. Please try again.');
-      }
+      console.error('[Course Detail] Enrollment failed:', err);
+      setError(err.message || 'Failed to enroll. Please try again.');
+      throw err; // Fast fail, no silent errors
     } finally {
       setEnrolling(false);
     }

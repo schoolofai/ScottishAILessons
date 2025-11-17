@@ -40,31 +40,12 @@ export function SubscriptionPaywallModal({ isOpen, onClose, priceInfo }: Subscri
     setError(null);
 
     try {
-      // Get session data from localStorage (Appwrite stores sessions here)
-      const cookieFallback = localStorage.getItem('cookieFallback');
-
-      if (!cookieFallback) {
-        throw new Error('No active session found. Please log in again.');
-      }
-
-      // Parse the session JSON to extract the actual session token
-      const sessionData = JSON.parse(cookieFallback);
-
-      // Find the session cookie key (starts with 'a_session_')
-      const sessionKey = Object.keys(sessionData).find(key => key.startsWith('a_session_'));
-
-      if (!sessionKey || !sessionData[sessionKey]) {
-        throw new Error('Invalid session format. Please log in again.');
-      }
-
-      const sessionToken = sessionData[sessionKey];
-
       // T041: Call checkout API to create Stripe session
+      // Authentication handled via httpOnly cookie (no client-side session needed)
       const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', // Include httpOnly cookies
         headers: {
-          'Authorization': `Bearer ${sessionToken}`,
           'Content-Type': 'application/json',
         },
       });

@@ -13,13 +13,25 @@
  * - No caching: Fresh data queries for each request
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Query } from 'node-appwrite';
 import { createStripeClient } from '@/lib/stripe-helpers';
 import { createSessionClient, appwriteConfig } from '@/lib/server/appwrite';
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    // Step 0: Rate limiting - Prevent checkout session abuse
+    // MUST come before authentication to prevent brute force attempts
+    const rateLimitResult = await rateLimit(request, {
+      ...RateLimitPresets.PAYMENT,
+      endpoint: '/api/stripe/checkout'
+    });
+
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
+
     // Step 1: Authenticate and get user using SSR session client
     const user = await getUserDocument();
 

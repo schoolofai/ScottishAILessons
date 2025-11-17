@@ -12,12 +12,24 @@
  * - No caching: Fresh database query every time (security-critical)
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Query } from 'node-appwrite';
 import { createSessionClient, appwriteConfig } from '@/lib/server/appwrite';
+import { rateLimit, RateLimitPresets } from '@/lib/rate-limit';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Step 0: Rate limiting - Prevent subscription status abuse
+    // Use READ preset (more lenient) since this is a read-only operation
+    const rateLimitResult = await rateLimit(request, {
+      ...RateLimitPresets.READ,
+      endpoint: '/api/stripe/subscription-status'
+    });
+
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
+
     // Step 1: Authenticate and get user using SSR session client
     const user = await getUserDocument();
 

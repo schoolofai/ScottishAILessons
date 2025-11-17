@@ -54,6 +54,7 @@ export function formatErrorMessage(error: unknown): string {
 
 /**
  * Validate if we have the minimum required data to start a lesson
+ * Note: threadId is optional - sessions can be created without pre-existing threads
  */
 export function validateLessonStartContext(
   lessonTemplateId: string,
@@ -68,9 +69,8 @@ export function validateLessonStartContext(
     return { isValid: false, error: 'Missing course ID' };
   }
 
-  if (!threadId) {
-    return { isValid: false, error: 'No thread ID available for lesson start' };
-  }
+  // threadId is optional - not required for validation
+  // Sessions can be created without pre-existing recommendation threads
 
   return { isValid: true };
 }

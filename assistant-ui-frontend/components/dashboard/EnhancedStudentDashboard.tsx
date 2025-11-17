@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Client, Databases, Query } from "appwrite";
 import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigationTabs";
 import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
 import { CourseProgressCard } from "../progress/CourseProgressCard";
@@ -32,7 +33,6 @@ import {
   debugLog
 } from "../../lib/dashboard/utils";
 import { MasteryV2Driver } from "../../lib/appwrite/driver/MasteryV2Driver";
-import { Client, Databases, Account, Query, ID } from "appwrite";
 import { cache, createCacheKey } from "../../lib/cache";
 
 // Type imports are handled by the utils file
@@ -155,72 +155,102 @@ export function EnhancedStudentDashboard() {
     fetchSubscriptionPrice();
   }, []); // Only once on mount
 
-  // Initialize student using client-side Appwrite SDK
+  // Initialize student using server-side API (SSR-compatible)
   const initializeStudent = async () => {
     try {
       setLoading(true);
       setError("");
 
-      // Try client-side initialization using Appwrite directly
-      const { Client, Account, Databases, ID, Query } = await import('appwrite');
+      // Call server-side API that uses httpOnly session cookie
+      const response = await fetch('/api/student/me');
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      // With SSR, the session is in httpOnly cookies which Appwrite SDK
-      // can access automatically. We don't need to check localStorage.
-      // If there's no valid session, account.get() will throw an error.
-
-      const account = new Account(client);
-      const databases = new Databases(client);
-
-      // Get current user (this should work since we have an active client-side session)
-      const user = await account.get();
-
-      // Check if student record exists
-      let student;
-      try {
-        const studentsResult = await databases.listDocuments(
-          'default',
-          'students',
-          [Query.equal('userId', user.$id)]
-        );
-
-        if (studentsResult.documents.length > 0) {
-          student = studentsResult.documents[0];
-        } else {
-          // Create student record
-          student = await databases.createDocument(
-            'default',
-            'students',
-            ID.unique(),
-            {
-              userId: user.$id,
-              name: user.name || user.email.split('@')[0],
-              role: 'student'
-            },
-            [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
-          );
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Not authenticated. Please log in.');
         }
-      } catch (error) {
-        console.error('Error with student record (detailed):', error);
-        console.error('Error type:', error.constructor.name);
-        console.error('Error message:', error.message);
-        console.error('Error code:', error.code);
-        console.error('Error response:', error.response);
-        throw new Error(`Failed to initialize student: ${error.message}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch student data');
       }
 
-      setStudent(student);
+      const data = await response.json();
 
-      // Load courses using client-side approach
-      await loadCoursesClientSide(databases, student);
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load student data');
+      }
+
+      setStudent(data.student);
+
+      // Load enrollments and courses from server API
+      await loadEnrollmentsFromAPI(data.student);
     } catch (err) {
-      console.error("Client-side initialization error:", err);
+      console.error("Student initialization error:", err);
       setError(err instanceof Error ? err.message : "Failed to initialize student");
+
+      // Redirect to login if authentication failed
+      if (err instanceof Error && err.message.includes('Not authenticated')) {
+        router.push('/login');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load enrollments and courses from server-side API
+  const loadEnrollmentsFromAPI = async (studentData: any) => {
+    try {
+      setCoursesLoading(true);
+      setCoursesError(null);
+
+      const response = await fetch('/api/student/enrollments');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch enrollments');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load enrollments');
+      }
+
+      const { enrollments, courses: coursesData } = result.data;
+
+      // Set active and archived courses
+      setCourses(coursesData.active);
+      setArchivedCourses(coursesData.archived);
+
+      // Transform for navigation
+      const transformedCourses = transformCoursesForNavigation(coursesData.active);
+      setCourseData(transformedCourses);
+
+      console.log('[Dashboard] Loaded enrolled courses:', {
+        activeEnrollmentCount: enrollments.active.length,
+        archivedEnrollmentCount: enrollments.archived.length,
+        courseCount: transformedCourses.length
+      });
+
+      // Check if no active enrollments
+      if (enrollments.active.length === 0) {
+        setCoursesError('No active enrollments found. Please enroll in a course to get started.');
+        return;
+      }
+
+      // Set initial active course and load its data
+      if (transformedCourses.length > 0 && !activeCourse && studentData) {
+        const firstCourse = transformedCourses[0];
+        setActiveCourse(firstCourse.id);
+        // Load recommendations and spaced repetition data for the first course in parallel
+        await Promise.all([
+          loadRecommendations(firstCourse.id, studentData),
+          loadSpacedRepetition(firstCourse.id, studentData)
+        ]);
+      }
+
+    } catch (err) {
+      console.error('[Dashboard] Failed to load enrollments:', err);
+      setCoursesError(formatErrorMessage(err));
+    } finally {
+      setCoursesLoading(false);
     }
   };
 
@@ -426,23 +456,28 @@ export function EnhancedStudentDashboard() {
         [Query.equal('courseId', course.courseId)]
       );
 
-      // 7. Get mastery records using MasteryV2Driver
-      // Get session token for authenticated driver calls
-      // First, set the session from localStorage to the client
-      let sessionToken = '';
-      try {
-        const storedSession = localStorage.getItem(`a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`);
-        if (storedSession) {
-          client.setSession(storedSession);
-          sessionToken = storedSession;
-        }
-      } catch (e) {
-        // Fallback: use empty token (driver will handle auth through client)
-        sessionToken = '';
+      // 7. Get mastery and SOW data via server-side API (httpOnly cookie authentication)
+      console.log('[API] Fetching mastery and SOW data from server...');
+      const recommendationsDataResponse = await fetch(`/api/student/recommendations-data/${course.courseId}`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!recommendationsDataResponse.ok) {
+        const errorData = await recommendationsDataResponse.json().catch(() => ({
+          error: 'Failed to load recommendations data'
+        }));
+        throw new Error(errorData.error || 'Failed to fetch mastery and SOW data');
       }
 
-      const masteryV2Driver = new MasteryV2Driver(sessionToken);
-      const masteryV2Record = await masteryV2Driver.getMasteryV2(currentStudent.$id, course.courseId);
+      const { data: recommendationsData } = await recommendationsDataResponse.json();
+      const masteryV2Record = recommendationsData.mastery;
+      const sowDocuments = recommendationsData.sow;
+
+      console.log('[API] Successfully fetched recommendations data:', {
+        hasMastery: !!masteryV2Record,
+        sowCount: sowDocuments?.length || 0
+      });
 
       // Convert MasteryV2 to legacy format for compatibility
       let masteryData = [];
@@ -475,23 +510,8 @@ export function EnhancedStudentDashboard() {
 
       // 8. Routine data removed - keeping spaced repetition separate from recommendations
 
-      // 9. Get SOW data - SOWV2 ONLY (no fallbacks)
-      console.log('[SOW Query] Attempting SOWV2 query with:', {
-        studentId: currentStudent.$id,
-        courseId: course.courseId
-      });
-
-      const sowResult = await databases.listDocuments(
-        'default',
-        'SOWV2',
-        [
-          Query.equal('studentId', currentStudent.$id),
-          Query.equal('courseId', course.courseId)
-        ]
-      );
-
-      // Fast fail if no SOW data
-      if (sowResult.documents.length === 0) {
+      // 9. Validate SOW data
+      if (!sowDocuments || sowDocuments.length === 0) {
         const error = new Error(
           `No SOWV2 data found for student: ${currentStudent.$id}, course: ${course.courseId}. ` +
           `SOWV2 collection must be populated for this enrollment.`
@@ -500,7 +520,7 @@ export function EnhancedStudentDashboard() {
         throw error;
       }
 
-      console.log('[SOW Query] SUCCESS - Found SOWV2 documents:', sowResult.documents.length);
+      console.log('[SOW Query] SUCCESS - Found SOWV2 documents:', sowDocuments.length);
 
       // Phase 1: Data Collection Complete
       console.log('[Recommendation Phase 1 - Data Collection]', {
@@ -508,17 +528,17 @@ export function EnhancedStudentDashboard() {
         course: course,
         templates: templatesResult.documents,
         mastery: masteryV2Record,
-        sow: sowResult.documents
+        sow: sowDocuments
       });
 
       // 10. Build complete scheduling context (matching Task 7 isolation test format)
 
       // Debug SOW data transformation
-      console.log('[SOW Debug] Raw SOWV2 document:', sowResult.documents[0]);
+      console.log('[SOW Debug] Raw SOWV2 document:', sowDocuments[0]);
 
       let sowEntries = [];
-      if (sowResult.documents.length > 0) {
-        const rawEntries = sowResult.documents[0].entries || '[]';
+      if (sowDocuments.length > 0) {
+        const rawEntries = sowDocuments[0].entries || '[]';
         console.log('[SOW Debug] Raw entries field:', rawEntries);
 
         try {
@@ -679,6 +699,7 @@ export function EnhancedStudentDashboard() {
   };
 
   // Load spaced repetition data for the active course
+  // TODO: Convert to server-side API call (currently disabled after removing dual session)
   const loadSpacedRepetition = async (courseId: string, studentData?: any) => {
     if (!studentData) {
       console.log('[loadSpacedRepetition] No student data available');
@@ -689,36 +710,31 @@ export function EnhancedStudentDashboard() {
       setSpacedRepetitionLoading(true);
       setSpacedRepetitionError(null);
 
-      console.log('[loadSpacedRepetition] Loading spaced repetition for:', {
-        courseId,
-        studentId: studentData.$id
+      console.log('[Spaced Repetition] Fetching data from server API...');
+
+      // Fetch spaced repetition data via server-side API (httpOnly cookie authentication)
+      const spacedRepResponse = await fetch(`/api/student/spaced-repetition/${courseId}`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
       });
 
-      // Create own Client instance (matching loadRecommendations pattern)
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
+      if (!spacedRepResponse.ok) {
+        const errorData = await spacedRepResponse.json().catch(() => ({
+          error: 'Failed to load spaced repetition data'
+        }));
+        throw new Error(errorData.error || 'Failed to fetch spaced repetition data');
+      }
 
-      const databases = new Databases(client);
+      const { data: spacedRepData } = await spacedRepResponse.json();
 
-      // Fetch all spaced repetition data in parallel
-      const [recommendations, stats, upcomingReviews] = await Promise.all([
-        getReviewRecommendations(studentData.$id, courseId, databases, 5),
-        getReviewStats(studentData.$id, courseId, databases),
-        getUpcomingReviews(studentData.$id, courseId, databases, 14)
-      ]);
-
-      console.log('[loadSpacedRepetition] Loaded:', {
-        recommendations: recommendations.length,
-        overdueOutcomes: stats.totalOverdueOutcomes,
-        upcomingReviews: upcomingReviews.length
+      console.log('[Spaced Repetition] Successfully fetched data:', {
+        hasRecommendations: !!spacedRepData.recommendations,
+        hasStats: !!spacedRepData.stats,
+        hasUpcoming: !!spacedRepData.upcoming
       });
 
-      setSpacedRepetitionData({
-        recommendations,
-        stats,
-        upcomingReviews
-      });
+      // Set the spaced repetition data
+      setSpacedRepetitionData(spacedRepData);
     } catch (err) {
       console.error('[loadSpacedRepetition] Failed to load:', err);
       setSpacedRepetitionError(
@@ -730,21 +746,17 @@ export function EnhancedStudentDashboard() {
   };
 
   // Load course progress for the active course
+  // TODO: Convert to server-side API call (currently disabled after removing dual session)
   const loadCourseProgress = async () => {
     try {
       setProgressLoading(true);
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      const databases = new Databases(client);
-
-      const progressData = await getCourseProgress(student.$id, activeCourse, databases);
-      setCourseProgress(progressData);
+      // Temporarily disabled - requires server-side API endpoint
+      // The dashboard gracefully handles missing progress data
+      console.log('[Progress] Progress loading temporarily disabled (requires API migration)');
+      setCourseProgress(null);
     } catch (err) {
       console.error('[Progress] Failed to load course progress:', err);
-      // Don't show error in UI - progress card will handle gracefully
       setCourseProgress(null);
     } finally {
       setProgressLoading(false);
@@ -799,37 +811,27 @@ export function EnhancedStudentDashboard() {
         studentId: student.$id
       });
 
-      // Set up Appwrite client
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      // Authenticate
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (!cookieFallback) {
-        throw new Error('Not authenticated. Please log in again.');
-      }
-
-      const cookieData = JSON.parse(cookieFallback);
-      const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-      const storedSession = cookieData[sessionKey];
-
-      if (!storedSession) {
-        throw new Error('Session expired. Please log in again.');
-      }
-
-      client.setSession(storedSession);
-      const databases = new Databases(client);
-
-      // Create fresh session (v3 behavior - always start fresh)
-      const { createFreshSession } = await import('@/lib/sessions/session-creation');
-
-      const sessionId = await createFreshSession(databases, {
-        lessonTemplateId,
-        studentId: student.$id,
-        courseId: activeCourse,
-        threadId: recommendations?.thread_id
+      // Create session via server-side API (uses httpOnly cookie for auth)
+      // No client-side authentication needed - middleware handles security
+      const response = await fetch('/api/sessions', {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          lessonTemplateId,
+          courseId: activeCourse,
+          threadId: recommendations?.thread_id
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create session' }));
+        throw new Error(errorData.error || 'Failed to create session');
+      }
+
+      const { sessionId } = await response.json();
 
       const duration = Date.now() - startTime;
 

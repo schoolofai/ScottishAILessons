@@ -43,11 +43,27 @@ export class AuthDriver extends BaseDriver {
 
   /**
    * Delete current session (logout)
+   * Uses server-side API route to properly clear httpOnly session cookie
    */
   async logout() {
     try {
-      await this.account.deleteSession('current');
+      // Call server-side logout API instead of client SDK
+      // This is required because httpOnly cookies cannot be accessed from client-side JavaScript
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Logout failed' }));
+        throw new Error(errorData.error || 'Logout failed');
+      }
+
+      // Server-side logout succeeded
+      console.log('[AuthDriver] Logout successful - session cleared');
     } catch (error) {
+      // Log error but don't throw - we want to clear client state even if server logout fails
+      console.error('[AuthDriver] Logout error:', error);
       throw this.handleError(error, 'logout');
     }
   }

@@ -2,6 +2,42 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 🔑 CRITICAL: Database Architecture - Users vs Students
+
+**DO NOT GET CONFUSED BETWEEN USER IDs AND STUDENT IDs**
+
+The application has TWO types of IDs that are often confused:
+
+1. **Auth User ID** (from Appwrite's built-in auth system)
+   - Example: `68d28b6b0028ea8966c9`
+   - This is the authenticated user's ID in Appwrite's auth database
+   - Used in document permissions: `read("user:68d28b6b0028ea8966c9")`
+   - Retrieved from `account.get()` as `user.$id`
+
+2. **Student Document ID** (from our `students` collection)
+   - Example: `68d28c190016b1458092`
+   - This is the document ID in the `students` collection
+   - Each student document has a `userId` field that links to the auth user
+   - Retrieved from `students` collection query
+
+**Relationship:**
+```
+students collection document (ID: 68d28c190016b1458092)
+  └─ userId: "68d28b6b0028ea8966c9" (links to auth user)
+```
+
+**When checking permissions:**
+- Document permissions use the **auth user ID** (e.g., `user:68d28b6b0028ea8966c9`)
+- Business logic queries use the **student document ID** (e.g., `68d28c190016b1458092`)
+- Always link them via the `userId` field in the students collection
+
+**Example Flow:**
+1. User logs in → get auth user ID: `68d28b6b0028ea8966c9`
+2. Query students collection for `userId === 68d28b6b0028ea8966c9`
+3. Get student document with ID: `68d28c190016b1458092`
+4. Use student document ID for queries (sessions, mastery, etc.)
+5. Permissions are checked against auth user ID
+
 ## Build and Development Commands
 
 ### Quick Start
@@ -15,6 +51,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Aegra (self-hosted alternative)
 cd aegra-agent && ./start-aegra.sh
 ```
+
+**IMPORTANT for Testing:**
+- Local servers start FAST (typically ready in 5-10 seconds)
+- When testing with Playwright after restart, DO NOT sleep more than 10 seconds
+- Services run on localhost, so no network latency
+- Typical wait times:
+  - After `./start.sh`: 5-8 seconds for all services
+  - Page navigation: 2-3 seconds
+  - Dashboard data load: 3-5 seconds
 
 ### Submodule Management
 
@@ -406,3 +451,4 @@ ScottishAILessons/
 - always check the entry point for the langgraph agent from @langgraph-agent/langgraph.json do not assume the graph to use for testing
 - Never use fallback pattern as it is an anti pattern and caused silent fails - always throw exceptions for failing fast and perform detailed error logging
 - do not run long runnign author agents in @claud_author_agent/ without confirming even in bypass mode
+- the @start.sh script starts local servers so it loads fast do not sleep more that 10 seconds when testing with playwright

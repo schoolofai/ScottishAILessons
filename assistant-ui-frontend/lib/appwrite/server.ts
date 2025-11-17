@@ -1,6 +1,15 @@
 import { cookies } from 'next/headers';
 import { createAdminClient, createSessionClient, appwriteConfig } from './client';
 
+// SECURITY: This file re-exports from client.ts which contains API keys
+// Fail fast if imported client-side to prevent API key exposure
+if (typeof window !== 'undefined') {
+  throw new Error(
+    '[SECURITY] lib/appwrite/server.ts cannot be imported in client-side code! ' +
+    'This file re-exports API keys. Use API routes to access server-side functionality from client components.'
+  );
+}
+
 // Re-export from client
 export { createAdminClient, createSessionClient, appwriteConfig } from './client';
 

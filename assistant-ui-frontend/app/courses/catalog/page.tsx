@@ -6,13 +6,8 @@ import { CourseCard } from '@/components/courses/CourseCard';
 import { CourseFilterBar } from '@/components/courses/CourseFilterBar';
 import { Button } from '@/components/ui/button';
 import { Loader2, GraduationCap, ArrowLeft } from 'lucide-react';
-import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
 import { UnenrollConfirmationModal } from '@/components/dialogs/UnenrollConfirmationModal';
-import {
-  archiveEnrollment,
-  enrollStudentInCourse,
-  type EnrollmentStatus
-} from '@/lib/services/enrollment-service';
+import { type EnrollmentStatus } from '@/lib/services/enrollment-service';
 import { toast } from 'sonner';
 
 export default function CourseCatalogPage() {
@@ -37,69 +32,42 @@ export default function CourseCatalogPage() {
 
   const loadCourses = async () => {
     try {
-      const { Client, Databases, Account, Query } = await import('appwrite');
+      console.log('[Catalog] Fetching courses from API...');
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      const response = await fetch('/api/courses/catalog', {
+        method: 'GET',
+        credentials: 'include',
+      });
 
-      const databases = new Databases(client);
-      const account = new Account(client);
-
-      // Get all courses (increase limit to load all 117 courses, not just default 25)
-      const coursesResult = await databases.listDocuments('default', 'courses', [
-        Query.limit(500)
-      ]);
-
-      // ═══════════════════════════════════════════════════════════════
-      // NEW: Filter courses to only those with published SOWs
-      // ═══════════════════════════════════════════════════════════════
-      const sowDriver = new AuthoredSOWDriver(databases);
-      const publishedCourseIds = await sowDriver.getPublishedCourseIds();
-
-      const coursesWithPublishedSOWs = coursesResult.documents.filter(
-        (course: any) => publishedCourseIds.has(course.courseId)
-      );
-
-      console.log(
-        `[Catalog] Filtered ${coursesResult.documents.length} courses to ${coursesWithPublishedSOWs.length} with published SOWs`
-      );
-
-      // Get student enrollments with status
-      try {
-        const user = await account.get();
-        const studentsResult = await databases.listDocuments('default', 'students',
-          [Query.equal('userId', user.$id)]
-        );
-
-        if (studentsResult.documents.length > 0) {
-          const student = studentsResult.documents[0];
-          setStudentId(student.$id);
-
-          const enrollmentsResult = await databases.listDocuments('default', 'enrollments',
-            [Query.equal('studentId', student.$id)]
-          );
-
-          // Build enrollment status map
-          const statusMap = new Map<string, EnrollmentStatus>();
-          enrollmentsResult.documents.forEach((enrollment: any) => {
-            // Default to 'active' for backward compatibility with old records
-            const status = enrollment.status || 'active';
-            statusMap.set(enrollment.courseId, status);
-          });
-
-          setEnrollmentStatusMap(statusMap);
-          console.log(`[Catalog] Loaded ${statusMap.size} enrollments`);
-        }
-      } catch (err) {
-        // User not logged in - show all courses without enrollment status
-        console.log('User not logged in, showing public catalog');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch courses: ${response.statusText}`);
       }
 
-      // Use filtered courses instead of all courses
-      setCourses(coursesWithPublishedSOWs);
-    } catch (error) {
-      console.error('Failed to load courses:', error);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load courses');
+      }
+
+      const { courses: catalogCourses, enrollmentStatusMap: statusMapData, studentId: sid } = result.data;
+
+      // Set courses
+      setCourses(catalogCourses);
+      console.log(`[Catalog] Loaded ${catalogCourses.length} courses`);
+
+      // Convert enrollment status map from object to Map
+      const statusMap = new Map<string, EnrollmentStatus>();
+      Object.entries(statusMapData || {}).forEach(([courseId, status]) => {
+        statusMap.set(courseId, status as EnrollmentStatus);
+      });
+
+      setEnrollmentStatusMap(statusMap);
+      setStudentId(sid);
+      console.log(`[Catalog] Loaded ${statusMap.size} enrollments`);
+
+    } catch (error: any) {
+      console.error('[Catalog] Failed to load courses:', error);
+      throw error; // Fast fail, no silent errors
     } finally {
       setLoading(false);
     }
@@ -112,18 +80,27 @@ export default function CourseCatalogPage() {
   };
 
   const confirmUnenroll = async () => {
-    if (!selectedCourse || !studentId) {
+    if (!selectedCourse) {
       throw new Error('Missing required data for un-enrollment');
     }
 
     try {
-      const { Client, Databases } = await import('appwrite');
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-      const databases = new Databases(client);
+      console.log(`[Catalog] Un-enrolling from course: ${selectedCourse.id}`);
 
-      await archiveEnrollment(studentId, selectedCourse.id, databases);
+      const response = await fetch('/api/student/unenroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ courseId: selectedCourse.id }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to un-enroll from course');
+      }
 
       // Update local state
       setEnrollmentStatusMap(prev => {
@@ -133,9 +110,9 @@ export default function CourseCatalogPage() {
       });
 
       toast.success('Successfully un-enrolled. Your progress is saved and you can re-enroll anytime.');
-    } catch (error) {
-      console.error('Failed to un-enroll:', error);
-      toast.error('Failed to un-enroll from course. Please try again.');
+    } catch (error: any) {
+      console.error('[Catalog] Failed to un-enroll:', error);
+      toast.error(error.message || 'Failed to un-enroll from course. Please try again.');
       throw error; // Fast fail, no fallback
     } finally {
       setUnenrollModalOpen(false);
@@ -145,20 +122,28 @@ export default function CourseCatalogPage() {
 
   // Handler for re-enrollment
   const handleReenroll = async (courseId: string, courseName: string) => {
-    if (!studentId) {
-      toast.error('You must be logged in to enroll');
-      return;
-    }
-
     try {
-      const { Client, Databases } = await import('appwrite');
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-      const databases = new Databases(client);
+      console.log(`[Catalog] Re-enrolling in course: ${courseId}`);
 
-      // Re-enroll (will reactivate archived enrollment)
-      await enrollStudentInCourse(studentId, courseId, databases);
+      const response = await fetch('/api/student/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ courseId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        if (response.status === 401) {
+          toast.error('You must be logged in to enroll');
+          router.push('/login');
+          return;
+        }
+        throw new Error(result.error || 'Failed to enroll in course');
+      }
 
       // Update local state
       setEnrollmentStatusMap(prev => {
@@ -168,9 +153,9 @@ export default function CourseCatalogPage() {
       });
 
       toast.success(`Welcome back! Your progress in ${courseName} has been restored.`);
-    } catch (error) {
-      console.error('Failed to re-enroll:', error);
-      toast.error('Failed to re-enroll in course. Please try again.');
+    } catch (error: any) {
+      console.error('[Catalog] Failed to re-enroll:', error);
+      toast.error(error.message || 'Failed to re-enroll in course. Please try again.');
       throw error; // Fast fail, no fallback
     }
   };

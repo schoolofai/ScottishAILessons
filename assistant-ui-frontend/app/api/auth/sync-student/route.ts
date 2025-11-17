@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/appwrite/client';
 import { syncUserToStudentsCollection } from '@/lib/appwrite/server';
 
 /**

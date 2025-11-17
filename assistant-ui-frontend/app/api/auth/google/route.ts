@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/appwrite/client';
+import { createAdminClient } from '@/lib/server/appwrite';
 import { OAuthProvider } from 'appwrite';
 
 export async function GET() {

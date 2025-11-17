@@ -128,42 +128,48 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
       try {
         console.log('📥 SessionChatAssistant - Starting to load session context for:', sessionId);
 
-        const sessionDriver = createDriver(SessionDriver);
-        const courseDriver = createDriver(CourseDriver);
+        // Fetch session data from server-side API using httpOnly cookie auth
+        const response = await fetch(`/api/sessions/${sessionId}`, {
+          method: 'GET',
+          credentials: 'include', // Include httpOnly cookies
+        });
 
-        // Load session with thread information including context chat thread
-        const sessionWithThread = await sessionDriver.getSessionWithContextChat(sessionId);
-        const sessionStateData = await sessionDriver.getSessionState(sessionId);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to load session' }));
+          throw new Error(errorData.error || 'Failed to load session');
+        }
 
-        if (!sessionStateData) {
+        const sessionData = await response.json();
+
+        if (!sessionData.success || !sessionData.session) {
           throw new Error("Session not found");
         }
 
-        const { session, parsedSnapshot } = sessionStateData;
+        const { session, parsedSnapshot, threadId, contextChatThreadId: contextChatThread } = sessionData;
+
+        // Still need CourseDriver for course metadata - will migrate later
+        const courseDriver = createDriver(CourseDriver);
 
         console.log('📦 SessionChatAssistant - Session data loaded:', {
           sessionId: session.$id,
-          hasThreadId: !!session.threadId,
-          threadId: session.threadId,
-          hasContextChatThreadId: !!sessionWithThread.contextChatThreadId
+          hasThreadId: !!threadId,
+          threadId,
+          hasContextChatThreadId: !!contextChatThread
         });
 
-        // Use threadId from session if available (priority: session.threadId > sessionWithThread.threadId)
+        // Use threadId from session if available
         // This supports thread continuity from EnhancedDashboard
-        if (session.threadId) {
-          console.log('✅ SessionChatAssistant - Using threadId from session for continuity:', session.threadId);
-          setExistingThreadId(session.threadId);
-        } else if (sessionWithThread.threadId) {
-          console.log('✅ SessionChatAssistant - Found existing thread ID:', sessionWithThread.threadId);
-          setExistingThreadId(sessionWithThread.threadId);
+        if (threadId) {
+          console.log('✅ SessionChatAssistant - Using threadId from session for continuity:', threadId);
+          setExistingThreadId(threadId);
         } else {
           console.log('ℹ️ SessionChatAssistant - No existing thread ID found, new thread will be created');
         }
 
         // Load context chat thread ID if available
-        if (sessionWithThread.contextChatThreadId) {
-          console.log('SessionChatAssistant - Found existing context chat thread ID:', sessionWithThread.contextChatThreadId);
-          setContextChatThreadId(sessionWithThread.contextChatThreadId);
+        if (contextChatThread) {
+          console.log('SessionChatAssistant - Found existing context chat thread ID:', contextChatThread);
+          setContextChatThreadId(contextChatThread);
         } else {
           console.log('SessionChatAssistant - No existing context chat thread ID found, will create new one if needed');
         }
@@ -330,8 +336,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         console.log('📊 SessionChatAssistant - Thread info:', {
           existingThreadId: session.threadId,
-          hasExistingConversation: sessionWithThread.hasExistingConversation,
-          lastMessageAt: sessionWithThread.lastMessageAt
+          hasExistingConversation: sessionData.hasExistingConversation,
+          lastMessageAt: sessionData.lastMessageAt
         });
 
         console.log('🎯 SessionChatAssistant - Setting session context state');

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/appwrite/client';
+import { createAdminClient } from '@/lib/server/appwrite';
 import { createSessionCookie, syncUserToStudentsCollection } from '@/lib/appwrite/server';
 
 export async function GET(request: NextRequest) {

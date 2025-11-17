@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSessionClient, appwriteConfig } from "@/lib/appwrite/server";
-import { ID, Query } from "appwrite";
+import { createSessionClient } from "@/lib/server/appwrite";
+import { ID, Query } from "node-appwrite";
 import { compressJSON } from "@/lib/appwrite/utils/compression";
 
 export async function POST(request: NextRequest) {
   try {
-    const sessionCookieName = `a_session_${appwriteConfig.projectId}`;
-    const sessionId = request.cookies.get(sessionCookieName)?.value;
-    
-    if (!sessionId) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
+    // Get authenticated user using secure httpOnly cookie
+    const { account, databases } = await createSessionClient();
+    const user = await account.get();
 
-    const { lessonTemplateId, courseId } = await request.json();
-    
+    const { lessonTemplateId, courseId, threadId } = await request.json();
+
     if (!lessonTemplateId || !courseId) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
-
-    const { account, databases } = createSessionClient(sessionId);
-    const user = await account.get();
     
     // Get student record
     const studentsResult = await databases.listDocuments(
@@ -49,7 +43,7 @@ export async function POST(request: NextRequest) {
       templateVersion: lessonTemplate.version
     };
     
-    // Create session
+    // Create session with required status field
     const newSession = await databases.createDocument(
       'default',
       'sessions',
@@ -60,7 +54,10 @@ export async function POST(request: NextRequest) {
         lessonTemplateId: lessonTemplateId,
         startedAt: new Date().toISOString(),
         stage: 'design',
-        lessonSnapshot: compressJSON(lessonSnapshot)
+        status: 'active', // Required field for session tracking
+        lessonSnapshot: compressJSON(lessonSnapshot),
+        // Include threadId if provided (for recommendation context)
+        ...(threadId && { threadId })
       },
       [`read("user:${user.$id}")`, `write("user:${user.$id}")`]
     );
@@ -70,10 +67,19 @@ export async function POST(request: NextRequest) {
       session: newSession 
     });
     
-  } catch (error) {
-    console.error('Session creation error:', error);
+  } catch (error: any) {
+    console.error('[API] /api/sessions POST error:', error);
+
+    // Handle authentication errors
+    if (error.message && error.message.includes('No session found')) {
+      return NextResponse.json(
+        { error: 'Not authenticated. Please log in.' },
+        { status: 401 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to create session" }, 
+      { error: error.message || "Failed to create session" },
       { status: 500 }
     );
   }

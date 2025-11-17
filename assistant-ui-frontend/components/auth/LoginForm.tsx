@@ -34,7 +34,7 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      // Step 1: Create server-side session (httpOnly cookie for middleware/API routes)
+      // Create server-side session (httpOnly cookie for middleware/API routes)
       const result = await signInWithEmail(email, password);
 
       // Handle undefined result (server error)
@@ -47,24 +47,9 @@ export function LoginForm() {
       }
 
       console.log('[LoginForm] Server-side session created');
-
-      // Step 2: Create client-side session (for dashboard components)
-      // Import client SDK dynamically
-      const { Client, Account } = await import('appwrite');
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      const account = new Account(client);
-
-      // Create client-side session (this will store in localStorage automatically)
-      await account.createEmailPasswordSession(email, password);
-
-      console.log('[LoginForm] Client-side session created');
-
       console.log('[LoginForm] Login successful, redirecting to dashboard');
 
-      // Refresh the page to ensure all components see the new sessions
+      // Refresh the page to ensure all components see the new session
       window.location.href = '/dashboard';
 
     } catch (err) {
