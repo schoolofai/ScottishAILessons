@@ -79,8 +79,8 @@ async def upload_diagrams_to_storage(
 
     Returns:
         {
-            "uploaded": int,
-            "failed": int,
+            "diagrams_uploaded": int,
+            "diagrams_failed": int,
             "failed_card_ids": List[str]
         }
 
@@ -144,8 +144,8 @@ async def upload_diagrams_to_storage(
     )
 
     return {
-        "uploaded": uploaded,
-        "failed": failed,
+        "diagrams_uploaded": uploaded,
+        "diagrams_failed": failed,
         "failed_card_ids": failed_card_ids
     }
 

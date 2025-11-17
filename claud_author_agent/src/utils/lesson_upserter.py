@@ -16,6 +16,7 @@ from .appwrite_mcp import (
     create_appwrite_document,
     update_appwrite_document
 )
+from .diagram_uploader import upload_diagrams_to_storage
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,44 @@ async def upsert_lesson_template(
 
     logger.info(f"Loaded lesson template: {template.get('title', 'N/A')}")
 
+    # ═══════════════════════════════════════════════════════════════
+    # Phase 6: Diagram Upload (Before card compression)
+    # ═══════════════════════════════════════════════════════════════
+    # Upload diagram PNGs from workspace/diagrams/ to Appwrite Storage
+    # Updates template in-place with image_file_id references
+    # Fails gracefully if Storage is unavailable
+    # ═══════════════════════════════════════════════════════════════
+    logger.info("Phase 6: Uploading diagram PNGs to Storage...")
+
+    try:
+        workspace_path = Path(lesson_template_path).parent
+        upload_results = await upload_diagrams_to_storage(
+            lesson_template=template,
+            workspace_path=workspace_path,
+            mcp_config_path=mcp_config_path
+        )
+
+        logger.info(
+            f"✅ Diagram upload complete: {upload_results['diagrams_uploaded']} uploaded, "
+            f"{upload_results['diagrams_failed']} failed"
+        )
+
+        if upload_results['diagrams_failed'] > 0:
+            logger.warning(
+                f"⚠️ {upload_results['diagrams_failed']} diagrams failed to upload. "
+                f"Failed card IDs: {upload_results.get('failed_card_ids', [])}"
+            )
+
+        # Write updated template back to file (with image_file_id references)
+        with open(template_file, 'w') as f:
+            json.dump(template, f, indent=2)
+
+        logger.info("✅ lesson_template.json updated with diagram file IDs")
+
+    except Exception as e:
+        logger.warning(f"⚠️ Diagram upload failed: {e}. Continuing with lesson upsertion.")
+        logger.info("Lesson will be created without diagram Storage references")
+
     # Step 2: Extract and compress cards
     cards = template.get("cards", [])
 
@@ -176,6 +215,12 @@ async def upsert_lesson_template(
                 authored_sow_version = existing_version
 
     # Step 4: Prepare document data (match TypeScript field mapping)
+    # Calculate diagrams_count from cards with uploaded diagram files
+    diagrams_count = sum(
+        1 for card in cards
+        if card.get("diagram_metadata", {}).get("image_file_id")
+    )
+
     doc_data = {
         "courseId": courseId,
         "sow_order": order,
@@ -192,11 +237,14 @@ async def upsert_lesson_template(
         "cards": compressed_cards,  # Compressed, not JSON string
         # NEW: SOW reference fields for model versioning and traceability
         "authored_sow_id": authored_sow_id,
-        "authored_sow_version": authored_sow_version
+        "authored_sow_version": authored_sow_version,
+        # NEW: Diagram count for quick filtering and analytics
+        "diagrams_count": diagrams_count
     }
 
-    # Log SOW references for traceability
+    # Log SOW references and diagram metadata for traceability
     logger.info(f"SOW References: authored_sow_id='{authored_sow_id}', authored_sow_version='{authored_sow_version}'")
+    logger.info(f"Diagrams: {diagrams_count} diagrams with uploaded Storage files")
 
     # Step 5: Upsert (update if exists, create if new)
     if existing_docs and len(existing_docs) > 0:

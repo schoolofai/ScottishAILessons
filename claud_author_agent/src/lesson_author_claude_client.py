@@ -20,6 +20,7 @@ from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging
 from .utils.compression import decompress_json_gzip_base64
 from .tools.json_validator_tool import validation_server
+from .tools.diagram_screenshot_tool import diagram_screenshot_server, check_diagram_service_health
 
 logger = logging.getLogger(__name__)
 
@@ -95,27 +96,36 @@ class LessonAuthorClaudeAgent:
             FileNotFoundError: If prompt files are missing
 
         Note:
-            3 subagents: research_subagent, lesson_author, combined_lesson_critic
+            5 subagents: research_subagent, lesson_author (v3), combined_lesson_critic (v3),
+            diagram_generation_subagent, diagram_critic_subagent
         """
         prompts_dir = Path(__file__).parent / "prompts"
 
-        # Load 3 subagent prompts
+        # Load 5 subagent prompts (v3 with diagram planning integration)
         subagents = {
             "research_subagent": AgentDefinition(
                 description="Research subagent for answering clarifications with Scottish context",
                 prompt=(prompts_dir / "research_subagent_prompt.md").read_text()
             ),
             "lesson_author": AgentDefinition(
-                description="Lesson author for creating complete lesson templates",
-                prompt=(prompts_dir / "lesson_author_prompt_v2.md").read_text()
+                description="Lesson author v3 with diagram planning for creating complete lesson templates",
+                prompt=(prompts_dir / "lesson_author_prompt_v3.md").read_text()
             ),
             "combined_lesson_critic": AgentDefinition(
-                description="Combined lesson critic v2 for validating transformation fidelity and schema compliance",
-                prompt=(prompts_dir / "lesson_critic_prompt_v2.md").read_text()
+                description="Combined lesson critic v3 with diagram coherence validation",
+                prompt=(prompts_dir / "lesson_critic_prompt_v3.md").read_text()
+            ),
+            "diagram_generation_subagent": AgentDefinition(
+                description="Diagram generation subagent for creating JSXGraph diagrams from lesson cards",
+                prompt=(prompts_dir / "diagram_generation_subagent.md").read_text()
+            ),
+            "diagram_critic_subagent": AgentDefinition(
+                description="Diagram visual critic for evaluating diagram quality across 4 dimensions",
+                prompt=(prompts_dir / "visual_critic_subagent.md").read_text()
             )
         }
 
-        logger.info(f"Loaded {len(subagents)} subagent definitions")
+        logger.info(f"Loaded {len(subagents)} subagent definitions (v3 with diagram integration)")
         return subagents
 
     async def execute(
@@ -212,7 +222,7 @@ class LessonAuthorClaudeAgent:
                 # ═══════════════════════════════════════════════════════════════
                 # Register MCP Tools for Lesson Author Agent
                 # ═══════════════════════════════════════════════════════════════
-                # ONLY register validator MCP tool - Appwrite MCP excluded.
+                # ONLY register validator + diagram_screenshot MCP tools - Appwrite MCP excluded.
                 #
                 # Why Appwrite MCP Not Needed:
                 # - SOW entry and Course_outcomes.json are PRE-EXTRACTED by Python utilities
@@ -231,12 +241,22 @@ class LessonAuthorClaudeAgent:
                 # Tool Name: mcp__validator__validate_lesson_template
                 # Documentation: docs/guides/json-validation-tool.md
                 # Implementation: src/tools/json_validator_tool.py
+                #
+                # DiagramScreenshot Tool (v1.0.0):
+                # - Renders JSXGraph diagrams to PNG files
+                # - HTTP service at localhost:3001/api/v1/render
+                # - File-based output (writes to workspace/diagrams/)
+                # - Used by diagram_generation_subagent during Phase 3
+                #
+                # Tool Name: mcp__diagram_screenshot__render_diagram
+                # Implementation: src/tools/diagram_screenshot_tool.py
                 # ═══════════════════════════════════════════════════════════════
                 mcp_servers_for_lesson_author = {
-                    "validator": validation_server  # JSON validation tool (v2.0.0)
+                    "validator": validation_server,  # JSON validation tool (v2.0.0)
+                    "diagram_screenshot": diagram_screenshot_server  # Diagram rendering tool (v1.0.0)
                     # Appwrite MCP intentionally excluded - not used by lesson author
                 }
-                logger.info("Registered validator MCP tool for lesson author (Appwrite MCP excluded - not needed)")
+                logger.info("Registered validator + diagram_screenshot MCP tools (Appwrite MCP excluded - not needed)")
 
                 # ═══════════════════════════════════════════════════════════════
                 # Generate Blank Lesson Template (NO AGENT)
@@ -278,11 +298,12 @@ class LessonAuthorClaudeAgent:
                     model='claude-sonnet-4-5',
                     agents=self._get_subagent_definitions(),
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
-                    mcp_servers=mcp_servers_for_lesson_author,  # Only validator MCP (Appwrite excluded)
+                    mcp_servers=mcp_servers_for_lesson_author,  # validator + diagram_screenshot MCP
                     allowed_tools=[
                         'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
                         'WebSearch', 'WebFetch',
-                        'mcp__validator__validate_lesson_template'  # JSON validation tool
+                        'mcp__validator__validate_lesson_template',  # JSON validation tool
+                        'mcp__diagram_screenshot__render_diagram'  # Diagram rendering tool
                     ],
                     max_turns=500,  # High limit to ensure agent can complete complex lesson authoring work
                     cwd=str(workspace_path)  # Set agent working directory to isolated workspace
@@ -290,7 +311,27 @@ class LessonAuthorClaudeAgent:
 
                 logger.info(f"Agent configured: bypassPermissions + WebSearch/WebFetch + cwd={workspace_path} + max_turns=500")
 
-                # Execute pipeline (3 subagents: research_subagent, lesson_author, combined_lesson_critic)
+                # ═══════════════════════════════════════════════════════════════
+                # Health Check: DiagramScreenshot Service
+                # ═══════════════════════════════════════════════════════════════
+                # Check if DiagramScreenshot service is running on localhost:3001
+                # If service is down, diagrams will fail gracefully during Phase 3
+                # (lessons will still complete without diagrams)
+                # ═══════════════════════════════════════════════════════════════
+                logger.info("Checking DiagramScreenshot service health...")
+                diagram_service_available = await check_diagram_service_health()
+
+                if diagram_service_available:
+                    logger.info("✅ DiagramScreenshot service is running (localhost:3001)")
+                else:
+                    logger.warning(
+                        "⚠️ DiagramScreenshot service is NOT available at localhost:3001. "
+                        "Diagram generation will fail gracefully during Phase 3. "
+                        "Lessons will still complete without diagrams. "
+                        "To enable diagrams, start the service with: cd diagram-screenshot && npm run dev"
+                    )
+
+                # Execute pipeline (5 subagents: research, lesson_author v3, critic v3, diagram_gen, diagram_critic)
                 async with ClaudeSDKClient(options) as client:
                     # Initial prompt to orchestrate subagents
                     initial_prompt = self._build_initial_prompt(
@@ -352,6 +393,84 @@ class LessonAuthorClaudeAgent:
                             break
 
                     logger.info("Message stream complete")
+
+                # ═══════════════════════════════════════════════════════════════
+                # Phase 3: Diagram Generation (After lesson authoring, before upserting)
+                # ═══════════════════════════════════════════════════════════════
+                # Generate diagrams for all diagram-eligible cards in lesson_template.json
+                # Uses DiagramGenerator with iterative critique loop (max 3 iterations)
+                # Diagrams fail gracefully - lessons complete even if service is down
+                # Updates lesson_template.json in-place with diagram_metadata
+                # ═══════════════════════════════════════════════════════════════
+                logger.info("=" * 80)
+                logger.info("Phase 3: Diagram Generation")
+                logger.info("=" * 80)
+
+                lesson_template_path = workspace_path / "lesson_template.json"
+
+                # Load lesson template to check for diagram-eligible cards
+                if lesson_template_path.exists():
+                    with open(lesson_template_path) as f:
+                        lesson_template_data = json.load(f)
+
+                    # Count diagram-eligible cards
+                    eligible_count = sum(
+                        1 for card in lesson_template_data.get("cards", [])
+                        if card.get("diagram_eligible", False)
+                    )
+
+                    if eligible_count > 0:
+                        logger.info(f"Found {eligible_count} diagram-eligible cards - starting diagram generation...")
+
+                        from .utils.diagram_generator import DiagramGenerator
+
+                        diagram_generator = DiagramGenerator(
+                            mcp_config_path=self.mcp_config_path,
+                            workspace_path=workspace_path,
+                            max_iterations=3,
+                            score_threshold=0.85
+                        )
+
+                        try:
+                            diagram_results = await diagram_generator.generate_diagrams_for_lesson(
+                                lesson_template=lesson_template_data,
+                                subagent_definitions=self._get_subagent_definitions(),
+                                mcp_servers=mcp_servers_for_lesson_author
+                            )
+
+                            logger.info(
+                                f"✅ Diagram generation complete: "
+                                f"{diagram_results['diagrams_generated']} generated, "
+                                f"{diagram_results['diagrams_failed']} failed, "
+                                f"{diagram_results['total_eligible']} eligible"
+                            )
+
+                            if diagram_results['diagrams_failed'] > 0:
+                                logger.warning(
+                                    f"⚠️ {diagram_results['diagrams_failed']} diagrams failed to generate. "
+                                    f"Failed card IDs: {diagram_results.get('failed_card_ids', [])}"
+                                )
+
+                            # Record diagram generation metrics
+                            self.cost_tracker.record_subagent(
+                                name="diagram_generation_phase",
+                                input_tokens=diagram_results.get('total_input_tokens', 0),
+                                output_tokens=diagram_results.get('total_output_tokens', 0),
+                                cost=diagram_results.get('total_cost_usd', 0.0),
+                                execution_time=diagram_results.get('execution_time_seconds', 0.0),
+                                success=diagram_results['diagrams_generated'] > 0,
+                                error=""
+                            )
+
+                        except Exception as e:
+                            logger.error(f"❌ Diagram generation failed: {e}", exc_info=True)
+                            logger.warning("Continuing without diagrams (graceful degradation)")
+                    else:
+                        logger.info("No diagram-eligible cards found - skipping Phase 3")
+                else:
+                    logger.warning(f"lesson_template.json not found at {lesson_template_path} - skipping diagrams")
+
+                logger.info("=" * 80)
 
                 # Python-based upserting with compression (deterministic)
                 logger.info("Starting deterministic Python upserter with compression...")
@@ -615,27 +734,28 @@ Execute the following workflow with 3 available subagents:
   * Common misconceptions in the subject domain
   * Pedagogical scaffolding approaches (I-We-You progression)
 
-### 2. Lesson Author (main authoring - YOU)
-- **Task**: Fill blank lesson template using pre-loaded files + research
+### 2. Lesson Author v3 (main authoring with diagram planning - YOU)
+- **Task**: Fill blank lesson template using pre-loaded files + research + diagram planning
 - **Pre-loaded Inputs**:
   - `/workspace/lesson_template.json` (BLANK template - pre-generated with correct structure)
   - `/workspace/sow_entry_input.json` (SOW lesson design with rich pedagogical detail)
   - `/workspace/sow_context.json` (Course-level coherence, accessibility, engagement notes)
   - `/workspace/Course_outcomes.json` (Course outcomes with deterministic outcomeId references)
 - **Additional Resources**: Use @research_subagent for any gaps
-- **Output**: Filled `/workspace/lesson_template.json` (prefer Edit, use Write if needed)
+- **Output**: Filled `/workspace/lesson_template.json` with diagram planning fields
 - **Process**:
   1. Read blank lesson_template.json (already exists in workspace)
   2. Read all other pre-loaded files
-  3. **Create todo list with per-card validation** (see Step 3 in lesson_author_prompt_v2.md)
+  3. **Create todo list with per-card validation** (see Step 3 in lesson_author_prompt_v3.md)
   4. Identify information gaps (exemplars, misconceptions, contexts)
   5. Delegate to @research_subagent for targeted queries
   6. For EACH card:
      a. Fill all fields (use Edit, or Write if Edit causes syntax errors)
-     b. **🚨 VALIDATE using mcp__validator__validate_lesson_template**
-     c. **Save validation result to /workspace/validation_result.json**
-     d. Fix any errors and re-validate this card
-     e. Mark card complete and move to next card
+     b. **NEW: Add diagram planning** (diagram_eligible, diagram_description, diagram_context, diagram_metadata)
+     c. **🚨 VALIDATE using mcp__validator__validate_lesson_template**
+     d. **Save validation result to /workspace/validation_result.json**
+     e. Fix any errors and re-validate this card
+     f. Mark card complete and move to next card
   7. After ALL cards validated individually, run final validation and save result
   8. ONLY THEN call @combined_lesson_critic
 
@@ -673,13 +793,14 @@ See lesson_author_prompt_v2.md for detailed instructions.
 
 ---
 
-### 5. Combined Lesson Critic (iterate until pass)
-- **Task**: Validate transformation fidelity (75%) and schema compliance (GATE)
+### 5. Combined Lesson Critic v3 (iterate until pass)
+- **Task**: Validate transformation fidelity + diagram coherence + schema compliance
 - **Validation Strategy**:
   - **Schema Gate**: Hard pass/fail on schema requirements (ANY violation = instant fail)
   - **Dimension 1**: SOW-Template Fidelity (75% weight, ≥0.90 threshold) - Did lesson author preserve ALL SOW content?
-  - **Dimension 2**: Basic Quality Checks (25% weight, ≥0.80 threshold) - Minimum quality requirements met?
-  - **Focus**: Trust SOW author's pedagogy, validate transformation completeness + schema correctness
+  - **Dimension 2**: NEW: Lesson-Diagram Coherence (15% weight, ≥0.85 threshold) - Do diagrams support pedagogical goals?
+  - **Dimension 3**: Basic Quality Checks (10% weight, ≥0.80 threshold) - Minimum quality requirements met?
+  - **Focus**: Trust SOW author's pedagogy, validate transformation completeness + diagram integration + schema correctness
 - **Inputs**:
   - `/workspace/lesson_template.json` (from step 2)
   - `/workspace/sow_entry_input.json` (pre-loaded)
