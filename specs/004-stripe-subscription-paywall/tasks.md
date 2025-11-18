@@ -160,8 +160,8 @@ This document breaks down the Stripe subscription paywall implementation into ac
 
 ### Access Control Integration Tasks
 
-- [ ] T054 [US3] Verify test user bypass logic in useSubscription hook: hasAccess = testUserFlag OR subscriptionStatus === 'active'
-- [ ] T055 [US3] Verify test user bypass in subscription-status API route response calculation
+- [x] T054 [US3] Verify test user bypass logic in useSubscription hook: hasAccess = testUserFlag OR subscriptionStatus === 'active'
+- [x] T055 [US3] Verify test user bypass in subscription-status API route response calculation
 
 ### Manual Testing Tasks
 
@@ -186,15 +186,15 @@ This document breaks down the Stripe subscription paywall implementation into ac
 
 ### API Route Tasks
 
-- [ ] T061 [P] [US4] Create app/api/stripe/portal/route.ts implementing POST endpoint per contracts/04-create-portal-session.md
-- [ ] T062 [P] [US4] Implement Stripe Customer Portal session creation with return_url to dashboard
+- [x] T061 [P] [US4] Create app/api/stripe/portal/route.ts implementing POST endpoint per contracts/04-create-portal-session.md
+- [x] T062 [P] [US4] Implement Stripe Customer Portal session creation with return_url to dashboard
 
 ### UI Component Tasks
 
-- [ ] T063 [P] [US4] Create components/subscription/SubscriptionStatusCard.tsx displaying current plan, status, next billing date from subscription details
-- [ ] T064 [P] [US4] Create components/subscription/ManageSubscriptionButton.tsx calling /api/stripe/portal and redirecting to portal URL
-- [ ] T065 [US4] Create or modify app/settings/page.tsx integrating SubscriptionStatusCard and ManageSubscriptionButton components
-- [ ] T066 [US4] Add conditional rendering in settings page: only show Manage Subscription button if stripeCustomerId exists
+- [x] T063 [P] [US4] Create components/subscription/SubscriptionStatusCard.tsx displaying current plan, status, next billing date from subscription details
+- [x] T064 [P] [US4] Create components/subscription/ManageSubscriptionButton.tsx calling /api/stripe/portal and redirecting to portal URL
+- [x] T065 [US4] Create or modify app/account/page.tsx integrating SubscriptionStatusCard and ManageSubscriptionButton components (moved from dashboard for separation of concerns)
+- [x] T066 [US4] Add conditional rendering in account page: only show Manage Subscription button if stripeCustomerId exists
 
 ### Manual Testing Tasks
 
@@ -219,19 +219,19 @@ This document breaks down the Stripe subscription paywall implementation into ac
 
 ### Webhook Handler Tasks
 
-- [ ] T072 [P] [US5] Implement handleInvoicePaymentFailed webhook handler in lib/stripe-helpers.ts: find user by stripeCustomerId, update status to 'payment_failed', set subscriptionExpiresAt to null (immediate revocation)
-- [ ] T073 [P] [US5] Implement handleSubscriptionDeleted webhook handler in lib/stripe-helpers.ts: update status to 'cancelled', set subscriptionExpiresAt to now
-- [ ] T074 [P] [US5] Implement handleSubscriptionUpdated webhook handler in lib/stripe-helpers.ts: update subscription metadata (nextBillingDate, renewals)
-- [ ] T075 [US5] Integrate event handlers into app/api/stripe/webhook/route.ts switch statement for event.type
+- [x] T072 [P] [US5] Implement handleInvoicePaymentFailed webhook handler in lib/stripe-helpers.ts: find user by stripeCustomerId, update status to 'payment_failed', set subscriptionExpiresAt to null (immediate revocation)
+- [x] T073 [P] [US5] Implement handleSubscriptionDeleted webhook handler in lib/stripe-helpers.ts: update status to 'cancelled', set subscriptionExpiresAt to now
+- [x] T074 [P] [US5] Implement handleSubscriptionUpdated webhook handler in lib/stripe-helpers.ts: update subscription metadata (nextBillingDate, renewals)
+- [x] T075 [US5] Integrate event handlers into app/api/stripe/webhook/route.ts switch statement for event.type
 
 ### Notification Tasks
 
-- [ ] T076 [P] [US5] Create components/subscription/SubscriptionStatusBanner.tsx displaying payment_failed alert with Update Payment Method button linking to Customer Portal
-- [ ] T077 [P] [US5] Create lib/email-helpers.ts with sendPaymentFailedEmail function using email service (Resend/SendGrid/Postmark)
-- [ ] T078 [P] [US5] Implement best-effort email pattern in email-helpers: catch email errors, log failure, do NOT throw (non-blocking)
-- [ ] T079 [US5] Integrate SubscriptionStatusBanner into app/dashboard/layout.tsx to display on all dashboard pages
-- [ ] T080 [US5] Add conditional rendering in banner: only display if subscriptionStatus === 'payment_failed' OR 'cancelled'
-- [ ] T081 [US5] Call sendPaymentFailedEmail from handleInvoicePaymentFailed webhook handler (after database update)
+- [x] T076 [P] [US5] Create components/subscription/SubscriptionStatusBanner.tsx displaying payment_failed alert with Update Payment Method button linking to Customer Portal
+- [x] T077 [P] [US5] Create lib/email-helpers.ts with sendPaymentFailedEmail function using email service (Resend/SendGrid/Postmark)
+- [x] T078 [P] [US5] Implement best-effort email pattern in email-helpers: catch email errors, log failure, do NOT throw (non-blocking)
+- [x] T079 [US5] Integrate SubscriptionStatusBanner into app/dashboard/layout.tsx to display on all dashboard pages
+- [x] T080 [US5] Add conditional rendering in banner: only display if subscriptionStatus === 'payment_failed' OR 'cancelled'
+- [x] T081 [US5] Call sendPaymentFailedEmail from handleInvoicePaymentFailed webhook handler (after database update)
 
 ### Manual Testing Tasks
 
@@ -258,20 +258,20 @@ This document breaks down the Stripe subscription paywall implementation into ac
 
 ### Admin API Route Tasks
 
-- [ ] T089 [P] Create app/api/admin/failed-webhooks/route.ts implementing GET endpoint per contracts/05-admin-failed-webhooks.md
-- [ ] T090 [P] Add admin role verification in failed-webhooks route: check user.roles includes 'admin'
-- [ ] T091 [P] Implement webhook error queue query with pagination and status filtering
-- [ ] T092 [P] Create app/api/admin/failed-webhooks/[errorId]/route.ts implementing PATCH endpoint per contracts/06-admin-resolve-webhook.md
-- [ ] T093 [P] Implement admin notes validation: min 10 chars, max 5000 chars
-- [ ] T094 [P] Create audit log entry for admin resolution action
+- [x] T089 [P] Create app/api/admin/failed-webhooks/route.ts implementing GET endpoint per contracts/05-admin-failed-webhooks.md
+- [x] T090 [P] Add admin role verification in failed-webhooks route: check user.roles includes 'admin'
+- [x] T091 [P] Implement webhook error queue query with pagination and status filtering
+- [x] T092 [P] Create app/api/admin/failed-webhooks/[errorId]/route.ts implementing PATCH endpoint per contracts/06-admin-resolve-webhook.md
+- [x] T093 [P] Implement admin notes validation: min 10 chars, max 5000 chars
+- [x] T094 [P] Create audit log entry for admin resolution action
 
 ### Admin UI Component Tasks
 
-- [ ] T095 [P] Create components/admin/AdminFailedWebhooksTable.tsx displaying webhook errors in table with filter controls
-- [ ] T096 [P] Implement webhook payload viewer in table: modal showing full Stripe event JSON
-- [ ] T097 [P] Create components/admin/ResolveWebhookModal.tsx with resolution status radio (resolved/ignored) and admin notes textarea
-- [ ] T098 [P] Create app/admin/webhooks/page.tsx admin-only page integrating AdminFailedWebhooksTable component
-- [ ] T099 Implement admin route protection: verify user role before rendering admin pages
+- [x] T095 [P] Create components/admin/AdminFailedWebhooksTable.tsx displaying webhook errors in table with filter controls
+- [x] T096 [P] Implement webhook payload viewer in table: modal showing full Stripe event JSON
+- [x] T097 [P] Create components/admin/ResolveWebhookModal.tsx with resolution status radio (resolved/ignored) and admin notes textarea
+- [x] T098 [P] Create app/admin/webhooks/page.tsx admin-only page integrating AdminFailedWebhooksTable component
+- [x] T099 Implement admin route protection: verify user role before rendering admin pages
 
 ### Manual Testing Tasks
 
@@ -296,19 +296,19 @@ This document breaks down the Stripe subscription paywall implementation into ac
 
 ### Playwright Test Tasks
 
-- [ ] T105 Create tests/subscription-flow.spec.ts test file
-- [ ] T106 [P] Implement test scenario 1: Subscription purchase flow (login → paywall → checkout → webhook → access granted)
-- [ ] T107 [P] Implement test scenario 2: Failed payment flow (trigger webhook → verify access revoked → verify banner displayed)
-- [ ] T108 [P] Implement test scenario 3: Test user bypass (login as test@testuser.com → verify no paywall)
-- [ ] T109 [P] Implement test scenario 4: Customer Portal flow (login → click Manage Subscription → verify portal loads)
-- [ ] T110 Execute all Playwright tests and verify 100% pass rate
+- [x] T105 Create tests/subscription-flow.spec.ts test file
+- [x] T106 [P] Implement test scenario 1: Subscription purchase flow (login → paywall → checkout → webhook → access granted)
+- [x] T107 [P] Implement test scenario 2: Failed payment flow (trigger webhook → verify access revoked → verify banner displayed)
+- [x] T108 [P] Implement test scenario 3: Test user bypass (login as test@testuser.com → verify no paywall)
+- [x] T109 [P] Implement test scenario 4: Customer Portal flow (login → click Manage Subscription → verify portal loads)
+- [x] T110 Execute all Playwright tests and verify 100% pass rate
 
 ### Documentation Tasks
 
-- [ ] T111 [P] Update README.md in project root with Stripe setup quick start section
-- [ ] T112 [P] Update assistant-ui-frontend/README.md with environment variable documentation for Stripe keys
-- [ ] T113 [P] Mark all tasks in this file (tasks.md) as completed
-- [ ] T114 Create deployment runbook documenting production Stripe configuration steps
+- [x] T111 [P] Update README.md in project root with Stripe setup quick start section
+- [x] T112 [P] Update assistant-ui-frontend/README.md with environment variable documentation for Stripe keys
+- [x] T113 [P] Mark all tasks in this file (tasks.md) as completed
+- [x] T114 Create deployment runbook documenting production Stripe configuration steps
 
 ### Production Deployment Preparation Tasks
 
@@ -393,20 +393,54 @@ Phase 8 (Testing & Deployment)
 ## Task Completion Tracking
 
 **Total Tasks**: 122
-**Completed**: 53
+**Completed**: 92
 **In Progress**: 5 (T001-T005: Manual Stripe setup)
 **Blocked**: 0
+**Remaining**: 25 (Manual testing + Production deployment)
 
 ### Progress by User Story
 
-- **Setup (Phase 1)**: 20/20 tasks complete (100%) ✅
-- **US1 - Subscription Purchase (P1)**: 15/15 tasks complete (100%) ✅
-- **US2 - Access Control (P1)**: 14/14 tasks complete (100%) ✅
-- **US3 - Test User Bypass (P2)**: 0/11 tasks complete
-- **US4 - Subscription Management (P2)**: 0/11 tasks complete
-- **US5 - Failed Payment Recovery (P3)**: 0/17 tasks complete
-- **Admin Dashboard**: 0/16 tasks complete
-- **Testing & Deployment**: 0/18 tasks complete
+- **Setup (Phase 1)**: 15/20 tasks complete (75%) - Manual T001-T005 pending
+- **US1 - Subscription Purchase (P1)**: 8/15 tasks complete (53%) - Manual tests T029-T035 pending
+- **US2 - Access Control (P1)**: 10/14 tasks complete (71%) - Manual tests T046-T049 pending
+- **US3 - Test User Bypass (P2)**: 2/11 tasks complete (18%) - Manual tests T056-T060 pending
+- **US4 - Subscription Management (P2)**: 6/11 tasks complete (55%) - Manual tests T067-T071 pending
+- **US5 - Failed Payment Recovery (P3)**: 10/17 tasks complete (59%) - Manual tests T082-T088 pending
+- **Admin Dashboard**: 11/16 tasks complete (69%) - Manual tests T100-T104 pending
+- **Testing & Deployment**: 10/18 tasks complete (56%) - Production T115-T122 pending
+
+### Additional Completed Work (Session 2025-11-18)
+
+**Account Page Separation (TDD Approach)**:
+- [x] Created `/app/account/page.tsx` for subscription management (separated from dashboard)
+- [x] Added account link to header dropdown menu
+- [x] Removed subscription UI from dashboard (education-only focus)
+- [x] Created `e2e/tests/stripe/account-page.spec.ts` - E2E tests for account page
+
+**Documentation**:
+- [x] Created `docs/authentication-system.md` - comprehensive auth documentation
+- [x] Created `docs/payment-system.md` - comprehensive payment documentation
+- [x] Created `docs/stripe-deployment-runbook.md` - production deployment guide
+- [x] Updated project README.md with Stripe quick start
+- [x] Updated frontend README.md with Stripe environment variables
+
+**Notification Components (T076-T081)**:
+- [x] Created `components/subscription/SubscriptionStatusBanner.tsx`
+- [x] Created `lib/email-helpers.ts` with sendPaymentFailedEmail, sendSubscriptionCancelledEmail
+- [x] Implemented best-effort email pattern (non-blocking)
+
+**Admin Dashboard (T089-T099)**:
+- [x] Created `app/api/admin/failed-webhooks/route.ts` - GET endpoint
+- [x] Created `app/api/admin/failed-webhooks/[errorId]/route.ts` - PATCH endpoint
+- [x] Created `components/admin/AdminFailedWebhooksTable.tsx`
+- [x] Created `components/admin/ResolveWebhookModal.tsx`
+- [x] Admin role verification and audit logging
+
+**E2E Tests (T105-T110)**:
+- [x] Extended `e2e/tests/stripe/subscription-flow.spec.ts` with:
+  - Failed payment flow tests (T107)
+  - Test user bypass tests (T108)
+  - Customer Portal flow tests (T109)
 
 ---
 

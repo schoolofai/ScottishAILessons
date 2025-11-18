@@ -177,3 +177,247 @@ export async function handleCheckoutSessionCompleted(
 
   console.log(`[Webhook] Subscription activated for user ${userId}`);
 }
+
+/**
+ * Handle invoice.payment_failed event
+ * Immediate revocation policy (Option C) - no grace period
+ *
+ * @param event - Stripe invoice.payment_failed event
+ * @param databases - Appwrite Databases instance
+ * @throws {Error} If update fails
+ */
+export async function handleInvoicePaymentFailed(
+  event: Stripe.Event,
+  databases: any,
+  databaseId: string
+): Promise<void> {
+  const invoice = event.data.object as Stripe.Invoice;
+
+  const subscriptionId = invoice.subscription as string;
+  const customerId = invoice.customer as string;
+
+  // Import Query and ID from node-appwrite
+  const { Query } = await import('node-appwrite');
+
+  // Find student by Stripe customer ID
+  const students = await databases.listDocuments(
+    databaseId,
+    'students',
+    [Query.equal('stripeCustomerId', customerId)]
+  );
+
+  if (students.documents.length === 0) {
+    throw new Error(`No student found for customer ${customerId}`);
+  }
+
+  const studentDoc = students.documents[0];
+  const userId = studentDoc.userId;
+
+  // IMMEDIATE REVOCATION (Option C): Set to payment_failed, access revoked immediately
+  await databases.updateDocument(databaseId, 'students', studentDoc.$id, {
+    subscriptionStatus: 'payment_failed',
+    subscriptionExpiresAt: null // No grace period
+  });
+
+  // Update subscription record
+  const subscriptions = await databases.listDocuments(
+    databaseId,
+    'subscriptions',
+    [Query.equal('stripeSubscriptionId', subscriptionId)]
+  );
+
+  if (subscriptions.documents.length > 0) {
+    const subDoc = subscriptions.documents[0];
+    await databases.updateDocument(databaseId, 'subscriptions', subDoc.$id, {
+      status: 'past_due',
+      paymentStatus: 'failed'
+    });
+  }
+
+  // Create audit log
+  const { ID } = await import('node-appwrite');
+  await databases.createDocument(databaseId, 'subscription_audit_logs', ID.unique(), {
+    userId,
+    subscriptionId: subscriptionId,
+    timestamp: new Date().toISOString(),
+    previousStatus: 'active',
+    newStatus: 'payment_failed',
+    triggerSource: 'stripe_webhook',
+    eventId: event.id,
+    adminUserId: null,
+    adminNotes: 'Payment failed - immediate revocation policy'
+  });
+
+  console.log(`[Webhook] Payment failed for user ${userId}, access revoked immediately`);
+}
+
+/**
+ * Handle customer.subscription.updated event
+ * Tracks plan changes, renewals, and status updates
+ *
+ * @param event - Stripe customer.subscription.updated event
+ * @param databases - Appwrite Databases instance
+ * @throws {Error} If update fails
+ */
+export async function handleSubscriptionUpdated(
+  event: Stripe.Event,
+  databases: any,
+  databaseId: string
+): Promise<void> {
+  const subscription = event.data.object as Stripe.Subscription;
+
+  const subscriptionId = subscription.id;
+  const customerId = subscription.customer as string;
+
+  // Import Query
+  const { Query } = await import('node-appwrite');
+
+  // Find student by Stripe customer ID
+  const students = await databases.listDocuments(
+    databaseId,
+    'students',
+    [Query.equal('stripeCustomerId', customerId)]
+  );
+
+  if (students.documents.length === 0) {
+    throw new Error(`No student found for customer ${customerId}`);
+  }
+
+  const studentDoc = students.documents[0];
+  const userId = studentDoc.userId;
+
+  // Map Stripe subscription status to our status
+  let newStatus: string;
+  switch (subscription.status) {
+    case 'active':
+      newStatus = 'active';
+      break;
+    case 'past_due':
+    case 'unpaid':
+      newStatus = 'payment_failed';
+      break;
+    case 'canceled':
+    case 'incomplete_expired':
+      newStatus = 'cancelled';
+      break;
+    default:
+      newStatus = 'inactive';
+  }
+
+  // Update student record
+  await databases.updateDocument(databaseId, 'students', studentDoc.$id, {
+    subscriptionStatus: newStatus,
+    subscriptionExpiresAt: subscription.status === 'canceled'
+      ? new Date(subscription.current_period_end * 1000).toISOString()
+      : null
+  });
+
+  // Update subscription record
+  const subscriptions = await databases.listDocuments(
+    databaseId,
+    'subscriptions',
+    [Query.equal('stripeSubscriptionId', subscriptionId)]
+  );
+
+  if (subscriptions.documents.length > 0) {
+    const subDoc = subscriptions.documents[0];
+    await databases.updateDocument(databaseId, 'subscriptions', subDoc.$id, {
+      status: newStatus,
+      endDate: subscription.canceled_at
+        ? new Date(subscription.canceled_at * 1000).toISOString()
+        : null,
+      paymentStatus: subscription.status === 'active' ? 'current' : 'past_due',
+      nextBillingDate: new Date(subscription.current_period_end * 1000).toISOString()
+    });
+  }
+
+  // Create audit log
+  const { ID } = await import('node-appwrite');
+  await databases.createDocument(databaseId, 'subscription_audit_logs', ID.unique(), {
+    userId,
+    subscriptionId: subscriptionId,
+    timestamp: new Date().toISOString(),
+    previousStatus: studentDoc.subscriptionStatus || 'unknown',
+    newStatus,
+    triggerSource: 'stripe_webhook',
+    eventId: event.id,
+    adminUserId: null,
+    adminNotes: `Subscription updated: ${subscription.status}`
+  });
+
+  console.log(`[Webhook] Subscription updated for user ${userId}: ${subscription.status} → ${newStatus}`);
+}
+
+/**
+ * Handle customer.subscription.deleted event
+ * Marks subscription as cancelled and revokes access
+ *
+ * @param event - Stripe customer.subscription.deleted event
+ * @param databases - Appwrite Databases instance
+ * @throws {Error} If update fails
+ */
+export async function handleSubscriptionDeleted(
+  event: Stripe.Event,
+  databases: any,
+  databaseId: string
+): Promise<void> {
+  const subscription = event.data.object as Stripe.Subscription;
+
+  const subscriptionId = subscription.id;
+  const customerId = subscription.customer as string;
+
+  // Import Query
+  const { Query } = await import('node-appwrite');
+
+  // Find student by Stripe customer ID
+  const students = await databases.listDocuments(
+    databaseId,
+    'students',
+    [Query.equal('stripeCustomerId', customerId)]
+  );
+
+  if (students.documents.length === 0) {
+    throw new Error(`No student found for customer ${customerId}`);
+  }
+
+  const studentDoc = students.documents[0];
+  const userId = studentDoc.userId;
+
+  // Mark as cancelled, access revoked immediately
+  await databases.updateDocument(databaseId, 'students', studentDoc.$id, {
+    subscriptionStatus: 'cancelled',
+    subscriptionExpiresAt: null // Immediate revocation
+  });
+
+  // Update subscription record
+  const subscriptions = await databases.listDocuments(
+    databaseId,
+    'subscriptions',
+    [Query.equal('stripeSubscriptionId', subscriptionId)]
+  );
+
+  if (subscriptions.documents.length > 0) {
+    const subDoc = subscriptions.documents[0];
+    await databases.updateDocument(databaseId, 'subscriptions', subDoc.$id, {
+      status: 'cancelled',
+      endDate: new Date().toISOString(),
+      paymentStatus: 'failed'
+    });
+  }
+
+  // Create audit log
+  const { ID } = await import('node-appwrite');
+  await databases.createDocument(databaseId, 'subscription_audit_logs', ID.unique(), {
+    userId,
+    subscriptionId: subscriptionId,
+    timestamp: new Date().toISOString(),
+    previousStatus: studentDoc.subscriptionStatus || 'unknown',
+    newStatus: 'cancelled',
+    triggerSource: 'stripe_webhook',
+    eventId: event.id,
+    adminUserId: null,
+    adminNotes: 'Subscription deleted/cancelled by Stripe'
+  });
+
+  console.log(`[Webhook] Subscription deleted for user ${userId}, access revoked`);
+}

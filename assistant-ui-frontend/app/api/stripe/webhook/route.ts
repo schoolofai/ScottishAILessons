@@ -16,7 +16,13 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { Query } from 'node-appwrite'; // Changed from 'appwrite' to 'node-appwrite' for server-side
-import { verifyWebhookSignature, handleCheckoutSessionCompleted } from '@/lib/stripe-helpers';
+import {
+  verifyWebhookSignature,
+  handleCheckoutSessionCompleted,
+  handleInvoicePaymentFailed,
+  handleSubscriptionUpdated,
+  handleSubscriptionDeleted
+} from '@/lib/stripe-helpers';
 import { createAdminClient, appwriteConfig } from '@/lib/server/appwrite'; // Changed from client to server
 import Stripe from 'stripe';
 
@@ -161,18 +167,15 @@ async function processEventByType(
       break;
 
     case 'invoice.payment_failed':
-      // TODO: Implement handleInvoicePaymentFailed (Phase 6 - T072)
-      console.log(`[Webhook] Skipping unimplemented event type: ${event.type}`);
+      await handleInvoicePaymentFailed(event, databases, databaseId);
       break;
 
     case 'customer.subscription.updated':
-      // TODO: Implement handleSubscriptionUpdated (Phase 6 - T074)
-      console.log(`[Webhook] Skipping unimplemented event type: ${event.type}`);
+      await handleSubscriptionUpdated(event, databases, databaseId);
       break;
 
     case 'customer.subscription.deleted':
-      // TODO: Implement handleSubscriptionDeleted (Phase 6 - T073)
-      console.log(`[Webhook] Skipping unimplemented event type: ${event.type}`);
+      await handleSubscriptionDeleted(event, databases, databaseId);
       break;
 
     case 'invoice.payment_succeeded':

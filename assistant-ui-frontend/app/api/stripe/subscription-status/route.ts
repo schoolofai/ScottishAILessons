@@ -36,6 +36,14 @@ export async function GET(request: NextRequest) {
     // Step 2: Compute hasAccess
     const hasAccess = user.testUserFlag === true || user.subscriptionStatus === 'active';
 
+    console.log('[Subscription Status API] User subscription data:', {
+      testUserFlag: user.testUserFlag,
+      subscriptionStatus: user.subscriptionStatus,
+      hasAccess,
+      stripeCustomerId: user.stripeCustomerId,
+      stripeSubscriptionId: user.stripeSubscriptionId
+    });
+
     // Step 3: Fetch subscription details if exists
     let subscription = null;
     if (user.stripeSubscriptionId) {
@@ -43,6 +51,18 @@ export async function GET(request: NextRequest) {
     }
 
     // Step 4: Return status response (T037)
+    const response = {
+      status: user.subscriptionStatus || 'inactive',
+      hasAccess,
+      testUserFlag: user.testUserFlag || false,
+      subscriptionExpiresAt: user.subscriptionExpiresAt || null,
+      stripeCustomerId: user.stripeCustomerId || null,
+      stripeSubscriptionId: user.stripeSubscriptionId || null,
+      subscription
+    };
+
+    console.log('[Subscription Status API] Returning response:', response);
+
     return NextResponse.json({
       status: user.subscriptionStatus || 'inactive',
       hasAccess,
@@ -125,7 +145,10 @@ async function getSubscriptionDetails(stripeSubscriptionId: string) {
       billingCycle: sub.billingCycle,
       paymentStatus: sub.paymentStatus,
       nextBillingDate: sub.nextBillingDate,
-      lastPaymentDate: sub.lastPaymentDate
+      lastPaymentDate: sub.lastPaymentDate,
+      startDate: sub.startDate,
+      endDate: sub.endDate,
+      status: sub.status
     };
   } catch (error) {
     console.error('[Subscription Status API] Failed to fetch subscription details:', error);

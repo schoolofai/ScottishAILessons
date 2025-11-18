@@ -41,7 +41,12 @@ export function CourseCard({
   const levelColor = levelColors[course.level?.toLowerCase()] || 'bg-gray-100 text-gray-800';
 
   return (
-    <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col">
+    <Card
+      className="hover:shadow-lg transition-shadow cursor-pointer h-full flex flex-col"
+      data-testid="course-card"
+      data-course-id={course.courseId}
+      data-enrollment-status={actualStatus || 'not-enrolled'}
+    >
       <CardHeader onClick={onClick}>
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1">
@@ -122,7 +127,7 @@ export function CourseCard({
               onEnroll ? onEnroll() : onClick?.();
             }}
           >
-            View Details
+            {onEnroll ? 'Enroll' : 'View Details'}
           </Button>
         )}
       </div>

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Client, Databases, Query } from "appwrite";
 import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigationTabs";
 import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
 import { CourseProgressCard } from "../progress/CourseProgressCard";
@@ -32,7 +31,6 @@ import {
   getStudentDisplayName,
   debugLog
 } from "../../lib/dashboard/utils";
-import { MasteryV2Driver } from "../../lib/appwrite/driver/MasteryV2Driver";
 import { cache, createCacheKey } from "../../lib/cache";
 
 // Type imports are handled by the utils file
@@ -249,143 +247,46 @@ export function EnhancedStudentDashboard() {
     } catch (err) {
       console.error('[Dashboard] Failed to load enrollments:', err);
       setCoursesError(formatErrorMessage(err));
+      // Re-throw to propagate error to parent handler (fast-fail, no fallback)
+      throw err;
     } finally {
       setCoursesLoading(false);
     }
   };
 
-  // Load courses using client-side Appwrite SDK - MVP2 Phase 1: Enrollment Filtering
-  const loadCoursesClientSide = async (databases: any, student: any) => {
-    try {
-      setCoursesLoading(true);
-      setCoursesError(null);
-
-      const { Query } = await import('appwrite');
-
-      // 1. Get ALL enrollments (backward compatible)
-      const allEnrollmentsResult = await databases.listDocuments(
-        'default',
-        'enrollments',
-        [Query.equal('studentId', student.$id)]
-      );
-
-      // 2. Separate active and archived enrollments (handle missing status field)
-      const activeEnrollments = allEnrollmentsResult.documents.filter((e: any) => {
-        // Treat missing status field as 'active' for backward compatibility
-        return !e.status || e.status === 'active';
-      });
-
-      const archivedEnrollments = allEnrollmentsResult.documents.filter((e: any) => {
-        return e.status === 'archived';
-      });
-
-      console.log('[Dashboard] Enrollment breakdown:', {
-        total: allEnrollmentsResult.documents.length,
-        active: activeEnrollments.length,
-        archived: archivedEnrollments.length
-      });
-
-      // 3. Check if student has any ACTIVE enrollments
-      if (activeEnrollments.length === 0) {
-        // NO ACTIVE ENROLLMENTS - Show appropriate message
-        console.log('[Dashboard] No active enrollments found');
-        setCoursesError('No active enrollments found. Please enroll in a course to get started.');
-
-        // Still load archived courses if they exist
-        if (archivedEnrollments.length > 0) {
-          await loadArchivedCourses(archivedEnrollments, databases);
-        }
-        return;
-      }
-
-      // 4. Get ACTIVE enrolled course IDs
-      const enrolledCourseIds = activeEnrollments.map((e: any) => e.courseId);
-
-      // 4. Fetch only enrolled courses
-      const coursesResult = await databases.listDocuments(
-        'default',
-        'courses',
-        [Query.equal('courseId', enrolledCourseIds)]
-      );
-
-      const coursesData = coursesResult.documents;
-      setCourses(coursesData);
-
-      // 5. Transform courses for navigation tabs using utility function
-      const transformedCourses = transformCoursesForNavigation(coursesData);
-      setCourseData(transformedCourses);
-
-      console.log('[Dashboard] Loaded enrolled courses:', {
-        activeEnrollmentCount: activeEnrollments.length,
-        archivedEnrollmentCount: archivedEnrollments.length,
-        courseCount: transformedCourses.length
-      });
-
-      // 6. Load archived courses separately
-      if (archivedEnrollments.length > 0) {
-        await loadArchivedCourses(archivedEnrollments, databases);
-      }
-
-      // 7. Set initial active course
-      if (transformedCourses.length > 0 && !activeCourse) {
-        const firstCourse = transformedCourses[0];
-        setActiveCourse(firstCourse.id);
-        // Load recommendations and spaced repetition data for the first course in parallel
-        await Promise.all([
-          loadRecommendations(firstCourse.id, student),
-          loadSpacedRepetition(firstCourse.id, student)
-        ]);
-      }
-    } catch (err) {
-      console.error('[Dashboard] Failed to load courses:', err);
-      setCoursesError(formatErrorMessage(err));
-    } finally {
-      setCoursesLoading(false);
-    }
-  };
-
-  // Load archived courses (helper function)
-  const loadArchivedCourses = async (archivedEnrollments: any[], databases: any) => {
-    try {
-      if (archivedEnrollments.length === 0) {
-        setArchivedCourses([]);
-        return;
-      }
-
-      const { Query } = await import('appwrite');
-      const archivedCourseIds = archivedEnrollments.map((e: any) => e.courseId);
-
-      const coursesResult = await databases.listDocuments(
-        'default',
-        'courses',
-        [Query.equal('courseId', archivedCourseIds)]
-      );
-
-      setArchivedCourses(coursesResult.documents);
-      console.log('[Dashboard] Loaded archived courses:', coursesResult.documents.length);
-    } catch (err) {
-      console.error('[Dashboard] Failed to load archived courses:', err);
-    }
-  };
+  // REMOVED: loadCoursesClientSide and loadArchivedCourses - now using loadEnrollmentsFromAPI with server API
 
   // Handle re-enrollment from archived courses
   const handleReenroll = async (courseId: string, courseName: string) => {
     if (!student) {
       toast.error('Student data not available');
-      return;
+      throw new Error('Student data not available'); // Fast fail
     }
 
     try {
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-      const databases = new Databases(client);
+      // Use server API for re-enrollment
+      const response = await fetch('/api/student/enroll', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include httpOnly cookies
+        body: JSON.stringify({ courseId }),
+      });
 
-      // Re-enroll (will reactivate archived enrollment)
-      await enrollStudentInCourse(student.$id, courseId, databases);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to re-enroll' }));
+        throw new Error(errorData.error || 'Failed to re-enroll in course');
+      }
 
-      // Reload courses to update the UI
-      await loadCoursesClientSide(databases, student);
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to re-enroll in course');
+      }
+
+      // Reload courses to update the UI using server API
+      await loadEnrollmentsFromAPI(student);
 
       toast.success(`Welcome back! Your progress in ${courseName} has been restored.`);
     } catch (error) {
@@ -429,36 +330,9 @@ export function EnhancedStudentDashboard() {
         return;
       }
 
-      // 4. Initialize Appwrite client
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
-
-      const databases = new Databases(client);
-
-      // 5. Get course data - query by courseId field instead of using it as document ID
-      const courseQueryResult = await databases.listDocuments(
-        'default',
-        'courses',
-        [Query.equal('courseId', courseId)]
-      );
-
-      if (courseQueryResult.documents.length === 0) {
-        throw new Error(`Course with courseId ${courseId} not found`);
-      }
-
-      const course = courseQueryResult.documents[0];
-
-      // 6. Get lesson templates for the course (use original courseId, not document $id)
-      const templatesResult = await databases.listDocuments(
-        'default',
-        'lesson_templates',
-        [Query.equal('courseId', course.courseId)]
-      );
-
-      // 7. Get mastery and SOW data via server-side API (httpOnly cookie authentication)
-      console.log('[API] Fetching mastery and SOW data from server...');
-      const recommendationsDataResponse = await fetch(`/api/student/recommendations-data/${course.courseId}`, {
+      // 4. Get all recommendations data via server-side API (httpOnly cookie authentication)
+      console.log('[API] Fetching recommendations data from server...');
+      const recommendationsDataResponse = await fetch(`/api/student/recommendations-data/${courseId}`, {
         method: 'GET',
         credentials: 'include', // Include httpOnly cookies
       });
@@ -467,10 +341,12 @@ export function EnhancedStudentDashboard() {
         const errorData = await recommendationsDataResponse.json().catch(() => ({
           error: 'Failed to load recommendations data'
         }));
-        throw new Error(errorData.error || 'Failed to fetch mastery and SOW data');
+        throw new Error(errorData.error || 'Failed to fetch recommendations data');
       }
 
       const { data: recommendationsData } = await recommendationsDataResponse.json();
+      const course = recommendationsData.course;
+      const templatesResult = { documents: recommendationsData.lessonTemplates };
       const masteryV2Record = recommendationsData.mastery;
       const sowDocuments = recommendationsData.sow;
 

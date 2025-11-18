@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSessionClient } from '@/lib/server/appwrite';
+import { createSessionClient, appwriteConfig } from '@/lib/server/appwrite';
 import { Query } from 'node-appwrite';
 
 /**
@@ -14,16 +14,27 @@ import { Query } from 'node-appwrite';
  * - 500: Server error
  */
 export async function GET() {
+  // Step 1: Authenticate user - wrap both createSessionClient and account.get in try-catch
+  // This ensures expired/invalid sessions return 401, not 500
+  let user;
+  let databases;
   try {
-    // Get authenticated session from httpOnly cookie
-    const { account, databases } = await createSessionClient();
+    const sessionClient = await createSessionClient();
+    databases = sessionClient.databases;
+    user = await sessionClient.account.get();
+  } catch (error: any) {
+    console.error('[API] /api/student/me authentication failed:', error);
+    return NextResponse.json(
+      { success: false, error: 'Not authenticated' },
+      { status: 401 }
+    );
+  }
 
-    // Get current user from session
-    const user = await account.get();
+  try {
 
     // Find student record by userId
     const studentsResult = await databases.listDocuments(
-      'default',
+      appwriteConfig.databaseId,
       'students',
       [Query.equal('userId', user.$id)]
     );
@@ -31,7 +42,7 @@ export async function GET() {
     if (studentsResult.documents.length === 0) {
       // Student record doesn't exist - create it
       const newStudent = await databases.createDocument(
-        'default',
+        appwriteConfig.databaseId,
         'students',
         user.$id, // Use user ID as document ID for consistency
         {
@@ -65,17 +76,9 @@ export async function GET() {
     });
 
   } catch (error) {
-    console.error('[API] /api/student/me error:', error);
+    console.error('[API] /api/student/me database error:', error);
 
-    // Check if it's an authentication error
-    if (error instanceof Error && error.message.includes('No session found')) {
-      return NextResponse.json(
-        { success: false, error: 'Not authenticated' },
-        { status: 401 }
-      );
-    }
-
-    // Generic server error
+    // Database operation failed - return 500
     return NextResponse.json(
       {
         success: false,

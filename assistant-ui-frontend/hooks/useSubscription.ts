@@ -60,8 +60,16 @@ export function useSubscription() {
       refreshInterval: 0, // No automatic refresh
       dedupingInterval: 0, // No deduplication
       shouldRetryOnError: false, // Don't retry on auth errors
+      onSuccess: (data) => {
+        console.log('[useSubscription] API Response:', data);
+      },
+      onError: (err) => {
+        console.error('[useSubscription] API Error:', err);
+      }
     }
   );
+
+  console.log('[useSubscription] Current state:', { data, error, isLoading });
 
   return {
     // Subscription status

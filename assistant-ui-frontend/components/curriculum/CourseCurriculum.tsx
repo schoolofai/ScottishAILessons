@@ -15,7 +15,6 @@ import {
   Clock,
   RotateCcw
 } from 'lucide-react';
-import { Client, Databases, Query } from 'appwrite';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '@/lib/logger';
 import { cache, createCacheKey } from '@/lib/cache';
@@ -106,37 +105,32 @@ export function CourseCurriculum({
         return;
       }
 
-      // Use unauthenticated client for public lesson template data
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
-
-      const databases = new Databases(client);
-
-      // Get ALL lesson templates for the course with pagination
+      // Fetch lesson templates via server API (no client SDK)
       let allTemplates: any[] = [];
       let offset = 0;
-      const limit = 100; // Appwrite max limit per request
+      const limit = 100; // Max per request
       let hasMore = true;
 
       while (hasMore) {
-        const templatesResult = await databases.listDocuments(
-          'default',
-          'lesson_templates',
-          [
-            Query.equal('courseId', courseId),
-            Query.orderAsc('sow_order'),
-            Query.limit(limit),
-            Query.offset(offset)
-          ]
-        );
+        const response = await fetch(`/api/courses/${courseId}/curriculum?offset=${offset}&limit=${limit}`);
 
-        allTemplates = allTemplates.concat(templatesResult.documents);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Failed to load curriculum' }));
+          throw new Error(errorData.error || 'Failed to fetch lesson templates');
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load curriculum');
+        }
+
+        allTemplates = allTemplates.concat(result.data.templates);
         offset += limit;
-        hasMore = templatesResult.documents.length === limit;
+        hasMore = result.data.hasMore;
 
         console.log('[CourseCurriculum] Fetched batch:', {
-          batchSize: templatesResult.documents.length,
+          batchSize: result.data.templates.length,
           totalSoFar: allTemplates.length,
           hasMore
         });

@@ -97,6 +97,40 @@ npm run dev
 - 📖 **API Docs**: http://localhost:8000/docs
 - 🗄️ **PostgreSQL**: localhost:5432
 
+## 💳 Stripe Subscription Setup (Optional)
+
+The application includes a Stripe subscription paywall for AI features. To enable payments:
+
+### Quick Setup
+
+1. **Get Stripe Keys** from [stripe.com](https://stripe.com):
+   - Create account and enable test mode
+   - Get API keys from Developers → API keys
+   - Create monthly subscription product
+
+2. **Add to Environment** (`.env.local`):
+   ```env
+   STRIPE_SECRET_KEY=sk_test_...
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   STRIPE_PRICE_ID=price_...
+   ```
+
+3. **Start Webhook Forwarding**:
+   ```bash
+   stripe listen --forward-to localhost:3000/api/stripe/webhook
+   ```
+
+4. **Test Payment**:
+   - Use card: `4242 4242 4242 4242`
+   - Any future expiry, any CVC
+
+### Documentation
+
+- [Payment System Documentation](./docs/payment-system.md)
+- [Authentication System](./docs/authentication-system.md)
+- [Deployment Runbook](./docs/stripe-deployment-runbook.md)
+
 ## 🔄 Consolidated Frontend Architecture
 
 **Single Frontend, Multiple Backends**: Both systems share the same frontend codebase (`langgraph-agent/assistant-ui-frontend`) with environment-based configuration switching.

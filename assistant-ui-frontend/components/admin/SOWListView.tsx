@@ -2,8 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
-import { CourseDriver } from '@/lib/appwrite/driver/CourseDriver';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InlineLoadingSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -15,6 +13,8 @@ import type { AuthoredSOWData } from '@/lib/appwrite/types';
 /**
  * SOWListView displays all authored SOWs with their statuses
  * Allows admin to view details and publish SOWs
+ *
+ * Uses server API endpoints for all operations (no client SDK)
  */
 export function SOWListView() {
   const [sows, setSOWs] = useState<Array<AuthoredSOWData & { $id: string }>>([]);
@@ -34,16 +34,57 @@ export function SOWListView() {
     try {
       setLoading(true);
       setError(null);
-      const driver = new AuthoredSOWDriver();
-      const data = await driver.getAllSOWsForAdmin();
+
+      console.log('[SOWListView] Fetching SOWs via server API...');
+
+      // Use server API endpoint instead of client SDK
+      const response = await fetch('/api/admin/sows', {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch SOWs' }));
+        throw new Error(errorData.error || 'Failed to fetch SOWs');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch SOWs');
+      }
+
+      const data = result.sows || [];
+      console.log(`[SOWListView] ✅ Fetched ${data.length} SOWs`);
       setSOWs(data);
 
       // Fetch course metadata (subject/level) for unique courseIds in parallel
-      const uniqueCourseIds = Array.from(new Set((data || []).map(s => s.courseId).filter(Boolean)));
+      const uniqueCourseIds = Array.from(new Set((data || []).map((s: any) => s.courseId).filter(Boolean)));
       if (uniqueCourseIds.length > 0) {
-        const courseDriver = new CourseDriver();
+        // Use server API endpoint for course data as well
         const courseResults = await Promise.all(
-          uniqueCourseIds.map(id => courseDriver.getCourseByCourseId(id).catch(() => null))
+          uniqueCourseIds.map(async (id) => {
+            try {
+              const res = await fetch(`/api/courses/${id}`, {
+                method: 'GET',
+                credentials: 'include',
+              });
+
+              if (!res.ok) return null;
+
+              const courseData = await res.json();
+              if (!courseData.success) return null;
+
+              return courseData.data?.course;
+            } catch (err) {
+              console.warn(`[SOWListView] Failed to fetch course ${id}:`, err);
+              return null;
+            }
+          })
         );
 
         const map: Record<string, { subject: string; level: string }> = {};
@@ -60,6 +101,7 @@ export function SOWListView() {
       const message = err instanceof Error ? err.message : 'Failed to load SOWs';
       setError(message);
       console.error('[SOWListView] Error fetching SOWs:', err);
+      // Fast fail - error logged and displayed, don't throw in React component
     } finally {
       setLoading(false);
     }
@@ -69,9 +111,31 @@ export function SOWListView() {
     try {
       setPublishingId(sowId);
       setError(null);
-      const driver = new AuthoredSOWDriver();
-      await driver.publishSOW(sowId);
 
+      console.log(`[SOWListView] Publishing SOW ${sowId} via server API...`);
+
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/sows/${sowId}/publish`, {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to publish SOW' }));
+        throw new Error(errorData.error || 'Failed to publish SOW');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to publish SOW');
+      }
+
+      console.log(`[SOWListView] ✅ SOW ${sowId} published successfully`);
       toast.success('SOW published successfully!');
       setShowPublishConfirm(null);
       // Refresh the list
@@ -81,7 +145,7 @@ export function SOWListView() {
       setError(message);
       toast.error(message);
       console.error('[SOWListView] Error publishing SOW:', err);
-      throw err; // Fast fail
+      // Fast fail - error logged and displayed, don't throw in React component
     } finally {
       setPublishingId(null);
     }
@@ -91,9 +155,31 @@ export function SOWListView() {
     try {
       setUnpublishingId(sowId);
       setError(null);
-      const driver = new AuthoredSOWDriver();
-      await driver.unpublishSOW(sowId);
 
+      console.log(`[SOWListView] Unpublishing SOW ${sowId} via server API...`);
+
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/sows/${sowId}/unpublish`, {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to unpublish SOW' }));
+        throw new Error(errorData.error || 'Failed to unpublish SOW');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to unpublish SOW');
+      }
+
+      console.log(`[SOWListView] ✅ SOW ${sowId} unpublished successfully`);
       toast.success('SOW unpublished successfully!');
       setShowUnpublishConfirm(null);
       // Refresh the list
@@ -103,7 +189,7 @@ export function SOWListView() {
       setError(message);
       toast.error(message);
       console.error('[SOWListView] Error unpublishing SOW:', err);
-      throw err; // Fast fail
+      // Fast fail - error logged and displayed, don't throw in React component
     } finally {
       setUnpublishingId(null);
     }
@@ -166,7 +252,12 @@ export function SOWListView() {
             href={`/admin/sow/${sow.$id}`}
             className="no-underline"
           >
-            <div className="border rounded-lg p-4 hover:bg-gray-50 hover:shadow-md transition-all cursor-pointer">
+            <div
+              className="border rounded-lg p-4 hover:bg-gray-50 hover:shadow-md transition-all cursor-pointer"
+              data-testid="sow-item"
+              data-sow-id={sow.$id}
+              data-status={sow.status}
+            >
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg text-gray-900">

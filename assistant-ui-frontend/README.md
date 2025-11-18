@@ -86,6 +86,49 @@ NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:8000
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=agent
 ```
 
+### Stripe Configuration (Payment Integration)
+
+To enable subscription payments and AI feature gating, add these Stripe environment variables:
+
+```env
+# Required - Stripe API Keys
+STRIPE_SECRET_KEY=sk_test_...           # Server-side only (from Stripe Dashboard → API keys)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...  # Client-side key
+STRIPE_WEBHOOK_SECRET=whsec_...         # From Stripe CLI or Dashboard webhooks
+STRIPE_PRICE_ID=price_...               # Monthly subscription price ID
+
+# Application URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000  # For success/cancel URLs
+```
+
+**Getting Stripe Keys:**
+
+1. Create account at [stripe.com](https://stripe.com)
+2. Enable test mode in Dashboard
+3. Get API keys: Developers → API keys
+4. Create subscription product: Products → Add product (recurring monthly)
+5. Copy price ID from product page
+
+**Local Webhook Testing:**
+
+```bash
+# Install Stripe CLI
+brew install stripe/stripe-cli/stripe  # macOS
+
+# Login and forward webhooks
+stripe login
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+Copy the webhook signing secret (`whsec_...`) to your `.env.local`.
+
+**Test Cards:**
+- Success: `4242 4242 4242 4242`
+- Decline: `4000 0000 0000 0002`
+- Requires auth: `4000 0025 0000 3155`
+
+See [Payment System Documentation](../docs/payment-system.md) for complete details.
+
 ### Test Credentials
 
 For MVP testing, use these credentials:

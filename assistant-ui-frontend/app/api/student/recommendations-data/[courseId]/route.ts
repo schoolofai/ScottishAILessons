@@ -56,12 +56,37 @@ export async function GET(
       ]
     );
 
-    // Return both datasets
+    // Fetch course data
+    const courseResult = await databases.listDocuments(
+      'default',
+      'courses',
+      [Query.equal('courseId', courseId)]
+    );
+
+    if (courseResult.documents.length === 0) {
+      return NextResponse.json(
+        { error: `Course with courseId ${courseId} not found` },
+        { status: 404 }
+      );
+    }
+
+    const course = courseResult.documents[0];
+
+    // Fetch lesson templates
+    const templatesResult = await databases.listDocuments(
+      'default',
+      'lesson_templates',
+      [Query.equal('courseId', course.courseId)]
+    );
+
+    // Return all datasets needed for recommendations
     return NextResponse.json({
       success: true,
       data: {
         mastery: masteryV2Record,
-        sow: sowResult.documents
+        sow: sowResult.documents,
+        course: course,
+        lessonTemplates: templatesResult.documents
       }
     });
 

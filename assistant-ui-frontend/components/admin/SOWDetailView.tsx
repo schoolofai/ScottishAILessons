@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { AuthoredSOWDriver } from '@/lib/appwrite/driver/AuthoredSOWDriver';
-import { LessonDriver } from '@/lib/appwrite/driver/LessonDriver';
 import { JsonViewer } from './JsonViewer';
 import { MarkdownPreview } from './MarkdownPreview';
 import { jsonToMarkdown } from '@/lib/utils/jsonToMarkdown';
@@ -24,6 +22,8 @@ interface SOWDetailViewProps {
 /**
  * SOWDetailView displays a single SOW with JSON and markdown preview
  * Also shows associated lesson templates
+ *
+ * Uses server API endpoints for all operations (no client SDK)
  */
 export function SOWDetailView({ sowId }: SOWDetailViewProps) {
   const [sow, setSOW] = useState<AuthoredSOWData & { $id: string } | null>(null);
@@ -46,21 +46,59 @@ export function SOWDetailView({ sowId }: SOWDetailViewProps) {
       setLoading(true);
       setError(null);
 
-      const sowDriver = new AuthoredSOWDriver();
-      const lessonDriver = new LessonDriver();
+      console.log('[SOWDetailView] Fetching SOW and templates via server API...');
 
-      const sowData = await sowDriver.getSOWById(sowId);
-      // FIX: Query templates by authored_sow_id (sowId) instead of courseId
-      // This ensures we only fetch templates generated from THIS specific SOW
-      // not all templates ever created for the course
-      const templatesData = await lessonDriver.getTemplatesByAuthoredSOWId(sowId);
+      // Fetch SOW data via server API
+      const sowResponse = await fetch(`/api/admin/sows/${sowId}`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
 
-      setSOW(sowData);
-      setTemplates(templatesData);
+      if (!sowResponse.ok) {
+        if (sowResponse.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await sowResponse.json().catch(() => ({ error: 'Failed to fetch SOW' }));
+        throw new Error(errorData.error || 'Failed to fetch SOW');
+      }
+
+      const sowResult = await sowResponse.json();
+
+      if (!sowResult.success) {
+        throw new Error(sowResult.error || 'Failed to fetch SOW');
+      }
+
+      // Fetch templates via server API
+      const templatesResponse = await fetch(`/api/admin/sows/${sowId}/templates`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!templatesResponse.ok) {
+        if (templatesResponse.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await templatesResponse.json().catch(() => ({ error: 'Failed to fetch templates' }));
+        throw new Error(errorData.error || 'Failed to fetch templates');
+      }
+
+      const templatesResult = await templatesResponse.json();
+
+      if (!templatesResult.success) {
+        throw new Error(templatesResult.error || 'Failed to fetch templates');
+      }
+
+      console.log(`[SOWDetailView] ✅ Fetched SOW and ${templatesResult.templates.length} templates`);
+
+      setSOW(sowResult.sow);
+      setTemplates(templatesResult.templates);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load SOW details';
       setError(message);
       console.error('[SOWDetailView] Error fetching data:', err);
+      // Fast fail - error logged and displayed, don't throw in React component
     } finally {
       setLoading(false);
     }
@@ -71,9 +109,30 @@ export function SOWDetailView({ sowId }: SOWDetailViewProps) {
       setPublishingAll(true);
       setError(null);
 
-      const lessonDriver = new LessonDriver();
-      await lessonDriver.publishAllTemplatesForSOW(sowId);
+      console.log('[SOWDetailView] Publishing all templates via server API...');
 
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/sows/${sowId}/templates/publish-all`, {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to publish all lessons' }));
+        throw new Error(errorData.error || 'Failed to publish all lessons');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to publish all lessons');
+      }
+
+      console.log('[SOWDetailView] ✅ All templates published');
       toast.success('All lessons published successfully!');
       setShowPublishAllConfirm(false);
       await fetchData(); // Refresh the list
@@ -93,9 +152,30 @@ export function SOWDetailView({ sowId }: SOWDetailViewProps) {
       setUnpublishingAll(true);
       setError(null);
 
-      const lessonDriver = new LessonDriver();
-      await lessonDriver.unpublishAllTemplatesForSOW(sowId);
+      console.log('[SOWDetailView] Unpublishing all templates via server API...');
 
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/sows/${sowId}/templates/unpublish-all`, {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to unpublish all lessons' }));
+        throw new Error(errorData.error || 'Failed to unpublish all lessons');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to unpublish all lessons');
+      }
+
+      console.log('[SOWDetailView] ✅ All templates unpublished');
       toast.success('All lessons unpublished successfully!');
       setShowUnpublishAllConfirm(false);
       await fetchData(); // Refresh the list
@@ -115,9 +195,30 @@ export function SOWDetailView({ sowId }: SOWDetailViewProps) {
       setUnpublishingSOW(true);
       setError(null);
 
-      const sowDriver = new AuthoredSOWDriver();
-      await sowDriver.unpublishSOW(sowId);
+      console.log('[SOWDetailView] Unpublishing SOW via server API...');
 
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/sows/${sowId}/unpublish`, {
+        method: 'POST',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to unpublish SOW' }));
+        throw new Error(errorData.error || 'Failed to unpublish SOW');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to unpublish SOW');
+      }
+
+      console.log('[SOWDetailView] ✅ SOW unpublished');
       toast.success('SOW unpublished successfully!');
       setShowUnpublishSOWConfirm(false);
       await fetchData(); // Refresh to update status

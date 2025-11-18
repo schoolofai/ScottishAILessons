@@ -34,7 +34,8 @@
     "test:serial": "playwright test --workers=1",
     "test:jest": "jest",
     "test:integration": "jest __tests__/integration/",
-    "test:integration:watch": "jest __tests__/integration/ --watch"
+    "test:integration:watch": "jest __tests__/integration/ --watch",
+    "flag-test-users": "tsx scripts/flag-test-users.ts"
   },
   "dependencies": {
     "@aarkue/tiptap-math-extension": "^1.4.0",

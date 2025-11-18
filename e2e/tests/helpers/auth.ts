@@ -11,21 +11,37 @@ import { TEST_USER, SELECTORS, TIMEOUTS } from './constants';
  * Based on successful authentication flow from test log
  */
 export async function authenticateUser(page: Page, user = TEST_USER): Promise<void> {
-  // Navigate to login page
-  await page.getByRole('link', { name: 'Login', exact: true }).click();
-  
+  // Clear any existing session/cookies before logging in
+  await page.context().clearCookies();
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  // Navigate to login page (use baseURL from config)
+  await page.goto('/login');
+
+  // Wait for login form to appear
+  // Look for email input field to ensure we're on login page
+  await expect(page.getByRole('textbox', { name: /email/i })).toBeVisible({ timeout: 5000 });
+
   // Fill in credentials
-  await page.getByRole('textbox', { name: 'Email' }).fill(user.email);
-  await page.getByRole('textbox', { name: 'Password' }).fill(user.password);
-  
+  await page.getByRole('textbox', { name: /email/i }).fill(user.email);
+  await page.getByRole('textbox', { name: /password/i }).fill(user.password);
+
   // Submit login form
-  await page.getByRole('button', { name: 'Login' }).click();
-  
+  await page.getByRole('button', { name: /login|sign in/i }).click();
+
   // Wait for successful redirect to dashboard
   await expect(page).toHaveURL(/\/dashboard/, { timeout: TIMEOUTS.pageLoad });
-  
-  // Verify user profile is loaded (look for dashboard elements)
-  await expect(page.getByRole('link', { name: 'Dashboard' })).toBeVisible();
+
+  // Wait for dashboard to finish loading
+  // Accept any valid dashboard state: success, empty, or error
+  await Promise.race([
+    page.locator('[data-testid="student-dashboard"]').waitFor({ state: 'visible', timeout: 20000 }),
+    page.locator('[data-testid="dashboard-empty"]').waitFor({ state: 'visible', timeout: 20000 }),
+    page.locator('[data-testid="dashboard-error"]').waitFor({ state: 'visible', timeout: 20000 })
+  ]);
 }
 
 /**

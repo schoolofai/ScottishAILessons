@@ -247,8 +247,12 @@ export default function CourseCatalogPage() {
                   course={course}
                   enrollmentStatus={enrollmentStatus}
                   onClick={() => router.push(`/courses/${course.courseId}`)}
-                  onEnroll={() => handleReenroll(course.courseId, course.subject)}
-                  onUnenroll={() => handleUnenroll(course.courseId, course.subject)}
+                  {...((enrollmentStatus === null || enrollmentStatus === 'archived') && studentId && {
+                    onEnroll: () => handleReenroll(course.courseId, course.subject)
+                  })}
+                  {...(enrollmentStatus === 'active' && {
+                    onUnenroll: () => handleUnenroll(course.courseId, course.subject)
+                  })}
                 />
               );
             })}

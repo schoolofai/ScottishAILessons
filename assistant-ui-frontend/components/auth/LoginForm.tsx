@@ -8,6 +8,7 @@ import { GoogleButton } from './GoogleButton';
 import { validateEmail } from '@/lib/appwrite/auth';
 import { Loader2 } from 'lucide-react';
 import { signInWithEmail } from '@/lib/actions/auth.actions';
+import { mutate } from 'swr';
 
 export function LoginForm() {
   const router = useRouter();
@@ -48,6 +49,9 @@ export function LoginForm() {
 
       console.log('[LoginForm] Server-side session created');
       console.log('[LoginForm] Login successful, redirecting to dashboard');
+
+      // Clear SWR cache to ensure fresh subscription data on next load
+      mutate(() => true, undefined, { revalidate: false });
 
       // Refresh the page to ensure all components see the new session
       window.location.href = '/dashboard';

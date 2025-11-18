@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLogout } from '@/hooks/useLogout';
 import { useIsAdmin } from '@/lib/utils/adminCheck';
-import { useAuth } from '@/lib/appwrite/hooks/useAuth';
+import { useServerAuth } from '@/hooks/useServerAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { SubscriptionPaywallModal, type PriceInfo } from '@/components/dashboard/SubscriptionPaywallModal';
-import { GraduationCap, Settings, Crown } from 'lucide-react';
+import { GraduationCap, Settings, Crown, User } from 'lucide-react';
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -18,8 +18,18 @@ export function Header() {
   const router = useRouter();
   const { logout, isLoading } = useLogout();
   const { isAdmin } = useIsAdmin();
-  const { isAuthenticated } = useAuth();
-  const { hasAccess, isLoading: isLoadingSubscription } = useSubscription();
+  const { isAuthenticated } = useServerAuth(); // Use server-side session check
+  const { hasAccess, isLoading: isLoadingSubscription, refetch } = useSubscription();
+
+  // Debug logging for button visibility
+  useEffect(() => {
+    console.log('[Header Debug] Button visibility check:', {
+      isAuthenticated,
+      isLoadingSubscription,
+      hasAccess,
+      shouldShowButton: isAuthenticated && !isLoadingSubscription && !hasAccess
+    });
+  }, [isAuthenticated, isLoadingSubscription, hasAccess]);
 
   // Prefetch subscription price for instant modal display
   useEffect(() => {
@@ -41,6 +51,12 @@ export function Header() {
 
     fetchSubscriptionPrice();
   }, [isAuthenticated]);
+
+  // Force fresh subscription status check on mount to bypass SWR cache
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    refetch();
+  }, [isAuthenticated, refetch]);
 
   const handleLogout = () => {
     setIsMenuOpen(false);
@@ -122,6 +138,17 @@ export function Header() {
                 Signed in as User
               </div>
 
+              {/* Account Link */}
+              <Link
+                href="/account"
+                onClick={() => setIsMenuOpen(false)}
+                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                data-testid="account-link"
+              >
+                <User className="h-4 w-4" />
+                Account Settings
+              </Link>
+
               {/* Admin Panel Link */}
               {isAdmin && (
                 <>
@@ -133,9 +160,10 @@ export function Header() {
                     <Settings className="h-4 w-4" />
                     Admin Panel
                   </Link>
-                  <div className="border-b border-gray-100" />
                 </>
               )}
+
+              <div className="border-b border-gray-100" />
 
               <button
                 onClick={handleLogout}
