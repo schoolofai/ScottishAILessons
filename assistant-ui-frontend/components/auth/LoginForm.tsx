@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { GoogleButton } from './GoogleButton';
 import { validateEmail } from '@/lib/appwrite/auth';
 import { Loader2 } from 'lucide-react';
+import { signInWithEmail } from '@/lib/actions/auth.actions';
 import { mutate } from 'swr';
 
 export function LoginForm() {
