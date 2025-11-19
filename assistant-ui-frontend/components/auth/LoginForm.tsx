@@ -53,7 +53,14 @@ export function LoginForm() {
       // Clear SWR cache to ensure fresh subscription data on next load
       mutate(() => true, undefined, { revalidate: false });
 
-      // Refresh the page to ensure all components see the new session
+      // Refresh router cache to sync the new session cookie
+      router.refresh();
+
+      // Small delay to ensure cookie is set before redirect
+      // This helps with proxy environments like Replit
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Hard navigation to ensure middleware sees the cookie
       window.location.href = '/dashboard';
 
     } catch (err) {

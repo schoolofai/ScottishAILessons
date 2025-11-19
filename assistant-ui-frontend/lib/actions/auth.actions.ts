@@ -43,13 +43,24 @@ export async function signInWithEmail(email: string, password: string) {
     const session = await account.createEmailPasswordSession(email, password);
 
     // Store session.secret in httpOnly cookie
+    // Note: secure:true requires HTTPS, but some proxies (like Replit) may need adjustments
+    const isProduction = process.env.NODE_ENV === 'production';
     const cookieStore = await cookies();
     cookieStore.set(SESSION_COOKIE, session.secret, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isProduction,
       sameSite: 'lax', // Changed from 'strict' to 'lax' to support Stripe redirects
       maxAge: 60 * 60 * 24 * 30, // 30 days
       path: '/',
+    });
+
+    // Log cookie details for debugging
+    console.log('[Auth] Cookie set:', {
+      name: SESSION_COOKIE,
+      secure: isProduction,
+      sameSite: 'lax',
+      path: '/',
+      hasValue: !!session.secret
     });
 
     console.log('[Auth] Login successful:', {

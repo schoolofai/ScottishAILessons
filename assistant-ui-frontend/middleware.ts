@@ -14,6 +14,18 @@ export function middleware(request: NextRequest) {
   const session = request.cookies.get(SESSION_COOKIE);
   const hasSession = Boolean(session?.value);
 
+  // Debug logging for auth routes
+  if (isProtectedRoute || isAuthRoute) {
+    console.log('[Middleware] Auth check:', {
+      pathname,
+      isProtectedRoute,
+      isAuthRoute,
+      hasSession,
+      cookieValue: session?.value ? `${session.value.substring(0, 10)}...` : 'none',
+      allCookies: request.cookies.getAll().map(c => c.name)
+    });
+  }
+
   // Redirect unauthenticated users away from protected routes
   if (isProtectedRoute && !hasSession) {
     const loginUrl = new URL('/login', request.url);
