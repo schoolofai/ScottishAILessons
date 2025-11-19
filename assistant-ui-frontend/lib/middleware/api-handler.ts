@@ -1,8 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authenticateRequest, AuthResult } from './auth';
 import { createErrorResponse } from '../utils/error-responses';
-import { createApiHeaders } from './auth';
+import { createApiHeaders } from '../utils/api-headers';
+import { createSessionClient } from '../server/appwrite';
+
+/**
+ * Authentication result from server-side session validation.
+ */
+export interface AuthResult {
+  success: boolean;
+  user?: any;
+  databases?: any;
+  errorResponse?: NextResponse;
+}
+
+/**
+ * Authenticates a request using httpOnly cookie session.
+ * Returns user and databases client on success.
+ */
+async function authenticateRequest(request: NextRequest): Promise<AuthResult> {
+  try {
+    const { account, databases } = await createSessionClient();
+    const user = await account.get();
+    return { success: true, user, databases };
+  } catch (error: any) {
+    console.error('[api-handler] Authentication failed:', error.message);
+    return {
+      success: false,
+      errorResponse: NextResponse.json(
+        { error: 'Not authenticated', statusCode: 401 },
+        { status: 401, headers: createApiHeaders() }
+      )
+    };
+  }
+}
 
 export interface ApiHandlerContext {
   authResult: AuthResult;

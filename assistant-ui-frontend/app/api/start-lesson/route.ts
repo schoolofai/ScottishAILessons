@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CoursePlannerService } from '../../../lib/appwrite/planner-service';
 import { langGraphClient } from '../../../lib/langgraph/client';
 import { createLessonSelectionContext } from '../../../lib/langgraph/state-reading-utils';
-import { authenticateRequest } from '../../../lib/middleware/auth';
+import { createSessionClient } from '../../../lib/server/appwrite';
 
 // Request schema for lesson selection
 const StartLessonRequestSchema = z.object({
@@ -24,36 +24,27 @@ export async function POST(request: NextRequest) {
     const { lessonTemplateId, courseId, threadId, recommendationsState } =
       StartLessonRequestSchema.parse(body);
 
-    // Authenticate request using middleware
-    const authResult = await authenticateRequest(request);
-    if (!authResult.success) {
-      return authResult.errorResponse!;
-    }
-
-    // Initialize planner service
-    const plannerService = new CoursePlannerService(authResult.sessionToken!);
-
-    // Extract user ID from session token instead of calling account API
-    let userId: string;
+    // Authenticate using server-side session client
+    let account, databases;
     try {
-      // Decode the JWT session token to get user ID
-      const sessionData = JSON.parse(atob(authResult.sessionToken!.split('.')[1] || authResult.sessionToken!));
-      userId = sessionData.id || sessionData.user_id || sessionData.sub;
-
-      if (!userId) {
-        // Fallback: try to decode base64 session token directly
-        const decodedSession = JSON.parse(atob(authResult.sessionToken!));
-        userId = decodedSession.id;
-      }
-
-      console.log('Extracted user ID from session:', userId);
-    } catch (error) {
-      console.error('Failed to extract user ID from session token:', error);
+      const sessionClient = await createSessionClient();
+      account = sessionClient.account;
+      databases = sessionClient.databases;
+    } catch (error: any) {
+      console.error('[start-lesson] Authentication failed:', error.message);
       return NextResponse.json(
-        { error: 'Invalid session token format', statusCode: 401 },
+        { error: 'Not authenticated', statusCode: 401 },
         { status: 401 }
       );
     }
+
+    // Get user from authenticated session
+    const user = await account.get();
+    const userId = user.$id;
+    console.log('[start-lesson] Authenticated user:', userId);
+
+    // Initialize planner service with databases client
+    const plannerService = new CoursePlannerService(databases);
 
     const student = await plannerService.getStudentByUserId(userId);
     if (!student) {

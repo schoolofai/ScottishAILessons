@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createApiHeaders } from '../middleware/auth';
+import { createApiHeaders } from './api-headers';
 
 /**
  * Handles mock error scenarios for testing

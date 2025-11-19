@@ -545,7 +545,9 @@ export const SchedulingContextSchema = z.object({
       plannedAt: OptionalTimestampSchema
     }).strict())
   }).strict(),
-  templates: z.array(LessonTemplateSchema.omit({ createdAt: true, updatedAt: true })),
+  // Note: Using full schema instead of .omit() due to runtime bundling issues
+  // The createdAt/updatedAt fields are optional so this is safe
+  templates: z.array(LessonTemplateSchema),
   mastery: z.object({
     emaByOutcome: z.record(z.string(), z.number().min(0).max(1))
   }).strict().optional(),

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { CoursePlannerService } from '../appwrite/planner-service';
 import { CourseRecommendationSchema, CourseSchema } from '../appwrite/schemas';
-import { createApiHeaders } from '../middleware/auth';
+import { createApiHeaders } from '../utils/api-headers';
 import { z } from 'zod';
 
 export interface UserValidationResult {

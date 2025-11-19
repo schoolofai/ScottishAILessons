@@ -1,0 +1,46 @@
+name: Build Check
+
+on:
+  push:
+    branches: [main, 'feature/*', 'bugfix/*']
+    paths:
+      - 'assistant-ui-frontend/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'assistant-ui-frontend/**'
+
+jobs:
+  build:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: assistant-ui-frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: assistant-ui-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run build
+        run: npm run build
+        env:
+          # Required environment variables for build
+          NEXT_PUBLIC_APPWRITE_ENDPOINT: https://cloud.appwrite.io/v1
+          NEXT_PUBLIC_APPWRITE_PROJECT_ID: test-project
+          NEXT_PUBLIC_APPWRITE_DATABASE_ID: default
+          NEXT_PUBLIC_LANGGRAPH_API_URL: http://localhost:2024
+          NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID: agent
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
