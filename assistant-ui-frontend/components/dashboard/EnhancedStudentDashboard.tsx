@@ -20,6 +20,7 @@ import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { SubscriptionPaywallModal, type PriceInfo } from "./SubscriptionPaywallModal";
+import { SubscriptionStatusBanner } from "../subscription/SubscriptionStatusBanner";
 import {
   type Course,
   type Session,
@@ -448,7 +449,8 @@ export function EnhancedStudentDashboard() {
         templates: templatesResult.documents.map(template => ({
           $id: template.$id,
           title: template.title,
-          outcomeRefs: JSON.parse(template.outcomeRefs || '[]'),
+          // outcomeRefs is already decompressed by the API
+          outcomeRefs: template.outcomeRefs || [],
           estMinutes: template.estMinutes || 30
         })),
         mastery: masteryData.map(record => ({
@@ -842,6 +844,9 @@ export function EnhancedStudentDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="student-dashboard">
+      {/* Subscription Status Banner - shows for payment_failed or cancelled */}
+      <SubscriptionStatusBanner />
+
       {/* Enhanced Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSessionClient } from "@/lib/server/appwrite";
 import { Query } from "node-appwrite";
 import { MasteryV2Driver } from "@/lib/appwrite/driver/MasteryV2Driver";
+import { decompressCards } from "@/lib/appwrite/utils/compression";
 
 /**
  * GET /api/student/recommendations-data/[courseId]
@@ -79,6 +80,27 @@ export async function GET(
       [Query.equal('courseId', course.courseId)]
     );
 
+    // Decompress lesson template fields (cards and outcomeRefs are stored compressed)
+    const decompressedTemplates = templatesResult.documents.map(template => {
+      try {
+        return {
+          ...template,
+          // Decompress cards array
+          cards: decompressCards(template.cards),
+          // Decompress outcomeRefs array
+          outcomeRefs: decompressCards(template.outcomeRefs)
+        };
+      } catch (error) {
+        console.error(`[API] Failed to decompress template ${template.$id}:`, error);
+        // Return template with empty arrays if decompression fails
+        return {
+          ...template,
+          cards: [],
+          outcomeRefs: []
+        };
+      }
+    });
+
     // Return all datasets needed for recommendations
     return NextResponse.json({
       success: true,
@@ -86,7 +108,7 @@ export async function GET(
         mastery: masteryV2Record,
         sow: sowResult.documents,
         course: course,
-        lessonTemplates: templatesResult.documents
+        lessonTemplates: decompressedTemplates
       }
     });
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { InlineLoadingSkeleton } from '@/components/ui/LoadingSkeleton';
@@ -232,9 +232,8 @@ export function AdminFailedWebhooksTable() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {webhookErrors.map((webhookError) => (
-                <>
+                <React.Fragment key={webhookError.$id}>
                   <tr
-                    key={webhookError.$id}
                     className="hover:bg-gray-50"
                     data-testid={`webhook-error-row-${webhookError.$id}`}
                   >
@@ -351,7 +350,7 @@ export function AdminFailedWebhooksTable() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

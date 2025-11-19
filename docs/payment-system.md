@@ -29,6 +29,229 @@ The Scottish AI Lessons application uses Stripe for subscription payments to gat
 4. **No Caching**: Subscription status always fetched fresh (security-critical)
 5. **Fast Fail**: All payment operations throw on failure (no silent errors)
 
+---
+
+## Quick Start: Test User Bypass
+
+### What is a Test User?
+
+A **test user** is a special account that can access all AI features **without paying**. This is essential for:
+
+- **Development**: Developers need full access while building features
+- **QA Testing**: Testers need to verify functionality without real payments
+- **Demos**: Sales/support staff show features to prospects
+- **Support**: Customer support debug issues in user accounts
+
+### How Does the Bypass Work?
+
+Every time a user tries to access AI features (start lesson, use tutor), the system checks:
+
+```typescript
+// In /api/stripe/subscription-status/route.ts (line 37)
+const hasAccess = user.testUserFlag === true || user.subscriptionStatus === 'active';
+```
+
+**Translation**: A user can access AI features if:
+1. Their `testUserFlag` is `true` (test user), OR
+2. Their `subscriptionStatus` is `'active'` (paid subscriber)
+
+If either condition is true, they're allowed in. No payment popup, no redirect.
+
+### What Does the Flagging Script Do?
+
+The script at `assistant-ui-frontend/scripts/flag-test-users.ts` does ONE thing: it sets `testUserFlag = true` on specific user accounts in the database.
+
+**Step-by-step breakdown:**
+
+1. **Connects to Appwrite** using your API key
+2. **Looks up users** by their email addresses (from a hardcoded list)
+3. **Updates each user's document** to set `testUserFlag: true`
+4. **Logs everything** so you can see what happened
+
+**Before running the script:**
+```
+students collection:
+{
+  email: "test@scottishailessons.com",
+  testUserFlag: false  ← User is blocked from AI features
+}
+```
+
+**After running the script:**
+```
+students collection:
+{
+  email: "test@scottishailessons.com",
+  testUserFlag: true   ← User can now access everything!
+}
+```
+
+### Quick Start Steps
+
+#### Step 1: Create a Test User Account
+
+First, create the account in your app:
+
+1. Open `http://localhost:3000`
+2. Click **Sign Up** or **Register**
+3. Use one of these emails (they're in the script's list):
+   - `test@scottishailessons.com`
+   - `test2@scottishailessons.com`
+   - `demo@scottishailessons.com`
+   - `admin@scottishailessons.com`
+   - Or any email ending with `@testuser.com`
+4. Complete registration with any password
+
+#### Step 2: Run the Flagging Script
+
+```bash
+# Navigate to the frontend directory
+cd assistant-ui-frontend
+
+# Run the script (use tsx, not ts-node - better ESM support)
+npx tsx scripts/flag-test-users.ts
+```
+
+**Expected output:**
+```
+═══════════════════════════════════════════════════
+    Test User Auto-Flagging Script (Phase 4)
+═══════════════════════════════════════════════════
+
+Step 1: Validating environment variables...
+✅ Environment variables validated
+   Endpoint: https://cloud.appwrite.io/v1
+   Project ID: your-project-id
+   Database ID: default
+
+Step 2: Initializing Appwrite client...
+✅ Appwrite client initialized
+
+Step 3: Flagging test users from explicit list...
+   Processing: test@scottishailessons.com
+   📝 Audit: Flagged test@scottishailessons.com at 2025-11-18T10:30:00.000Z
+   ✅ Flagged: test@scottishailessons.com (ID: 68d28c19...)
+
+═══════════════════════════════════════════════════
+                   Summary
+═══════════════════════════════════════════════════
+
+   Total explicit emails: 4
+   Test domains: @testuser.com
+   ✅ Flagged: 1
+   ℹ️  Already flagged: 0
+   ⚠️  Not found: 3
+   ❌ Errors: 0
+
+✅ Test user flagging completed successfully!
+```
+
+**Common output meanings:**
+- **✅ Flagged**: User was found and `testUserFlag` was set to `true`
+- **ℹ️ Already flagged**: User already has `testUserFlag: true`, no change needed
+- **⚠️ Not found**: Email not found in database (user hasn't registered yet)
+- **❌ Errors**: Something went wrong (check error message)
+
+#### Step 3: Verify It Worked
+
+**Option A - Check via API:**
+```bash
+# Login as the test user first, then call the API
+curl http://localhost:3000/api/stripe/subscription-status \
+  -H "Cookie: your-session-cookie"
+```
+
+Expected response:
+```json
+{
+  "status": "inactive",
+  "hasAccess": true,       ← This should be TRUE
+  "testUserFlag": true,    ← This should be TRUE
+  "stripeCustomerId": null,
+  "stripeSubscriptionId": null
+}
+```
+
+**Option B - Check in Appwrite Console:**
+1. Go to **Appwrite Console** → **Databases** → `default`
+2. Open the **students** collection
+3. Find your test user document
+4. Verify `testUserFlag: true`
+
+**Option C - Test in the App:**
+1. Login as the test user
+2. Go to Dashboard
+3. Click **Start Lesson** on any lesson
+4. You should go directly to the AI tutor (no paywall!)
+
+### Alternative: Flag Manually in Appwrite Console
+
+If you prefer not to use the script:
+
+1. Go to **Appwrite Console** → **Databases** → `default` → **students**
+2. Find the user document by email
+3. Click **Edit**
+4. Set `testUserFlag` to `true`
+5. Click **Save**
+
+### Supported Test User Emails
+
+The script flags these emails automatically:
+
+**Explicit list:**
+- `test@scottishailessons.com`
+- `test2@scottishailessons.com`
+- `demo@scottishailessons.com`
+- `admin@scottishailessons.com`
+
+**Domain pattern:**
+- Any email ending with `@testuser.com` (e.g., `john@testuser.com`, `qa1@testuser.com`)
+
+### Adding New Test Users
+
+To add more test users to the script, edit `assistant-ui-frontend/scripts/flag-test-users.ts`:
+
+```typescript
+// Line 21-26: Add emails here
+const TEST_USER_EMAILS = [
+  'test@scottishailessons.com',
+  'test2@scottishailessons.com',
+  'demo@scottishailessons.com',
+  'admin@scottishailessons.com',
+  'newtestuser@example.com',  // ← Add new email here
+];
+```
+
+### Troubleshooting
+
+#### "APPWRITE_API_KEY is not configured"
+- Add `APPWRITE_API_KEY` to your `.env.local` file
+- Get the key from Appwrite Console → Project Settings → API Keys
+- The key needs `databases.write` scope
+
+#### "Not found" for all users
+- The users haven't registered yet
+- Create accounts first (Step 1), then run the script
+
+#### Still seeing paywall after flagging
+1. Clear browser cookies and re-login
+2. Verify `testUserFlag: true` in Appwrite Console
+3. Check the API returns `hasAccess: true`
+
+#### Script shows "Errors"
+- Check the error message for details
+- Common issues: network problems, wrong API key, missing collection
+
+### Security Note
+
+⚠️ **Important**: Test users bypass payment entirely. In production:
+- Keep the test user list small and controlled
+- Use obvious test emails (not real customer emails)
+- Regularly audit who has `testUserFlag: true`
+- Never flag a real customer account
+
+---
+
 ## Subscription Flow
 
 ### 1. Subscribe (New User)

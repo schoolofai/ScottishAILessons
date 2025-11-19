@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSessionClient } from "@/lib/server/appwrite";
 import { ID, Query } from "node-appwrite";
-import { compressJSON } from "@/lib/appwrite/utils/compression";
+import { compressJSON, decompressCards } from "@/lib/appwrite/utils/compression";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,11 +36,25 @@ export async function POST(request: NextRequest) {
     );
     
     // Create lesson snapshot
+    // Use decompressCards to handle both compressed (gzip+base64) and uncompressed JSON
+    // Include all fields needed by SessionChatAssistant for outcome enrichment and diagrams
     const lessonSnapshot = {
+      // Core identifiers needed for outcome enrichment
+      courseId: courseId,
+      lessonTemplateId: lessonTemplateId,
+
+      // Lesson content
       title: lessonTemplate.title,
-      outcomeRefs: JSON.parse(lessonTemplate.outcomeRefs),
-      cards: JSON.parse(lessonTemplate.cards),
-      templateVersion: lessonTemplate.version
+      outcomeRefs: decompressCards(lessonTemplate.outcomeRefs),
+      cards: decompressCards(lessonTemplate.cards),
+      templateVersion: lessonTemplate.version,
+
+      // Lesson metadata needed by backend teaching graph
+      lesson_type: lessonTemplate.lesson_type || 'teach',
+      estMinutes: lessonTemplate.estMinutes || 50,
+      sow_order: lessonTemplate.sow_order || 0,
+      engagement_tags: lessonTemplate.engagement_tags || '[]',
+      policy: lessonTemplate.policy || '{}'
     };
     
     // Create session with required status field

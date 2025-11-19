@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { WelcomeStep } from './WelcomeStep';
 import { ProfileStep } from './ProfileStep';
 import { CourseCatalogStep } from './CourseCatalogStep';
-import { enrollStudentInCourse } from '@/lib/services/enrollment-service';
 import { Loader2 } from 'lucide-react';
 
 interface OnboardingStep {
@@ -235,33 +234,37 @@ async function updateStudentProfile(data: { name: string; accommodations: string
   }
 }
 
-// Helper: Enroll in first course
+// Helper: Enroll in first course via API (consistent with catalog page)
 async function enrollInFirstCourse(courseId: string) {
-  const { Client, Account, Databases, Query } = await import('appwrite');
+  console.log('[Onboarding] Enrolling in first course via API:', courseId);
 
-  const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+  // Use the same API as the catalog page for consistent behavior
+  const response = await fetch('/api/student/enroll', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',  // Include auth cookies
+    body: JSON.stringify({ courseId }),
+  });
 
-  const account = new Account(client);
-  const databases = new Databases(client);
+  const result = await response.json();
 
-  const user = await account.get();
-
-  // Find student record
-  const studentsResult = await databases.listDocuments('default', 'students',
-    [Query.equal('userId', user.$id)]
-  );
-
-  if (studentsResult.documents.length > 0) {
-    const student = studentsResult.documents[0];
-
-    // Use Phase 1 enrollment service
-    await enrollStudentInCourse(student.$id, courseId, databases);
-
-    console.log('[Onboarding] Enrolled in first course:', {
-      studentId: student.$id,
-      courseId
-    });
+  if (!response.ok || !result.success) {
+    // Handle specific error cases
+    if (response.status === 401) {
+      throw new Error('Not authenticated. Please log in.');
+    }
+    if (response.status === 409) {
+      // Already enrolled - not an error for onboarding, just continue
+      console.log('[Onboarding] Already enrolled in course, continuing...');
+      return;
+    }
+    throw new Error(result.error || 'Failed to enroll in course');
   }
+
+  console.log('[Onboarding] Successfully enrolled in first course:', {
+    courseId,
+    enrollment: result.enrollment?.$id
+  });
 }
