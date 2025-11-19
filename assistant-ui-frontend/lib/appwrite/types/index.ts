@@ -62,13 +62,16 @@ export interface Misconception {
 
 /**
  * Multiple Choice Question CFU
+ * Supports both single-select (radio buttons) and multi-select (checkboxes)
  */
 export interface MCQCFU {
   type: 'mcq';
   id: string;
   stem: string;
   options: string[];
-  answerIndex: number;
+  answerIndex?: number;  // For single-select (backwards compatible)
+  multiSelect?: boolean;  // True = checkboxes, False = radio buttons
+  answerIndices?: number[];  // For multi-select
   rubric: Rubric;
 }
 

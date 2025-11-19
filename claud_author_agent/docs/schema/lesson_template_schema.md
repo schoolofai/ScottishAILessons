@@ -343,6 +343,10 @@ Each card is a self-contained pedagogical unit with:
 
 **Use Case**: Quick concept checks, fact recall, misconception diagnosis
 
+Supports both **single-select** (radio buttons) and **multi-select** (checkboxes) modes.
+
+#### Single-Select Example (Default)
+
 ```json
 {
   "type": "mcq",
@@ -362,10 +366,46 @@ Each card is a self-contained pedagogical unit with:
 }
 ```
 
+#### Multi-Select Example
+
+Use when students need to select ALL correct answers.
+
+```json
+{
+  "type": "mcq",
+  "id": "q002",
+  "stem": "Select ALL correct answers:\nWhich of these fractions are equivalent to one-half?",
+  "options": ["2/4", "3/6", "1/3", "4/8", "2/3"],
+  "multiSelect": true,
+  "answerIndices": [0, 1, 3],
+  "rubric": {
+    "total_points": 2,
+    "criteria": [
+      {
+        "description": "Identifies all equivalent fractions",
+        "points": 1
+      },
+      {
+        "description": "Avoids selecting non-equivalent fractions",
+        "points": 1
+      }
+    ]
+  }
+}
+```
+
 **Fields**:
 - **options** (string[]): 3-5 answer choices
-- **answerIndex** (number): Zero-indexed correct answer position
+- **answerIndex** (number, optional): Zero-indexed correct answer position (for single-select)
+- **multiSelect** (boolean, default: false): True for checkboxes, false for radio buttons
+- **answerIndices** (number[], optional): Array of correct answer indices (for multi-select)
 - **Distractors**: Include common misconceptions in incorrect options
+
+**When to Use Multi-Select**:
+- Questions asking students to "Select ALL correct answers"
+- Mapping tasks (e.g., matching measurements to use cases)
+- Categorization questions with multiple valid answers
+- Equivalence questions (e.g., equivalent fractions)
 
 ---
 

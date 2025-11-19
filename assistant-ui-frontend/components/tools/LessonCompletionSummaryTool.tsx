@@ -5,6 +5,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useSafeLangGraphInterruptState } from "@/lib/replay/useSafeLangGraphHooks";
 import { useRouter } from "next/navigation";
 import { useAppwrite, EvidenceDriver, SessionDriver, MasteryDriver, RoutineDriver } from "@/lib/appwrite";
+import { useServerAuth } from "@/hooks/useServerAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -121,7 +122,10 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
     const { isReplayMode } = useReplayMode();
     const interrupt = useSafeLangGraphInterruptState();
     const router = useRouter();
-    const { createDriver, isAuthenticated, isLoading } = useAppwrite();
+    const { createDriver } = useAppwrite();
+    // Use useServerAuth for auth state (httpOnly cookie pattern)
+    // This fixes the race condition where useAppwrite.isAuthenticated stays false
+    const { isAuthenticated, isLoading } = useServerAuth();
     const cardContext = useSafeCurrentCard();
     const onSessionStatusChange = cardContext?.onSessionStatusChange;
 
@@ -475,19 +479,6 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
       }
     };
 
-    const handleContinue = () => {
-      // Only call tool if it's available (during interrupts)
-      if (typeof callTool === "function") {
-        callTool({
-          action: "continue_learning",
-          interaction_type: "continue_to_next",
-          current_lesson_complete: true,
-          timestamp: new Date().toISOString()
-        });
-      }
-      // Navigate to dashboard after continuing learning
-      router.push("/dashboard");
-    };
 
     const accuracyPercentage = Math.round(performance_analysis.overall_accuracy * 100);
     const firstAttemptPercentage = Math.round(performance_analysis.first_attempt_success * 100);
@@ -736,21 +727,11 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
               )}
 
               <Button
-                variant="secondary"
                 onClick={handleComplete}
                 disabled={isToolExecuting || !persistenceCompleted}
                 className="flex-1"
               >
                 {persistenceCompleted ? "Continue to Dashboard" : "Saving Progress..."}
-              </Button>
-
-              <Button
-                onClick={handleContinue}
-                disabled={isToolExecuting}
-                className="flex-1 flex items-center gap-2"
-              >
-                <span>Continue Learning</span>
-                <TrophyIcon className="w-4 h-4" />
               </Button>
             </div>
           )}

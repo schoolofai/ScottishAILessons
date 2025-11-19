@@ -100,7 +100,11 @@ export function CardEditor({
             <div className="flex-1">
               <h3 className="font-semibold text-lg">{card.title}</h3>
               <p className="text-sm text-gray-500">
-                {card.cfu.type.toUpperCase()} • {card.misconceptions?.length || 0} misconceptions •{' '}
+                {card.cfu.type.toUpperCase()}
+                {card.cfu.type === 'mcq' && (card.cfu as any).multiSelect && (
+                  <span className="text-purple-600 font-medium"> (Multi-Select)</span>
+                )}
+                {' '}• {card.misconceptions?.length || 0} misconceptions •{' '}
                 {card.context_hooks?.length || 0} context hooks
               </p>
             </div>

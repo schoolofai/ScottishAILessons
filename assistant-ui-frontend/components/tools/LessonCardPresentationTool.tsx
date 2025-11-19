@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { BookOpenIcon, UserIcon, ClockIcon } from "lucide-react";
@@ -44,6 +45,8 @@ type LessonCardPresentationArgs = {
       // MCQ fields
       options?: string[];
       answerIndex?: number;
+      multiSelect?: boolean;  // True = checkboxes, False = radio buttons
+      answerIndices?: number[];  // Array of correct answer indices for multi-select
       // Numeric fields
       expected?: number;
       tolerance?: number;
@@ -110,6 +113,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     // Component state - must be before early return to avoid hook order issues
     const [studentAnswer, setStudentAnswer] = useState<string>("");
     const [selectedMCQOption, setSelectedMCQOption] = useState<string>("");
+    const [selectedMCQOptions, setSelectedMCQOptions] = useState<string[]>([]); // Multi-select state
     const [showHint, setShowHint] = useState(false);
     const [hintIndex, setHintIndex] = useState(0);
 
@@ -433,7 +437,19 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     };
 
     const handleSubmitAnswer = async () => {
-      const finalAnswer = cfu_type === "mcq" ? selectedMCQOption : studentAnswer;
+      // Handle MCQ answer based on single/multi-select mode
+      let finalAnswer: string;
+      if (cfu_type === "mcq") {
+        if (args.card_data.cfu.multiSelect) {
+          // Multi-select: join selected options with pipe delimiter
+          finalAnswer = selectedMCQOptions.join(" | ");
+        } else {
+          // Single-select: use the selected option
+          finalAnswer = selectedMCQOption;
+        }
+      } else {
+        finalAnswer = studentAnswer;
+      }
 
       // ✅ FRONTEND EXTRACTION: Extract images from HTML with multi-image support
       let allImages: string[] = [];
@@ -479,7 +495,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       }
 
       // Step 4: Validate - must have text answer OR drawing
-      const hasTextAnswer = cleanedAnswer?.trim() || selectedMCQOption;
+      const hasTextAnswer = cleanedAnswer?.trim() || selectedMCQOption || selectedMCQOptions.length > 0;
       const hasDrawing = allImages.length > 0;
 
       if (!hasTextAnswer && !hasDrawing) {
@@ -641,33 +657,62 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             )}
 
-            {/* MCQ - Multiple Choice Question */}
+            {/* MCQ - Multiple Choice Question (supports both single and multi-select) */}
             {card_data.cfu.type === "mcq" && card_data.cfu.options && (
               <div className="space-y-4">
                 <StemRenderer
                   stem={card_data.cfu.stem}
                   className="text-base font-medium mb-3"
                 />
-                <RadioGroup
-                  value={selectedMCQOption}
-                  onValueChange={setSelectedMCQOption}
-                  className="space-y-3"
-                >
-                  {card_data.cfu.options.map((option, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <RadioGroupItem
-                        value={option}
-                        id={`option-${index}`}
-                      />
-                      <Label
-                        htmlFor={`option-${index}`}
-                        className="text-base cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
-                      >
-                        {option}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
+
+                {/* Multi-select: Checkboxes */}
+                {card_data.cfu.multiSelect ? (
+                  <div className="space-y-3">
+                    {card_data.cfu.options.map((option, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        <Checkbox
+                          id={`option-${index}`}
+                          checked={selectedMCQOptions.includes(option)}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedMCQOptions([...selectedMCQOptions, option]);
+                            } else {
+                              setSelectedMCQOptions(selectedMCQOptions.filter(o => o !== option));
+                            }
+                          }}
+                        />
+                        <Label
+                          htmlFor={`option-${index}`}
+                          className="text-base cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
+                        >
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  /* Single-select: Radio buttons */
+                  <RadioGroup
+                    value={selectedMCQOption}
+                    onValueChange={setSelectedMCQOption}
+                    className="space-y-3"
+                  >
+                    {card_data.cfu.options.map((option, index) => (
+                      <div key={index} className="flex items-center space-x-3">
+                        <RadioGroupItem
+                          value={option}
+                          id={`option-${index}`}
+                        />
+                        <Label
+                          htmlFor={`option-${index}`}
+                          className="text-base cursor-pointer flex-1 p-2 rounded hover:bg-gray-50"
+                        >
+                          {option}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
 
                 {/* Drawing Support for MCQ */}
                 <Button
@@ -1011,7 +1056,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             <div className="flex gap-3 pt-4 border-t">
               <Button
                 onClick={handleSubmitAnswer}
-                disabled={(!studentAnswer.trim() && !selectedMCQOption) || isUploadingDrawing}
+                disabled={(!studentAnswer.trim() && !selectedMCQOption && selectedMCQOptions.length === 0) || isUploadingDrawing}
                 className="w-full"
               >
                 {isUploadingDrawing ? "Uploading drawing..." : "Submit Answer"}

@@ -178,7 +178,10 @@ For each card, Edit these fields in order:
 3. **`explainer_plain`** - Simplified version (no LaTeX, CEFR A2-B1, shorter sentences, simpler words)
 4. **`cfu.stem`** - Decifer question text from 'sow_entry_input.json' content - interpreted from cards data in array lesson.card_structure[card index].cfu_strategy 
 5. **CFU type-specific fields**: Decifer question text from 'sow_entry_input.json' content - interpreted from cards data in array lesson.card_structure[card index].cfu_strategy
-   - **mcq**: `options[]`, `answerIndex`
+   - **mcq**: `options[]`, `answerIndex` (single-select) OR `multiSelect: true`, `answerIndices[]` (multi-select)
+     - **When to use multi-select**: Use `multiSelect: true` with `answerIndices: [0, 2]` when asking students to "Select ALL correct answers" or when multiple options are simultaneously correct (e.g., mapping tasks, categorization)
+     - **Stem guidance for multi-select**: Always include "Select ALL correct answers" or "Choose all that apply" in the stem
+     - **Example multi-select**: `{"type": "mcq", "stem": "Select ALL correct answers:\nWhich of these represent one-half?", "options": ["1/2", "2/4", "3/6", "2/3"], "multiSelect": true, "answerIndices": [0, 1, 2], ...}`
    - **numeric**: `expected`, `tolerance`, `money2dp`
    - **structured_response / short_text**: (stem only)
 6. **`rubric`** - `{total_points, criteria: [{description, points}]}`
@@ -259,6 +262,7 @@ new_string: '"field_name": "actual content",'
 - Using `cfu_type` instead of `type`
 - Using `question_text` instead of `stem`
 - Missing CFU type-specific fields (e.g., MCQ missing `answerIndex`)
+- MCQ multi-select errors: Using `multiSelect: true` but missing `answerIndices[]`, or `answerIndices` with invalid indices
 - Missing `cfu.rubric` field (CFU rubrics are SEPARATE from card rubrics)
 - Using `correction` instead of `clarification` in misconceptions
 - Missing `id` field in misconceptions

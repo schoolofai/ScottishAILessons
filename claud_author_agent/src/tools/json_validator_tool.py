@@ -91,27 +91,65 @@ class Misconception(BaseModel):
 # ═══════════════════════════════════════════════════════════════
 
 class CFU_MCQ(BaseModel):
-    """Multiple Choice Question CFU - Exact schema per lesson_author_prompt_v2.md lines 105-141."""
+    """Multiple Choice Question CFU - Supports both single-select (radio) and multi-select (checkbox).
+
+    Single-select MCQ: Use answerIndex (integer) with multiSelect=False
+    Multi-select MCQ: Use answerIndices (array) with multiSelect=True
+
+    Schema per lesson_author_prompt_v2.md lines 105-141, extended for multi-select support.
+    """
     model_config = ConfigDict(extra="allow")  # Allow additional fields for extensibility
 
     type: Literal["mcq"] = Field(..., description="CFU type discriminator")
     id: str = Field(..., min_length=1, description="Unique question ID (e.g., q001)")
     stem: str = Field(..., min_length=10, description="Question text shown to student")
     options: List[str] = Field(..., min_length=3, max_length=5, description="Answer choices")
-    answerIndex: int = Field(..., ge=0, description="Zero-indexed position of correct answer")
+
+    # Single-answer field (backwards compatible - used when multiSelect=False)
+    answerIndex: Optional[int] = Field(None, ge=0, description="Zero-indexed position of correct answer (single-select)")
+
+    # Multi-select support (new fields)
+    multiSelect: bool = Field(False, description="True=checkboxes (multiple answers), False=radio buttons (single answer)")
+    answerIndices: Optional[List[int]] = Field(None, description="Zero-indexed positions of all correct answers (multi-select)")
+
     rubric: Rubric = Field(..., description="Marking scheme")
 
-    @field_validator('answerIndex')
-    @classmethod
-    def validate_answer_index_in_range(cls, v, info):
-        """Ensure answerIndex points to valid option."""
-        options = info.data.get('options') if hasattr(info, 'data') else None
-        if options and v >= len(options):
-            raise ValueError(
-                f"answerIndex {v} out of range for {len(options)} options "
-                f"(valid range: 0-{len(options)-1})"
-            )
-        return v
+    @model_validator(mode='after')
+    def validate_answer_configuration(self):
+        """Ensure proper answer configuration based on multiSelect flag."""
+        if self.multiSelect:
+            # Multi-select: requires answerIndices array
+            if not self.answerIndices or len(self.answerIndices) == 0:
+                raise ValueError(
+                    "Multi-select MCQ (multiSelect=True) requires 'answerIndices' array with at least one correct answer. "
+                    "Example: answerIndices: [0, 2] for options at positions 0 and 2."
+                )
+            # Validate all indices are in range
+            for idx in self.answerIndices:
+                if idx >= len(self.options):
+                    raise ValueError(
+                        f"answerIndices contains {idx} which is out of range for {len(self.options)} options "
+                        f"(valid range: 0-{len(self.options)-1})"
+                    )
+        else:
+            # Single-select: requires answerIndex OR single-element answerIndices
+            if self.answerIndex is None:
+                if self.answerIndices and len(self.answerIndices) == 1:
+                    # Allow answerIndices with single element for consistency
+                    pass
+                else:
+                    raise ValueError(
+                        "Single-select MCQ (multiSelect=False) requires 'answerIndex' integer. "
+                        "Example: answerIndex: 0 for the first option."
+                    )
+            else:
+                # Validate answerIndex is in range
+                if self.answerIndex >= len(self.options):
+                    raise ValueError(
+                        f"answerIndex {self.answerIndex} out of range for {len(self.options)} options "
+                        f"(valid range: 0-{len(self.options)-1})"
+                    )
+        return self
 
 
 class CFU_Numeric(BaseModel):

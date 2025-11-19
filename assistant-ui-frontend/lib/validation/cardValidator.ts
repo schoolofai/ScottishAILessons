@@ -151,6 +151,7 @@ function validateCFU(cfu: CFU): ValidationErrors {
 
 /**
  * Validate MCQ-specific fields
+ * Supports both single-select (answerIndex) and multi-select (answerIndices) modes
  */
 function validateMCQCFU(cfu: MCQCFU): ValidationErrors {
   const errors: ValidationErrors = {};
@@ -170,11 +171,25 @@ function validateMCQCFU(cfu: MCQCFU): ValidationErrors {
     errors.cfu_options_empty = "All options must have content";
   }
 
-  // Validate answer index
-  if (cfu.answerIndex === undefined || cfu.answerIndex === null) {
-    errors.cfu_answer = "Correct answer index is required";
-  } else if (cfu.answerIndex < 0 || cfu.answerIndex >= cfu.options.length) {
-    errors.cfu_answer = `Answer index (${cfu.answerIndex}) is out of range (0-${cfu.options.length - 1})`;
+  // Validate answer based on single/multi-select mode
+  if (cfu.multiSelect) {
+    // Multi-select mode: validate answerIndices array
+    if (!cfu.answerIndices || !Array.isArray(cfu.answerIndices) || cfu.answerIndices.length === 0) {
+      errors.cfu_answer = "Multi-select MCQ requires at least one correct answer in answerIndices";
+    } else {
+      // Validate all indices are in range
+      const invalidIndices = cfu.answerIndices.filter(idx => idx < 0 || idx >= cfu.options.length);
+      if (invalidIndices.length > 0) {
+        errors.cfu_answer = `Answer indices ${invalidIndices.join(', ')} are out of range (0-${cfu.options.length - 1})`;
+      }
+    }
+  } else {
+    // Single-select mode: validate answerIndex
+    if (cfu.answerIndex === undefined || cfu.answerIndex === null) {
+      errors.cfu_answer = "Correct answer index is required";
+    } else if (cfu.answerIndex < 0 || cfu.answerIndex >= cfu.options.length) {
+      errors.cfu_answer = `Answer index (${cfu.answerIndex}) is out of range (0-${cfu.options.length - 1})`;
+    }
   }
 
   return errors;
@@ -291,6 +306,7 @@ export function createEmptyCFU(type: CFU['type']): CFU {
         stem: '',
         options: ['', ''],
         answerIndex: 0,
+        multiSelect: false,  // Default to single-select (radio buttons)
         rubric: emptyRubric
       };
 

@@ -135,6 +135,10 @@ export const HintArraySchema = z.array(
 /**
  * MCQ CFU - Multiple Choice Question
  * Use for: Quick concept checks, fact recall, misconception diagnosis
+ *
+ * Supports both single-select (radio buttons) and multi-select (checkboxes):
+ * - Single-select: multiSelect=false, answerIndex=0
+ * - Multi-select: multiSelect=true, answerIndices=[0, 2]
  */
 export const MCQCFUSchema = z.object({
   type: z.literal('mcq'),
@@ -146,12 +150,41 @@ export const MCQCFUSchema = z.object({
   options: z.array(z.string().min(1).max(200))
     .min(3, 'Must have at least 3 options')
     .max(5, 'Cannot have more than 5 options'),
+
+  // Single-select field (backwards compatible)
   answerIndex: z.number()
     .int('Answer index must be a whole number')
     .min(0, 'Answer index cannot be negative')
-    .max(4, 'Answer index cannot exceed 4'),
+    .max(4, 'Answer index cannot exceed 4')
+    .optional(),
+
+  // Multi-select support (new fields)
+  multiSelect: z.boolean()
+    .default(false)
+    .describe('True=checkboxes (multiple answers), False=radio buttons (single answer)'),
+  answerIndices: z.array(
+    z.number()
+      .int('Answer indices must be whole numbers')
+      .min(0, 'Answer index cannot be negative')
+      .max(4, 'Answer index cannot exceed 4')
+  ).optional()
+    .describe('Array of correct answer indices for multi-select questions'),
+
   rubric: RubricSchema
-}).strict();
+}).refine((data) => {
+  // Validate answer configuration based on multiSelect flag
+  if (data.multiSelect) {
+    // Multi-select: requires answerIndices array
+    return data.answerIndices && data.answerIndices.length > 0;
+  } else {
+    // Single-select: requires answerIndex OR single-element answerIndices
+    return data.answerIndex !== undefined ||
+      (data.answerIndices && data.answerIndices.length === 1);
+  }
+}, {
+  message: 'Invalid answer configuration: multi-select requires answerIndices array, single-select requires answerIndex',
+  path: ['answerIndex']
+});
 
 /**
  * Numeric CFU - Numeric Answer Question
