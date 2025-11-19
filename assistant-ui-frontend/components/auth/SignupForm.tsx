@@ -56,6 +56,15 @@ export function SignupForm() {
 
       const account = new Account(client);
 
+      // Clear any existing session before signup to prevent
+      // "Creation of a session is prohibited when a session is active" error
+      localStorage.removeItem('cookieFallback');
+      try {
+        await account.deleteSession('current');
+      } catch (e) {
+        // Ignore - no existing session to delete
+      }
+
       // Create account + session (Appwrite handles localStorage automatically)
       const user = await account.create(ID.unique(), email, password, name);
       const session = await account.createEmailPasswordSession(email, password);
