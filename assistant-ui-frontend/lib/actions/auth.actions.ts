@@ -42,11 +42,31 @@ export async function signInWithEmail(email: string, password: string) {
     const { account } = await createAdminClient();
     const session = await account.createEmailPasswordSession(email, password);
 
+    // Debug: Log full session object to see available properties
+    console.log('[Auth] Session created:', {
+      $id: session.$id,
+      userId: session.userId,
+      hasSecret: !!session.secret,
+      secretLength: session.secret?.length || 0,
+      provider: session.provider,
+      // List all keys to see what's available
+      keys: Object.keys(session)
+    });
+
+    // The secret is what we need for authentication
+    const sessionSecret = session.secret;
+
+    if (!sessionSecret) {
+      console.error('[Auth] ERROR: Session created but no secret returned!');
+      console.error('[Auth] Session object:', JSON.stringify(session, null, 2));
+      throw new Error('Session created but authentication token not available');
+    }
+
     // Store session.secret in httpOnly cookie
     // Note: secure:true requires HTTPS, but some proxies (like Replit) may need adjustments
     const isProduction = process.env.NODE_ENV === 'production';
     const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE, session.secret, {
+    cookieStore.set(SESSION_COOKIE, sessionSecret, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax', // Changed from 'strict' to 'lax' to support Stripe redirects
@@ -60,7 +80,7 @@ export async function signInWithEmail(email: string, password: string) {
       secure: isProduction,
       sameSite: 'lax',
       path: '/',
-      hasValue: !!session.secret
+      secretLength: sessionSecret.length
     });
 
     console.log('[Auth] Login successful:', {
