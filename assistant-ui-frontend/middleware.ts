@@ -3,23 +3,16 @@ import type { NextRequest } from 'next/server';
 
 const protectedRoutes = ['/chat', '/dashboard', '/session', '/admin'];
 const authRoutes = ['/login', '/signup', '/reset-password'];
+const SESSION_COOKIE = 'appwrite_session';
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
 
-  // Check for Appwrite session cookies
-  // Client SDK uses: a_session_{projectId} pattern
-  // Server SDK uses: appwrite_session
-  const allCookies = request.cookies.getAll();
-  const appwriteClientSession = allCookies.find(c => c.name.startsWith('a_session_'));
-  const appwriteServerSession = request.cookies.get('appwrite_session');
-
-  const hasSession = Boolean(
-    (appwriteClientSession?.value) ||
-    (appwriteServerSession?.value)
-  );
+  // Check for session cookie
+  const session = request.cookies.get(SESSION_COOKIE);
+  const hasSession = Boolean(session?.value);
 
   // Debug logging for auth routes
   if (isProtectedRoute || isAuthRoute) {
@@ -28,9 +21,8 @@ export function middleware(request: NextRequest) {
       isProtectedRoute,
       isAuthRoute,
       hasSession,
-      clientSession: appwriteClientSession?.name || 'none',
-      serverSession: appwriteServerSession?.value ? 'present' : 'none',
-      allCookies: allCookies.map(c => c.name)
+      cookieValue: session?.value ? `${session.value.substring(0, 10)}...` : 'none',
+      allCookies: request.cookies.getAll().map(c => c.name)
     });
   }
 

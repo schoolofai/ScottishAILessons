@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { GoogleButton } from './GoogleButton';
 import { validateEmail } from '@/lib/appwrite/auth';
 import { Loader2 } from 'lucide-react';
+import { signInWithEmail } from '@/lib/actions/auth.actions';
 import { mutate } from 'swr';
 
 export function LoginForm() {
@@ -34,29 +35,30 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      // CLIENT-SIDE LOGIN - Use Appwrite client SDK
-      // This creates a session and stores it in Appwrite's a_session_* cookie
-      const { Client, Account } = await import('appwrite');
+      // Create server-side session (httpOnly cookie for middleware/API routes)
+      const result = await signInWithEmail(email, password);
 
-      // Initialize Appwrite client
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      // Handle undefined result (server error)
+      if (!result) {
+        throw new Error('Server error: No response from authentication service');
+      }
 
-      const account = new Account(client);
+      if (!result.success) {
+        throw new Error(result.error || 'Login failed');
+      }
 
-      // Create session (Appwrite client SDK handles cookie automatically)
-      const session = await account.createEmailPasswordSession(email, password);
-
-      console.log('[LoginForm] Client-side session created:', {
-        sessionId: session.$id,
-        userId: session.userId
-      });
+      console.log('[LoginForm] Server-side session created');
+      console.log('[LoginForm] Login successful, redirecting to dashboard');
 
       // Clear SWR cache to ensure fresh subscription data on next load
       mutate(() => true, undefined, { revalidate: false });
 
-      console.log('[LoginForm] Login successful, redirecting to dashboard');
+      // Refresh router cache to sync the new session cookie
+      router.refresh();
+
+      // Small delay to ensure cookie is set before redirect
+      // This helps with proxy environments like Replit
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       // Hard navigation to ensure middleware sees the cookie
       window.location.href = '/dashboard';
