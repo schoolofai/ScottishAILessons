@@ -18,6 +18,11 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { BookOpenIcon, UserIcon, ClockIcon } from "lucide-react";
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+import { cn } from "@/lib/utils";
 import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
 import { StudentDrawingStorageDriver } from "@/lib/appwrite/driver/StudentDrawingStorageDriver";
 import { useAppwrite } from "@/lib/appwrite/hooks/useAppwrite";
@@ -131,7 +136,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [diagramUrl, setDiagramUrl] = useState<string | null>(null);
     const [diagramLoading, setDiagramLoading] = useState<boolean>(false);
 
-    // Stem renderer component for proper markdown and newline formatting
+    // Stem renderer component for proper markdown, LaTeX, and table formatting
     const StemRenderer = ({ stem, className }: { stem: string; className?: string }) => {
       // Handle both literal "\n" strings and actual newline characters
       // Convert them to double newlines for proper markdown paragraph breaks
@@ -146,6 +151,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       return (
         <div className={`prose prose-sm max-w-none ${className || ''}`}>
           <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex]}
             components={{
               p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
               strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
@@ -153,6 +160,25 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2" {...props} />,
               ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2" {...props} />,
               li: ({ node, ...props }) => <li className="mb-1" {...props} />,
+              table: ({ className, ...props }) => (
+                <table
+                  className={cn("my-5 w-full border-separate border-spacing-0 overflow-y-auto", className)}
+                  {...props}
+                />
+              ),
+              th: ({ className, ...props }) => (
+                <th
+                  className={cn("bg-muted px-4 py-2 text-left font-bold first:rounded-tl-lg last:rounded-tr-lg [&[align=center]]:text-center [&[align=right]]:text-right", className)}
+                  {...props}
+                />
+              ),
+              td: ({ className, ...props }) => (
+                <td
+                  className={cn("border-b border-l px-4 py-2 text-left last:border-r [&[align=center]]:text-center [&[align=right]]:text-right", className)}
+                  {...props}
+                />
+              ),
+              tr: ({ className, ...props }) => <tr className={className} {...props} />,
             }}
           >
             {processedStem}

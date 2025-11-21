@@ -126,12 +126,13 @@ async def upsert_lesson_diagram(
     execution_id: str,
     diagram_context: Optional[str] = None,
     diagram_description: Optional[str] = None,
+    diagram_index: int = 0,
     mcp_config_path: str = ".mcp.json"
 ) -> Dict[str, Any]:
     """Upsert lesson diagram to Appwrite lesson_diagrams collection.
 
     Implements FR-044: Persist diagram data to Appwrite with upsert semantics.
-    - If (lessonTemplateId, cardId) combination exists: UPDATE
+    - If (lessonTemplateId, cardId, diagram_context, diagram_index) combination exists: UPDATE
     - If not exists: CREATE
 
     Args:
@@ -145,6 +146,8 @@ async def upsert_lesson_diagram(
         critique_feedback: List of VisualCritique dictionaries
         execution_id: Unique generation execution ID (timestamp-based)
         diagram_context: Diagram usage context ("lesson" for explainer, "cfu" for assessment) - optional for backward compatibility
+        diagram_description: Optional 1-2 sentence description for downstream LLMs
+        diagram_index: Diagram index for multi-diagram cards (0-indexed, default 0 for backward compatibility)
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -156,7 +159,7 @@ async def upsert_lesson_diagram(
     """
     logger.info(
         f"Upserting lesson diagram: lessonTemplateId={lesson_template_id}, "
-        f"cardId={card_id}, score={visual_critique_score}, iterations={critique_iterations}"
+        f"cardId={card_id}, diagram_index={diagram_index}, score={visual_critique_score}, iterations={critique_iterations}"
     )
 
     # Validation (FR-044: Input validation before persistence)
@@ -230,10 +233,11 @@ async def upsert_lesson_diagram(
     try:
         from .appwrite_mcp import list_appwrite_documents
 
-        # Build queries - include diagram_context if provided to distinguish lesson vs CFU diagrams
+        # Build queries - include diagram_context and diagram_index to uniquely identify diagram
         queries = [
             f'equal("lessonTemplateId", "{lesson_template_id}")',
-            f'equal("cardId", "{card_id}")'
+            f'equal("cardId", "{card_id}")',
+            f'equal("diagram_index", {diagram_index})'  # Include diagram_index in query
         ]
         if diagram_context is not None:
             queries.append(f'equal("diagram_context", "{diagram_context}")')
@@ -263,7 +267,7 @@ async def upsert_lesson_diagram(
                 "critique_feedback": critique_feedback_json,
                 "execution_id": execution_id,
                 "failure_reason": None  # Clear any previous failure reason on success
-                # lessonTemplateId and cardId are immutable (not updated)
+                # lessonTemplateId, cardId, and diagram_index are immutable (not updated)
             }
 
             # Add diagram_context if provided (optional for backward compatibility)
@@ -288,22 +292,23 @@ async def upsert_lesson_diagram(
         else:
             # Create new document with hash-based ID (Appwrite 36-char limit)
             # Format: dgm_<8-char-hash> (12 chars total)
-            # Hash is deterministic MD5 of lessonTemplateId + cardId + diagram_context for reproducibility
-            # Include diagram_context in hash to generate unique IDs for lesson vs CFU diagrams
+            # Hash is deterministic MD5 of lessonTemplateId + cardId + diagram_context + diagram_index for reproducibility
+            # Include diagram_context and diagram_index in hash to generate unique IDs for each diagram
             context_suffix = f"_{diagram_context}" if diagram_context else ""
-            combined = f"{lesson_template_id}_{card_id}{context_suffix}"
+            combined = f"{lesson_template_id}_{card_id}{context_suffix}_{diagram_index}"
             hash_suffix = hashlib.md5(combined.encode()).hexdigest()[:8]
             document_id = f"dgm_{hash_suffix}"
 
             logger.debug(
                 f"Generated document ID: {document_id} "
-                f"(hash of {lesson_template_id}_{card_id})"
+                f"(hash of {lesson_template_id}_{card_id}{context_suffix}_{diagram_index})"
             )
 
             # Prepare create data
             create_data = {
                 "lessonTemplateId": lesson_template_id,
                 "cardId": card_id,
+                "diagram_index": diagram_index,  # Add diagram_index for multi-diagram support
                 "jsxgraph_json": jsxgraph_json,
                 "image_file_id": image_file_id,  # Storage reference instead of base64
                 "diagram_type": diagram_type,
@@ -371,6 +376,7 @@ async def batch_upsert_diagrams(
             - execution_id (str)
             - diagram_context (str, optional): "lesson" or "cfu" - context for diagram usage
             - diagram_description (str, optional): Brief description for downstream LLMs
+            - diagram_index (int, optional): Diagram index for multi-diagram cards (default 0)
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -397,10 +403,11 @@ async def batch_upsert_diagrams(
             # Extract fields from diagram_data
             lesson_template_id = diagram_data["lesson_template_id"]
             card_id = diagram_data["card_id"]
+            diagram_index = diagram_data.get("diagram_index", 0)  # Extract diagram_index (default 0)
 
             logger.info(
                 f"[{idx}/{total}] Upserting diagram: "
-                f"lessonTemplateId={lesson_template_id}, cardId={card_id}"
+                f"lessonTemplateId={lesson_template_id}, cardId={card_id}, diagram_index={diagram_index}"
             )
 
             # Upsert single diagram
@@ -416,6 +423,7 @@ async def batch_upsert_diagrams(
                 execution_id=diagram_data["execution_id"],
                 diagram_context=diagram_data.get("diagram_context"),  # Optional - may not be present
                 diagram_description=diagram_data.get("diagram_description"),  # Optional - brief description for LLMs
+                diagram_index=diagram_index,  # Pass diagram_index for multi-diagram support
                 mcp_config_path=mcp_config_path
             )
 

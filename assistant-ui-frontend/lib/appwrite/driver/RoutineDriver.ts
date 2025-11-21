@@ -273,7 +273,73 @@ export class RoutineDriver extends BaseDriver {
   }
 
   /**
-   * Update outcome schedule after lesson completion
+   * Batch update multiple outcome schedules after lesson completion
+   * More efficient than calling updateOutcomeSchedule() in a loop
+   * Deduplicates and makes only ONE API call
+   */
+  async batchUpdateOutcomeSchedules(
+    studentId: string,
+    courseId: string,
+    emaUpdates: { [outcomeId: string]: number }
+  ): Promise<any> {
+    console.log(`🔄 RoutineDriver: Batch updating ${Object.keys(emaUpdates).length} outcome schedules`);
+
+    try {
+      // Fetch current routine once
+      const routine = await this.getRoutineForCourse(studentId, courseId);
+      const dueAtByOutcome: { [outcomeId: string]: string } = routine?.dueAtByOutcome || {};
+
+      // Calculate next due dates for all outcomes
+      const updatedDueAts: { [outcomeId: string]: string } = {};
+      const now = new Date();
+
+      for (const [outcomeId, newEMA] of Object.entries(emaUpdates)) {
+        // ✅ VALIDATION: Same checks as updateOutcomeSchedule
+        if (!outcomeId || outcomeId.trim().length === 0) {
+          console.warn(`⚠️ Skipping invalid outcomeId (empty string)`);
+          continue;
+        }
+
+        if (outcomeId.includes('#')) {
+          console.warn(`⚠️ Skipping invalid outcomeId (composite key): ${outcomeId}`);
+          continue;
+        }
+
+        if (outcomeId.length >= 20 && !outcomeId.includes('.')) {
+          console.warn(`⚠️ Skipping invalid outcomeId (document ID): ${outcomeId}`);
+          continue;
+        }
+
+        const validFormat = /^[A-Z_]+(\d+(\.\d+)?)?$/;
+        if (!validFormat.test(outcomeId)) {
+          console.warn(`⚠️ Skipping invalid outcomeId format: ${outcomeId}`);
+          continue;
+        }
+
+        // Calculate days since last review
+        const currentDueAt = dueAtByOutcome[outcomeId];
+        let daysSinceLastReview = 1;
+        if (currentDueAt) {
+          const lastDue = new Date(currentDueAt);
+          daysSinceLastReview = Math.max(1, Math.floor((now.getTime() - lastDue.getTime()) / (1000 * 60 * 60 * 24)));
+        }
+
+        const nextDueDate = this.calculateNextDueDate(newEMA, daysSinceLastReview);
+        updatedDueAts[outcomeId] = nextDueDate;
+      }
+
+      console.log(`✅ RoutineDriver: Calculated ${Object.keys(updatedDueAts).length} due dates, updating in single API call`);
+
+      // Single update with all changes
+      return await this.updateDueAtByOutcome(studentId, courseId, updatedDueAts);
+    } catch (error) {
+      throw this.handleError(error, 'batch update outcome schedules');
+    }
+  }
+
+  /**
+   * Update outcome schedule after lesson completion (single outcome)
+   * For batch updates, use batchUpdateOutcomeSchedules() instead
    */
   async updateOutcomeSchedule(studentId: string, courseId: string, outcomeId: string, newEMA: number): Promise<any> {
     // ✅ VALIDATION: Reject invalid key formats (Part 2 of routine-v2-key-format-fix-spec.md)

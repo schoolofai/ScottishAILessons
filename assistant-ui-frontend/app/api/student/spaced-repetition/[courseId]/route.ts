@@ -52,7 +52,7 @@ export async function GET(
     const [recommendations, stats, upcoming] = await Promise.all([
       getReviewRecommendations(student.$id, courseId, databases as any, 5),
       getReviewStats(student.$id, courseId, databases as any),
-      getUpcomingReviews(student.$id, courseId, databases as any, 5)
+      getUpcomingReviews(student.$id, courseId, databases as any, 14)  // Show next 2 weeks
     ]);
 
     console.log('[API] Spaced repetition results:', {

@@ -167,6 +167,18 @@ export function CourseCurriculum({
         } else {
           const sessionsData = await sessionsResponse.json();
           allSessions = sessionsData.sessions || [];
+
+          // 🔍 DEBUG: Log what sessions API returns
+          console.log('[CourseCurriculum] API returned sessions:', {
+            total: allSessions.length,
+            sessions: allSessions.map(s => ({
+              id: s.$id,
+              lessonTemplateId: s.lessonTemplateId,
+              studentId: s.studentId,
+              status: s.status,
+              createdAt: s.$createdAt
+            }))
+          });
         }
       } catch (sessionError) {
         console.error('[CourseCurriculum] Session fetch error:', sessionError);

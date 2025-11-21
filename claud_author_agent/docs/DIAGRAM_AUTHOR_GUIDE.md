@@ -316,11 +316,17 @@ cd ../diagram-prototypes
 docker compose up -d
 cd ../claud_author_agent
 
-# Generate diagrams for lesson 1 of course
+# Generate diagrams for ALL cards in lesson 1
 source ../venv/bin/activate
 python -m src.diagram_author_cli \
   --courseId course_c84874 \
   --order 1
+
+# OR: Generate diagrams for ONLY card #3 in lesson 1
+python -m src.diagram_author_cli \
+  --courseId course_c84874 \
+  --order 1 \
+  --card-order 3
 ```
 
 **Expected Output**:
@@ -584,7 +590,11 @@ python -m src.diagram_author_cli [OPTIONS]
 
 REQUIRED OPTIONS:
   --courseId TEXT        Course identifier (e.g., "course_c84874")
-  --order INTEGER        Lesson order in SOW (1-indexed, e.g., 1, 2, 3)
+  --order INTEGER        Lesson order in SOW (1-indexed, required)
+
+OPTIONAL OPTIONS:
+  --card-order INTEGER   [EXPERIMENTAL] Card position in lesson (1-indexed). When provided,
+                         generates diagrams for ONLY this card. Omit to process all cards.
 
 CONFIGURATION:
   --mcp-config PATH      Path to MCP config (default: .mcp.json)
@@ -625,7 +635,7 @@ NOTES:
   - Batch summary saved to logs/batch_runs/{batch_id}/batch_summary.json
 ```
 
-### Method 1: Single Lesson (Command-Line Arguments)
+### Method 1: Generate Diagrams for ALL Cards in Lesson
 
 ```bash
 source ../venv/bin/activate
@@ -634,7 +644,35 @@ python -m src.diagram_author_cli \
   --order 1
 ```
 
-### Method 2: Batch Mode (All Lessons with Dry-Run)
+### Method 2: Generate Diagrams for SINGLE CARD (EXPERIMENTAL)
+
+**Use Case**: Generate diagrams for a specific card only (useful for iteration/testing)
+
+```bash
+source ../venv/bin/activate
+# Generate diagrams for card #3 in lesson 1
+python -m src.diagram_author_cli \
+  --courseId course_c84874 \
+  --order 1 \
+  --card-order 3
+```
+
+**How it works**:
+- Filters lesson template to single card BEFORE eligibility analysis
+- Card position is 1-indexed (card 1, 2, 3, ...)
+- Generates BOTH lesson AND CFU diagrams for that card
+- Validates card index is within range
+
+**Example Output**:
+```
+🎯 SINGLE CARD MODE: Generating diagrams for card #3 in lesson order 1
+...
+🎯 Single card mode: Filtered 8 → 1 card (card #3, id: card_003)
+📊 Eligibility Analysis Complete:
+   ✅ Eligible cards: 1
+```
+
+### Method 3: Batch Mode (All Lessons with Dry-Run)
 
 ```bash
 # Step 1: Dry-run to preview execution plan
@@ -648,7 +686,7 @@ python -m src.batch_diagram_generator \
   --yes
 ```
 
-### Method 3: Batch Mode (Force Regenerate All)
+### Method 4: Batch Mode (Force Regenerate All)
 
 ```bash
 # Force regenerate all diagrams (deletes existing first)
@@ -659,7 +697,7 @@ python -m src.batch_diagram_generator \
   --log-level DEBUG
 ```
 
-### Method 4: With Custom Configuration
+### Method 5: With Custom Configuration
 
 ```bash
 python -m src.diagram_author_cli \
@@ -669,7 +707,7 @@ python -m src.diagram_author_cli \
   --mcp-config custom.mcp.json
 ```
 
-### Method 5: Programmatic API (Single Lesson)
+### Method 6: Programmatic API (Single Lesson)
 
 ```python
 import asyncio
@@ -683,11 +721,18 @@ async def main():
         log_level="INFO"
     )
 
-    # Execute (courseId + order → diagrams in database)
+    # Full mode: Generate diagrams for ALL cards in lesson
     result = await agent.execute(
         courseId="course_c84874",
         order=1
     )
+
+    # OR: Single card mode - Generate diagrams for ONLY card #3
+    # result = await agent.execute(
+    #     courseId="course_c84874",
+    #     order=1,
+    #     card_order=3
+    # )
 
     if result["success"]:
         print(f"✅ Generated {result['diagrams_generated']} diagrams")
@@ -1802,13 +1847,17 @@ DiagramAuthorClaudeAgent(
 ```python
 async execute(
     courseId: str,
-    order: int
+    order: int,
+    card_order: Optional[int] = None
 ) -> Dict[str, Any]
 ```
 
 **Parameters**:
-- `courseId` (str): Course identifier (must exist in default.courses)
-- `order` (int): Lesson order number (1-indexed, ≥ 1)
+- `courseId` (str, required): Course identifier (must exist in default.courses)
+- `order` (int, required): Lesson order number in SOW (1-indexed, ≥ 1)
+- `card_order` (Optional[int]): Card position in lesson (1-indexed, ≥ 1). When provided, generates diagrams for ONLY this card. When omitted, generates diagrams for ALL cards.
+
+**Note**: `order` is always required. `card_order` is an optional modifier to filter to a single card.
 
 **Returns**: Dictionary with execution results
 
@@ -1986,7 +2035,66 @@ python -m src.diagram_author_cli \
 
 ---
 
-### Example 2: Programmatic Usage with Error Handling
+### Example 2: Single Card Mode (Experimental Feature)
+
+```bash
+cd claud_author_agent
+source ../venv/bin/activate
+
+# Start DiagramScreenshot service
+cd ../diagram-prototypes
+docker compose up -d
+cd ../claud_author_agent
+
+# Generate diagrams for ONLY card #3 in lesson 1
+python -m src.diagram_author_cli \
+  --courseId course_c84874 \
+  --order 1 \
+  --card-order 3
+
+# Output shows single card filtering:
+# 🎯 SINGLE CARD MODE: Generating diagrams for card #3 in lesson order 1
+# ...
+# 🎯 Single card mode: Filtered 8 → 1 card (card #3, id: card_abc456)
+# ================================================
+# 🎉 DIAGRAM GENERATION SUCCESSFUL
+# ================================================
+#
+# Execution Summary:
+#   Execution ID:        exec_20251121_094530
+#   Workspace Path:      workspace/exec_20251121_094530
+#   Diagrams Generated:  2 (lesson + CFU diagrams for card #3)
+#   Diagrams Skipped:    0
+#   Diagrams Failed:     0
+#
+# Appwrite Document IDs:
+#   - diagram_lesson_abc456 (diagram_context="lesson")
+#   - diagram_cfu_abc456 (diagram_context="cfu")
+```
+
+**Use Cases**:
+- Iterate on diagrams for a single card during development
+- Regenerate diagrams for a specific card after content changes
+- Test diagram generation for specific cards without processing entire lesson
+- Debug diagram generation issues on specific cards
+
+**How it works**:
+- Filters lesson template to single card BEFORE eligibility analysis
+- Card position is 1-indexed (card 1, 2, 3, matching --order convention)
+- Generates BOTH lesson AND CFU diagrams for selected card
+- Validates card index is within lesson's card array bounds
+- Independent operation - doesn't check for existing diagrams
+
+**Database Behavior**:
+- Two diagrams stored for the selected card
+- One with `diagram_context: "lesson"`
+- One with `diagram_context: "cfu"`
+- Unique constraint: `(lessonTemplateId, cardId, diagram_context)`
+- Upsert semantics: updates existing diagrams or creates new ones
+
+---
+
+### Example 3: Programmatic Usage with Error Handling
 
 ```python
 import asyncio
@@ -2038,7 +2146,7 @@ result = asyncio.run(generate_diagrams_with_retry())
 
 ---
 
-### Example 3: Batch Mode CLI with Dry-Run
+### Example 4: Batch Mode CLI with Dry-Run
 
 ```bash
 # Step 1: Dry-run to preview execution plan
@@ -2071,7 +2179,7 @@ cat logs/batch_runs/batch_diagram_YYYYMMDD_HHMMSS/order_2.log
 
 ---
 
-### Example 4: Batch Mode with Force Regenerate
+### Example 5: Batch Mode with Force Regenerate
 
 ```bash
 # Force regenerate all diagrams (deletes existing first)
@@ -2096,7 +2204,7 @@ python -m src.batch_diagram_generator \
 
 ---
 
-### Example 5: Manual Batch Processing (Programmatic)
+### Example 6: Manual Batch Processing (Programmatic)
 
 **Note**: The batch_diagram_generator CLI is recommended over manual looping. This example is for reference only.
 
@@ -2171,7 +2279,7 @@ results = asyncio.run(batch_generate_diagrams())
 
 ---
 
-### Example 6: Custom Workspace Inspection
+### Example 7: Custom Workspace Inspection
 
 ```bash
 # After successful generation

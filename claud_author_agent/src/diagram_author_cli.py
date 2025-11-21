@@ -94,6 +94,14 @@ Note:
         help="Lesson order number in SOW (1-indexed). Required for US1."
     )
 
+    parser.add_argument(
+        '--card-order',
+        type=int,
+        help="[EXPERIMENTAL] Generate diagrams for SINGLE CARD at this order (1-indexed). "
+             "Generates both lesson and CFU diagrams for the specified card only. "
+             "Mutually exclusive with --order."
+    )
+
     # Logging options
     parser.add_argument(
         '--log-level',
@@ -139,6 +147,7 @@ def validate_cli_args(args: argparse.Namespace) -> None:
 
     Note:
         US1 requires BOTH --courseId and --order
+        --card-order is optional (filters to single card when provided)
         US4 will support --input as alternative
     """
     # US4 check: --input not yet supported
@@ -160,13 +169,20 @@ def validate_cli_args(args: argparse.Namespace) -> None:
         raise ValueError(
             f"Missing required arguments: {', '.join(missing)}. "
             "Both --courseId and --order are required for US1 (single lesson mode). "
+            "Use --card-order optionally to filter to a single card. "
             "Run with --help for usage examples."
         )
 
     # Validate order is >= 1 (SOW entries are 1-indexed)
     if args.order < 1:
         raise ValueError(
-            f"Order must be >= 1 (SOW entries start at 1), got: {args.order}"
+            f"--order must be >= 1 (SOW entries start at 1), got: {args.order}"
+        )
+
+    # Validate card_order is >= 1 (cards are 1-indexed) if provided
+    if args.card_order is not None and args.card_order < 1:
+        raise ValueError(
+            f"--card-order must be >= 1 (cards start at 1), got: {args.card_order}"
         )
 
 
@@ -276,7 +292,8 @@ async def main() -> int:
         print(f"{BLUE}Starting diagram generation pipeline...{RESET}\n")
         result = await agent.execute(
             courseId=args.courseId,
-            order=args.order
+            order=args.order,
+            card_order=args.card_order
         )
 
         # Print result

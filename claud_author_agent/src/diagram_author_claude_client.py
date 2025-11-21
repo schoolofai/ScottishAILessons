@@ -129,13 +129,16 @@ class DiagramAuthorClaudeAgent:
     async def execute(
         self,
         courseId: str,
-        order: int
+        order: int,
+        card_order: Optional[int] = None
     ) -> Dict[str, Any]:
         """Execute the complete diagram generation pipeline.
 
         Args:
             courseId: Course identifier (e.g., 'course_c84874')
-            order: Lesson order number in SOW (sow_order field)
+            order: Lesson order number in SOW (required)
+            card_order: Optional card position in lesson (1-indexed). When provided, generates diagrams
+                       for ONLY this card. When omitted, generates diagrams for ALL cards.
 
         Returns:
             Dictionary containing:
@@ -154,6 +157,16 @@ class DiagramAuthorClaudeAgent:
             FileNotFoundError: If MCP config or prompts missing
             Exception: If DiagramScreenshot service unreachable (fast-fail)
         """
+        # Determine mode
+        if card_order is not None:
+            single_card_mode = True
+            single_card_index = card_order - 1  # Convert to 0-indexed
+            logger.info(f"🎯 SINGLE CARD MODE: Generating diagrams for card #{card_order} in lesson order {order}")
+        else:
+            single_card_mode = False
+            single_card_index = None
+            logger.info(f"📚 FULL MODE: Generating diagrams for all cards in lesson order {order}")
+
         # Validate input schema (courseId format, order ≥ 1)
         is_valid, error_msg = validate_diagram_author_input({
             "courseId": courseId,
@@ -202,7 +215,37 @@ class DiagramAuthorClaudeAgent:
 
                 logger.info(f"✅ Fetched lesson template: {lesson_template_id} - '{title}' ({total_cards} cards)")
 
-                # Write lesson_template.json to workspace
+                # ═══════════════════════════════════════════════════════════════
+                # SINGLE CARD MODE: Filter lesson template to single card BEFORE eligibility
+                # ═══════════════════════════════════════════════════════════════
+                if single_card_mode:
+                    cards = lesson_template.get("cards", [])
+
+                    # Validate card index
+                    if single_card_index >= len(cards):
+                        error_msg = (
+                            f"Card index {card_order} (0-indexed: {single_card_index}) "
+                            f"is out of range. Lesson has {len(cards)} cards (indices 1-{len(cards)})."
+                        )
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
+
+                    # Extract the single card
+                    selected_card = cards[single_card_index]
+                    card_id = selected_card.get("id", "UNKNOWN")
+
+                    # Replace cards array with single-card array
+                    lesson_template["cards"] = [selected_card]
+
+                    logger.info(
+                        f"🎯 Single card mode: Filtered {total_cards} → 1 card "
+                        f"(card #{card_order}, id: {card_id})"
+                    )
+
+                    # Update total_cards for downstream logging
+                    total_cards = 1
+
+                # Write lesson_template.json to workspace (after filtering if single card mode)
                 lesson_template_path = workspace_path / "lesson_template.json"
                 with open(lesson_template_path, 'w') as f:
                     json.dump(lesson_template, f, indent=2)
@@ -507,25 +550,39 @@ class DiagramAuthorClaudeAgent:
 
                 logger.info(f"✅ Schema validation passed: All {len(diagrams)} diagrams have required fields (including jsxgraph_json)")
 
-                # Prepare diagrams for batch upsert
+                # Prepare diagrams for batch upsert with diagram_index support
                 logger.info("Starting batch upsert to Appwrite lesson_diagrams collection...")
 
-                diagrams_data = [
-                    {
-                        "lesson_template_id": lesson_template_id,
-                        "card_id": diagram["cardId"],
-                        "jsxgraph_json": diagram["jsxgraph_json"],
-                        "image_base64": diagram["image_base64"],
-                        "diagram_type": diagram["diagram_type"],
-                        "diagram_context": diagram.get("diagram_context"),  # Optional - may not be present in older runs
-                        "diagram_description": diagram.get("diagram_description", ""),  # NEW: Brief description for downstream LLMs
-                        "visual_critique_score": diagram["visual_critique_score"],
-                        "critique_iterations": diagram["critique_iterations"],
-                        "critique_feedback": diagram["critique_feedback"],
-                        "execution_id": self.execution_id
-                    }
-                    for diagram in diagrams
-                ]
+                # Group diagrams by cardId to assign diagram_index (0, 1, 2, ...)
+                # This handles both single-diagram cards and multi-diagram cards
+                from collections import defaultdict
+                diagrams_by_card = defaultdict(list)
+                for diagram in diagrams:
+                    diagrams_by_card[diagram["cardId"]].append(diagram)
+
+                # Build diagrams_data with diagram_index assigned per card
+                diagrams_data = []
+                for card_id, card_diagrams in diagrams_by_card.items():
+                    for diagram_index, diagram in enumerate(card_diagrams):
+                        diagrams_data.append({
+                            "lesson_template_id": lesson_template_id,
+                            "card_id": card_id,
+                            "diagram_index": diagram_index,  # NEW: 0, 1, 2, ... for multi-diagram cards
+                            "jsxgraph_json": diagram["jsxgraph_json"],
+                            "image_base64": diagram["image_base64"],
+                            "diagram_type": diagram["diagram_type"],
+                            "diagram_context": diagram.get("diagram_context"),
+                            "diagram_description": diagram.get("diagram_description", ""),
+                            "visual_critique_score": diagram["visual_critique_score"],
+                            "critique_iterations": diagram["critique_iterations"],
+                            "critique_feedback": diagram["critique_feedback"],
+                            "execution_id": self.execution_id
+                        })
+
+                logger.info(
+                    f"Grouped {len(diagrams)} total diagrams across {len(diagrams_by_card)} cards "
+                    f"(avg {len(diagrams) / len(diagrams_by_card):.1f} diagrams per card)"
+                )
 
                 upsert_results = await batch_upsert_diagrams(
                     diagrams_data=diagrams_data,

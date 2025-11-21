@@ -17,10 +17,12 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { logger } from '@/lib/logger';
-import { useAppwrite, SessionDriver, type ConversationHistory } from '@/lib/appwrite';
+import { type ConversationHistory } from '@/lib/appwrite';
 import { useInstantReplayRuntime } from '@/lib/replay/ReplayRuntime';
 import { MyAssistant } from '@/components/MyAssistant';
 import { CurrentCardProvider } from '@/contexts/CurrentCardContext';
+import { RetryPrepopulationProvider } from '@/contexts/RetryPrepopulationContext';
+import * as pako from 'pako';
 
 interface SessionData {
   $id: string;
@@ -32,11 +34,38 @@ interface SessionData {
   studentId: string;
 }
 
+/**
+ * Decompress conversation history from storage format
+ * Reverses gzip compression + base64 encoding
+ */
+function decompressConversationHistory(compressedBase64: string): ConversationHistory {
+  try {
+    // Decode base64 to binary
+    const binaryString = atob(compressedBase64);
+    const compressed = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      compressed[i] = binaryString.charCodeAt(i);
+    }
+
+    // Decompress with pako
+    const decompressed = pako.ungzip(compressed, { to: 'string' });
+
+    // Parse JSON
+    const history = JSON.parse(decompressed);
+
+    console.log(`🗜️ Decompression successful: ${history.messages?.length || 0} messages recovered`);
+
+    return history;
+  } catch (error) {
+    console.error('❌ Failed to decompress conversation history:', error);
+    throw new Error('Decompression failed');
+  }
+}
+
 export default function SessionReplayPage() {
   const router = useRouter();
   const params = useParams();
   const sessionId = params.sessionId as string;
-  const { createDriver } = useAppwrite();
 
   const [session, setSession] = useState<SessionData | null>(null);
   const [conversationHistory, setConversationHistory] = useState<ConversationHistory | null>(null);
@@ -57,14 +86,33 @@ export default function SessionReplayPage() {
 
       logger.info('loading_session_replay', { sessionId });
 
-      const sessionDriver = createDriver(SessionDriver);
+      // Use server-side API endpoint for authentication via httpOnly cookies
+      const sessionResponse = await fetch(`/api/student/sessions/${sessionId}`, {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
 
-      // Load session and conversation history together
-      const { session: sessionDoc, history } = await sessionDriver.getSessionWithHistory(sessionId);
+      if (!sessionResponse.ok) {
+        const errorData = await sessionResponse.json().catch(() => ({ error: 'Failed to load session' }));
+        throw new Error(errorData.error || 'Failed to load session');
+      }
+
+      const sessionData = await sessionResponse.json();
+      const sessionDoc = sessionData.session;
 
       setSession(sessionDoc as unknown as SessionData);
 
-      // Set conversation history
+      // Decompress conversation history if available
+      let history: ConversationHistory | null = null;
+      if (sessionDoc.conversationHistory) {
+        try {
+          history = decompressConversationHistory(sessionDoc.conversationHistory);
+        } catch (err) {
+          console.error('Failed to decompress conversation history:', err);
+          // Continue without history - session data is still valid
+        }
+      }
+
       setConversationHistory(history);
 
       logger.info('session_replay_loaded', {
@@ -208,12 +256,14 @@ export default function SessionReplayPage() {
 
         {/* Replay Assistant - Uses same UI as live sessions */}
         <div className="bg-white rounded-lg shadow-lg p-4">
-          <CurrentCardProvider>
-            <MyAssistant
-              isReplayMode={true}
-              replayRuntime={replayRuntime}
-            />
-          </CurrentCardProvider>
+          <RetryPrepopulationProvider>
+            <CurrentCardProvider>
+              <MyAssistant
+                isReplayMode={true}
+                replayRuntime={replayRuntime}
+              />
+            </CurrentCardProvider>
+          </RetryPrepopulationProvider>
         </div>
       </div>
     </div>

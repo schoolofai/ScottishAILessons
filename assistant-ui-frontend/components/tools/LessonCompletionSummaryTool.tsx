@@ -158,11 +158,18 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
 
     const [selectedTab, setSelectedTab] = useState("performance");
     const [persistenceCompleted, setPersistenceCompleted] = useState(false);
+    const [persistenceAttempted, setPersistenceAttempted] = useState(false); // Prevent duplicate attempts
     const isToolExecuting = status.type === "executing";
 
     // Automatically persist data when component receives completion summary
     useEffect(() => {
       const persistData = async () => {
+        // CRITICAL: Prevent duplicate persistence attempts (React Strict Mode runs effects twice)
+        if (persistenceAttempted) {
+          console.log('🔄 Persistence already attempted, skipping duplicate call...');
+          return;
+        }
+
         // Wait for authentication before persisting
         if (isLoading) {
           console.log('⏳ Waiting for authentication to complete...');
@@ -179,20 +186,24 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
           return;
         }
 
-        try {
-          const evidenceDriver = createDriver(EvidenceDriver);
-          const sessionDriver = createDriver(SessionDriver);
-          const masteryDriver = createDriver(MasteryDriver);
-          const routineDriver = createDriver(RoutineDriver);
+        // Mark as attempted immediately to prevent duplicate calls
+        setPersistenceAttempted(true);
+        console.log('🔒 Persistence attempt locked - preventing duplicates');
 
-          console.log('🚀 Auto-persisting lesson completion data...');
+        try {
+          console.log('🚀 Auto-persisting lesson completion data via server-side API...');
           console.log(`Evidence records: ${evidence.length}, Mastery updates: ${mastery_updates.length}`);
           console.log('📋 Session context:', { session_id, student_id, course_id });
 
+          // ═══════════════════════════════════════════════════════════════
           // 1. Validate and map evidence data
+          // ═══════════════════════════════════════════════════════════════
           console.log('🔍 Validating and mapping evidence data...');
           const evidenceData = evidence.map((entry, index) => {
-            const mapped = {
+            const entryNum = index + 1;
+            console.log(`[Evidence Validation] Processing entry ${entryNum}/${evidence.length}`);
+
+            let mapped = {
               sessionId: session_id,
               itemId: entry.item_id,
               response: entry.response,
@@ -204,167 +215,257 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
               timestamp: entry.timestamp
             };
 
-            console.log(`[Evidence Debug] Entry ${index + 1}:`, {
-              original: entry,
-              mapped: mapped
+            console.log(`[Evidence Debug] Entry ${entryNum} original data:`, {
+              item_id: entry.item_id,
+              response_length: entry.response?.length || 0,
+              correct: entry.correct,
+              attempts: entry.attempts,
+              confidence: entry.confidence,
+              timestamp: entry.timestamp
             });
 
-            // Validate required fields
-            if (!mapped.sessionId) throw new Error(`Evidence ${index + 1}: Missing sessionId`);
-            if (!mapped.itemId) throw new Error(`Evidence ${index + 1}: Missing itemId`);
-            if (mapped.response === undefined) throw new Error(`Evidence ${index + 1}: Missing response`);
-            if (mapped.correct === undefined) throw new Error(`Evidence ${index + 1}: Missing correct flag`);
+            // ═══════════════════════════════════════════════════════════════
+            // Validation 1: Response size (max 100,000 chars in Appwrite)
+            // ═══════════════════════════════════════════════════════════════
+            if (mapped.response && typeof mapped.response === 'string') {
+              const originalLength = mapped.response.length;
 
+              if (originalLength > 100000) {
+                console.error(`❌ [Evidence ${entryNum}] Response exceeds database limit!`);
+                console.error(`   Original length: ${originalLength} characters`);
+                console.error(`   Database limit: 100,000 characters`);
+                console.error(`   Item ID: ${mapped.itemId}`);
+                console.error(`   First 200 chars: ${mapped.response.substring(0, 200)}`);
+
+                // Truncate with clear marker
+                mapped.response = mapped.response.substring(0, 99950) + '\n\n[Response truncated due to database size limit]';
+
+                console.warn(`⚠️ [Evidence ${entryNum}] Response truncated to 100,000 chars`);
+              } else {
+                console.log(`✅ [Evidence ${entryNum}] Response size OK: ${originalLength} chars`);
+              }
+            } else if (!mapped.response) {
+              console.error(`❌ [Evidence ${entryNum}] Response is missing or null!`);
+              mapped.response = '[No response provided]';
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Validation 2: Confidence value (must be 0-1, no NaN/Infinity)
+            // ═══════════════════════════════════════════════════════════════
+            if (mapped.confidence !== undefined && mapped.confidence !== null) {
+              const originalConfidence = mapped.confidence;
+
+              if (typeof mapped.confidence !== 'number') {
+                console.error(`❌ [Evidence ${entryNum}] Confidence is not a number!`);
+                console.error(`   Type: ${typeof mapped.confidence}`);
+                console.error(`   Value: ${mapped.confidence}`);
+                mapped.confidence = 0;
+              } else if (isNaN(mapped.confidence)) {
+                console.error(`❌ [Evidence ${entryNum}] Confidence is NaN!`);
+                console.error(`   Item ID: ${mapped.itemId}`);
+                mapped.confidence = 0;
+              } else if (!isFinite(mapped.confidence)) {
+                console.error(`❌ [Evidence ${entryNum}] Confidence is Infinity!`);
+                console.error(`   Value: ${mapped.confidence}`);
+                console.error(`   Item ID: ${mapped.itemId}`);
+                mapped.confidence = 0;
+              } else if (mapped.confidence < 0 || mapped.confidence > 1) {
+                console.error(`❌ [Evidence ${entryNum}] Confidence out of range [0, 1]!`);
+                console.error(`   Original value: ${originalConfidence}`);
+                console.error(`   Item ID: ${mapped.itemId}`);
+
+                // Clamp to valid range
+                mapped.confidence = Math.max(0, Math.min(1, mapped.confidence));
+
+                console.warn(`⚠️ [Evidence ${entryNum}] Confidence clamped to: ${mapped.confidence}`);
+              } else {
+                console.log(`✅ [Evidence ${entryNum}] Confidence OK: ${mapped.confidence}`);
+              }
+            } else {
+              console.warn(`⚠️ [Evidence ${entryNum}] Confidence is null/undefined, defaulting to 0`);
+              mapped.confidence = 0;
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Validation 3: Attempts value (must be positive integer)
+            // ═══════════════════════════════════════════════════════════════
+            if (mapped.attempts !== undefined && mapped.attempts !== null) {
+              if (typeof mapped.attempts !== 'number' || mapped.attempts < 1) {
+                console.error(`❌ [Evidence ${entryNum}] Invalid attempts value!`);
+                console.error(`   Value: ${mapped.attempts}`);
+                console.error(`   Type: ${typeof mapped.attempts}`);
+                mapped.attempts = 1;
+              } else {
+                console.log(`✅ [Evidence ${entryNum}] Attempts OK: ${mapped.attempts}`);
+              }
+            } else {
+              console.warn(`⚠️ [Evidence ${entryNum}] Attempts missing, defaulting to 1`);
+              mapped.attempts = 1;
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Validation 4: Required fields
+            // ═══════════════════════════════════════════════════════════════
+            console.log(`[Evidence Debug] Entry ${entryNum} final mapped data:`, {
+              sessionId: mapped.sessionId,
+              itemId: mapped.itemId,
+              response_length: mapped.response?.length || 0,
+              correct: mapped.correct,
+              attempts: mapped.attempts,
+              confidence: mapped.confidence,
+              timestamp: mapped.timestamp
+            });
+
+            if (!mapped.sessionId) {
+              console.error(`❌ [Evidence ${entryNum}] Missing sessionId!`);
+              throw new Error(`Evidence ${entryNum}: Missing sessionId`);
+            }
+            if (!mapped.itemId) {
+              console.error(`❌ [Evidence ${entryNum}] Missing itemId!`);
+              throw new Error(`Evidence ${entryNum}: Missing itemId`);
+            }
+            if (mapped.response === undefined) {
+              console.error(`❌ [Evidence ${entryNum}] Missing response!`);
+              throw new Error(`Evidence ${entryNum}: Missing response`);
+            }
+            if (mapped.correct === undefined) {
+              console.error(`❌ [Evidence ${entryNum}] Missing correct flag!`);
+              throw new Error(`Evidence ${entryNum}: Missing correct flag`);
+            }
+
+            console.log(`✅ [Evidence ${entryNum}] Validation complete - all fields valid`);
             return mapped;
           });
 
-          // 2. Batch save all evidence to Appwrite
-          if (evidenceData.length > 0) {
-            console.log('📝 Starting evidence persistence...');
-            console.log('[Evidence Debug] About to call batchRecordEvidence with:', evidenceData);
+          console.log(`✅ All ${evidenceData.length} evidence records validated successfully`);
 
-            const evidenceResults = await evidenceDriver.batchRecordEvidence(evidenceData);
+          // ═══════════════════════════════════════════════════════════════
+          // 2. Prepare mastery updates with document ID → string ref translation
+          // ═══════════════════════════════════════════════════════════════
+          console.log('🎯 Preparing mastery updates...');
 
-            console.log(`✅ Successfully persisted ${evidenceResults.length} evidence records`);
-            console.log('[Evidence Debug] Evidence creation results:', evidenceResults.map(r => ({ id: r.$id, itemId: r.itemId })));
-          } else {
-            console.log('⚠️ No evidence data to persist');
-          }
+          // Build reverse mapping: documentId → outcomeId (string ref)
+          const documentIdToOutcomeId = new Map<string, string>();
 
-          // 3. Convert mastery updates to MasteryV2 format and persist
-          if (mastery_updates.length > 0) {
-            console.log('🎯 Starting MasteryV2 EMA updates persistence...');
-            console.log('[Mastery Debug] Converting mastery updates to EMA format:', mastery_updates);
+          if (enriched_outcomes && enriched_outcomes.length > 0) {
+            enriched_outcomes.forEach((outcome: any) => {
+              const docId = outcome.$id;          // "outcome_test_simple_o1"
+              const stringRef = outcome.outcomeId; // "O1"
 
-            // Convert mastery_updates to EMA format for MasteryV2
-            const emaUpdates: { [outcomeId: string]: number } = {};
-            mastery_updates.forEach(update => {
-              emaUpdates[update.outcome_id] = update.score;
-            });
+              if (docId && stringRef) {
+                documentIdToOutcomeId.set(docId, stringRef);
 
-            console.log('[MasteryV2 Debug] EMA updates to apply:', emaUpdates);
+                // Also map composite keys -> AS codes
+                const asListJson = outcome.assessmentStandards || "[]";
+                try {
+                  const asList = typeof asListJson === 'string' ? JSON.parse(asListJson) : asListJson;
 
-            const masteryResult = await masteryDriver.batchUpdateEMAs(student_id, course_id, emaUpdates);
-
-            console.log('✅ Successfully updated MasteryV2 EMAs');
-            console.log('[MasteryV2 Debug] MasteryV2 update result:', {
-              studentId: masteryResult.studentId,
-              courseId: masteryResult.courseId,
-              emaByOutcome: JSON.parse(masteryResult.emaByOutcome || '{}'),
-              updatedAt: masteryResult.updatedAt
-            });
-
-            // 4. Update routine schedules for spaced repetition
-            // IMPORTANT: Translate document IDs → string refs (Part 1 of routine-v2-key-format-fix-spec.md)
-            console.log('📅 Updating routine schedules for spaced repetition...');
-            console.log('[Routine Debug] Processing mastery updates for routine scheduling:', mastery_updates);
-
-            // Build reverse mapping: documentId → outcomeId (string ref)
-            const documentIdToOutcomeId = new Map<string, string>();
-
-            if (enriched_outcomes && enriched_outcomes.length > 0) {
-              enriched_outcomes.forEach((outcome: any) => {
-                const docId = outcome.$id;          // "outcome_test_simple_o1"
-                const stringRef = outcome.outcomeId; // "O1"
-
-                if (docId && stringRef) {
-                  documentIdToOutcomeId.set(docId, stringRef);
-
-                  // Also map composite keys -> AS codes
-                  const asListJson = outcome.assessmentStandards || "[]";
-                  try {
-                    const asList = typeof asListJson === 'string' ? JSON.parse(asListJson) : asListJson;
-
-                    if (Array.isArray(asList)) {
-                      asList.forEach((as: any) => {
-                        const asCode = as.code; // "AS1.1"
-                        if (asCode) {
-                          const compositeKey = `${docId}#${asCode}`;
-                          documentIdToOutcomeId.set(compositeKey, asCode);
-                        }
-                      });
-                    }
-                  } catch (e) {
-                    console.warn(`Failed to parse assessmentStandards for ${docId}:`, e);
+                  if (Array.isArray(asList)) {
+                    asList.forEach((as: any) => {
+                      const asCode = as.code; // "AS1.1"
+                      if (asCode) {
+                        const compositeKey = `${docId}#${asCode}`;
+                        documentIdToOutcomeId.set(compositeKey, asCode);
+                      }
+                    });
                   }
+                } catch (e) {
+                  console.warn(`Failed to parse assessmentStandards for ${docId}:`, e);
                 }
-              });
-            }
-
-            console.log("🔑 Document ID → Outcome ID mapping:", Object.fromEntries(documentIdToOutcomeId));
-
-            // Process mastery data with translation
-            for (const masteryUpdate of mastery_updates) {
-              try {
-                // Translate document ID or composite key → string ref
-                const masteryKey = masteryUpdate.outcome_id;
-                const stringRef = documentIdToOutcomeId.get(masteryKey);
-
-                if (!stringRef) {
-                  console.warn(`⚠️ No string ref found for mastery key: ${masteryKey}, skipping RoutineV2 update`);
-                  continue;
-                }
-
-                console.log(`✅ Translating mastery key: ${masteryKey} → ${stringRef}`);
-
-                await routineDriver.updateOutcomeSchedule(
-                  student_id,
-                  course_id,
-                  stringRef,  // ✅ CORRECT: Now using string ref ("O1", "AS1.1")
-                  masteryUpdate.score
-                );
-
-                console.log(`✅ Updated routine schedule for outcome ${stringRef} (was ${masteryKey})`);
-              } catch (routineError) {
-                console.error(`⚠️ Failed to update routine for outcome ${masteryUpdate.outcome_id}:`, routineError);
-                // Continue with other outcomes even if one fails
               }
-            }
+            });
+          }
 
-            console.log('✅ Successfully updated all routine schedules');
+          console.log("🔑 Document ID → Outcome ID mapping:", Object.fromEntries(documentIdToOutcomeId));
+
+          // Prepare mastery updates with translated outcome IDs
+          const preparedMasteryUpdates = mastery_updates.map(update => {
+            const translatedOutcomeId = documentIdToOutcomeId.get(update.outcome_id) || update.outcome_id;
+            return {
+              outcomeId: translatedOutcomeId,
+              newEMA: update.score
+            };
+          });
+
+          // Deduplicate for routine updates (last value wins)
+          const routineUpdates: { [outcomeId: string]: number } = {};
+          mastery_updates.forEach(update => {
+            const translatedOutcomeId = documentIdToOutcomeId.get(update.outcome_id);
+            if (translatedOutcomeId) {
+              routineUpdates[translatedOutcomeId] = update.score;
+            } else {
+              console.warn(`⚠️ No string ref found for mastery key: ${update.outcome_id}`);
+            }
+          });
+
+          console.log(`📊 Prepared ${preparedMasteryUpdates.length} mastery updates, ${Object.keys(routineUpdates).length} routine updates`);
+
+          // ═══════════════════════════════════════════════════════════════
+          // 3. Compress conversation history for server-side persistence
+          // ═══════════════════════════════════════════════════════════════
+          let compressedHistory: string | undefined = undefined;
+
+          if (conversation_history && conversation_history.messages.length > 0) {
+            console.log('💬 Compressing conversation history for server-side persistence...');
+            console.log(`[History Debug] Messages to compress: ${conversation_history.messages.length}`);
+
+            try {
+              compressedHistory = compressConversationHistory(conversation_history);
+              const sizeKB = (compressedHistory.length / 1024).toFixed(2);
+              console.log(`[History Debug] Compressed size: ${sizeKB} KB`);
+
+              // Verify size constraint (50KB max in Appwrite)
+              if (compressedHistory.length > 50000) {
+                console.warn(`⚠️ Compressed history exceeds 50KB limit: ${sizeKB} KB - skipping`);
+                compressedHistory = undefined; // Don't send oversized history
+              } else {
+                console.log('✅ Conversation history compressed - ready for server-side persistence');
+              }
+            } catch (historyError) {
+              console.error('⚠️ Failed to compress conversation history:', historyError);
+              compressedHistory = undefined;
+            }
           } else {
-            console.log('⚠️ No mastery updates to persist');
+            console.log('⚠️ No conversation history to persist');
           }
 
-        // 5. Compress and persist conversation history
-        if (conversation_history && conversation_history.messages.length > 0) {
-          console.log('💬 Starting conversation history compression and persistence...');
-          console.log(`[History Debug] Messages to compress: ${conversation_history.messages.length}`);
+          // ═══════════════════════════════════════════════════════════════
+          // 4. Call server-side API to persist all data (including conversation history)
+          // ═══════════════════════════════════════════════════════════════
+          console.log('📡 Calling server-side completion API...');
 
-          try {
-            const compressedHistory = compressConversationHistory(conversation_history);
-            const sizeKB = (compressedHistory.length / 1024).toFixed(2);
-            console.log(`[History Debug] Compressed size: ${sizeKB} KB`);
+          const response = await fetch(`/api/student/sessions/${session_id}/complete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              evidence: evidenceData,
+              masteryUpdates: preparedMasteryUpdates,
+              routineUpdates: routineUpdates,
+              conversationHistory: compressedHistory // Send compressed history to server
+            })
+          });
 
-            // Verify size constraint (50KB max in Appwrite)
-            if (compressedHistory.length > 50000) {
-              throw new Error(`Compressed history exceeds 50KB limit: ${sizeKB} KB`);
-            }
-
-            // Update session with compressed history
-            await sessionDriver.updateConversationHistory(session_id, compressedHistory);
-            console.log('✅ Conversation history compressed and persisted successfully');
-          } catch (historyError) {
-            console.error('⚠️ Failed to persist conversation history (non-fatal):', historyError);
-            // Continue with session completion even if history fails
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            throw new Error(`API error: ${errorData.error || response.statusText}`);
           }
-        } else {
-          console.log('⚠️ No conversation history to persist');
-        }
 
-        // 6. Mark session as complete with proper status and score
-        console.log('📊 Marking session as completed...');
-        const finalScore = performance_analysis.overall_accuracy;
-        console.log('[Session Debug] Completing session with score:', finalScore);
+          const result = await response.json();
+          console.log('✅ Server-side persistence completed:', result.summary);
 
-        await sessionDriver.completeSession(session_id, finalScore);
-        console.log('✅ Session marked as completed with status="completed"');
+          if (result.summary.conversationHistoryPersisted) {
+            console.log('✅ Conversation history persisted server-side');
+          }
 
-        // Notify parent component (SessionChatAssistant) to update navigation prevention
-        if (onSessionStatusChange) {
-          console.log('📢 Notifying parent: session status changed to "completed"');
-          onSessionStatusChange('completed');
-        }
+          // ═══════════════════════════════════════════════════════════════
+          // 5. Notify parent component that session is completed
+          // ═══════════════════════════════════════════════════════════════
+          if (onSessionStatusChange) {
+            console.log('📢 Notifying parent: session status changed to "completed"');
+            onSessionStatusChange('completed');
+          }
 
           console.log('🎉 All lesson completion data auto-persisted successfully!');
           setPersistenceCompleted(true);
@@ -410,7 +511,8 @@ export const LessonCompletionSummaryTool = makeAssistantToolUI<
           mastery_updates: !!mastery_updates
         });
       }
-    }, [session_id, student_id, course_id, evidence, mastery_updates, persistenceCompleted, createDriver, isLoading, isAuthenticated]);
+    }, [session_id, student_id, course_id, evidence, mastery_updates, createDriver, isLoading, isAuthenticated, enriched_outcomes, conversation_history, performance_analysis, onSessionStatusChange]);
+    // NOTE: persistenceAttempted intentionally NOT in dependencies to prevent re-triggering after lock
 
     const handleComplete = async () => {
       // Data already persisted automatically, just handle UI actions

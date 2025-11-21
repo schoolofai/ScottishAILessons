@@ -15,7 +15,6 @@ import {
   Eye,
   TrendingUp
 } from 'lucide-react';
-import { Client, Databases, Query, Account } from 'appwrite';
 import { formatDistanceToNow, format } from 'date-fns';
 import { logger } from '@/lib/logger';
 
@@ -53,73 +52,79 @@ export default function LessonHistoryPage() {
 
       logger.info('loading_session_history', { lessonTemplateId });
 
-      const client = new Client()
-        .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-        .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+      // Use server-side API endpoint for authentication via httpOnly cookies
+      // This matches the pattern used by CourseCurriculum component
+      const sessionsResponse = await fetch('/api/student/sessions', {
+        method: 'GET',
+        credentials: 'include', // Include httpOnly cookies
+      });
 
-      // Set session from localStorage
-      const cookieFallback = localStorage.getItem('cookieFallback');
-      if (cookieFallback) {
-        try {
-          const cookieData = JSON.parse(cookieFallback);
-          const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-          const storedSession = cookieData[sessionKey];
-          if (storedSession) {
-            client.setSession(storedSession);
-          }
-        } catch (e) {
-          logger.error('failed_to_set_session', { error: e });
-          throw new Error('Authentication failed. Please log in again.');
-        }
+      if (!sessionsResponse.ok) {
+        const errorData = await sessionsResponse.json().catch(() => ({ error: 'Failed to load sessions' }));
+        throw new Error(errorData.error || 'Failed to load sessions');
       }
 
-      const account = new Account(client);
-      const databases = new Databases(client);
+      const sessionsData = await sessionsResponse.json();
+      const allSessions = sessionsData.sessions || [];
 
-      // Get current user
-      const user = await account.get();
+      logger.info('debug_api_returned_sessions', {
+        total: allSessions.length,
+        sample: allSessions.slice(0, 3).map((s: any) => ({
+          id: s.$id,
+          lessonTemplateId: s.lessonTemplateId,
+          studentId: s.studentId,
+          status: s.status
+        }))
+      });
 
-      // Get student record
-      const studentsResult = await databases.listDocuments(
-        'default',
-        'students',
-        [Query.equal('userId', user.$id)]
+      // Filter sessions for this specific lesson
+      const lessonSessions = allSessions.filter((s: any) =>
+        s.lessonTemplateId === lessonTemplateId
       );
 
-      if (studentsResult.documents.length === 0) {
-        throw new Error('Student record not found');
-      }
+      logger.info('debug_filtered_sessions', {
+        lessonTemplateId,
+        total: lessonSessions.length,
+        sessions: lessonSessions.map((s: any) => ({
+          id: s.$id,
+          status: s.status,
+          createdAt: s.$createdAt,
+          endedAt: s.endedAt
+        }))
+      });
 
-      const student = studentsResult.documents[0];
-      setStudentId(student.$id);
-
-      // Get lesson template for title
-      const lessonTemplate = await databases.getDocument(
-        'default',
-        'lesson_templates',
-        lessonTemplateId
+      // Filter to completed sessions only
+      const completedSessions = lessonSessions.filter((s: any) =>
+        s.status === 'completed'
       );
-      setLessonTitle(lessonTemplate.title || 'Lesson');
 
-      // Get all completed sessions for this lesson (SECURITY: filter by studentId)
-      const completedSessions = await databases.listDocuments(
-        'default',
-        'sessions',
-        [
-          Query.equal('studentId', student.$id),
-          Query.equal('lessonTemplateId', lessonTemplateId),
-          Query.equal('status', 'completed'),
-          Query.orderDesc('endedAt'), // Order by completion time (endedAt field)
-          Query.limit(100) // Limit to last 100 sessions
-        ]
+      // Sort by creation time (most recent first)
+      completedSessions.sort((a: any, b: any) =>
+        new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime()
       );
 
       logger.info('session_history_loaded', {
         lessonTemplateId,
-        count: completedSessions.documents.length
+        totalSessions: lessonSessions.length,
+        completedCount: completedSessions.length
       });
 
-      setSessions(completedSessions.documents as SessionHistoryItem[]);
+      // Get lesson template title from first session's lesson_snapshot
+      if (completedSessions.length > 0 && completedSessions[0].lesson_snapshot) {
+        const snapshot = typeof completedSessions[0].lesson_snapshot === 'string'
+          ? JSON.parse(completedSessions[0].lesson_snapshot)
+          : completedSessions[0].lesson_snapshot;
+        setLessonTitle(snapshot.title || 'Lesson');
+      } else {
+        setLessonTitle('Lesson');
+      }
+
+      // Extract studentId from first session if available
+      if (allSessions.length > 0) {
+        setStudentId(allSessions[0].studentId);
+      }
+
+      setSessions(completedSessions as SessionHistoryItem[]);
     } catch (err) {
       logger.error('failed_to_load_session_history', {
         lessonTemplateId,
