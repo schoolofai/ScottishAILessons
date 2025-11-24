@@ -167,7 +167,8 @@ describe('/api/student/sessions/[sessionId]/complete', () => {
         masteryUpdated: true,
         masteryOutcomeCount: 2,
         routineUpdated: true,
-        sessionId: mockSessionId
+        sessionId: mockSessionId,
+        conversationHistoryPersisted: false
       });
 
       // Verify Evidence creation (1 record)
@@ -423,7 +424,8 @@ describe('/api/student/sessions/[sessionId]/complete', () => {
         masteryUpdated: false,
         masteryOutcomeCount: 0,
         routineUpdated: false,
-        sessionId: mockSessionId
+        sessionId: mockSessionId,
+        conversationHistoryPersisted: false
       });
     });
 

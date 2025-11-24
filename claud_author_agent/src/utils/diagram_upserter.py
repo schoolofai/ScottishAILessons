@@ -203,6 +203,7 @@ async def upsert_lesson_diagram(
             card_id=card_id,
             image_base64=image_base64,
             diagram_context=diagram_context,  # Pass diagram_context for unique file IDs (lesson vs CFU)
+            diagram_index=diagram_index,  # Pass diagram_index for unique file IDs per diagram
             mcp_config_path=mcp_config_path
         )
         logger.info(f"✓ Image uploaded to Storage: {image_file_id}")
@@ -210,7 +211,7 @@ async def upsert_lesson_diagram(
         # Fast-fail on storage upload failure
         raise Exception(
             f"Failed to upload image to Storage for lessonTemplateId='{lesson_template_id}', "
-            f"cardId='{card_id}': {str(e)}"
+            f"cardId='{card_id}', diagram_index={diagram_index}: {str(e)}"
         ) from e
 
     # Validate score range (0.0-1.0)

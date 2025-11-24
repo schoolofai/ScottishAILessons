@@ -271,9 +271,93 @@ export class DiagramDriver extends BaseDriver {
   }
 
   /**
+   * Get ALL diagrams for a specific lesson card filtered by context
+   *
+   * Returns all diagrams sorted by diagram_index (supports multiple diagrams per context)
+   *
+   * @param lessonTemplateId - Lesson template ID (e.g., "lesson_template_001")
+   * @param cardId - Card ID (e.g., "card_001", "card_002")
+   * @param diagramContext - Filter by "lesson" (teaching content) or "cfu" (assessment questions)
+   * @returns Array of lesson diagrams sorted by index (empty array if none found)
+   * @throws Error if query fails
+   */
+  async getAllDiagramsForCardByContext(
+    lessonTemplateId: string,
+    cardId: string,
+    diagramContext: 'lesson' | 'cfu'
+  ): Promise<LessonDiagram[]> {
+    console.log('📐 DiagramDriver.getAllDiagramsForCardByContext - Entry');
+    console.log('📐 DiagramDriver - Parameters:', { lessonTemplateId, cardId, diagramContext });
+
+    if (!lessonTemplateId || !cardId) {
+      console.error('📐 DiagramDriver - ERROR: Missing required parameters');
+      throw new Error('lessonTemplateId and cardId are required');
+    }
+
+    try {
+      const diagrams = await this.list<LessonDiagram>('lesson_diagrams', [
+        Query.equal('lessonTemplateId', lessonTemplateId),
+        Query.equal('cardId', cardId),
+        Query.equal('diagram_context', diagramContext),
+        Query.orderAsc('diagram_index'),  // Sort by index
+        Query.limit(100)  // Support up to 100 diagrams (more than enough)
+      ]);
+
+      console.log(`📐 DiagramDriver - Found ${diagrams.length} ${diagramContext} diagrams`);
+      return diagrams;
+
+    } catch (error) {
+      console.error('📐 DiagramDriver - Caught error:', error);
+
+      // Silent fail if diagram not found - this is expected for cards without diagrams
+      if (error.code === 404) {
+        console.log('📐 DiagramDriver - 404 error, returning empty array');
+        return [];
+      }
+      throw this.handleError(error, `get all ${diagramContext} diagrams for card ${cardId} in lesson ${lessonTemplateId}`);
+    }
+  }
+
+  /**
+   * Get ALL diagrams for a specific lesson card (all contexts, all indices)
+   *
+   * Returns all diagrams grouped by context, sorted by diagram_index
+   *
+   * @param lessonTemplateId - Lesson template ID
+   * @param cardId - Card ID
+   * @returns Object with arrays of lesson and cfu diagrams
+   * @throws Error if query fails
+   */
+  async getAllDiagramsForCard(
+    lessonTemplateId: string,
+    cardId: string
+  ): Promise<{ lesson: LessonDiagram[]; cfu: LessonDiagram[] }> {
+    if (!lessonTemplateId || !cardId) {
+      throw new Error('lessonTemplateId and cardId are required');
+    }
+
+    try {
+      const [lessonDiagrams, cfuDiagrams] = await Promise.all([
+        this.getAllDiagramsForCardByContext(lessonTemplateId, cardId, 'lesson'),
+        this.getAllDiagramsForCardByContext(lessonTemplateId, cardId, 'cfu')
+      ]);
+
+      return {
+        lesson: lessonDiagrams,
+        cfu: cfuDiagrams
+      };
+    } catch (error) {
+      throw this.handleError(error, `batch fetch all diagrams for card ${cardId}`);
+    }
+  }
+
+  /**
    * Batch fetch both lesson and CFU diagrams for a card
    *
+   * @deprecated Use getAllDiagramsForCard() instead for multiple diagram support
+   *
    * Efficiently fetches both diagram contexts in parallel
+   * Returns only the FIRST diagram of each type (backward compatible)
    * Useful for admin UI that needs to display both types
    *
    * @param lessonTemplateId - Lesson template ID

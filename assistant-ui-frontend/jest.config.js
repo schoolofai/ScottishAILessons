@@ -8,22 +8,24 @@ module.exports = {
     '/__tests__/'
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(@assistant-ui|@langchain|nanoid|node-fetch-native-with-agent|node-appwrite)/)',
+    'node_modules/(?!(@assistant-ui|@langchain|nanoid|node-fetch-native-with-agent|node-fetch-native|node-appwrite)/)',
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1'
   },
   preset: 'ts-jest',
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: {
         jsx: 'react-jsx'
       }
-    }
-  },
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-    '^.+\\.(js|jsx)$': ['ts-jest', { useESM: true }]
+    }],
+    '^.+\\.(js|jsx)$': ['ts-jest', {
+      tsconfig: {
+        jsx: 'react-jsx'
+      },
+      useESM: true
+    }]
   },
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json']

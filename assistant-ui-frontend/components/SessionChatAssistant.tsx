@@ -266,14 +266,16 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           console.log('SessionChatAssistant - Skipping outcome enrichment (no courseId or outcomeRefs)');
         }
 
-        // Check for lesson diagrams (diagram_context="lesson" for first card)
-        // Note: Lesson diagrams are stored with actual cardIds (e.g., "card_001", "card_002")
-        // We fetch the first card's lesson diagram to show before the greeting
-        let lessonDiagram = null;
+        // Check for ALL diagrams (both lesson and CFU contexts) for first card
+        // Note: Diagrams are stored with actual cardIds (e.g., "card_001", "card_002")
+        // We fetch all diagrams for the first card to show before the greeting
+        // Supports multiple diagrams per context via diagram_index
+        let lessonDiagrams: any[] = [];
+        let cfuDiagrams: any[] = [];
         const lessonTemplateId = parsedSnapshot.lessonTemplateId;
         const firstCardId = parsedSnapshot.cards?.[0]?.id;  // Cards use 'id' property, not 'cardId'
 
-        console.log('📐 DIAGRAM FETCH DEBUG - Starting lesson diagram check');
+        console.log('📐 DIAGRAM FETCH DEBUG - Starting multi-diagram check');
         console.log('📐 DIAGRAM FETCH DEBUG - lessonTemplateId:', lessonTemplateId);
         console.log('📐 DIAGRAM FETCH DEBUG - firstCardId:', firstCardId);
 
@@ -282,33 +284,49 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
             console.log('📐 DIAGRAM FETCH DEBUG - Creating DiagramDriver');
             const diagramDriver = createDriver(DiagramDriver);
 
-            console.log('📐 DIAGRAM FETCH DEBUG - Calling getDiagramForCardByContext with:');
-            console.log('  - lessonTemplateId:', lessonTemplateId);
-            console.log('  - cardId:', firstCardId);
-            console.log('  - context: "lesson"');
+            console.log('📐 DIAGRAM FETCH DEBUG - Calling getAllDiagramsForCard for first card');
 
-            const diagramResult = await diagramDriver.getDiagramForCardByContext(
+            // Fetch ALL diagrams for first card (both lesson and CFU contexts)
+            const allDiagrams = await diagramDriver.getAllDiagramsForCard(
               lessonTemplateId,
-              firstCardId,  // Use actual first card ID (e.g., "card_001")
-              'lesson'      // Fetch lesson diagram (not CFU diagram)
+              firstCardId
             );
 
-            console.log('📐 DIAGRAM FETCH DEBUG - getDiagramForCardByContext returned:', diagramResult);
+            console.log('📐 DIAGRAM FETCH DEBUG - getAllDiagramsForCard returned:', {
+              lessonCount: allDiagrams.lesson.length,
+              cfuCount: allDiagrams.cfu.length
+            });
 
-            if (diagramResult) {
-              lessonDiagram = {
-                image_file_id: diagramResult.image_file_id,
-                diagram_type: diagramResult.diagram_type,
-                title: diagramResult.title || 'Lesson Diagram',
-                cardId: firstCardId  // Include cardId for backend tool call
-              };
-              console.log('📐 DIAGRAM FETCH SUCCESS - Lesson diagram found:', lessonDiagram);
+            // Map lesson diagrams to simplified format for backend
+            if (allDiagrams.lesson.length > 0) {
+              lessonDiagrams = allDiagrams.lesson.map((diagram, index) => ({
+                image_file_id: diagram.image_file_id,
+                diagram_type: diagram.diagram_type,
+                diagram_index: diagram.diagram_index ?? index,
+                title: diagram.title || `Lesson Diagram ${index + 1}`,
+                cardId: firstCardId
+              }));
+              console.log(`📐 DIAGRAM FETCH SUCCESS - Found ${lessonDiagrams.length} lesson diagrams`);
             } else {
-              console.log('📐 DIAGRAM FETCH RESULT - No lesson diagram found for first card');
+              console.log('📐 DIAGRAM FETCH RESULT - No lesson diagrams found for first card');
+            }
+
+            // Map CFU diagrams to simplified format for backend
+            if (allDiagrams.cfu.length > 0) {
+              cfuDiagrams = allDiagrams.cfu.map((diagram, index) => ({
+                image_file_id: diagram.image_file_id,
+                diagram_type: diagram.diagram_type,
+                diagram_index: diagram.diagram_index ?? index,
+                title: diagram.title || `CFU Diagram ${index + 1}`,
+                cardId: firstCardId
+              }));
+              console.log(`📐 DIAGRAM FETCH SUCCESS - Found ${cfuDiagrams.length} CFU diagrams`);
+            } else {
+              console.log('📐 DIAGRAM FETCH RESULT - No CFU diagrams found for first card');
             }
           } catch (diagramError) {
-            console.error('📐 DIAGRAM FETCH ERROR - Failed to fetch lesson diagram:', diagramError);
-            // Continue without diagram - it's optional
+            console.error('📐 DIAGRAM FETCH ERROR - Failed to fetch diagrams:', diagramError);
+            // Continue without diagrams - they're optional
           }
         } else {
           console.log('📐 DIAGRAM FETCH SKIP - Missing lessonTemplateId or firstCardId');
@@ -321,7 +339,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           use_plain_text: false, // TODO: Get from user preferences when implemented
           ...courseCurriculumMetadata, // Add course_subject, course_level, sqa_course_code, course_title
           enriched_outcomes: enrichedOutcomes, // Add enriched CourseOutcome objects
-          lesson_diagram: lessonDiagram, // Add lesson diagram if available
+          lesson_diagrams: lessonDiagrams, // Add lesson diagrams array (supports multiple)
+          cfu_diagrams: cfuDiagrams, // Add CFU diagrams array (supports multiple)
         };
 
         console.log('✅ SessionChatAssistant - Session context built successfully:', {
@@ -331,7 +350,9 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           lessonTitle: context.lesson_snapshot?.title,
           courseSubject: context.course_subject,
           courseLevel: context.course_level,
-          enrichedOutcomesCount: enrichedOutcomes.length
+          enrichedOutcomesCount: enrichedOutcomes.length,
+          lessonDiagramsCount: lessonDiagrams.length,
+          cfuDiagramsCount: cfuDiagrams.length
         });
 
         console.log('📊 SessionChatAssistant - Thread info:', {

@@ -156,6 +156,9 @@ Examples:
     logger.info(f"Using execution_id: {execution_id}")
 
     # Transform diagrams data for batch_upsert_diagrams function
+    # Track diagram indices for multi-diagram cards (multiple diagrams per card)
+    diagram_index_tracker = {}  # Key: (lessonTemplateId, cardId, diagram_context) -> index
+
     diagrams_data = []
     for diagram in diagrams:
         # Convert image_path to base64 (diagrams_output.json has image_path, not image_base64)
@@ -170,9 +173,33 @@ Examples:
         with open(image_path, "rb") as img_file:
             image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
 
+        # Extract or assign diagram_index for multi-diagram support
+        # If diagram_index is in the JSON, use it; otherwise assign sequential index
+        lesson_template_id = diagram["lessonTemplateId"]
+        card_id = diagram["cardId"]
+        diagram_context = diagram.get("diagram_context")
+
+        # Create unique key for tracking indices
+        tracker_key = (lesson_template_id, card_id, diagram_context)
+
+        if "diagram_index" in diagram:
+            # Use explicit diagram_index from JSON
+            diagram_index = diagram["diagram_index"]
+        else:
+            # Auto-assign sequential index for multi-diagram cards
+            if tracker_key not in diagram_index_tracker:
+                diagram_index_tracker[tracker_key] = 0
+            else:
+                diagram_index_tracker[tracker_key] += 1
+            diagram_index = diagram_index_tracker[tracker_key]
+
+        logger.info(
+            f"Processing diagram: {card_id} (context={diagram_context}, index={diagram_index})"
+        )
+
         diagrams_data.append({
-            "lesson_template_id": diagram["lessonTemplateId"],
-            "card_id": diagram["cardId"],
+            "lesson_template_id": lesson_template_id,
+            "card_id": card_id,
             "jsxgraph_json": diagram["jsxgraph_json"],
             "image_base64": image_base64,  # Converted from PNG file
             "diagram_type": diagram["diagram_type"],
@@ -180,8 +207,9 @@ Examples:
             "critique_iterations": diagram["critique_iterations"],
             "critique_feedback": diagram["critique_feedback"],
             "execution_id": execution_id,
-            "diagram_context": diagram.get("diagram_context"),  # NEW: Support dual-context diagrams
-            "diagram_description": diagram.get("diagram_description")  # NEW: Brief description for LLMs
+            "diagram_context": diagram_context,  # Support dual-context diagrams
+            "diagram_description": diagram.get("diagram_description"),  # Brief description for LLMs
+            "diagram_index": diagram_index  # NEW: Multi-diagram support for unique file IDs
         })
 
     # Import batch upsert function

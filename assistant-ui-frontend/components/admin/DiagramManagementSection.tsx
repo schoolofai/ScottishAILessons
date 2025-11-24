@@ -33,13 +33,13 @@ export function DiagramManagementSection({
   cardId
 }: DiagramManagementSectionProps) {
   const { toast } = useToast();
-  const [lessonDiagram, setLessonDiagram] = useState<LessonDiagram | null>(null);
-  const [cfuDiagram, setCfuDiagram] = useState<LessonDiagram | null>(null);
+  const [lessonDiagrams, setLessonDiagrams] = useState<LessonDiagram[]>([]);
+  const [cfuDiagrams, setCfuDiagrams] = useState<LessonDiagram[]>([]);
   const [loading, setLoading] = useState(true);
-  const [uploadingContext, setUploadingContext] = useState<'lesson' | 'cfu' | null>(null);
-  const [deletingContext, setDeletingContext] = useState<'lesson' | 'cfu' | null>(null);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [deletingKey, setDeletingKey] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [pendingDeleteContext, setPendingDeleteContext] = useState<'lesson' | 'cfu' | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ context: 'lesson' | 'cfu', diagram: LessonDiagram } | null>(null);
 
   const diagramDriver = new DiagramDriver();
 
@@ -47,9 +47,9 @@ export function DiagramManagementSection({
   const fetchDiagrams = useCallback(async () => {
     setLoading(true);
     try {
-      const diagrams = await diagramDriver.getDiagramsForCard(lessonTemplateId, cardId);
-      setLessonDiagram(diagrams.lesson);
-      setCfuDiagram(diagrams.cfu);
+      const diagrams = await diagramDriver.getAllDiagramsForCard(lessonTemplateId, cardId);
+      setLessonDiagrams(diagrams.lesson);
+      setCfuDiagrams(diagrams.cfu);
     } catch (error: any) {
       console.error('Failed to fetch diagrams:', error);
       toast({
@@ -66,8 +66,8 @@ export function DiagramManagementSection({
     fetchDiagrams();
   }, [fetchDiagrams]);
 
-  // Handle file upload
-  const handleUpload = async (file: File, context: 'lesson' | 'cfu') => {
+  // Handle file upload (for new or replacing existing diagram)
+  const handleUpload = async (file: File, context: 'lesson' | 'cfu', existingDiagram?: LessonDiagram) => {
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.valid) {
@@ -79,12 +79,13 @@ export function DiagramManagementSection({
       return;
     }
 
-    setUploadingContext(context);
+    const uploadKey = existingDiagram ? `${context}-${existingDiagram.$id}` : `${context}-new`;
+    setUploadingKey(uploadKey);
     try {
       // Convert to base64
       const base64 = await fileToBase64(file);
 
-      // Upload diagram
+      // Upload diagram (will replace if exists, create if new)
       const uploadedDiagram = await diagramDriver.uploadDiagram(
         lessonTemplateId,
         cardId,
@@ -92,12 +93,8 @@ export function DiagramManagementSection({
         base64
       );
 
-      // Update state
-      if (context === 'lesson') {
-        setLessonDiagram(uploadedDiagram);
-      } else {
-        setCfuDiagram(uploadedDiagram);
-      }
+      // Refresh diagrams after upload
+      await fetchDiagrams();
 
       toast({
         title: "Upload Successful",
@@ -111,34 +108,31 @@ export function DiagramManagementSection({
         variant: "destructive"
       });
     } finally {
-      setUploadingContext(null);
+      setUploadingKey(null);
     }
   };
 
   // Handle delete initiation
-  const initiateDelete = (context: 'lesson' | 'cfu') => {
-    setPendingDeleteContext(context);
+  const initiateDelete = (context: 'lesson' | 'cfu', diagram: LessonDiagram) => {
+    setPendingDelete({ context, diagram });
     setShowDeleteConfirm(true);
   };
 
   // Handle delete confirmation
   const handleDeleteConfirm = async () => {
-    if (!pendingDeleteContext) return;
+    if (!pendingDelete) return;
 
-    setDeletingContext(pendingDeleteContext);
+    const deleteKey = `${pendingDelete.context}-${pendingDelete.diagram.$id}`;
+    setDeletingKey(deleteKey);
     try {
-      await diagramDriver.deleteDiagram(lessonTemplateId, cardId, pendingDeleteContext);
+      await diagramDriver.deleteDiagram(lessonTemplateId, cardId, pendingDelete.context);
 
-      // Update state
-      if (pendingDeleteContext === 'lesson') {
-        setLessonDiagram(null);
-      } else {
-        setCfuDiagram(null);
-      }
+      // Refresh diagrams after deletion
+      await fetchDiagrams();
 
       toast({
         title: "Diagram Deleted",
-        description: `${pendingDeleteContext === 'lesson' ? 'Lesson' : 'CFU'} diagram deleted successfully.`
+        description: `${pendingDelete.context === 'lesson' ? 'Lesson' : 'CFU'} diagram deleted successfully.`
       });
     } catch (error: any) {
       console.error('Delete failed:', error);
@@ -148,15 +142,15 @@ export function DiagramManagementSection({
         variant: "destructive"
       });
     } finally {
-      setDeletingContext(null);
-      setPendingDeleteContext(null);
+      setDeletingKey(null);
+      setPendingDelete(null);
       setShowDeleteConfirm(false);
     }
   };
 
   // Handle delete cancellation
   const handleDeleteCancel = () => {
-    setPendingDeleteContext(null);
+    setPendingDelete(null);
     setShowDeleteConfirm(false);
   };
 
@@ -176,38 +170,84 @@ export function DiagramManagementSection({
         <Badge variant="outline">Card: {cardId}</Badge>
       </div>
 
-      {/* Lesson Context Diagram */}
-      <DiagramCard
-        title="Lesson Context Diagram"
-        context="lesson"
-        diagram={lessonDiagram}
-        uploading={uploadingContext === 'lesson'}
-        deleting={deletingContext === 'lesson'}
-        onUpload={(file) => handleUpload(file, 'lesson')}
-        onDelete={() => initiateDelete('lesson')}
-        diagramDriver={diagramDriver}
-      />
+      {/* Lesson Context Diagrams */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-md font-semibold">Lesson Context Diagrams</h4>
+          <Badge variant="secondary">{lessonDiagrams.length} diagram(s)</Badge>
+        </div>
 
-      {/* CFU Context Diagram */}
-      <DiagramCard
-        title="CFU Context Diagram"
-        context="cfu"
-        diagram={cfuDiagram}
-        uploading={uploadingContext === 'cfu'}
-        deleting={deletingContext === 'cfu'}
-        onUpload={(file) => handleUpload(file, 'cfu')}
-        onDelete={() => initiateDelete('cfu')}
-        diagramDriver={diagramDriver}
-      />
+        {lessonDiagrams.length > 0 ? (
+          lessonDiagrams.map((diagram, index) => (
+            <DiagramCard
+              key={diagram.$id}
+              title={`Lesson Diagram ${index + 1}`}
+              context="lesson"
+              diagram={diagram}
+              uploading={uploadingKey === `lesson-${diagram.$id}`}
+              deleting={deletingKey === `lesson-${diagram.$id}`}
+              onUpload={(file) => handleUpload(file, 'lesson', diagram)}
+              onDelete={() => initiateDelete('lesson', diagram)}
+              diagramDriver={diagramDriver}
+            />
+          ))
+        ) : (
+          <DiagramCard
+            title="Lesson Diagram"
+            context="lesson"
+            diagram={null}
+            uploading={uploadingKey === 'lesson-new'}
+            deleting={false}
+            onUpload={(file) => handleUpload(file, 'lesson')}
+            onDelete={() => {}}
+            diagramDriver={diagramDriver}
+          />
+        )}
+      </div>
+
+      {/* CFU Context Diagrams */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-md font-semibold">CFU Context Diagrams</h4>
+          <Badge variant="secondary">{cfuDiagrams.length} diagram(s)</Badge>
+        </div>
+
+        {cfuDiagrams.length > 0 ? (
+          cfuDiagrams.map((diagram, index) => (
+            <DiagramCard
+              key={diagram.$id}
+              title={`CFU Diagram ${index + 1}`}
+              context="cfu"
+              diagram={diagram}
+              uploading={uploadingKey === `cfu-${diagram.$id}`}
+              deleting={deletingKey === `cfu-${diagram.$id}`}
+              onUpload={(file) => handleUpload(file, 'cfu', diagram)}
+              onDelete={() => initiateDelete('cfu', diagram)}
+              diagramDriver={diagramDriver}
+            />
+          ))
+        ) : (
+          <DiagramCard
+            title="CFU Diagram"
+            context="cfu"
+            diagram={null}
+            uploading={uploadingKey === 'cfu-new'}
+            deleting={false}
+            onUpload={(file) => handleUpload(file, 'cfu')}
+            onDelete={() => {}}
+            diagramDriver={diagramDriver}
+          />
+        )}
+      </div>
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={showDeleteConfirm}
         title="Delete Diagram"
-        message={`Are you sure you want to delete the ${pendingDeleteContext === 'lesson' ? 'Lesson' : 'CFU'} diagram? This action cannot be undone.`}
+        message={`Are you sure you want to delete this ${pendingDelete?.context === 'lesson' ? 'Lesson' : 'CFU'} diagram? This action cannot be undone.`}
         confirmText="Delete"
         confirmVariant="destructive"
-        loading={deletingContext !== null}
+        loading={deletingKey !== null}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
       />

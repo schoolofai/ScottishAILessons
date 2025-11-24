@@ -35,36 +35,40 @@ logger = logging.getLogger(__name__)
 DIAGRAM_IMAGE_BUCKET_ID = "6907775a001b754c19a6"
 
 
-def generate_file_id(lesson_template_id: str, card_id: str, diagram_context: Optional[str] = None) -> str:
+def generate_file_id(lesson_template_id: str, card_id: str, diagram_context: Optional[str] = None, diagram_index: int = 0) -> str:
     """Generate deterministic file ID for diagram image.
 
-    Uses MD5 hash of lessonTemplateId + cardId + diagram_context for reproducibility.
+    Uses MD5 hash of lessonTemplateId + cardId + diagram_context + diagram_index for reproducibility.
     Including diagram_context ensures unique file IDs for lesson vs CFU diagrams.
+    Including diagram_index ensures unique file IDs for multi-diagram cards.
     Format: dgm_image_{8-char-hash}
 
     Args:
         lesson_template_id: Lesson template document ID
         card_id: Card identifier (e.g., "card_001")
         diagram_context: Diagram usage context ("lesson" or "cfu") - optional for backward compatibility
+        diagram_index: Diagram index for multi-diagram cards (default 0 for backward compatibility)
 
     Returns:
         str: Deterministic file ID (e.g., "dgm_image_a1b2c3d4")
 
     Examples:
-        >>> generate_file_id("lesson_template_123", "card_001", "lesson")
+        >>> generate_file_id("lesson_template_123", "card_001", "lesson", 0)
         'dgm_image_f4e5d6c7'
-        >>> generate_file_id("lesson_template_123", "card_001", "cfu")
+        >>> generate_file_id("lesson_template_123", "card_001", "lesson", 1)
+        'dgm_image_a1b2c3d4'  # Different hash for different index
+        >>> generate_file_id("lesson_template_123", "card_001", "cfu", 0)
         'dgm_image_9a8b7c6d'  # Different hash for different context
     """
-    # Include diagram_context in hash to generate unique IDs for lesson vs CFU
+    # Include diagram_context and diagram_index in hash to generate unique IDs
     context_suffix = f"_{diagram_context}" if diagram_context else ""
-    combined = f"{lesson_template_id}_{card_id}{context_suffix}"
+    combined = f"{lesson_template_id}_{card_id}{context_suffix}_{diagram_index}"
     hash_suffix = hashlib.md5(combined.encode()).hexdigest()[:8]
     file_id = f"dgm_image_{hash_suffix}"
 
     logger.debug(
         f"Generated file ID: {file_id} "
-        f"(hash of {lesson_template_id}_{card_id}{context_suffix})"
+        f"(hash of {lesson_template_id}_{card_id}{context_suffix}_{diagram_index})"
     )
 
     return file_id
@@ -75,6 +79,7 @@ async def upload_diagram_image(
     card_id: str,
     image_base64: str,
     diagram_context: Optional[str] = None,
+    diagram_index: int = 0,
     mcp_config_path: str = ".mcp.json"
 ) -> str:
     """Upload base64-encoded PNG image to Appwrite Storage.
@@ -87,6 +92,7 @@ async def upload_diagram_image(
         card_id: Card identifier (e.g., "card_001")
         image_base64: Base64-encoded PNG image string
         diagram_context: Diagram usage context ("lesson" or "cfu") - optional for backward compatibility
+        diagram_index: Diagram index for multi-diagram cards (default 0 for backward compatibility)
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -102,13 +108,14 @@ async def upload_diagram_image(
             card_id="card_001",
             image_base64="iVBORw0KGgoAAAANS...",
             diagram_context="lesson",
+            diagram_index=0,
             mcp_config_path=".mcp.json"
         )
         # Returns: "dgm_image_f4e5d6c7"
     """
     logger.info(
         f"Uploading diagram image: lessonTemplateId={lesson_template_id}, "
-        f"cardId={card_id}, context={diagram_context}"
+        f"cardId={card_id}, context={diagram_context}, index={diagram_index}"
     )
 
     # Validation
@@ -121,8 +128,8 @@ async def upload_diagram_image(
     if not card_id:
         raise ValueError("card_id is required")
 
-    # Generate deterministic file ID (includes diagram_context for unique lesson vs CFU file IDs)
-    file_id = generate_file_id(lesson_template_id, card_id, diagram_context)
+    # Generate deterministic file ID (includes diagram_context and diagram_index for unique file IDs)
+    file_id = generate_file_id(lesson_template_id, card_id, diagram_context, diagram_index)
 
     try:
         # Import Appwrite SDK
