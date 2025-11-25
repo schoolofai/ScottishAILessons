@@ -221,16 +221,17 @@ export function CourseCurriculum({
       });
 
       // Map lessons with status (v3 simplified logic)
-      const lessonsWithStatus: Lesson[] = lessonTemplates.map((template: any, index: number) => {
-        const lessonSessions = sessionsByLesson[template.$id];
-        const isPublished = template.status === 'published';
+      // Filter out unpublished lessons - students should only see published content
+      const publishedTemplates = lessonTemplates.filter((template: any) => template.status === 'published');
 
-        // v3: Only three states - locked, completed, or not_started
+      const lessonsWithStatus: Lesson[] = publishedTemplates.map((template: any, index: number) => {
+        const lessonSessions = sessionsByLesson[template.$id];
+        const isPublished = true; // Already filtered to only published
+
+        // v3: Only two states for students - completed or not_started
         let status: Lesson['status'] = 'not_started';
 
-        if (!isPublished) {
-          status = 'locked';
-        } else if (lessonSessions?.completedCount > 0) {
+        if (lessonSessions?.completedCount > 0) {
           status = 'completed';
         }
 
@@ -460,9 +461,6 @@ export function CourseCurriculum({
                 {/* Lesson Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-gray-500">
-                      Lesson {lesson.order}
-                    </span>
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge.className}`}>
                       {typeBadge.label}
                     </span>

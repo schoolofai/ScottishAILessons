@@ -16,6 +16,37 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { toast } from 'sonner';
 import type { LessonTemplate } from '@/lib/appwrite/types';
 
+/**
+ * Format lesson_type from snake_case to display-friendly format
+ * e.g., 'independent_practice' -> 'Independent Practice'
+ */
+function formatLessonType(lessonType: string): string {
+  return lessonType
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Get badge variant based on lesson type
+ */
+function getLessonTypeBadgeVariant(lessonType: string): 'default' | 'secondary' | 'outline' | 'destructive' {
+  switch (lessonType) {
+    case 'teach':
+      return 'default';
+    case 'independent_practice':
+      return 'secondary';
+    case 'formative_assessment':
+      return 'outline';
+    case 'revision':
+      return 'secondary';
+    case 'mock_exam':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+}
+
 interface LessonTemplateCardProps {
   template: LessonTemplate;
   onPublish?: () => void;
@@ -129,8 +160,13 @@ export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonT
             </div>
           </CollapsibleTrigger>
 
-          {/* Status Badge, Edit Cards, and Publish/Unpublish Button (Outside Trigger) */}
+          {/* Lesson Type Badge, Status Badge, Edit Cards, and Publish/Unpublish Button (Outside Trigger) */}
           <div className="flex gap-2 items-center flex-shrink-0 ml-4">
+            {template.lesson_type && (
+              <Badge variant={getLessonTypeBadgeVariant(template.lesson_type)}>
+                {formatLessonType(template.lesson_type)}
+              </Badge>
+            )}
             <Badge variant={getStatusVariant(template.status)}>{template.status}</Badge>
 
             <Button
