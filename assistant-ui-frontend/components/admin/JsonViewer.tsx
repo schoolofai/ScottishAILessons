@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { Copy, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Dynamically import to avoid SSR issues with react-syntax-highlighter
 const SyntaxHighlighter = dynamic(
@@ -16,9 +20,23 @@ interface JsonViewerProps {
 /**
  * Component for displaying JSON with syntax highlighting
  * Uses react-syntax-highlighter with custom light theme styling
+ * Includes copy-to-clipboard functionality
  */
 export function JsonViewer({ data, title }: JsonViewerProps) {
+  const [copied, setCopied] = useState(false);
   const jsonString = JSON.stringify(data, null, 2);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(jsonString);
+      setCopied(true);
+      toast.success('JSON copied to clipboard!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Failed to copy to clipboard');
+      throw new Error('Failed to copy JSON to clipboard');
+    }
+  }
 
   // Custom light theme - readable light background with dark text
   const lightTheme = {
@@ -55,8 +73,21 @@ export function JsonViewer({ data, title }: JsonViewerProps) {
 
   return (
     <div className="border rounded-lg overflow-hidden bg-white">
-      <div className="bg-gray-100 text-gray-900 px-4 py-2 font-semibold text-sm border-b border-gray-300">
-        {title}
+      <div className="bg-gray-100 text-gray-900 px-4 py-2 font-semibold text-sm border-b border-gray-300 flex items-center justify-between">
+        <span>{title}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleCopy}
+          className="h-7 px-2 text-gray-600 hover:text-gray-900"
+        >
+          {copied ? (
+            <Check className="h-4 w-4 text-green-600" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+          <span className="ml-1 text-xs">{copied ? 'Copied!' : 'Copy'}</span>
+        </Button>
       </div>
       <div className="max-h-[600px] overflow-auto">
         <SyntaxHighlighter
