@@ -380,6 +380,7 @@ export function SOWDetailView({ sowId }: SOWDetailViewProps) {
                 template={template}
                 onPublish={fetchData}
                 onUnpublish={fetchData}
+                onDelete={fetchData}
               />
             ))}
           </div>

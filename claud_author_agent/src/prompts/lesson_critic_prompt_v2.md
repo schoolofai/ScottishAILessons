@@ -126,6 +126,13 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 - **Computing**: Algorithms, syntax, data structures, technical concepts
 - **Applications**: Real-world contexts, pricing, measurements, authentic scenarios
 
+**Question Answerability Validation** (CRITICAL):
+For EACH card's CFU, verify:
+- ✅ Question can be answered via text OR simple Excalidraw drawing
+- ✅ JSXGraph context diagrams are acceptable (student answers via text/drawing, not the diagram itself)
+- ❌ Question does NOT require external image/photograph to understand
+- ❌ Question does NOT require complex pre-generated diagram with no text alternative
+
 **Process**:
 1. For EACH card's CFU:
    - **Verify the question is solvable** and unambiguous
@@ -162,7 +169,9 @@ Each failed_check entry must include:
 
   "Card card_013, CFU q013 (Geography): FACTUAL ERROR - Question states 'Edinburgh is the largest city in Scotland'. Discrepancy: Glasgow is the largest city; Edinburgh is the capital. Correction: Change question to 'Edinburgh is the capital city of Scotland' OR if testing knowledge, make it a true/false question with correct answer being 'False'.",
 
-  "Card card_015, CFU q015 (Gaelic): TRANSLATION ERROR - Expected answer for 'How are you?' is 'Ciamar a tha thu?', but rubric also accepts 'Ciamar a tha sibh?'. Discrepancy: The second phrase is formal/plural 'you', which may not match the informal question context. Correction: Clarify in question whether formal or informal register is expected, or accept both with rubric note about register appropriateness."
+  "Card card_015, CFU q015 (Gaelic): TRANSLATION ERROR - Expected answer for 'How are you?' is 'Ciamar a tha thu?', but rubric also accepts 'Ciamar a tha sibh?'. Discrepancy: The second phrase is formal/plural 'you', which may not match the informal question context. Correction: Clarify in question whether formal or informal register is expected, or accept both with rubric note about register appropriateness.",
+
+  "Card card_017, CFU q017 (Geography): QUESTION ANSWERABILITY ERROR - CFU stem 'Identify the feature marked X on this Ordnance Survey map extract' requires an external map image that cannot be adequately described in text. Students cannot answer without seeing the actual map visual. Discrepancy: The AI tutoring platform does not support external images for question context. Students can only answer via text or simple Excalidraw drawings. Correction: Reframe as 'Describe three features you would expect to find at a grid reference showing a river confluence' OR provide the map data in text format (e.g., 'The contour lines show heights of 100m, 150m, 200m descending towards the east')."
 ]
 ```
 
@@ -226,6 +235,7 @@ Each failed_check entry must include:
 8. **Authenticity errors**: Unrealistic prices, outdated information, non-Scottish contexts
 9. **Translation errors**: Wrong language translations, incorrect linguistic terminology
 10. **Scientific errors**: Violated laws of nature, incorrect chemical formulas, wrong biological processes
+11. **Answerability errors**: Questions requiring external images/photographs that cannot be described in text (students must answer via text or simple Excalidraw drawings)
 
 **Validation Strategy** (Subject-Specific):
 
@@ -272,13 +282,21 @@ Each failed_check entry must include:
 - SOW card types correctly transformed
 - Template estMinutes (if provided) is reasonable for Scottish classroom periods (25-50 min)
 - Card count realistic for lesson content (typically 6-12 cards per lesson)
+- **LESSON-TYPE-SPECIFIC STRUCTURE COMPLIANCE** (CRITICAL):
+  - **`teach` and `revision` lessons**: Should have full card progression (starter → explainer → modelling → guided_practice → exit_ticket)
+  - **`formative_assessment` and `mock_exam` lessons**: MUST have STREAMLINED structure (explainer with rules → question_card → question_card → ...)
+    - ❌ VIOLATION if starter cards exist
+    - ❌ VIOLATION if exit_ticket/feedback cards exist
+    - ✅ First card ONLY should be explainer with minimal instructions
+    - ✅ Remaining cards should be pure question cards with CFU stems
 
 **Scoring Guidance**:
-- **1.0**: Perfect match with SOW card_structure count
+- **1.0**: Perfect match with SOW card_structure count AND lesson-type-specific structure compliance
 - **0.95**: Differs by ±1 card, pedagogically sound
 - **0.90**: Differs by ±2 cards, coherent lesson
 - **0.85**: Differs by ±3+ cards but complete
 - **<0.85**: Missing critical pedagogical moments or bloated with redundancy
+- **0.70 or lower**: Lesson-type-specific structure VIOLATION (e.g., formative_assessment with starter/exit_ticket cards)
 
 ### 1.2 Content Preservation (35%)
 - ALL SOW worked_example fields appear in template explainer content
@@ -473,5 +491,36 @@ Use Write tool to create `critic_result.json` with all fields
 - Card missing explainer_plain
 - Rubric criteria sum ≠ total_points
 - Misconception ID wrong format
+
+**Lesson-Type Card Structure Violations** (CRITICAL):
+- formative_assessment or mock_exam lesson has starter card(s) → VIOLATION
+- formative_assessment or mock_exam lesson has exit_ticket/feedback card(s) → VIOLATION
+- formative_assessment or mock_exam lesson missing explainer (rules) as first card → VIOLATION
+- formative_assessment or mock_exam cards contain extensive explainer content instead of pure questions → VIOLATION
+- teach or revision lesson missing full card progression (starter, modelling, guided_practice) → May indicate incomplete lesson
+
+**Example Violation Detection**:
+```json
+// lesson_template.json with lesson_type = "formative_assessment"
+{
+  "lesson_type": "formative_assessment",
+  "cards": [
+    {"id": "card_001", "card_type": "starter", ...},  // ❌ VIOLATION: starter card in formative_assessment
+    {"id": "card_002", "card_type": "explainer", ...},
+    {"id": "card_003", "card_type": "question_card", ...},
+    {"id": "card_004", "card_type": "exit_ticket", ...}  // ❌ VIOLATION: exit_ticket in formative_assessment
+  ]
+}
+// Expected structure for formative_assessment:
+{
+  "lesson_type": "formative_assessment",
+  "cards": [
+    {"id": "card_001", "card_type": "explainer", ...},  // ✅ Rules/instructions only
+    {"id": "card_002", "card_type": "question_card", ...},  // ✅ Pure question
+    {"id": "card_003", "card_type": "question_card", ...},  // ✅ Pure question
+    {"id": "card_004", "card_type": "question_card", ...}   // ✅ Pure question
+  ]
+}
+```
 
 </examples>

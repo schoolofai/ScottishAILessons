@@ -114,6 +114,35 @@ CFU types: mcq, numeric, structured_response, short_text
 
 </output>
 
+<question_answerability_guidelines>
+
+## 🚨 CFU Answerability Requirements
+
+All CFU questions MUST be designed so students can answer using:
+1. **Text responses** (typed answers, calculations, explanations)
+2. **Simple Excalidraw drawings** (basic shapes students can draw themselves)
+
+### ✅ ALLOWED
+- Text answers: calculations, MCQs, definitions, step-by-step workings
+- Excalidraw-drawable: geometric shapes, coordinate graphs, bar/pie charts, number lines, Venn diagrams, simple diagrams with labels
+- **JSXGraph context diagrams** (ALWAYS ALLOWED): System displays diagram, student answers via text/Excalidraw
+
+### ❌ FORBIDDEN
+- Questions requiring external images that CANNOT be described in text ("Identify X in this photo")
+- Questions requiring complex diagrams with no text alternative ("Read this OS map")
+- Questions where visual interpretation IS the skill being tested
+
+### Design Principle
+If the question CANNOT be understood without seeing a specific image/visual that cannot be described in text, it is NOT suitable.
+
+### Quick Reference
+| ❌ Image-Dependent | ✅ Text/Excalidraw-Answerable |
+|-------------------|------------------------------|
+| "Identify angle X in this diagram" | "A triangle has angles 90°, 35°, and X. Calculate X." |
+| "Label this cell diagram" | "Draw and label a simple animal cell." |
+
+</question_answerability_guidelines>
+
 <process>
 ## Workflow: SOW Entry → Lesson Template
 
@@ -150,6 +179,23 @@ A blank `lesson_template.json` has been pre-generated in your workspace with:
 
 Read `lesson_template.json` to see structure.
 
+### Step 2.5: Lesson-Type-Specific Card Structure
+
+**CRITICAL**: Different lesson types have different card structures:
+
+**For `teach` and `revision` lessons**:
+- Full card progression: starter → explainer → modelling → guided_practice → exit_ticket
+- Include misconceptions, worked examples, practice problems
+- All fields (explainer, explainer_plain, cfu, rubric, misconceptions) should be filled
+
+**For `formative_assessment` and `mock_exam` lessons**:
+- STREAMLINED structure: explainer (basic rules) → question_card → question_card → ...
+- **First card ONLY**: Explainer with minimal instructions (calculator policy, time allowed, "show working")
+- **Remaining cards**: Pure question cards with CFU stems only
+- NO starter cards, NO exit_ticket/feedback cards
+- Focus on questions - students' assessment time is valuable
+- For question cards: `explainer` should be minimal or empty, `cfu.stem` contains the question
+
 ### Step 3: Plan Card Filling
 
 Create TodoWrite tasks with PER-CARD VALIDATION:
@@ -176,8 +222,12 @@ For each card, Edit these fields in order:
 1. **`title`** - Descriptive card purpose from 'sow_entry_input.json' content
 2. **`explainer`** - Pedagogical content from 'sow_entry_input.json' content (LaTeX: `$...$` inline, `$$...$$` display, escape backslashes)
 3. **`explainer_plain`** - Simplified version (no LaTeX, CEFR A2-B1, shorter sentences, simpler words)
-4. **`cfu.stem`** - Decifer question text from 'sow_entry_input.json' content - interpreted from cards data in array lesson.card_structure[card index].cfu_strategy 
-5. **CFU type-specific fields**: Decifer question text from 'sow_entry_input.json' content - interpreted from cards data in array lesson.card_structure[card index].cfu_strategy
+4. **`cfu.stem`** - Question text (MUST follow `<question_answerability_guidelines>`)
+   - Interpret from SOW `lesson.card_structure[card index].cfu_strategy`
+   - ✅ Text-answerable OR simple Excalidraw-drawable
+   - ✅ JSXGraph diagrams can provide context to the question
+   - ❌ NO questions requiring external images/photographs to understand
+5. **CFU type-specific fields**: Decifer from SOW cards data in array lesson.card_structure[card index].cfu_strategy
    - **mcq**: `options[]`, `answerIndex` (single-select) OR `multiSelect: true`, `answerIndices[]` (multi-select)
      - **When to use multi-select**: Use `multiSelect: true` with `answerIndices: [0, 2]` when asking students to "Select ALL correct answers" or when multiple options are simultaneously correct (e.g., mapping tasks, categorization)
      - **Stem guidance for multi-select**: Always include "Select ALL correct answers" or "Choose all that apply" in the stem
@@ -205,7 +255,7 @@ new_string: '"field_name": "actual content",'
 - [ ] `title` - not empty, describes purpose
 - [ ] `explainer` - pedagogically rich (with LaTeX if needed)
 - [ ] `explainer_plain` - same content, no LaTeX, simpler
-- [ ] `cfu.stem` - clear, specific question
+- [ ] `cfu.stem` - clear, specific question following `<question_answerability_guidelines>` (no image-dependent questions)
 - [ ] CFU type fields - all required fields filled
 - [ ] `rubric.criteria` - points sum equals total_points
 - [ ] `rubric.total_points` - NOT 0

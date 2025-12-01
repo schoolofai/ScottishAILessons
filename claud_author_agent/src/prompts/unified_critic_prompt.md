@@ -304,7 +304,7 @@ If tool.valid == false:
   "stats": {
     "total_entries": 12,
     "total_cards": 74,
-    "lesson_types": {"teach": 5, "revision": 5, "independent_practice": 1, "mock_assessment": 1}
+    "lesson_types": {"teach": 5, "revision": 5, "formative_assessment": 2, "mock_exam": 1}
   }
 }
 ```
@@ -518,7 +518,11 @@ Each failed_check entry must include:
 
   "Entry 24, Card 7: CFU STRATEGY ERROR (Computing) - CFU states 'MCQ: Which Python operator checks equality? A) = B) == C) ==='. Discrepancy: Option C (===) is JavaScript syntax, not valid Python. This creates confusion about Python vs JavaScript operators. Correction: Replace option C with valid Python operator (e.g., '!=' or 'is') or add note 'JavaScript syntax, not Python'",
 
-  "Entry 27, Card 5: CONTEXT AUTHENTICITY ERROR (Geography) - Worked example states 'Edinburgh is the largest city in Scotland with 1.3 million residents'. Discrepancy: Glasgow is the largest city (~635k); Edinburgh is the capital (~530k). Population figure also inaccurate. Correction: Change to 'Edinburgh is the capital city of Scotland with approximately 530,000 residents' OR use Glasgow statistics for 'largest city' context"
+  "Entry 27, Card 5: CONTEXT AUTHENTICITY ERROR (Geography) - Worked example states 'Edinburgh is the largest city in Scotland with 1.3 million residents'. Discrepancy: Glasgow is the largest city (~635k); Edinburgh is the capital (~530k). Population figure also inaccurate. Correction: Change to 'Edinburgh is the capital city of Scotland with approximately 530,000 residents' OR use Glasgow statistics for 'largest city' context",
+
+  "Entry 14, Card 6: CFU ANSWERABILITY ERROR (Geography) - CFU strategy 'MCQ: Identify which rock type is shown in photograph A' requires an external photograph that cannot be adequately described in text. Discrepancy: The AI tutoring platform does not support external images for question context. Students can only answer via text or simple Excalidraw drawings. JSXGraph diagrams for context are allowed, but students cannot interpret uploaded photographs. Correction: Reframe as 'MCQ: Which rock type is characterized by visible crystals, forms from slow cooling magma, and includes granite? A) Igneous B) Sedimentary C) Metamorphic'",
+
+  "Entry 19, Card 4: CFU ANSWERABILITY ERROR (History) - CFU strategy 'Short answer: Describe what you observe in Source A (image of Jacobite battlefield)' requires students to interpret an external image. Discrepancy: Questions requiring visual interpretation of photographs or complex diagrams are not answerable via text or simple Excalidraw drawings. Correction: Reframe as 'Short answer: The Battle of Culloden took place on a flat, exposed moor. Explain two tactical disadvantages this terrain created for the Jacobite forces.'"
 ]
 ```
 
@@ -530,6 +534,21 @@ At SOW level, CFU strategies are **declarative descriptions** of what checking w
 - ✅ MCQ options referenced are not misleading (correct option is truly correct)
 - ✅ Terminology used in CFU strategies matches subject standards
 - ✅ Numeric values in CFU strategies are appropriate and realistic
+
+**CFU Answerability Validation** (All Lesson Types - CRITICAL):
+
+All CFU strategies MUST be designed so students can answer using:
+1. **Text responses** (typed answers, calculations, explanations)
+2. **Simple Excalidraw drawings** (basic shapes, graphs, diagrams students can draw themselves)
+
+For EACH entry's `lesson_plan.card_structure`, verify CFU strategies are answerable:
+- ✅ **Text-answerable**: Calculations, MCQs, definitions, step-by-step workings, naming/listing
+- ✅ **Excalidraw-drawable**: Geometric shapes, coordinate graphs, bar/pie charts, number lines, Venn diagrams, simple diagrams with labels
+- ✅ **JSXGraph context diagrams** are ALWAYS allowed: System displays diagram, student answers via text/Excalidraw
+- ❌ Question does NOT require external image/photograph to understand
+- ❌ Question does NOT require complex pre-generated diagram with no text alternative
+
+**Design Principle**: If the CFU strategy CANNOT be understood without seeing a specific image/visual that cannot be described in text, it is NOT suitable for the AI tutoring platform.
 
 **Worked Example Factual Validation**:
 
@@ -578,6 +597,7 @@ Cards declare which SQA standards they address. Validate that:
 8. **Linguistic errors**: Wrong translations, incorrect grammar rules, misspelled terms
 9. **Logic errors**: Contradictory statements, impossible scenarios
 10. **Ambiguity**: Unclear problem statements, multiple valid interpretations
+11. **Answerability errors**: CFU strategies requiring external images/photographs that cannot be described in text (students must answer via text or simple Excalidraw drawings; JSXGraph context diagrams are allowed)
 
 **Validation Strategy** (Subject-Specific):
 
@@ -776,7 +796,7 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 - Do `standards_or_skills_addressed` objects use code/outcome/description format?
 - For each consolidated lesson block, is there a **multi-lesson sequence** that includes:
   * Mandatory teach→revision pairing (every teach lesson followed by revision lesson)
-  * formative_assessment → independent_practice after teach→revision pairs
+  * formative_assessment after teach→revision pairs as needed
 
 **FOR SKILLS-BASED COURSES** (National 5, Higher, Advanced Higher):
 - Does the SoW cover ALL skills from `skills_framework.skills[]`?
@@ -788,11 +808,10 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 - **NO CHUNKING OF CODES** (skills don't have codes) - instead verify thematic skill grouping
 - For each thematic skill group, is there a **multi-lesson sequence** similar to unit-based approach?
   * Teach→revision pairing still applies
-  * formative_assessment → independent_practice after teach→revision pairs
+  * formative_assessment after teach→revision pairs as needed
 
 #### 2. Course-Level Lesson Type Validation (30% weight)
-- Does the SoW include at least one `independent_practice` lesson? (required for mock exam prep)
-- Does the SoW include exactly one `mock_assessment` lesson? (required for real exam simulation)
+- Does the SoW include exactly one `mock_exam` lesson? (required for real SQA exam simulation)
 - Are there enough entries for the intended time window (should be ~10-20 lessons, NOT 80-100)?
 - Is there a realistic balance of lesson_type values?
 
@@ -852,8 +871,7 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 8. Validate course-level lesson type requirements:
    - Count teach lessons vs revision lessons (must be 1:1 ratio)
    - Verify each teach lesson is paired with a revision lesson (teach→revision)
-   - Count independent_practice lessons (must be ≥1 at course level)
-   - Count mock_assessment lessons (must be exactly 1 at course level)
+   - Count mock_exam lessons (must be exactly 1 at course level)
 
 ### Issues to Flag (STRUCTURE-AWARE):
 
@@ -880,8 +898,8 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 - Generic CFU strategies ("ask questions" instead of specific prompts)
 - Insufficient lesson count or imbalanced lesson types
 - Teach→revision pairing violated (teach lesson without corresponding revision)
-- Missing course-level independent_practice lesson (required for mock exam prep)
-- Missing or multiple mock_assessment lessons (must be exactly 1)
+- Missing or multiple mock_exam lessons (must be exactly 1)
+- **Card structure violations for formative_assessment/mock_exam**: These lesson types must have STREAMLINED structure (explainer with rules → question cards only) - NO starter cards, NO exit_ticket cards
 
 ### Scoring:
 
@@ -917,8 +935,7 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 
 #### 3. Course-Level Sequencing (20% weight)
 - Lesson_type cadence is realistic and varied across the SoW
-- `independent_practice` lessons appear (at least 1)
-- `mock_assessment` lesson appears at end (exactly 1)
+- `mock_exam` lesson appears at end (exactly 1)
 - Total lesson count reasonable (10-20, not 80-100)
 - Alignment with `delivery_notes` (e.g., interdisciplinary opportunities, ICT use)
 
@@ -926,7 +943,7 @@ IF structure_type == "skills_based" (or inferred from skills_framework/topic_are
 
 For each consolidated lesson block (2-3 standards, or up to 5 if justified):
 - Thematic coherence among chunked standards is clear and pedagogically justified
-- Lesson types follow mandatory teach→revision pairing, then formative_assessment → independent_practice
+- Lesson types follow mandatory teach→revision pairing, then formative_assessment as needed
 - Every teach lesson is immediately followed (or closely followed) by its corresponding revision lesson
 - Standards within the block are sequenced logically (prerequisites first)
 
@@ -1377,8 +1394,7 @@ The SoW passes validation if:
    - 1:1 ratio maintained
 
 6. **Course-level requirements met**:
-   - At least 1 independent_practice lesson
-   - Exactly 1 mock_assessment lesson
+   - Exactly 1 mock_exam lesson
    - Total lesson count ~10-20
 
 7. **Scottish authenticity**:
@@ -1402,7 +1418,7 @@ If any of these criteria are not met, provide detailed feedback and actionable t
 3. **NO BARE CODES**: assessmentStandardRefs and standards_addressed must use enriched objects (code, description, outcome)
 4. **NO SHALLOW LESSON PLANS**: Every entry must have 6-12 detailed cards with complete fields
 5. **NO BROKEN PAIRING**: Every teach lesson must have corresponding revision lesson
-6. **NO MISSING COURSE REQUIREMENTS**: Must have ≥1 independent_practice and exactly 1 mock_assessment
+6. **NO MISSING COURSE REQUIREMENTS**: Must have exactly 1 mock_exam lesson
 7. **NO NON-SCOTTISH CONTEXTS**: All currency must be £, all contexts must be Scottish
 8. **NO AMERICANISMS**: Use British English and Scottish terminology throughout
 9. **FIELD NAMING**: Use `lesson_instruction` (NOT "notes")

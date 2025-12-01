@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ChevronDown, AlertCircle, Edit, Upload, Archive } from 'lucide-react';
+import { ChevronDown, AlertCircle, Edit, Upload, Archive, Trash2 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import { toast } from 'sonner';
 import type { LessonTemplate } from '@/lib/appwrite/types';
@@ -51,21 +51,24 @@ interface LessonTemplateCardProps {
   template: LessonTemplate;
   onPublish?: () => void;
   onUnpublish?: () => void;
+  onDelete?: () => void;
 }
 
 /**
  * LessonTemplateCard displays a single lesson template with expandable details
  * Shows JSON and markdown preview, allows publishing and unpublishing
  */
-export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonTemplateCardProps) {
+export function LessonTemplateCard({ template, onPublish, onUnpublish, onDelete }: LessonTemplateCardProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<'json' | 'markdown'>('json');
   const [publishing, setPublishing] = useState(false);
   const [unpublishing, setUnpublishing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [showUnpublishConfirm, setShowUnpublishConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Decompress cards for display
   let decompressedCards = [];
@@ -126,6 +129,53 @@ export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonT
       throw err; // Fast fail
     } finally {
       setUnpublishing(false);
+    }
+  }
+
+  async function handleDeleteConfirm() {
+    try {
+      setDeleting(true);
+      setError(null);
+
+      console.log('[LessonTemplateCard] Deleting template via server API...');
+
+      // Use server API endpoint instead of client SDK
+      const response = await fetch(`/api/admin/templates/${template.$id}`, {
+        method: 'DELETE',
+        credentials: 'include', // Include httpOnly cookies
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Admin access required.');
+        }
+        if (response.status === 404) {
+          throw new Error('Template not found.');
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete template' }));
+        throw new Error(errorData.error || 'Failed to delete template');
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete template');
+      }
+
+      console.log('[LessonTemplateCard] ✅ Template deleted');
+      toast.success('Lesson template deleted successfully!');
+      // Refresh parent component
+      onDelete?.();
+      setShowDeleteConfirm(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete template';
+      setError(message);
+      toast.error(message);
+      console.error('[LessonTemplateCard] Error deleting:', err);
+      throw err; // Fast fail
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -207,6 +257,22 @@ export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonT
                 {unpublishing ? 'Unpublishing...' : 'Unpublish'}
               </Button>
             )}
+
+            {/* Delete Button - only show for draft templates */}
+            {template.status !== 'published' && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowDeleteConfirm(true);
+                }}
+                disabled={deleting}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -272,6 +338,19 @@ export function LessonTemplateCard({ template, onPublish, onUnpublish }: LessonT
         onConfirm={handleUnpublishConfirm}
         onCancel={() => setShowUnpublishConfirm(false)}
         icon={<Archive className="h-5 w-5 text-amber-600" />}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Delete Lesson Template?"
+        message={`This will permanently delete "${template.title}". This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setShowDeleteConfirm(false)}
+        icon={<Trash2 className="h-5 w-5 text-red-600" />}
       />
     </Collapsible>
   );

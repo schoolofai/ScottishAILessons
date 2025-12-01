@@ -452,6 +452,27 @@ export class LessonDriver extends BaseDriver {
   }
 
   /**
+   * [ADMIN] Delete a lesson template permanently
+   * FAST FAIL: Throws error immediately if operation fails
+   *
+   * @param templateId - The ID of the template to delete
+   * @throws Error if deletion fails
+   */
+  async deleteTemplate(templateId: string): Promise<void> {
+    if (!templateId || templateId.length === 0) {
+      throw new Error('Template ID is required for deletion');
+    }
+
+    try {
+      await this.delete('lesson_templates', templateId);
+      console.info(`✅ Template ${templateId} deleted successfully`);
+    } catch (error) {
+      console.error(`❌ Failed to delete template ${templateId}:`, error);
+      throw this.handleError(error, `delete template ${templateId}`);
+    }
+  }
+
+  /**
    * [ADMIN] Update lesson template with new data
    * Validates card data if cards are being updated
    * Follows FAST FAIL pattern - throws exceptions immediately on errors

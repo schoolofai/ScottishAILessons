@@ -84,7 +84,8 @@ def write_diagram_file(
     image_base64: str,
     card_id: str,
     diagram_context: str,
-    workspace_path: str
+    workspace_path: str,
+    diagram_index: int = 0
 ) -> str:
     """Write diagram PNG file to workspace and return absolute path.
 
@@ -93,6 +94,7 @@ def write_diagram_file(
         card_id: Card identifier (e.g., "card_001")
         diagram_context: Context type ("lesson" or "cfu")
         workspace_path: Absolute path to workspace directory
+        diagram_index: Index for multiple diagrams per card (0, 1, 2...)
 
     Returns:
         Absolute path to written PNG file
@@ -107,8 +109,11 @@ def write_diagram_file(
         diagrams_dir = Path(workspace_path) / "diagrams"
         diagrams_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate filename: card_{id}_{context}.png
-        filename = f"{card_id}_{diagram_context}.png"
+        # Generate filename: card_{id}_{context}_{index}.png (index only if > 0)
+        if diagram_index > 0:
+            filename = f"{card_id}_{diagram_context}_{diagram_index}.png"
+        else:
+            filename = f"{card_id}_{diagram_context}.png"
         file_path = diagrams_dir / filename
 
         # Decode base64 and write PNG bytes
@@ -223,7 +228,7 @@ def create_diagram_screenshot_server_with_workspace(workspace_path: str):
 
     @tool(
         "render_diagram",
-        "Render JSXGraph diagram to PNG file in workspace. Returns file path for visual critique. Writes to {workspace}/diagrams/card_{id}_{context}.png (overwrites on iteration). No fallback on errors.",
+        "Render JSXGraph diagram to PNG file in workspace. Returns file path for visual critique. Writes to {workspace}/diagrams/card_{id}_{context}_{index}.png. Use diagram_index for multiple diagrams per card. No fallback on errors.",
         {
             "diagram": {
                 "type": "object",
@@ -239,6 +244,11 @@ def create_diagram_screenshot_server_with_workspace(workspace_path: str):
                 "type": "string",
                 "description": "Context type: 'lesson' (teaching) or 'cfu' (assessment)",
                 "required": True
+            },
+            "diagram_index": {
+                "type": "integer",
+                "description": "Index for multiple diagrams per card (0, 1, 2...). Use 0 for first/only diagram, increment for additional diagrams in same card+context.",
+                "required": False
             },
             "options": {
                 "type": "object",
@@ -302,7 +312,20 @@ def create_diagram_screenshot_server_with_workspace(workspace_path: str):
             diagram = args.get("diagram")
             card_id = args.get("card_id")
             diagram_context = args.get("diagram_context")
+            diagram_index = args.get("diagram_index", 0)  # Default to 0 for first/only diagram
             options = args.get("options", {})
+
+            # Convert diagram_index to int if it's a string (from XML interface)
+            if isinstance(diagram_index, str):
+                try:
+                    diagram_index = int(diagram_index)
+                    logger.info(f"🔧 Converted diagram_index from string to int: {diagram_index}")
+                except ValueError as e:
+                    return _build_error_response(
+                        code="VALIDATION_ERROR",
+                        message=f"Field 'diagram_index' must be an integer, received: '{diagram_index}'",
+                        suggestion="Ensure diagram_index is a valid integer (0, 1, 2, ...)"
+                    )
 
             # Parse JSON strings to objects (needed when called via Claude Agent SDK XML interface)
             # The SDK passes parameters as strings even when schema says "type": "object"
@@ -352,7 +375,7 @@ def create_diagram_screenshot_server_with_workspace(workspace_path: str):
 
             # Log tool invocation for debugging
             logger.info(f"🔧 render_diagram tool called (FILE-BASED)")
-            logger.info(f"🔧 card_id={card_id}, diagram_context={diagram_context}")
+            logger.info(f"🔧 card_id={card_id}, diagram_context={diagram_context}, diagram_index={diagram_index}")
             logger.info(f"🔧 Parameter types: diagram={type(diagram).__name__}, options={type(options).__name__}")
             if diagram and isinstance(diagram, dict):
                 logger.info(f"🔧 Diagram keys: {list(diagram.keys())}")
@@ -467,7 +490,7 @@ def create_diagram_screenshot_server_with_workspace(workspace_path: str):
                 # Success! Write PNG file to workspace and return path
                 try:
                     image_base64 = response_data["image"]
-                    image_path = write_diagram_file(image_base64, card_id, diagram_context, workspace_path)
+                    image_path = write_diagram_file(image_base64, card_id, diagram_context, workspace_path, diagram_index)
 
                     logger.info(f"✅ Diagram rendered successfully: {image_path}")
 

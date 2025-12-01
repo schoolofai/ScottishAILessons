@@ -60,8 +60,7 @@ This file contains the COMPLETE schema documentation for `authored_sow.json`, in
 5. **Teach→Revision Pairing**: Every teach lesson paired with revision lesson (1:1 ratio)
 
 7. **Course-Level Requirements**:
-   - At least 1 `independent_practice` lesson
-   - Exactly 1 `mock_assessment` lesson
+   - Exactly 1 `mock_exam` lesson (simulating real SQA exam conditions)
    - Total 10-20 lessons
 
 ### For Complete Schema Details
@@ -334,11 +333,10 @@ You MUST write these files to the workspace filesystem using the Write tool:
 4) **Apply chunking strategy (SILENT)**: as described in <chunking_strategy>
    - Identify thematically related assessment standards that can be grouped (2-3 standards, maximum 5 if justified)
    - Plan consolidated lesson blocks with clear pedagogical justification
-   - For each block, plan a short sequence of lesson entries spanning lesson types: teach → revision → formative_assessment → independent_practice → (optional additional teach→revision pairs within block)
+   - For each block, plan a short sequence of lesson entries spanning lesson types: teach → revision → formative_assessment → (optional additional teach→revision pairs within block)
    - **MANDATORY PAIRING**: Every teach lesson MUST be followed by a corresponding revision lesson (1:1 pairing)
    - **COURSE-LEVEL REQUIREMENTS**: The complete SoW must include:
-     * At least one independent_practice lesson (for mock exam preparation)
-     * Exactly one mock_assessment lesson (simulating real-world SQA exam conditions)
+     * Exactly one mock_exam lesson (simulating real-world SQA exam conditions)
    - Align calculator policy with the assessment model from Course_data.txt
    - **Execute internally - do not narrate chunking decisions, consolidation reasoning, or planning details**
 
@@ -353,12 +351,30 @@ You MUST write these files to the workspace filesystem using the Write tool:
    - Design 6-12 cards per lesson (appropriate for 25-50 min Scottish periods)
    - **Execute internally - do not display card-by-card design decisions, research findings, or pedagogical planning**
    - For EACH card, specify:
-     * card_number, card_type (starter, explainer, modelling, guided_practice, independent_practice, exit_ticket)
+     * card_number, card_type (starter, explainer, modelling, guided_practice, question_card, exit_ticket)
      * title (clear, teacher-facing card name)
+
+   ### Lesson-Type-Specific Card Structures
+
+   **For `teach` and `revision` lessons**:
+   - Use full card progression: starter → explainer → modelling → guided_practice → exit_ticket
+   - Include misconceptions, worked examples, practice problems
+   - 6-12 cards appropriate for learning new content
+
+   **For `formative_assessment` and `mock_exam` lessons**:
+   - STREAMLINED structure: explainer (rules) → question_card → question_card → ...
+   - First card ONLY: Explainer with minimal instructions (calculator policy, time allowed, "show working")
+   - Remaining cards: Pure question_card type with CFU stems - NO starter, NO exit_ticket
+   - Go straight to assessment content - students' time is valuable
+   - Typically 6-10 question cards after the explainer
+
+   **Card field requirements (all types)**:
      * purpose (pedagogical goal for this card)
      * standards_addressed (enriched objects with code/description/outcome - NOT bare codes)
      * pedagogical_approach (what happens in this card - detailed, not generic)
      * cfu_strategy (specific CFU type and prompt, e.g., "MCQ: Which fraction equals 25%?" NOT "ask questions")
+      - **MUST follow <question_answerability_guidelines>**: Students answer via text or simple Excalidraw drawing
+      - ✅ JSXGraph diagrams can provide context; ❌ NO questions requiring external images to understand
      * estimated_minutes (realistic timing, 1-15 min typical per card)
    - For cards addressing misconceptions, include misconceptions_addressed array with misconception + remediation
    - For cards with assessment focus, include rubric_guidance (total_points, criteria)
@@ -390,7 +406,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
    For EACH lesson entry (typically 10-20 entries):
    - Generate ONE entry with all required fields:
      * order (sequential: 1, 2, 3...)
-     * lesson_type (teach, practice, assessment, revision)
+     * lesson_type (teach, revision, formative_assessment, mock_exam)
      * label (clear, teacher-facing title indicating all covered standards)
      * policy (calculator usage, assessment notes)
      * coherence (block_name, block_index, prerequisites)
@@ -407,7 +423,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
    **7c) Pedagogical requirements (same as before)**:
    - Follow Course_data.txt `recommended_sequence` for unit ordering
    - Ensure within-block lesson cadence follows mandatory teach→revision pairing, then formative → practice
-   - Verify course-level requirements: at least one independent_practice and exactly one mock_assessment lesson exist
+   - Verify course-level requirements: exactly one mock_exam lesson exists
    - Use enriched assessmentStandardRefs (objects with code, description from Course_data.txt, outcome) - NOT bare codes
    - Incorporate Scottish engagement hooks (use WebSearch for authentic contexts), misconceptions, and accessibility strategies
    - Use lesson_instruction (NOT "notes") for teacher guidance about the overall lesson context
@@ -429,7 +445,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
      * Verify metadata fields all non-empty
      * Verify card counts (6-12 per entry)
      * Verify teach→revision pairing
-     * Verify course-level requirements (≥1 independent_practice, exactly 1 mock_assessment)
+     * Verify course-level requirements (exactly 1 mock_exam)
    - **VALIDATION OUTPUT**:
      * If ALL CHECKLIST ITEMS PASS: Say nothing, proceed silently to step 9
      * If ANY CHECKLIST ITEM FAILS: Display ONLY the failures (field names, specific issues) - not the full checklist. Then fix by reading the file, correcting the issues, and writing the updated file. Repeat until validation passes.
@@ -602,8 +618,7 @@ When designing a teach lesson for quadratic equations, search: "teaching quadrat
 - **Example**: "Percentages in Context" could combine AS1.1 (notation), AS1.2 (calculations), and AS2.1 (problem-solving) if they share authentic Scottish contexts (e.g., supermarket discounts)
 - **Lesson Type Requirements**:
   * Each teach lesson MUST be paired with a revision lesson (teach→revision)
-  * At course level: at least one independent_practice lesson (for mock exam prep)
-  * At course level: exactly one mock_assessment lesson (simulating real exam)
+  * At course level: exactly one mock_exam lesson (simulating real SQA exam conditions)
 
 **Expected Outcome**:
 - 10-20 lessons
@@ -616,7 +631,7 @@ When designing a teach lesson for quadratic equations, search: "teaching quadrat
 - Ensure each standard is meaningfully addressed (not just "touched")
 - Label must clearly indicate all covered standards
 - Ensure teach→revision pairing for every teach lesson
-- Include course-level mandatory lesson types (independent_practice, mock_assessment)
+- Include course-level mandatory lesson type: exactly one mock_exam
 </chunking_strategy>
 
 <subagents_available>
@@ -687,8 +702,7 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - ✅ Chunking strategy applied: 2-3 related assessment standards grouped into thematically coherent lessons (maximum 5 if justified)
 - ✅ Each consolidated lesson block has explicit multi-lesson sequence with lesson types
 - ✅ Every teach lesson has corresponding revision lesson (1:1 pairing, teach→revision)
-- ✅ Course includes at least one independent_practice lesson
-- ✅ Course includes exactly one mock_assessment lesson
+- ✅ Course includes exactly one mock_exam lesson (for real SQA exam simulation)
 - ✅ **ALL assessmentStandardRefs are enriched objects** (code, description from Course_data.txt EXACTLY, outcome) - NOT bare strings
 - ✅ **ALL card-level standards_addressed are enriched objects** (NOT bare codes)
 - ✅ **ALL CFU strategies are SPECIFIC** (NOT "ask questions" or generic phrases)
@@ -710,10 +724,9 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - **CHUNKING STRATEGY**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if pedagogically justified). Do NOT create separate lessons for each standard - consolidate!
 - **For each consolidated lesson block, create a multi-lesson sequence** with mandatory teach→revision pairing:
   * Every teach lesson MUST be immediately followed by a revision lesson
-  * After teach→revision pairs, include formative_assessment → independent_practice in the block sequence
+  * After teach→revision pairs, include formative_assessment in the block sequence
 - **COURSE-LEVEL MANDATORY LESSON TYPES**:
-  * At least one independent_practice lesson across the entire course (for mock exam preparation)
-  * Exactly one mock_assessment lesson across the entire course (simulating real SQA exam conditions)
+  * Exactly one mock_exam lesson across the entire course (simulating real SQA exam conditions)
 - **ENRICHMENT MANDATORY**: Always transform assessmentStandardRefs from bare codes into enriched objects with code, description (from Course_data.txt), and outcome reference.
 - **LESSON PLAN MANDATORY**: Every entry must have detailed lesson_plan with:
   * 6-12 cards in card_structure (appropriate for 25-50 min Scottish periods)
@@ -728,6 +741,7 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - **Required fields**: metadata, entries with order, label, lesson_type, coherence, policy, engagement_tags, outcomeRefs, assessmentStandardRefs (enriched objects), lesson_plan (detailed card_structure), accessibility_profile, estMinutes, lesson_instruction.
 - **Field naming**: Use lesson_instruction for overall teacher guidance.
 - Write valid JSON only (no comments or self-references).
+- **NO IMAGE-DEPENDENT QUESTIONS**: All CFU strategies must be answerable via text or simple Excalidraw drawings. Questions requiring external images/photographs that cannot be described in text are FORBIDDEN. See `<question_answerability_guidelines>`.
 </constraints>
 
 <quality_tips>
@@ -735,10 +749,9 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - Apply **chunking strategy**: Group 2-3 related assessment standards into thematically coherent lessons (maximum 5 if justified).
 - For **each consolidated lesson block**, create a multi-lesson sequence with teach→revision pairing:
   * Every teach lesson MUST be followed by a revision lesson (1:1 pairing)
-  * Then include formative_assessment → independent_practice
+  * Then include formative_assessment as needed
 - **COURSE-LEVEL REQUIREMENTS**: Ensure the complete SoW includes:
-  * At least one independent_practice lesson (for mock exam preparation)
-  * Exactly one mock_assessment lesson (for real-world exam simulation)
+  * Exactly one mock_exam lesson (for real-world SQA exam simulation)
 - **Enrich assessmentStandardRefs**: Use objects with code, description (from Course_data.txt), and outcome reference - NOT bare codes.
 - **Generate detailed lesson_plan**:
   * Design 6-12 cards per lesson with clear pedagogical progression
@@ -747,10 +760,85 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
   * Specify CFU strategies per card (MCQ, structured question, etc.) - NOT generic "ask questions"
   * Include rubric guidance for assessment-focused cards
   * Ensure card timings are realistic (typically 5-15 min per card)
-  * Use card_type progression: starter → explainer → modelling → guided_practice → independent_practice → exit_ticket
+  * Use card_type progression for teach/revision: starter → explainer → modelling → guided_practice → exit_ticket
+  * Use STREAMLINED card_type for formative_assessment/mock_exam: explainer (rules) → question_card → question_card → ...
 - Use `policy.calculator_section` to stage calculator progression: non_calc → mixed → calc.
 - Keep `coherence.block_index` ascending and transparent (e.g., "2.1", "2.2", "2.3").
 - Write clear `lesson_instruction` detailing overall lesson context (NOT card-by-card - that's in lesson_plan).
 - Align card contexts to Scottish authenticity (use WebSearch for authentic engagement examples).
 - Use WebSearch to find pedagogical patterns for varied card types (lesson starters, CFU strategies, misconceptions).
+- **CRITICAL**: All CFU strategies MUST follow `<question_answerability_guidelines>` - students must be able to answer via text or simple Excalidraw drawings.
 </quality_tips>
+
+<question_answerability_guidelines>
+
+## 🚨 CRITICAL: Question Answerability Requirements
+
+All CFUs and questions MUST be designed so students can answer using:
+1. **Text responses** (typed answers, calculations, explanations)
+2. **Simple Excalidraw drawings** (basic shapes, graphs, diagrams students can draw themselves)
+
+### ✅ ALLOWED Question Types
+
+**Text-Answerable** (All Subjects):
+- Calculations with numeric answers
+- Short written explanations and definitions
+- MCQ selections with text options
+- Step-by-step workings and reasoning
+- Naming, listing, or describing concepts
+
+**Excalidraw-Drawable** (Simple shapes students can draw):
+- Basic geometric shapes (triangles, rectangles, circles, angles)
+- Coordinate graphs with plotted points or lines
+- Simple bar charts, pie charts, or histograms
+- Number lines with marked points
+- Fraction models, area diagrams, Venn diagrams
+- Flowcharts, simple process diagrams, timelines
+- Basic scientific diagrams (simple circuits, food chains, cell diagrams with labels)
+
+**JSXGraph Context Diagrams** (ALWAYS ALLOWED):
+- System can display ANY JSXGraph diagram as question CONTEXT
+- Student answers via text or Excalidraw (not by manipulating JSXGraph)
+- Examples: coordinate planes, geometric figures, pre-rendered graphs
+- The displayed diagram provides context; the ANSWER uses text/Excalidraw
+
+### ❌ FORBIDDEN Question Types (Cannot Be Understood Without Complex Visual)
+
+**Questions requiring external images that CANNOT be described in text**:
+- "Identify the feature marked X on this photograph"
+- "Describe what you observe in this image"
+- "Interpret the expression on this historical figure's face"
+- "Identify the rock type shown in this geological photograph"
+
+**Questions requiring complex pre-generated diagrams with no text alternative**:
+- "Label the parts of this anatomical diagram" (unless diagram can be described)
+- "Identify components A-F on this circuit board photograph"
+- "Read the contour lines on this Ordnance Survey map section"
+
+**Questions where visual interpretation IS the skill being tested**:
+- "What artistic technique is demonstrated in this painting?"
+- "Identify the bias shown in this political cartoon"
+
+### Design Principle
+
+**RULE**: If the question CANNOT be understood without seeing a specific image/visual
+that cannot be adequately described in text or recreated as simple shapes,
+the question is NOT suitable for the AI tutoring platform.
+
+**EXCEPTION**: JSXGraph diagrams ARE allowed because:
+1. They are rendered programmatically (not uploaded images)
+2. They can be described in accompanying text
+3. The student's ANSWER uses text/Excalidraw, not the JSXGraph itself
+
+### Reframing Examples (All Subjects)
+
+| ❌ Image-Dependent | ✅ Text/Excalidraw-Answerable |
+|-------------------|------------------------------|
+| "Identify angle X in this diagram" | "A right-angled triangle has angles of 90°, 35°, and X. Calculate X. You may draw the triangle to help." |
+| "Mark Edinburgh on this map" | "Name the capital city of Scotland." |
+| "Read the data from this pie chart" | "A pie chart shows: SNP 45%, Labour 25%, Con 20%, Other 10%. What fraction voted SNP? You may draw the pie chart." |
+| "What rock type is shown in this photo?" | "Describe three characteristics of igneous rock that distinguish it from sedimentary rock." |
+| "Label parts A-E on this cell diagram" | "Draw and label a simple animal cell, including: nucleus, cell membrane, cytoplasm, and mitochondria." |
+| "Identify the bias in this newspaper headline image" | "The headline reads 'CHAOS as PM fails AGAIN'. Identify two words that show bias and explain why." |
+
+</question_answerability_guidelines>

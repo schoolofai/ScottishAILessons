@@ -110,12 +110,14 @@ For each context in card's `diagram_contexts`:
    - If context="lesson": Use card's `explainer` field content
    - If context="cfu": Use card's `cfu` field content
 
-2. **Generate Diagram** (`@diagram_generation_subagent`):
+2. **Generate Diagram(s)** (`@diagram_generation_subagent`):
    - Pass card data (id, title, explainer OR cfu, diagram_context)
    - **CRITICAL for CFU diagrams**: Instruct subagent to NOT include answers/solutions
-   - Receive JSXGraph JSON and **image_path** (file path to PNG in workspace/diagrams/)
+   - The subagent will analyze the content and identify ALL distinct visual elements
+   - If content contains multiple distinct visuals, the subagent will generate SEPARATE diagrams
+   - Receive JSXGraph JSON and **image_path** for EACH diagram (may be multiple entries)
 
-3. **Critique Diagram** (`@visual_critic_subagent`):
+3. **Critique Each Diagram** (`@visual_critic_subagent`):
    - Pass jsxgraph_json, **image_path**, card_content, and diagram_context
    - Visual critic will use Read tool to view the PNG file
    - Receive critique with score and feedback
