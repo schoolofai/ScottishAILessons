@@ -1,0 +1,35 @@
+{
+  "board": {
+    "boundingbox": [-6, 6, 6, -6],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "chart",
+      "args": [[25, 25, 25, 25]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#2E8B57", "#1976D2", "#FFA726", "#E57373"],
+        "center": [0, -0.5],
+        "radius": 3,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "highlightOnSector": true,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 4.5, "Favorite Colors Survey"],
+      "attributes": {
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    }
+  ]
+}

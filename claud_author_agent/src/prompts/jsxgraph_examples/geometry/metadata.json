@@ -1,0 +1,80 @@
+{
+  "category": "geometry",
+  "description": "Geometric shape visualizations including triangles, circles, angles, and polygons",
+  "templates": [
+    {
+      "file": "right_triangle.json",
+      "name": "Right-Angled Triangle",
+      "description": "Right triangle with hidden vertices, labeled vertices A/B/C, side lengths, and right angle marker",
+      "diagram_type": "geometry",
+      "use_cases": [
+        "Pythagorean theorem problems",
+        "Trigonometry (sin, cos, tan)",
+        "Finding unknown sides",
+        "Angle calculations"
+      ],
+      "curriculum_level": "N3-N5"
+    },
+    {
+      "file": "circle_with_radius.json",
+      "name": "Circle with Centre and Radius",
+      "description": "Circle with labelled centre O, radius line, and measurements",
+      "diagram_type": "geometry",
+      "use_cases": [
+        "Circle properties",
+        "Radius and diameter",
+        "Circumference calculations",
+        "Area of circle"
+      ],
+      "curriculum_level": "N4-N5"
+    },
+    {
+      "file": "angle_diagram.json",
+      "name": "Angle with Arc",
+      "description": "Two rays meeting at a vertex with angle arc and degree label",
+      "diagram_type": "geometry",
+      "use_cases": [
+        "Measuring angles",
+        "Types of angles (acute, right, obtuse)",
+        "Angle notation",
+        "Protractor reading"
+      ],
+      "curriculum_level": "N3-N5"
+    },
+    {
+      "file": "isosceles_triangle.json",
+      "name": "Isosceles Triangle",
+      "description": "Isosceles triangle with equal sides marked with tick marks",
+      "diagram_type": "geometry",
+      "use_cases": [
+        "Triangle properties",
+        "Equal sides identification",
+        "Angle symmetry",
+        "Perimeter calculations"
+      ],
+      "curriculum_level": "N3-N4"
+    },
+    {
+      "file": "parallel_lines.json",
+      "name": "Parallel Lines with Transversal",
+      "description": "Two parallel lines cut by a transversal showing corresponding angles",
+      "diagram_type": "geometry",
+      "use_cases": [
+        "Parallel lines properties",
+        "Corresponding angles",
+        "Alternate angles",
+        "Co-interior angles"
+      ],
+      "curriculum_level": "N4"
+    }
+  ],
+  "key_features": {
+    "hidden_vertices": "vertices: {visible: false} prevents auto-labels",
+    "custom_labels": "Text elements positioned near vertices instead of auto-labels",
+    "angle_arcs": "Use arc element for angle visualization",
+    "grid": "grid: true shows coordinate grid for reference"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01",
+  "source": "Custom - demonstrates hidden vertices pattern"
+}

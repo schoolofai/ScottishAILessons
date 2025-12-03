@@ -1,0 +1,41 @@
+{
+  "category": "bar_chart",
+  "description": "Bar chart visualizations for comparing categorical data",
+  "templates": [
+    {
+      "file": "vertical_bars.json",
+      "name": "Vertical Bar Chart",
+      "description": "Vertical bar chart using JSXGraph chart element with chartStyle: bar",
+      "diagram_type": "bar_chart",
+      "use_cases": [
+        "Frequency data",
+        "Category comparisons",
+        "Survey results",
+        "Data from tables"
+      ],
+      "curriculum_level": "N3-N5"
+    },
+    {
+      "file": "horizontal_bars.json",
+      "name": "Horizontal Bar Chart",
+      "description": "Horizontal bar chart using polygon rectangles for category data",
+      "diagram_type": "bar_chart",
+      "use_cases": [
+        "Category comparisons",
+        "Long category labels",
+        "Ranking data",
+        "Survey results"
+      ],
+      "curriculum_level": "N3-N5"
+    }
+  ],
+  "key_features": {
+    "element_type": "chart for vertical, polygon for horizontal",
+    "chart_style": "bar",
+    "axis_method": "axis elements for custom tick control"
+  },
+  "critical_warning": "Use type: chart with chartStyle: bar for vertical - polygon approach for horizontal",
+  "validated": true,
+  "validated_date": "2025-12-01",
+  "source": "JSXGraph Chart API documentation"
+}

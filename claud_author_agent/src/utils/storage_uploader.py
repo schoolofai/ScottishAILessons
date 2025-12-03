@@ -21,15 +21,114 @@ Usage:
     )
 """
 
+import asyncio
 import base64
 import hashlib
 import json
 import logging
+import ssl
 from pathlib import Path
 from typing import Optional
 from io import BytesIO
+from urllib3.exceptions import SSLError as Urllib3SSLError
 
 logger = logging.getLogger(__name__)
+
+# Retry configuration for transient network errors
+MAX_RETRIES = 5
+INITIAL_BACKOFF_SECONDS = 1.0
+BACKOFF_MULTIPLIER = 2.0
+MAX_BACKOFF_SECONDS = 30.0
+
+
+def is_transient_error(error: Exception) -> bool:
+    """Check if error is transient and worth retrying.
+
+    Args:
+        error: The exception to check
+
+    Returns:
+        True if error is transient (SSL, connection, timeout), False otherwise
+    """
+    error_str = str(error).lower()
+
+    # SSL/TLS errors
+    if 'ssl' in error_str or 'tls' in error_str:
+        return True
+
+    # Connection errors
+    if 'connection' in error_str or 'connect' in error_str:
+        return True
+
+    # Timeout errors
+    if 'timeout' in error_str or 'timed out' in error_str:
+        return True
+
+    # Max retries exceeded (urllib3)
+    if 'max retries exceeded' in error_str:
+        return True
+
+    # Bad record MAC (specific SSL error from user's issue)
+    if 'bad_record_mac' in error_str:
+        return True
+
+    # Check for urllib3 SSL errors
+    if isinstance(error, Urllib3SSLError):
+        return True
+
+    # Check for ssl module errors
+    if isinstance(error, ssl.SSLError):
+        return True
+
+    return False
+
+
+async def retry_with_backoff(func, *args, **kwargs):
+    """Execute function with exponential backoff retry logic.
+
+    Args:
+        func: Async or sync function to execute
+        *args: Positional arguments for func
+        **kwargs: Keyword arguments for func
+
+    Returns:
+        Result from func
+
+    Raises:
+        Exception: Last error if all retries exhausted
+    """
+    last_error = None
+    backoff = INITIAL_BACKOFF_SECONDS
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            # Handle both sync and async functions
+            result = func(*args, **kwargs)
+            if asyncio.iscoroutine(result):
+                result = await result
+            return result
+
+        except Exception as e:
+            last_error = e
+
+            if not is_transient_error(e):
+                # Non-transient error - fail fast
+                logger.error(f"Non-transient error, not retrying: {e}")
+                raise
+
+            if attempt < MAX_RETRIES:
+                logger.warning(
+                    f"Transient error on attempt {attempt}/{MAX_RETRIES}: {e}. "
+                    f"Retrying in {backoff:.1f}s..."
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF_SECONDS)
+            else:
+                logger.error(
+                    f"All {MAX_RETRIES} retry attempts exhausted. Last error: {e}"
+                )
+
+    raise last_error
 
 # Appwrite Storage bucket ID for diagram images
 DIAGRAM_IMAGE_BUCKET_ID = "6907775a001b754c19a6"
@@ -188,8 +287,9 @@ async def upload_diagram_image(
             mime_type="image/png"
         )
 
-        # Upload to Storage bucket
-        try:
+        # Upload to Storage bucket with retry logic for transient errors
+        async def do_upload() -> str:
+            """Perform the actual upload (wrapped for retry)."""
             # Check if file already exists and delete it (for overwrite behavior)
             try:
                 existing_file = storage.get_file(
@@ -210,14 +310,24 @@ async def upload_diagram_image(
                     # Other error during existence check
                     raise
 
+            # Need to recreate InputFile for each retry (consumed on first attempt)
+            retry_input_file = InputFile.from_bytes(
+                image_binary,
+                filename=f"{file_id}.png",
+                mime_type="image/png"
+            )
+
             # Upload new file
             result = storage.create_file(
                 bucket_id=DIAGRAM_IMAGE_BUCKET_ID,
                 file_id=file_id,
-                file=input_file
+                file=retry_input_file
             )
 
-            uploaded_file_id = result['$id']
+            return result['$id']
+
+        try:
+            uploaded_file_id = await retry_with_backoff(do_upload)
 
             logger.info(
                 f"✓ Image uploaded successfully: {uploaded_file_id} "

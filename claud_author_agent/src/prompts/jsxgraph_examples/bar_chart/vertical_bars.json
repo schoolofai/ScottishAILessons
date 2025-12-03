@@ -1,0 +1,47 @@
+{
+  "board": {
+    "boundingbox": [-1, 12, 6, -2],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false
+  },
+  "elements": [
+    {
+      "type": "axis",
+      "args": [[0, 0], [1, 0]],
+      "attributes": {
+        "ticks": {"drawLabels": false, "majorHeight": 0},
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "axis",
+      "args": [[0, 0], [0, 1]],
+      "attributes": {
+        "ticks": {"drawLabels": true, "ticksDistance": 2},
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "chart",
+      "args": [[8, 6, 10, 4]],
+      "attributes": {
+        "chartStyle": "bar",
+        "width": 0.6,
+        "labels": ["8", "6", "10", "4"],
+        "colorArray": ["#0066CC", "#28a745", "#DC3545", "#FFA500"],
+        "fillOpacity": 0.85
+      }
+    },
+    {
+      "type": "text",
+      "args": [2.5, 11, "Survey Results"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#000000"
+      }
+    }
+  ]
+}

@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { DiagramDriver } from '@/lib/appwrite/driver/DiagramDriver';
+import { ImageZoomModal } from '@/components/ui/image-zoom-modal';
+import { Expand } from 'lucide-react';
 
 interface DiagramData {
   image_file_id: string;
@@ -49,6 +51,7 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [zoomModalOpen, setZoomModalOpen] = useState(false);
 
     useEffect(() => {
       const fetchDiagrams = async () => {
@@ -222,23 +225,45 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
             )}
           </div>
 
-          {/* Diagram Image */}
-          <div className="bg-white rounded-lg p-4 shadow-sm">
+          {/* Diagram Image - Clickable to expand */}
+          <div
+            className="bg-white rounded-lg p-4 shadow-sm relative group cursor-zoom-in"
+            onClick={() => setZoomModalOpen(true)}
+          >
             <img
               src={currentDiagram.url}
               alt={currentDiagram.title}
-              className="max-w-full h-auto rounded"
+              className="max-w-full h-auto rounded transition-transform"
               style={{ maxHeight: '400px', margin: '0 auto', display: 'block' }}
             />
+            {/* Persistent expand badge - top right corner */}
+            <div className="absolute top-6 right-6 bg-blue-600 text-white p-2 rounded-full shadow-lg group-hover:scale-110 transition-transform">
+              <Expand className="h-4 w-4" />
+            </div>
+            {/* Expand overlay on hover */}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors rounded-lg pointer-events-none">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium shadow-lg">
+                <Expand className="h-4 w-4" />
+                <span>Click to expand</span>
+              </div>
+            </div>
           </div>
 
           {/* Context hint */}
           <p className="text-sm text-blue-600">
             💡 {allDiagrams.length > 1
-              ? `Use the navigation buttons to view all ${allDiagrams.length} diagrams for this lesson`
-              : 'This diagram illustrates the concepts we\'ll explore in this lesson'}
+              ? `Click any diagram to expand • Use navigation to view all ${allDiagrams.length} diagrams`
+              : 'Click the diagram to expand and zoom • Pinch or scroll to zoom'}
           </p>
         </div>
+
+        {/* Zoom Modal */}
+        <ImageZoomModal
+          open={zoomModalOpen}
+          onOpenChange={setZoomModalOpen}
+          images={allDiagrams}
+          initialIndex={currentIndex}
+        />
       </div>
     );
   }

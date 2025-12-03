@@ -25,6 +25,8 @@ import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { DiagramDriver } from "@/lib/appwrite/driver/DiagramDriver";
 import { StudentDrawingStorageDriver } from "@/lib/appwrite/driver/StudentDrawingStorageDriver";
+import { ImageZoomModal } from "@/components/ui/image-zoom-modal";
+import { Expand } from "lucide-react";
 import { useAppwrite } from "@/lib/appwrite/hooks/useAppwrite";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { DrawingModal } from "@/components/ui/drawing-modal";
@@ -132,9 +134,11 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
     const [isUploadingDrawing, setIsUploadingDrawing] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
 
-    // Diagram state - for fetching and displaying lesson diagrams
-    const [diagramUrl, setDiagramUrl] = useState<string | null>(null);
+    // CFU Diagram state - for fetching and displaying multiple CFU diagrams with carousel
+    const [cfuDiagrams, setCfuDiagrams] = useState<Array<{ url: string; title: string; type?: string }>>([]);
+    const [currentCfuDiagramIndex, setCurrentCfuDiagramIndex] = useState<number>(0);
     const [diagramLoading, setDiagramLoading] = useState<boolean>(false);
+    const [cfuDiagramModalOpen, setCfuDiagramModalOpen] = useState(false);
 
     // Stem renderer component for proper markdown, LaTeX, and table formatting
     const StemRenderer = ({ stem, className }: { stem: string; className?: string }) => {
@@ -232,7 +236,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       };
     }, [args.card_data?.id, args.card_index, args.total_cards, args.lesson_context, setCurrentCard]);
 
-    // Fetch diagram for current card
+    // Fetch ALL CFU diagrams for current card (supports multiple diagrams with carousel)
     useEffect(() => {
       // Extract lessonTemplateId from various possible locations
       const lessonTemplateId =
@@ -242,7 +246,7 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
       const cardId = args.card_data?.id;
 
-      console.log('📊 DiagramFetch - Attempting to fetch diagram:', {
+      console.log('📊 CFU DiagramFetch - Attempting to fetch diagrams:', {
         lessonTemplateId,
         cardId,
         hasLessonTemplateId: !!lessonTemplateId,
@@ -251,41 +255,48 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
       // Only fetch if we have both required IDs
       if (!lessonTemplateId || !cardId) {
-        console.warn('⚠️ DiagramFetch - Missing required IDs, skipping diagram fetch');
+        console.warn('⚠️ CFU DiagramFetch - Missing required IDs, skipping diagram fetch');
         return;
       }
 
-      const fetchDiagram = async () => {
+      const fetchDiagrams = async () => {
         setDiagramLoading(true);
         try {
-          console.log('🔍 DiagramFetch - Querying Appwrite for CFU diagram...');
+          console.log('🔍 CFU DiagramFetch - Querying Appwrite for ALL CFU diagrams...');
           // Initialize driver without session token (Storage bucket must have public read permissions)
-          // Alternative: Pass session token if bucket is private: new DiagramDriver(sessionToken)
           const driver = new DiagramDriver();
-          const result = await driver.getCFUDiagramWithPreviewUrl(lessonTemplateId, cardId);
+          const diagrams = await driver.getAllDiagramsForCardByContext(lessonTemplateId, cardId, 'cfu');
 
-          if (result) {
-            console.log('✅ DiagramFetch - CFU diagram found:', {
-              fileId: result.diagram.image_file_id,
-              previewUrl: result.previewUrl,
-              diagramType: result.diagram.diagram_type,
-              diagramContext: result.diagram.diagram_context
+          if (diagrams.length > 0) {
+            console.log(`✅ CFU DiagramFetch - Found ${diagrams.length} CFU diagram(s)`);
+
+            // Transform to format expected by carousel and ImageZoomModal
+            const formattedDiagrams = diagrams.map((diagram, index) => {
+              const previewUrl = driver.getStoragePreviewUrl(diagram.image_file_id);
+              console.log(`  Added CFU diagram ${index}: ${diagram.image_file_id}`);
+              return {
+                url: previewUrl,
+                title: `CFU Diagram ${index + 1}`,
+                type: diagram.diagram_type
+              };
             });
-            setDiagramUrl(result.previewUrl);
+
+            setCfuDiagrams(formattedDiagrams);
+            setCurrentCfuDiagramIndex(0); // Reset to first diagram
           } else {
-            console.log('ℹ️ DiagramFetch - No diagram exists for this card (expected for cards without diagrams)');
-            setDiagramUrl(null);
+            console.log('ℹ️ CFU DiagramFetch - No diagrams exist for this card (expected for cards without diagrams)');
+            setCfuDiagrams([]);
           }
         } catch (error) {
-          console.error('❌ DiagramFetch - Failed to fetch diagram:', error);
-          // Silent fail - no diagram shown (graceful degradation)
-          setDiagramUrl(null);
+          console.error('❌ CFU DiagramFetch - Failed to fetch diagrams:', error);
+          // Silent fail - no diagrams shown (graceful degradation)
+          setCfuDiagrams([]);
         } finally {
           setDiagramLoading(false);
         }
       };
 
-      fetchDiagram();
+      fetchDiagrams();
     }, [args.card_data?.id, (args as any).lesson_template_id, (args as any).lesson_snapshot?.lessonTemplateId, args.lesson_context?.lesson_template_id]);
 
     // ✅ NEW: Prepopulate from previous attempt on retry
@@ -666,20 +677,87 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               Your Turn to Answer
             </h3>
 
-            {/* Diagram Display - shown above question if available */}
-            {diagramUrl && (
-              <div className="mb-6">
-                <img
-                  src={diagramUrl}
-                  alt={`Diagram for ${card_data.title}`}
-                  className="w-full max-w-2xl mx-auto rounded-lg border border-gray-200 shadow-sm"
-                  loading="lazy"
-                  onError={(e) => {
-                    console.error('❌ DiagramRender - Failed to load diagram image:', diagramUrl);
-                    // Hide image on load error (graceful degradation)
-                    setDiagramUrl(null);
-                  }}
-                />
+            {/* CFU Diagram Display with Carousel - shown above question if diagrams available */}
+            {cfuDiagrams.length > 0 && (
+              <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                {/* Header with title and carousel navigation */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📐</span>
+                    <h4 className="font-semibold text-orange-900">
+                      {cfuDiagrams[currentCfuDiagramIndex]?.title || 'CFU Diagram'}
+                    </h4>
+                    {cfuDiagrams[currentCfuDiagramIndex]?.type && (
+                      <span className="text-xs px-2 py-1 bg-orange-200 text-orange-700 rounded">
+                        {cfuDiagrams[currentCfuDiagramIndex].type}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Carousel controls (only show if multiple diagrams) */}
+                  {cfuDiagrams.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentCfuDiagramIndex(prev =>
+                          prev > 0 ? prev - 1 : cfuDiagrams.length - 1
+                        )}
+                        className="px-2 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors"
+                        aria-label="Previous diagram"
+                      >
+                        ← Prev
+                      </button>
+                      <span className="text-sm text-orange-700 font-medium">
+                        {currentCfuDiagramIndex + 1} / {cfuDiagrams.length}
+                      </span>
+                      <button
+                        onClick={() => setCurrentCfuDiagramIndex(prev =>
+                          prev < cfuDiagrams.length - 1 ? prev + 1 : 0
+                        )}
+                        className="px-2 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors"
+                        aria-label="Next diagram"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Diagram Image - Clickable to expand */}
+                <div
+                  className="relative group cursor-zoom-in bg-white rounded-lg p-3 shadow-sm"
+                  onClick={() => setCfuDiagramModalOpen(true)}
+                >
+                  <img
+                    src={cfuDiagrams[currentCfuDiagramIndex]?.url}
+                    alt={cfuDiagrams[currentCfuDiagramIndex]?.title || `Diagram for ${card_data.title}`}
+                    className="max-w-full h-auto rounded transition-transform mx-auto"
+                    style={{ maxHeight: '350px', display: 'block' }}
+                    loading="lazy"
+                    onError={(e) => {
+                      console.error('❌ DiagramRender - Failed to load diagram image:', cfuDiagrams[currentCfuDiagramIndex]?.url);
+                      // Remove failed diagram from array (graceful degradation)
+                      setCfuDiagrams(prev => prev.filter((_, i) => i !== currentCfuDiagramIndex));
+                    }}
+                  />
+                  {/* Persistent expand badge - top right corner */}
+                  <div className="absolute top-5 right-5 bg-orange-500 text-white p-2 rounded-full shadow-lg group-hover:scale-110 transition-transform">
+                    <Expand className="h-4 w-4" />
+                  </div>
+                  {/* Expand overlay on hover */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors rounded-lg pointer-events-none">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-orange-500 text-white px-4 py-2 rounded-full flex items-center gap-2 text-sm font-medium shadow-lg">
+                      <Expand className="h-4 w-4" />
+                      <span>Click to expand</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Context hint */}
+                <p className="text-xs text-orange-600 mt-2 text-center">
+                  💡 {cfuDiagrams.length > 1
+                    ? `Click to expand • Use navigation to view all ${cfuDiagrams.length} diagrams`
+                    : 'Click to expand and zoom • Pinch or scroll to zoom'}
+                </p>
               </div>
             )}
 
@@ -1129,6 +1207,16 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           }}
           stem={card_data.cfu.stem}
           initialSceneData={studentDrawingSceneData} // Pass scene data for editable restoration
+        />
+      )}
+
+      {/* CFU Diagram Zoom Modal with Carousel Support */}
+      {cfuDiagrams.length > 0 && (
+        <ImageZoomModal
+          open={cfuDiagramModalOpen}
+          onOpenChange={setCfuDiagramModalOpen}
+          images={cfuDiagrams}
+          initialIndex={currentCfuDiagramIndex}
         />
       )}
       </>

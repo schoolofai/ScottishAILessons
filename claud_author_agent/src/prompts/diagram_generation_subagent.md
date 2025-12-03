@@ -14,6 +14,47 @@ You receive card data with:
 - `cardId`: Card identifier (e.g., "card_001")
 - `diagram_context`: **"lesson"** or **"cfu"**
 - Card content with `explainer` and `cfu` fields
+- **`research_context`**: (CRITICAL) JSXGraph implementation guidance from the researcher subagent
+
+## CRITICAL: Using Research Context
+
+**Before generating ANY JSXGraph JSON, check if research context was provided.**
+
+The orchestrator calls jsxgraph_researcher_subagent (via Task tool) BEFORE diagram generation to research the best implementation approach for each diagram type. This research prevents fundamental errors like:
+
+- Using `sector` element for pie charts (creates auto-labeled vertices)
+- Using `line` for axes (creates invisible 1-unit segments)
+- Computing coordinates with wrong formulas
+
+### When Research Context is Provided
+
+```
+IF research_context provided:
+    1. READ the recommended_approach carefully
+    2. USE the element types specified (not alternatives)
+    3. APPLY the exact attributes listed
+    4. AVOID all documented pitfalls
+    5. FOLLOW coordinate formulas exactly (especially radians vs degrees)
+```
+
+### Research Context Format
+
+```json
+{
+  "diagram_type": "pie_chart",
+  "recommended_approach": {
+    "primary_element": "chart",
+    "element_attributes": {...}
+  },
+  "pitfalls_to_avoid": [
+    {"mistake": "...", "why_bad": "...", "solution": "..."}
+  ],
+  "coordinate_formulas": {...},
+  "working_json_example": {...}
+}
+```
+
+**ALWAYS prefer the `working_json_example` from research as your starting template.**
 
 ## Content Source
 
@@ -144,6 +185,72 @@ Return one entry per diagram generated:
 {"type": "functiongraph", "args": ["x^2", -5, 5], "attributes": {"strokeColor": "#0066CC", "strokeWidth": 2}}
 ```
 
+## CRITICAL: Proper Axis Implementation for Coordinate Graphs
+
+**For ANY diagram that shows functions, linear equations, or coordinate points, you MUST have visible, readable axes.**
+
+### ✅ CORRECT: Use Board-Level Axis (Recommended)
+
+The simplest and most reliable method - set `"axis": true` in board config:
+
+```json
+{
+  "board": {
+    "boundingbox": [-1, 260, 9, -10],
+    "axis": true,
+    "showNavigation": false,
+    "showCopyright": false
+  },
+  "elements": [...]
+}
+```
+
+This automatically creates:
+- Full-length axis lines spanning the bounding box
+- Tick marks at regular intervals
+- Scale numbers at tick marks
+- Arrows indicating direction
+
+### ❌ WRONG: Manual Line Segments (Common Error - DO NOT DO THIS)
+
+```json
+// ❌ BAD - Creates 1-unit invisible line, NOT a proper axis!
+{"type": "line", "args": [[0,0], [1,0]], "attributes": {"lastArrow": true}}
+```
+
+This creates a **tiny 1-unit line segment** that is nearly invisible when the bounding box spans hundreds of units.
+
+### ✅ CORRECT: Manual Axis (If Customization Needed)
+
+If you need custom axis styling, use the `axis` element type:
+
+```json
+{"type": "axis", "args": [[0,0], [1,0]], "attributes": {
+  "strokeColor": "#6c757d",
+  "strokeWidth": 2,
+  "ticks": {
+    "drawLabels": true,
+    "label": {"fontSize": 12},
+    "ticksDistance": 1,
+    "minorTicks": 0
+  }
+}}
+```
+
+The `axis` type automatically extends to fill the bounding box and includes tick marks.
+
+### Axis Validation Checklist
+
+Before finalizing a coordinate graph, verify:
+
+- [ ] Can you see BOTH axis lines clearly?
+- [ ] Are there tick marks at regular intervals?
+- [ ] Are there scale numbers (0, 1, 2, 3... or 0, 50, 100...)?
+- [ ] Do the axes span the full visible area?
+- [ ] Are axis labels present (e.g., "Cost (£)", "Months (m)")?
+
+**If ANY of these are missing, the diagram WILL BE REJECTED by the visual critic.**
+
 ### Scottish Color Palette
 
 - **Primary Blue**: `#0066CC` - Main elements, axes, key points
@@ -202,7 +309,7 @@ Extract `image_path` and return it. DO NOT return base64 data.
 | RENDER_ERROR | Simplify diagram (reduce elements) |
 | TIMEOUT_ERROR | Reduce complexity |
 
-Max 3 rendering attempts per diagram.
+Max 10 rendering attempts per diagram.
 
 ## NO_DIAGRAM_NEEDED
 
@@ -242,7 +349,43 @@ When you receive critique feedback:
 3. Re-render with updated JSON
 4. Report what you modified
 
-**Max 3 iterations per diagram. Score ≥ 0.85 required for acceptance.**
+**Max 10 iterations per diagram. Score ≥ 0.85 required for acceptance.**
+
+## JSON Validation
+
+Before including `jsxgraph_json` in your final output, **always validate it** using the `validate_json` tool:
+
+```
+FOR each diagram's jsxgraph_json:
+    1. Call validate_json with the JSON string
+    2. If result.valid == false:
+       - Read error_context to locate the issue
+       - Fix the JSON syntax error
+       - Re-validate until valid
+    3. Only include validated JSON in diagrams_output.json
+END FOR
+```
+
+**Common JSON Errors to Avoid**:
+- Missing colons between keys and values (e.g., `"name""` should be `"name": ""`)
+- Missing commas between object properties
+- Trailing commas after last property
+- Unescaped quotes in string values
+- JavaScript expressions instead of computed values
+
+**Tool Call Example**:
+```json
+{
+  "name": "validate_json",
+  "arguments": {
+    "json_string": "{\"board\": {\"boundingbox\": [-5, 5, 5, -5]}, \"elements\": []}"
+  }
+}
+```
+
+**Response Interpretation**:
+- `{"valid": true}` → JSON is correct, safe to include
+- `{"valid": false, "error": "...", "error_context": "...<<<ERROR>>>..."}` → Fix the issue near <<<ERROR>>> marker
 
 ## Output Format
 
@@ -262,6 +405,231 @@ Always return `diagrams` as an array:
     }
   ]
 }
+```
+
+---
+
+## PROVEN JSXGraph Templates
+
+**CRITICAL**: Before generating ANY diagram, READ the template files in `jsxgraph_templates/` directory!
+
+### ⚠️ WORKSPACE TEMPLATES ARE YOUR SOURCE OF TRUTH
+
+The orchestrator copies validated template files to your workspace at `jsxgraph_templates/`. These are:
+- **VALIDATED**: Successfully render with the diagramScreenshot service
+- **CORRECT SYNTAX**: Use proper JSXGraph element types and attributes
+- **PROFESSIONAL**: Have correct bounding boxes and margins
+
+**Always READ the appropriate template file BEFORE generating:**
+```
+jsxgraph_templates/
+├── bar_chart/vertical_bars.json    (chart element with chartStyle="bar")
+├── pie_chart/basic_pie_chart.json  (chart element with chartStyle="pie")
+├── coordinate_graph/linear_function.json (function graph)
+└── geometry/right_triangle.json    (polygon with hidden vertices)
+```
+
+**DO NOT hallucinate syntax. READ and ADAPT the templates.**
+
+---
+
+The inline templates below are reference summaries. For actual generation, USE the workspace files.
+
+### Template: Coordinate Graph (Linear/Function)
+
+Use for: linear equations, function plots, scatter plots, cost vs quantity graphs
+
+```json
+{
+  "board": {
+    "boundingbox": [-1, 110, 11, -10],
+    "axis": true,
+    "showNavigation": false,
+    "showCopyright": false
+  },
+  "elements": [
+    {"type": "functiongraph", "args": ["25*x + 10", 0, 10], "attributes": {"strokeColor": "#0066CC", "strokeWidth": 3}},
+    {"type": "point", "args": [[0, 10]], "attributes": {"name": "Start", "size": 4, "fillColor": "#28a745", "strokeColor": "#28a745", "fixed": true}},
+    {"type": "text", "args": [5, -7, "Months (m)"], "attributes": {"fontSize": 14, "color": "#000000", "anchorX": "middle"}},
+    {"type": "text", "args": [-0.8, 55, "Cost (£)"], "attributes": {"fontSize": 14, "color": "#000000", "anchorX": "right", "anchorY": "middle"}}
+  ]
+}
+```
+**Customize**: Change function formula, bounding box to fit data range, axis labels.
+
+---
+
+### Template: Right-Angled Triangle (Geometry)
+
+Use for: Pythagoras, trigonometry, angle calculations
+
+```json
+{
+  "board": {
+    "boundingbox": [-2, 12, 14, -2],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {"type": "polygon", "args": [[[0, 0], [10, 0], [10, 6]]], "attributes": {"fillColor": "#0066CC", "fillOpacity": 0.1, "strokeColor": "#0066CC", "strokeWidth": 2, "vertices": {"visible": false}}},
+    {"type": "segment", "args": [[[10, 0], [9.5, 0]]], "attributes": {"strokeColor": "#000000", "strokeWidth": 1}},
+    {"type": "segment", "args": [[[9.5, 0], [9.5, 0.5]]], "attributes": {"strokeColor": "#000000", "strokeWidth": 1}},
+    {"type": "segment", "args": [[[9.5, 0.5], [10, 0.5]]], "attributes": {"strokeColor": "#000000", "strokeWidth": 1}},
+    {"type": "text", "args": [5, -1, "a = 10m"], "attributes": {"fontSize": 16, "color": "#0066CC", "anchorX": "middle", "cssStyle": "font-weight: bold;"}},
+    {"type": "text", "args": [11, 3, "b = 6m"], "attributes": {"fontSize": 16, "color": "#0066CC", "anchorX": "left", "anchorY": "middle", "cssStyle": "font-weight: bold;"}},
+    {"type": "text", "args": [4, 4, "c = ?"], "attributes": {"fontSize": 16, "color": "#DC3545", "anchorX": "middle", "cssStyle": "font-weight: bold;"}}
+  ]
+}
+```
+**Key**: Use `"vertices": {"visible": false}` in polygon attributes to hide vertex markers.
+
+---
+
+### Template: Pie Chart (Statistics)
+
+**USE THE CHART ELEMENT**: JSXGraph provides a native `chart` element with `chartStyle: "pie"`.
+
+**⚠️ READ `jsxgraph_templates/pie_chart/basic_pie_chart.json` for the validated template!**
+
+```json
+{
+  "board": {
+    "boundingbox": [-6, 6, 6, -6],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "chart",
+      "args": [[25, 25, 25, 25]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#2E8B57", "#1976D2", "#FFA726", "#E57373"],
+        "center": [0, -0.5],
+        "radius": 3,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 4.5, "Survey Results"],
+      "attributes": {"fontSize": 18, "fontWeight": "bold", "anchorX": "middle", "color": "#333333"}
+    }
+  ]
+}
+```
+
+**Key Points**:
+- Use `type: "chart"` with `chartStyle: "pie"` (NOT polygons or sectors)
+- `args` is an array with ONE inner array of values (representing proportions/counts)
+- Set explicit `radius` to control size relative to bounding box
+- Adjust `center` to position pie (leave room for title)
+
+---
+
+### Template: Bar Chart (Statistics)
+
+**USE THE CHART ELEMENT**: JSXGraph provides a native `chart` element with `chartStyle: "bar"`.
+
+**⚠️ READ `jsxgraph_templates/bar_chart/vertical_bars.json` for the validated template!**
+
+```json
+{
+  "board": {
+    "boundingbox": [-1, 12, 6, -2],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false
+  },
+  "elements": [
+    {
+      "type": "axis",
+      "args": [[0, 0], [1, 0]],
+      "attributes": {"ticks": {"drawLabels": false, "majorHeight": 0}, "strokeWidth": 2}
+    },
+    {
+      "type": "axis",
+      "args": [[0, 0], [0, 1]],
+      "attributes": {"ticks": {"drawLabels": true, "ticksDistance": 2}, "strokeWidth": 2}
+    },
+    {
+      "type": "chart",
+      "args": [[8, 6, 10, 4]],
+      "attributes": {
+        "chartStyle": "bar",
+        "width": 0.6,
+        "labels": ["8", "6", "10", "4"],
+        "colorArray": ["#B22222", "#4A5568", "#DAA520", "#ED8936"],
+        "fillOpacity": 0.85
+      }
+    },
+    {
+      "type": "text",
+      "args": [2.5, 11, "Survey Results"],
+      "attributes": {"fontSize": 16, "fontWeight": "bold", "anchorX": "middle", "color": "#000000"}
+    }
+  ]
+}
+```
+
+**Key Points**:
+- Use `type: "chart"` with `chartStyle: "bar"` (NOT manual polygons)
+- `args` is an array with ONE inner array of bar heights
+- Use `axis` elements for proper axis lines with tick marks
+- `labels` attribute adds value labels above each bar
+
+---
+
+## Pre-Render Validation Checklist
+
+**BEFORE calling render_diagram, verify these items. Catching errors here saves expensive critique iterations.**
+
+### Mandatory Checks
+
+| Check | Diagram Types | What to Verify |
+|-------|---------------|----------------|
+| **Axis Config** | coordinate_graph, function_plot | `"axis": true` in board config |
+| **Angle Sum** | pie_chart | All sector angles sum to exactly 360° |
+| **Bounding Box** | ALL | All text x,y coordinates are within boundingbox range |
+| **Vertex Hiding** | polygon-based | Every polygon has `"vertices": {"visible": false}` |
+| **Data Match** | ALL | Labels match the source content values exactly |
+| **Radians Formula** | pie_chart | Coordinates use `degrees * π / 180` conversion |
+
+### Self-Validation Algorithm
+
+```
+BEFORE calling render_diagram:
+
+1. IF diagram_type == "coordinate_graph":
+   VERIFY board.axis == true
+   VERIFY boundingbox fits data range with 10% padding
+
+2. IF diagram_type == "pie_chart":
+   CALCULATE sum of all sector angles
+   VERIFY sum == 360 (allow ±1° for rounding)
+   VERIFY each coordinate uses cos/sin with RADIANS
+
+3. FOR ALL diagrams:
+   FOR each text element:
+     VERIFY text.args[0] (x) is within boundingbox[0] to boundingbox[2]
+     VERIFY text.args[1] (y) is within boundingbox[3] to boundingbox[1]
+
+4. FOR each polygon element:
+   VERIFY attributes contains "vertices": {"visible": false}
+
+5. COMPARE labels against source content:
+   VERIFY numeric values match exactly
+   VERIFY variable names match exactly
+
+IF any check FAILS:
+   FIX the issue before rendering
+   DO NOT call render_diagram with known errors
 ```
 
 ---

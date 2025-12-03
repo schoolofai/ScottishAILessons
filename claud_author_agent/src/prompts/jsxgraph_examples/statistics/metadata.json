@@ -1,0 +1,40 @@
+{
+  "category": "statistics",
+  "description": "Statistical visualizations including frequency tables, pictograms, and data displays",
+  "templates": [
+    {
+      "file": "frequency_table.json",
+      "name": "Frequency Table",
+      "description": "Two-column table showing scores and their frequencies with totals",
+      "diagram_type": "statistics",
+      "use_cases": [
+        "Frequency data display",
+        "Tally chart results",
+        "Survey data",
+        "Grouped data"
+      ],
+      "curriculum_level": "N4-N5"
+    },
+    {
+      "file": "pictogram.json",
+      "name": "Pictogram",
+      "description": "Data displayed using repeated symbols with a key",
+      "diagram_type": "statistics",
+      "use_cases": [
+        "Pictograph reading",
+        "Symbol-based data",
+        "Simple data comparison",
+        "Early data handling"
+      ],
+      "curriculum_level": "N2-N3"
+    }
+  ],
+  "key_features": {
+    "table_lines": "Line elements for grid structure",
+    "header_styling": "Polygon with fill color for headers",
+    "symbols": "Circle elements for pictogram symbols",
+    "key_text": "Text element explaining symbol value"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01"
+}

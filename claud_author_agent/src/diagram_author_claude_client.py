@@ -37,6 +37,7 @@ from .utils.diagram_upserter import batch_upsert_diagrams
 from .utils.diagram_validator import validate_diagram_output_schema
 from .eligibility_analyzer_agent import EligibilityAnalyzerAgent
 from .tools.diagram_screenshot_tool import create_diagram_screenshot_server_with_workspace, check_diagram_service_health
+from .tools.json_validator_mcp_tool import json_validator_server
 
 logger = logging.getLogger(__name__)
 
@@ -107,12 +108,16 @@ class DiagramAuthorClaudeAgent:
             FileNotFoundError: If prompt files are missing
 
         Note:
-            2 subagents: diagram_generation_subagent, visual_critic_subagent
+            3 subagents: jsxgraph_researcher_subagent, diagram_generation_subagent, visual_critic_subagent
         """
         prompts_dir = Path(__file__).parent / "prompts"
 
-        # Load 2 subagent prompts
+        # Load 3 subagent prompts
         subagents = {
+            "jsxgraph_researcher_subagent": AgentDefinition(
+                description="JSXGraph researcher subagent for researching best implementation approaches BEFORE diagram generation. Use this to find correct element types, attributes, and avoid common pitfalls.",
+                prompt=(prompts_dir / "jsxgraph_researcher_subagent.md").read_text()
+            ),
             "diagram_generation_subagent": AgentDefinition(
                 description="Diagram generation subagent for creating JSXGraph visualizations and rendering PNG images",
                 prompt=(prompts_dir / "diagram_generation_subagent.md").read_text()
@@ -125,6 +130,51 @@ class DiagramAuthorClaudeAgent:
 
         logger.info(f"Loaded {len(subagents)} subagent definitions")
         return subagents
+
+    def _copy_jsxgraph_templates_to_workspace(self, workspace_path: Path) -> Dict[str, Any]:
+        """Copy validated JSXGraph templates to workspace for agent reference.
+
+        This enables the agent to READ actual validated template files instead of
+        relying on inline examples in prompts, which prevents hallucination of
+        incorrect JSXGraph syntax.
+
+        Args:
+            workspace_path: Path to the isolated workspace directory
+
+        Returns:
+            dict with:
+                - copied: bool (success status)
+                - path: str or None (template directory path)
+                - inventory: dict (category -> list of files)
+        """
+        import shutil
+
+        templates_source = Path(__file__).parent / "prompts" / "jsxgraph_examples"
+        templates_dest = workspace_path / "jsxgraph_templates"
+
+        if not templates_source.exists():
+            logger.warning(f"JSXGraph templates not found at {templates_source}")
+            return {"copied": False, "path": None, "inventory": {}}
+
+        # Copy entire directory tree (preserves structure)
+        shutil.copytree(templates_source, templates_dest)
+
+        # Build inventory for logging
+        template_inventory = {}
+        for category_dir in templates_dest.iterdir():
+            if category_dir.is_dir():
+                files = list(category_dir.glob("*"))
+                template_inventory[category_dir.name] = [f.name for f in files]
+
+        logger.info(f"✅ Copied JSXGraph templates to {templates_dest}")
+        for category, files in template_inventory.items():
+            logger.info(f"   {category}/: {', '.join(files)}")
+
+        return {
+            "copied": True,
+            "path": str(templates_dest),
+            "inventory": template_inventory
+        }
 
     async def execute(
         self,
@@ -251,6 +301,16 @@ class DiagramAuthorClaudeAgent:
                     json.dump(lesson_template, f, indent=2)
                 logger.info(f"✅ lesson_template.json written to workspace")
 
+                # ═══════════════════════════════════════════════════════════════
+                # PRE-PROCESSING: Copy validated JSXGraph templates to workspace
+                # ═══════════════════════════════════════════════════════════════
+                # Templates enable the agent to READ actual validated JSON files
+                # instead of relying on inline examples which may be hallucinated.
+                template_result = self._copy_jsxgraph_templates_to_workspace(workspace_path)
+                templates_available = template_result["copied"]
+                if templates_available:
+                    logger.info(f"📁 JSXGraph templates available at {template_result['path']}")
+
                 # Filter eligible cards (Claude Agent SDK-based semantic analysis - FR-014, FR-015, FR-016)
                 logger.info("Pre-processing: Filtering eligible cards via Claude Agent SDK eligibility analyzer...")
 
@@ -290,6 +350,13 @@ class DiagramAuthorClaudeAgent:
 
                 logger.info(f"✅ Identified {cards_needing_diagrams}/{total_cards} cards needing diagrams")
 
+                # ALWAYS write eligible_cards.json to workspace (even if empty list)
+                # This enables debugging and provides audit trail for eligibility decisions
+                eligible_cards_path = workspace_path / "eligible_cards.json"
+                with open(eligible_cards_path, 'w') as f:
+                    json.dump(eligible_cards, f, indent=2)
+                logger.info(f"✅ eligible_cards.json written to workspace ({len(eligible_cards)} cards)")
+
                 if cards_needing_diagrams == 0:
                     logger.info("No cards need diagrams - skipping agent execution")
                     return {
@@ -303,12 +370,6 @@ class DiagramAuthorClaudeAgent:
                         "metrics": self.cost_tracker.get_summary(),
                         "message": "No cards require diagrams"
                     }
-
-                # Write eligible_cards.json to workspace
-                eligible_cards_path = workspace_path / "eligible_cards.json"
-                with open(eligible_cards_path, 'w') as f:
-                    json.dump(eligible_cards, f, indent=2)
-                logger.info(f"✅ eligible_cards.json written to workspace")
 
                 # ═══════════════════════════════════════════════════════════════
                 # Register MCP Tools for Diagram Author Agent
@@ -332,10 +393,11 @@ class DiagramAuthorClaudeAgent:
                 # Create MCP server with workspace path captured in closure
                 diagram_screenshot_server = create_diagram_screenshot_server_with_workspace(str(workspace_path))
                 mcp_servers_for_diagram_author = {
-                    "diagram-screenshot": diagram_screenshot_server  # DiagramScreenshot with workspace path
+                    "diagram-screenshot": diagram_screenshot_server,  # DiagramScreenshot with workspace path
+                    "json-validator": json_validator_server  # JSON validation for self-correction
                     # Appwrite MCP intentionally excluded - not used by diagram author
                 }
-                logger.info(f"Registered diagram-screenshot MCP tool with workspace: {workspace_path}")
+                logger.info(f"Registered MCP tools: diagram-screenshot, json-validator")
 
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
                 options = ClaudeAgentOptions(
@@ -346,13 +408,14 @@ class DiagramAuthorClaudeAgent:
                     allowed_tools=[
                         'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
                         'WebSearch', 'WebFetch',
-                        'mcp__diagram-screenshot__render_diagram'  # DiagramScreenshot tool
+                        'mcp__diagram-screenshot__render_diagram',  # DiagramScreenshot tool
+                        'mcp__json-validator__validate_json'  # JSON validation for self-correction
                     ],
-                    max_turns=50,  # Reduced limit: 3 iterations per card + overhead (was 500)
+                    max_turns=500,  # High limit to ensure agent can complete complex diagram authoring work
                     cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
 
-                logger.info(f"Agent configured: bypassPermissions + cwd={workspace_path} + max_turns=50")
+                logger.info(f"Agent configured: bypassPermissions + cwd={workspace_path} + max_turns=500")
 
                 # Execute pipeline (2 subagents: diagram_generation, visual_critic)
                 async with ClaudeSDKClient(options) as client:
@@ -517,18 +580,44 @@ class DiagramAuthorClaudeAgent:
                 # This prevents KeyError during upsert and enforces agent prompt adherence
                 logger.info("Validating diagram output schema (checking for jsxgraph_json field)...")
 
-                validation_failures = {}
+                # Separate critical errors from recoverable JSON validation warnings
+                critical_failures = {}  # Missing fields that block upsert (no image)
+                json_warnings = {}  # Invalid JSON but image exists - can recover
+
                 for diagram in diagrams:
                     card_id = diagram.get("cardId", "UNKNOWN")
                     is_valid, errors = validate_diagram_output_schema(diagram, card_id)
-                    if not is_valid:
-                        validation_failures[card_id] = errors
 
-                if validation_failures:
-                    # Build detailed error message
-                    total_failures = len(validation_failures)
+                    if not is_valid:
+                        # Check if we have a valid image (can still upsert without jsxgraph_json)
+                        has_image = bool(diagram.get("image_path"))
+
+                        # Separate JSON errors from truly critical errors
+                        json_errors = [e for e in errors if "jsxgraph_json" in e.lower()]
+                        critical_errors = [e for e in errors if "jsxgraph_json" not in e.lower()]
+
+                        if critical_errors:
+                            # Missing cardId, image_path, etc. = truly broken
+                            critical_failures[card_id] = critical_errors
+
+                        if json_errors and has_image:
+                            # Invalid JSON but we have an image = recoverable
+                            json_warnings[card_id] = json_errors
+                            # Clear the invalid JSON (will be set to null in upsert)
+                            diagram["jsxgraph_json"] = None
+                            diagram["jsxgraph_validation_warning"] = json_errors
+                            logger.warning(f"⚠️ {card_id}: Invalid jsxgraph_json - will upsert with null JSON")
+                            for error in json_errors:
+                                logger.warning(f"   - {error}")
+                        elif json_errors and not has_image:
+                            # No image and bad JSON = truly broken
+                            critical_failures[card_id] = errors
+
+                # Handle critical failures (missing image, cardId, etc.) - these are blocking
+                if critical_failures:
+                    total_failures = len(critical_failures)
                     error_details = []
-                    for card_id, errors in validation_failures.items():
+                    for card_id, errors in critical_failures.items():
                         error_details.append(f"  • {card_id}: {', '.join(errors)}")
 
                     error_msg = (
@@ -536,19 +625,24 @@ class DiagramAuthorClaudeAgent:
                         f"missing required fields.\n\n"
                         f"Validation errors:\n" + "\n".join(error_details) + "\n\n"
                         f"This is a PROMPT ADHERENCE issue - the diagram generation subagent "
-                        f"must include ALL required fields (especially jsxgraph_json) in diagrams_output.json.\n\n"
+                        f"must include ALL required fields in diagrams_output.json.\n\n"
                         f"Troubleshooting:\n"
                         f"  1. Check workspace file: {workspace_path}/diagrams_output.json\n"
-                        f"  2. Verify agent prompt includes jsxgraph_json in output schema\n"
-                        f"  3. Check if agent is discarding JSXGraph JSON after PNG generation\n"
-                        f"  4. Review agent logs for prompt adherence issues"
+                        f"  2. Verify agent is generating PNG files before writing output\n"
+                        f"  3. Review agent logs for prompt adherence issues"
                     )
                     logger.error(error_msg)
-
-                    # Throw exception to fail fast (no fallback mechanism)
                     raise ValueError(error_msg)
 
-                logger.info(f"✅ Schema validation passed: All {len(diagrams)} diagrams have required fields (including jsxgraph_json)")
+                # Log summary of JSON warnings (non-blocking)
+                if json_warnings:
+                    logger.warning(
+                        f"⚠️ JSON validation: {len(json_warnings)}/{len(diagrams)} diagrams have invalid jsxgraph_json "
+                        f"- will upsert with null JSON (images are still valid)"
+                    )
+
+                valid_count = len(diagrams) - len(json_warnings)
+                logger.info(f"✅ Schema validation: {valid_count}/{len(diagrams)} diagrams fully valid, {len(json_warnings)} with JSON warnings")
 
                 # Prepare diagrams for batch upsert with diagram_index support
                 logger.info("Starting batch upsert to Appwrite lesson_diagrams collection...")
@@ -670,29 +764,58 @@ class DiagramAuthorClaudeAgent:
 **Available files**:
 - lesson_template.json (complete lesson template)
 - eligible_cards.json (pre-filtered cards needing diagrams)
+- jsxgraph_templates/ (VALIDATED template examples - READ THESE FIRST!)
+  - bar_chart/vertical_bars.json (chart element with chartStyle="bar")
+  - pie_chart/basic_pie_chart.json (chart element with chartStyle="pie")
+  - coordinate_graph/linear_function.json (function graph with axis)
+  - geometry/right_triangle.json (polygon with labels and angles)
+
+**⚠️ CRITICAL: USE TEMPLATE FILES FOR CORRECT SYNTAX**
+The jsxgraph_templates/ directory contains VALIDATED JSXGraph JSON files that render correctly.
+Before generating any diagram, READ the appropriate template file to understand:
+- Correct element types (e.g., "chart" not "polygon" for pie/bar charts)
+- Proper attribute names and formats
+- Bounding box sizing for good margins
+DO NOT hallucinate JSXGraph syntax - USE these templates as references.
 
 **Your task**:
 1. Read eligible_cards.json to see which cards need diagrams
-2. For EVERY card in eligible_cards.json, orchestrate the diagram generation and critique loop:
-   - Call @diagram_generation_subagent to generate JSXGraph JSON and render PNG
-   - Call @visual_critic_subagent to critique the diagram
-   - If score < 0.85 and iteration < 3, refine and iterate
+2. **RESEARCH PHASE (CRITICAL)**: Before generating any diagrams, identify the UNIQUE diagram types needed:
+   - Analyze all cards to identify diagram types (pie_chart, coordinate_graph, geometry, etc.)
+   - For EACH unique diagram type, use the **Task tool** with subagent_type="jsxgraph_researcher_subagent"
+   - Store the research findings to guide generation (correct element types, attributes, pitfalls to avoid)
+   - This prevents wasting iterations on fundamentally broken approaches
+3. For EVERY card in eligible_cards.json, orchestrate the diagram generation and critique loop:
+   - Use the **Task tool** with subagent_type="diagram_generation_subagent" (include research findings in prompt)
+   - Use the **Task tool** with subagent_type="visual_critic_subagent" to critique the diagram
+   - If score < 0.85 and iteration < 10, refine and iterate (using research guidance)
    - If score ≥ 0.85, accept and move to next card
-   - If score < 0.85 after 3 iterations, mark as failed and continue to next card
-3. After processing ALL cards, write diagrams_output.json with all accepted diagrams and errors
+   - If score < 0.85 after 10 iterations, mark as failed and continue to next card
+4. After processing ALL cards, write diagrams_output.json with all accepted diagrams and errors
 
 **CRITICAL REQUIREMENTS**:
+- ❌ DO NOT skip the research phase - it prevents fundamental implementation errors
 - ❌ DO NOT stop after a few diagrams to "demonstrate" the workflow
 - ❌ DO NOT write `diagrams_output_partial.json` or any filename other than `diagrams_output.json`
 - ❌ DO NOT use placeholder text like "[Generated successfully]" - include actual base64 PNG data
+- ✅ MUST research diagram types BEFORE generating any diagrams
 - ✅ MUST process ALL {cards_needing_diagrams} cards before completing
 - ✅ MUST write EXACT filename: `diagrams_output.json`
 - ✅ MUST include actual base64 image data from render_diagram tool
 
-**Quality threshold**: ≥0.85 across 4 dimensions (clarity, accuracy, pedagogy, aesthetics)
-**Max iterations per card**: 3
+**Research Phase Example**:
+If you identify cards needing: 2 pie charts, 1 coordinate graph, 1 triangle
+1. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "pie_chart" → Get findings on chart element vs sector pitfalls
+2. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "coordinate_graph" → Get findings on axis configuration
+3. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "geometry" → Get findings on polygon vertex visibility
+4. Use these findings when generating each diagram
 
-Begin by reading eligible_cards.json and acknowledging that you will process ALL cards.
+**IMPORTANT**: You MUST use the Task tool to invoke subagents. Writing "@subagent_name" as text will NOT invoke the subagent - it will just output text and terminate the pipeline!
+
+**Quality threshold**: ≥0.85 across 4 dimensions (clarity, accuracy, pedagogy, aesthetics)
+**Max iterations per card**: 10
+
+Begin by reading eligible_cards.json, identifying unique diagram types, and conducting research BEFORE any generation.
 """
 
         # Combine main prompt with instruction

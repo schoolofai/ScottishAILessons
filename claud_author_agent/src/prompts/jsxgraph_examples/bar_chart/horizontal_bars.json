@@ -1,0 +1,162 @@
+{
+  "board": {
+    "boundingbox": [-3, 6, 12, -0.5],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": false
+  },
+  "elements": [
+    {
+      "type": "polygon",
+      "args": [[0, 0.5], [8, 0.5], [8, 1], [0, 1]],
+      "attributes": {
+        "fillColor": "#0066CC",
+        "strokeColor": "#0066CC",
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[0, 1.5], [5, 1.5], [5, 2], [0, 2]],
+      "attributes": {
+        "fillColor": "#28a745",
+        "strokeColor": "#28a745",
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[0, 2.5], [10, 2.5], [10, 3], [0, 3]],
+      "attributes": {
+        "fillColor": "#FFA500",
+        "strokeColor": "#FFA500",
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[0, 3.5], [3, 3.5], [3, 4], [0, 4]],
+      "attributes": {
+        "fillColor": "#DC3545",
+        "strokeColor": "#DC3545",
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [-0.3, 0.75, "Cat"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "right",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-0.3, 1.75, "Dog"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "right",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-0.3, 2.75, "Fish"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "right",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-0.3, 3.75, "Bird"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "right",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [8.5, 0.75, "8"],
+      "attributes": {
+        "fontSize": 12,
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [5.5, 1.75, "5"],
+      "attributes": {
+        "fontSize": 12,
+        "color": "#28a745"
+      }
+    },
+    {
+      "type": "text",
+      "args": [10.5, 2.75, "10"],
+      "attributes": {
+        "fontSize": 12,
+        "color": "#FFA500"
+      }
+    },
+    {
+      "type": "text",
+      "args": [3.5, 3.75, "3"],
+      "attributes": {
+        "fontSize": 12,
+        "color": "#DC3545"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0.3], [0, 4.2]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0.3], [11, 0.3]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [5.5, 5, "Favourite Pets (Horizontal Bar Chart)"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [5.5, 0, "Number of Students"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "middle",
+        "color": "#6c757d"
+      }
+    }
+  ]
+}

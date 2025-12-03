@@ -1,0 +1,201 @@
+{
+  "board": {
+    "boundingbox": [-8, 8, 8, -2],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "polygon",
+      "args": [[-1, 0], [1, 0], [0, 4]],
+      "attributes": {
+        "fillColor": "#8B4513",
+        "strokeColor": "#5D3A1A",
+        "strokeWidth": 2,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "line",
+      "args": [[-6, 4], [6, 4]],
+      "attributes": {
+        "strokeColor": "#8B4513",
+        "strokeWidth": 4,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "circle",
+      "args": [[0, 4], 0.3],
+      "attributes": {
+        "fillColor": "#5D3A1A",
+        "strokeColor": "#5D3A1A"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[-5, 4], [-5, 3]],
+      "attributes": {
+        "strokeColor": "#666666",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "line",
+      "args": [[5, 4], [5, 3]],
+      "attributes": {
+        "strokeColor": "#666666",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[-6.5, 3], [-3.5, 3], [-3.5, 2.5], [-6.5, 2.5]],
+      "attributes": {
+        "fillColor": "#A0522D",
+        "strokeColor": "#5D3A1A",
+        "strokeWidth": 2,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[3.5, 3], [6.5, 3], [6.5, 2.5], [3.5, 2.5]],
+      "attributes": {
+        "fillColor": "#A0522D",
+        "strokeColor": "#5D3A1A",
+        "strokeWidth": 2,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[-5.5, 3], [-5, 3], [-5, 4], [-5.5, 4]],
+      "attributes": {
+        "fillColor": "#0066CC",
+        "strokeColor": "#004C99",
+        "strokeWidth": 1,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [-5.25, 3.5, "x"],
+      "attributes": {
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "white"
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[-4.3, 3], [-3.8, 3], [-3.8, 3.5], [-4.3, 3.5]],
+      "attributes": {
+        "fillColor": "#28a745",
+        "strokeColor": "#1e7e34",
+        "strokeWidth": 1,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [-4.05, 3.25, "3"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "white"
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[4, 3], [4.5, 3], [4.5, 3.5], [4, 3.5]],
+      "attributes": {
+        "fillColor": "#28a745",
+        "strokeColor": "#1e7e34",
+        "strokeWidth": 1,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [4.25, 3.25, "5"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "white"
+      }
+    },
+    {
+      "type": "polygon",
+      "args": [[5, 3], [5.5, 3], [5.5, 3.5], [5, 3.5]],
+      "attributes": {
+        "fillColor": "#28a745",
+        "strokeColor": "#1e7e34",
+        "strokeWidth": 1,
+        "vertices": {
+          "visible": false
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [5.25, 3.25, "2"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "white"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 7, "Balance Scale"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 6.2, "x + 3 = 5 + 2"],
+      "attributes": {
+        "fontSize": 14,
+        "anchorX": "middle",
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, -1, "The scale is balanced when both sides are equal"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "middle",
+        "color": "#6c757d"
+      }
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "board": {
+    "boundingbox": [-6, 6, 6, -6],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true,
+    "grid": true
+  },
+  "elements": [
+    {
+      "type": "circle",
+      "args": [[0, 0], 3],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "fillColor": "rgba(0, 102, 204, 0.1)"
+      }
+    },
+    {
+      "type": "point",
+      "args": [[0, 0]],
+      "attributes": {
+        "name": "O",
+        "size": 4,
+        "fillColor": "#DC3545",
+        "strokeColor": "#DC3545",
+        "fixed": true,
+        "label": {
+          "offset": [-15, -15],
+          "fontSize": 14
+        }
+      }
+    },
+    {
+      "type": "point",
+      "args": [[3, 0]],
+      "attributes": {
+        "name": "",
+        "size": 3,
+        "fillColor": "#28a745",
+        "strokeColor": "#28a745",
+        "fixed": true
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [3, 0]],
+      "attributes": {
+        "strokeColor": "#DC3545",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [1.5, -0.5, "r = 3 cm"],
+      "attributes": {
+        "fontSize": 14,
+        "color": "#DC3545",
+        "anchorX": "middle"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 5, "Circle with Centre O"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#0066CC"
+      }
+    }
+  ]
+}

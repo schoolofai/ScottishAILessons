@@ -1,0 +1,93 @@
+{
+  "board": {
+    "boundingbox": [-7, 7, 7, -7],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "comment": "Pie chart with one dominant sector (60%) - tests unequal proportions",
+      "type": "chart",
+      "args": [[60, 20, 12, 8]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#0066CC", "#28a745", "#FFA500", "#DC3545"],
+        "center": [0, -0.5],
+        "radius": 3.5,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "highlightOnSector": true,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 5.5, "Class Pet Vote"],
+      "attributes": {
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 4.2, "(30 students voted)"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "middle",
+        "color": "#666666"
+      }
+    },
+    {
+      "comment": "Label for dominant sector - positioned inside the large area",
+      "type": "text",
+      "args": [0, 1.0, "Dog"],
+      "attributes": {
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#ffffff"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 0.2, "60%"],
+      "attributes": {
+        "fontSize": 12,
+        "anchorX": "middle",
+        "color": "#ffffff"
+      }
+    },
+    {
+      "comment": "Labels for smaller sectors - positioned outside with leader concept",
+      "type": "text",
+      "args": [4.5, -1.0, "Cat 20%"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "left",
+        "color": "#28a745"
+      }
+    },
+    {
+      "type": "text",
+      "args": [1.5, -4.5, "Fish 12%"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "middle",
+        "color": "#FFA500"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-3.5, -3.0, "Rabbit 8%"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "right",
+        "color": "#DC3545"
+      }
+    }
+  ]
+}

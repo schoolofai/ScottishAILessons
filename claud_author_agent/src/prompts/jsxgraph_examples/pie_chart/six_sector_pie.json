@@ -1,0 +1,97 @@
+{
+  "board": {
+    "boundingbox": [-8, 7, 8, -7],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "comment": "Six sector pie chart - tests rendering with many segments",
+      "type": "chart",
+      "args": [[22, 18, 17, 16, 15, 12]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#0066CC", "#28a745", "#FFA500", "#DC3545", "#6c757d", "#17a2b8"],
+        "center": [0, -0.5],
+        "radius": 3.5,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "highlightOnSector": true,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 5.5, "Weekly Screen Time by Activity"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Labels positioned around the pie at sector midpoints",
+      "type": "text",
+      "args": [1.5, 3.8, "Gaming 22%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [4.5, 1.2, "Social 18%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "left",
+        "color": "#28a745"
+      }
+    },
+    {
+      "type": "text",
+      "args": [4.2, -1.8, "Video 17%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "left",
+        "color": "#FFA500"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0.5, -4.5, "Music 16%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#DC3545"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-4.0, -2.2, "School 15%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "right",
+        "color": "#6c757d"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-4.2, 1.5, "Other 12%"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "anchorX": "right",
+        "color": "#17a2b8"
+      }
+    }
+  ]
+}

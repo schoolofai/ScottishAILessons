@@ -1,0 +1,55 @@
+{
+  "category": "number_line",
+  "description": "Number line visualizations for positioning integers, fractions, and inequalities",
+  "templates": [
+    {
+      "file": "integer_line.json",
+      "name": "Integer Number Line",
+      "description": "Horizontal number line from -5 to 5 with tick marks and labels",
+      "diagram_type": "number_line",
+      "use_cases": [
+        "Positioning integers",
+        "Adding and subtracting on number line",
+        "Comparing negative and positive numbers",
+        "Number ordering"
+      ],
+      "curriculum_level": "N2-N4"
+    },
+    {
+      "file": "fraction_line.json",
+      "name": "Fraction Number Line",
+      "description": "Number line from 0 to 1 showing quarter and half fractions",
+      "diagram_type": "number_line",
+      "use_cases": [
+        "Fraction positioning",
+        "Comparing fractions",
+        "Equivalent fractions",
+        "Fraction ordering"
+      ],
+      "curriculum_level": "N3-N4"
+    },
+    {
+      "file": "inequality_line.json",
+      "name": "Inequality Number Line",
+      "description": "Number line showing inequality solution with open/closed circles",
+      "diagram_type": "number_line",
+      "use_cases": [
+        "Inequalities",
+        "Solution sets",
+        "Greater than / less than",
+        "Range representation"
+      ],
+      "curriculum_level": "N4-N5"
+    }
+  ],
+  "key_features": {
+    "horizontal_line": "Use line element with straightFirst/Last: false",
+    "tick_marks": "Short vertical lines at each position",
+    "arrows": "Small polygon triangles at ends for infinite line",
+    "labels": "Text elements positioned below tick marks",
+    "open_circle": "Circle with white fill for strict inequality",
+    "closed_circle": "Filled circle for inclusive inequality"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01"
+}

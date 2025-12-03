@@ -1,0 +1,50 @@
+{
+  "category": "pie_chart",
+  "description": "Pie charts using JSXGraph chart element with chartStyle: pie",
+  "templates": [
+    {
+      "file": "basic_pie_chart.json",
+      "name": "Basic Pie Chart",
+      "use_cases": ["simple percentage breakdown", "4 equal sectors", "survey results"],
+      "complexity": "basic"
+    },
+    {
+      "file": "labeled_sectors_pie.json",
+      "name": "Labeled Sectors Pie Chart",
+      "use_cases": ["percentage labels on sectors", "5 unequal sectors", "transport survey"],
+      "complexity": "intermediate"
+    },
+    {
+      "file": "pie_with_legend.json",
+      "name": "Pie Chart with Legend",
+      "use_cases": ["separate legend box", "category names", "favourite subjects"],
+      "complexity": "advanced"
+    },
+    {
+      "file": "dominant_sector_pie.json",
+      "name": "Dominant Sector Pie Chart",
+      "use_cases": ["one large sector (60%+)", "unequal proportions", "voting results"],
+      "complexity": "intermediate"
+    },
+    {
+      "file": "six_sector_pie.json",
+      "name": "Six Sector Pie Chart",
+      "use_cases": ["many categories (6)", "similar-sized sectors", "time distribution"],
+      "complexity": "advanced"
+    }
+  ],
+  "key_features": {
+    "element_type": "chart",
+    "chart_style": "pie",
+    "data_format": "array of values (auto-converted to proportions)"
+  },
+  "critical_warning": "Use type: chart with chartStyle: pie - NOT polygons or sectors. JSXGraph handles the arc calculation automatically.",
+  "common_errors": [
+    "Using polygons instead of chart type - creates angular/disconnected shapes",
+    "Label positioning conflicts - calculate positions based on sector midpoint angles",
+    "Too many sectors without labels - becomes unreadable",
+    "Forgetting strokeColor white between sectors"
+  ],
+  "validated": true,
+  "validated_date": "2024-12-01"
+}

@@ -1,0 +1,60 @@
+{
+  "board": {
+    "boundingbox": [-6, 12, 6, -2],
+    "axis": true,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": false
+  },
+  "elements": [
+    {
+      "type": "functiongraph",
+      "args": ["x^2", -5, 5],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 3
+      }
+    },
+    {
+      "type": "point",
+      "args": [[0, 0]],
+      "attributes": {
+        "name": "Vertex (0, 0)",
+        "size": 4,
+        "fillColor": "#DC3545",
+        "strokeColor": "#DC3545",
+        "fixed": true
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, -2], [0, 12]],
+      "attributes": {
+        "strokeColor": "#6c757d",
+        "strokeWidth": 1,
+        "dash": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [0.3, 10, "Axis of symmetry: x = 0"],
+      "attributes": {
+        "fontSize": 12,
+        "color": "#6c757d",
+        "anchorX": "left"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 11.5, "y = x\u00b2"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#0066CC"
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "category": "coordinate_graph",
+  "description": "Coordinate plane visualizations for function graphs, scatter plots, and equations",
+  "templates": [
+    {
+      "file": "linear_function.json",
+      "name": "Linear Function Graph",
+      "description": "Graph of y = mx + c with proper axes, tick marks, scale numbers, and labeled points",
+      "diagram_type": "coordinate_graph",
+      "use_cases": [
+        "Plotting linear equations",
+        "Showing cost/time relationships",
+        "Demonstrating gradient and y-intercept",
+        "Graphing straight line functions"
+      ],
+      "curriculum_level": "N4-N5"
+    },
+    {
+      "file": "quadratic_function.json",
+      "name": "Quadratic Function Graph",
+      "description": "Parabola (y = x²) with vertex, axis of symmetry, and labels",
+      "diagram_type": "coordinate_graph",
+      "use_cases": [
+        "Quadratic equations",
+        "Parabola shapes",
+        "Vertex and turning points",
+        "Axis of symmetry"
+      ],
+      "curriculum_level": "N5"
+    },
+    {
+      "file": "scatter_plot.json",
+      "name": "Scatter Plot with Line of Best Fit",
+      "description": "Data points plotted on coordinate axes with optional trend line",
+      "diagram_type": "coordinate_graph",
+      "use_cases": [
+        "Correlation",
+        "Data analysis",
+        "Line of best fit",
+        "Trend identification"
+      ],
+      "curriculum_level": "N5"
+    },
+    {
+      "file": "simultaneous_equations.json",
+      "name": "Simultaneous Equations Graph",
+      "description": "Two linear functions intersecting at a solution point",
+      "diagram_type": "coordinate_graph",
+      "use_cases": [
+        "Simultaneous equations",
+        "Finding intersection points",
+        "Graphical solution method",
+        "System of equations"
+      ],
+      "curriculum_level": "N5"
+    }
+  ],
+  "key_features": {
+    "axis": "Board-level axis:true provides full axes with ticks",
+    "functiongraph": "Use type 'functiongraph' for smooth function plotting",
+    "colors": "Scottish palette: #0066CC (blue), #28a745 (green)"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01",
+  "source": "Custom - based on JSXGraph wiki examples"
+}

@@ -12,7 +12,7 @@ You receive:
 - `jsxgraph_json`: Original JSXGraph configuration (string)
 - `image_path`: **Absolute path to rendered PNG file** (use Read tool to view)
 - `card_content`: Original card text for pedagogical context
-- `iteration`: Current iteration number (1, 2, or 3)
+- `iteration`: Current iteration number (1-10)
 - `diagram_type`: Category (geometry, algebra, statistics, mixed)
 - `diagram_context`: **"lesson"** (teaching) or **"cfu"** (assessment) - CRITICAL for validation
 
@@ -90,6 +90,114 @@ You receive:
 ```
 
 **This validation ensures that diagrams are actually rendered and accessible as PNG files before critique.**
+
+---
+
+## STEP 1.5: PRE-FLIGHT VALIDATION GATE (MANDATORY)
+
+**⛔ STOP: Before scoring ANY dimension, you MUST complete this gate.**
+
+This gate catches fundamental structural problems BEFORE you waste effort scoring a broken diagram. If the pre-flight gate fails, you must **immediately return REFINE** without scoring dimensions.
+
+### 1. Identify Diagram Type
+
+Based on `diagram_type` input and visual inspection, classify the diagram:
+
+| Type | Identify By | Examples |
+|------|-------------|----------|
+| `COORDINATE_GRAPH` | Has/should have X-Y axes | Linear functions, quadratics, scatter plots |
+| `PIE_CHART` | Circular sectors showing proportions | Survey results, data distribution |
+| `BAR_CHART` | Rectangular bars with axis | Comparisons, frequencies |
+| `NUMBER_LINE` | Horizontal line with markers | Integers, fractions, inequalities |
+| `GEOMETRY` | Shapes, angles, lines | Triangles, circles, angle diagrams |
+| `OTHER` | None of the above | Tables, pictograms, balance scales |
+
+### 2. Run Type-Specific Validation
+
+**Execute the validation checks for the identified diagram type. If ANY check FAILS, add to `critical_issues` array.**
+
+#### IF COORDINATE_GRAPH:
+
+| Check | Pass Criteria | On FAIL |
+|-------|---------------|---------|
+| **AXES_VISIBLE** | X and Y axis lines visible and span >50% of bounding box | ADD `"PRE-FLIGHT FAIL: Axes invisible or too small - coordinate graphs MUST have visible axes spanning the graph area"` to `critical_issues` |
+| **TICK_MARKS_PRESENT** | At least 3 tick marks visible on each axis | ADD `"PRE-FLIGHT FAIL: No tick marks - coordinate graphs require tick marks for scale reference"` to `critical_issues` |
+| **SCALE_READABLE** | Numbers visible at tick mark intervals | ADD `"PRE-FLIGHT FAIL: No scale numbers - cannot read coordinate values without scale"` to `critical_issues` |
+
+#### IF PIE_CHART:
+
+| Check | Pass Criteria | On FAIL |
+|-------|---------------|---------|
+| **CIRCULAR_SHAPE** | Overall shape is recognizably circular | ADD `"PRE-FLIGHT FAIL: Pie chart is not circular - shape is fragmented or angular"` to `critical_issues` |
+| **SECTORS_CONNECTED** | All sectors meet at center point, no gaps | ADD `"PRE-FLIGHT FAIL: Pie chart sectors are disconnected or have gaps"` to `critical_issues` |
+| **FULL_COVERAGE** | Sectors cover 360° with no missing portions | ADD `"PRE-FLIGHT FAIL: Pie chart has missing portions - sectors don't complete full circle"` to `critical_issues` |
+
+#### IF BAR_CHART:
+
+| Check | Pass Criteria | On FAIL |
+|-------|---------------|---------|
+| **BARS_VISIBLE** | Distinct rectangular bars are present | ADD `"PRE-FLIGHT FAIL: Bar chart has no visible bars"` to `critical_issues` |
+| **AXIS_PRESENT** | At least one axis with labels/scale visible | ADD `"PRE-FLIGHT FAIL: Bar chart has no visible axis or scale"` to `critical_issues` |
+
+#### IF NUMBER_LINE:
+
+| Check | Pass Criteria | On FAIL |
+|-------|---------------|---------|
+| **LINE_VISIBLE** | Horizontal line spans >70% of diagram width | ADD `"PRE-FLIGHT FAIL: Number line not visible or too short"` to `critical_issues` |
+| **MARKERS_PRESENT** | Tick marks or interval markers visible | ADD `"PRE-FLIGHT FAIL: Number line has no tick marks or interval markers"` to `critical_issues` |
+
+#### IF GEOMETRY:
+
+| Check | Pass Criteria | On FAIL |
+|-------|---------------|---------|
+| **SHAPES_VISIBLE** | Main geometric shapes clearly visible | ADD `"PRE-FLIGHT FAIL: Required geometric shapes not visible"` to `critical_issues` |
+| **ANGLES_MARKED** (if angle diagram) | Angle arcs or markers present | ADD `"PRE-FLIGHT FAIL: Angle diagram missing angle markers"` to `critical_issues` |
+
+### 3. GATE DECISION
+
+```
+IF critical_issues is NOT EMPTY:
+    RETURN immediately with:
+    - decision: "REFINE"
+    - final_score: 0.0
+    - dimension_scores: {clarity: 0.0, accuracy: 0.0, pedagogy: 0.0, aesthetics: 0.0}
+    - critical_issues: [the issues added above]
+    - feedback: "PRE-FLIGHT VALIDATION FAILED: Diagram has fundamental structural problems that must be fixed before scoring."
+    - DO NOT proceed to score dimensions
+
+IF critical_issues is EMPTY:
+    PROCEED to Step 2 (Score Dimensions)
+```
+
+### Pre-Flight Gate Example Response
+
+If a coordinate graph has invisible axes:
+
+```json
+{
+  "decision": "REFINE",
+  "final_score": 0.0,
+  "dimension_scores": {
+    "clarity": 0.0,
+    "accuracy": 0.0,
+    "pedagogy": 0.0,
+    "aesthetics": 0.0
+  },
+  "strengths": [],
+  "improvements": [],
+  "specific_changes": [
+    "Use 'axis' type instead of 'line' type for coordinate axes",
+    "Ensure axes span the full bounding box using board.create('axis', ...)",
+    "Add 'ticks': {'drawLabels': true} to axis attributes"
+  ],
+  "critical_issues": [
+    "PRE-FLIGHT FAIL: Axes invisible or too small - coordinate graphs MUST have visible axes spanning the graph area"
+  ],
+  "feedback": "PRE-FLIGHT VALIDATION FAILED: This coordinate graph has invisible or missing axes. A coordinate graph without visible axes is fundamentally unusable for teaching - students cannot read any coordinate values. Fix the axis implementation before any other improvements."
+}
+```
+
+**The pre-flight gate ensures that diagrams with fundamental structural problems are rejected immediately, without wasting tokens on detailed scoring.**
 
 ---
 
@@ -321,6 +429,161 @@ Diagram may show:
 ```
 **Pedagogy Score**: ≥ 0.75 (appropriate for teaching)
 
+## Pie Chart Validation (Statistics Diagrams)
+
+> **NOTE**: The fundamental pie chart checks (circular shape, sectors connected, full coverage) are now enforced by the **PRE-FLIGHT VALIDATION GATE (Step 1.5)**. Diagrams failing those checks are rejected BEFORE reaching this scoring section.
+
+This section provides detailed guidance for scoring pie charts that PASSED the pre-flight gate but may have MINOR issues.
+
+### Pie Chart Quality Checklist
+
+For pie charts that passed pre-flight validation, verify these additional quality factors:
+
+| Quality Factor | Good | Needs Improvement |
+|----------------|------|-------------------|
+| **Curved Arcs** | Smooth curved boundaries between sectors | Some visible straight edges (polygon approximation) |
+| **Proportions** | Sector angles match data percentages | Proportions appear slightly off |
+| **Labels** | Clear labels with good positioning | Labels cramped or poorly positioned |
+| **Colors** | Scottish palette with good contrast | Non-standard colors or low contrast |
+
+### ❌ BROKEN Pie Chart Examples (MUST REJECT)
+
+**Example 1: Disconnected/Exploded Sectors**
+```
+Visual: Sectors floating apart, gaps between pieces
+Problem: Sectors don't meet at center, white space between slices
+Impact: Defeats the purpose of showing proportional relationships
+Score: Clarity < 0.50, Accuracy < 0.50 → REFINE
+```
+
+**Example 2: Non-Circular/Fragmented Shape**
+```
+Visual: Rectangular or angular shapes instead of pie slices
+Problem: "Curve" implementation created polygons, not circular arcs
+Impact: Not recognizable as a pie chart
+Score: Clarity < 0.30, Accuracy < 0.30 → REFINE
+```
+
+**Example 3: Polygonal Approximation**
+```
+Visual: Many-sided polygon that approximates a circle poorly
+Problem: Visible straight-line edges instead of smooth arcs
+Impact: Looks unprofessional, undermines math accuracy perception
+Score: Aesthetics < 0.50, penalize Clarity by 0.15
+```
+
+**Example 4: Overlapping/Translucent Sectors**
+```
+Visual: Sectors overlap, showing through each other
+Problem: Fill opacity causing visual confusion
+Impact: Cannot clearly see sector boundaries
+Score: Clarity < 0.40 → REFINE
+```
+
+### ✅ GOOD Pie Chart Requirements
+
+A properly rendered pie chart shows:
+- **Perfect circle** outline (no jagged edges)
+- **All sectors meeting at exact center** (no gaps)
+- **Smooth curved boundaries** between sectors
+- **Correct proportions** matching the data (e.g., 50% = half circle)
+- **Clear labels** positioned inside or with leader lines
+- **Scottish color palette** (#0066CC, #28a745, #FFA500, #DC3545)
+
+### Pie Chart Scoring Adjustments
+
+> **REMINDER**: Critical failures (non-circular, disconnected sectors, missing coverage) are caught by the **PRE-FLIGHT GATE** and cause immediate rejection. The adjustments below are for MINOR issues in diagrams that passed pre-flight.
+
+| Minor Issue | Clarity Penalty | Aesthetics Penalty |
+|-------------|-----------------|-------------------|
+| Visible polygon edges (not severe) | -0.10 | -0.15 |
+| Minor label overlap | -0.10 | -0.05 |
+| Non-standard colors | -0.05 | -0.10 |
+
+**If you see a non-circular or fragmented pie chart, the PRE-FLIGHT GATE should have rejected it. If it somehow reached scoring, add to `critical_issues` and return REFINE.**
+
+## Coordinate Graph Validation (Function Graphs, Linear Equations)
+
+> **NOTE**: The fundamental axis checks (axes visible, tick marks present, scale readable) are now enforced by the **PRE-FLIGHT VALIDATION GATE (Step 1.5)**. Diagrams failing those checks are rejected BEFORE reaching this scoring section.
+
+This section provides detailed guidance for scoring coordinate graphs that PASSED the pre-flight gate.
+
+### Coordinate Graph Quality Checklist
+
+For graphs that passed pre-flight validation, verify these additional quality factors:
+
+| Quality Factor | Good | Needs Improvement |
+|----------------|------|-------------------|
+| **Axis Labels** | "x" and "y" or contextual labels (e.g., "Cost (£)", "Months") | Unlabeled axes |
+| **Grid Lines** | Grid lines help students read values | No grid (minor issue) |
+| **Arrows** | Arrow tips at axis ends indicating direction | No arrows (minor issue) |
+| **Function Labels** | Function equation shown (e.g., "y = 2x + 1") | No equation label |
+
+### ❌ BROKEN Coordinate Graph Examples (MUST REJECT)
+
+**Example 1: Invisible/Tiny Axes**
+```
+Visual: Graph shows plotted line and points, but no visible axis lines
+Problem: Axes defined as 1-unit line segments instead of spanning bounding box
+Code error: "args":[[0,0],[1,0]] creates 1-unit line, not full axis
+Impact: Students cannot see the coordinate system
+Score: Clarity < 0.40, Pedagogy < 0.40 → REFINE
+```
+
+**Example 2: No Tick Marks or Scale**
+```
+Visual: Axis lines visible, but no numbers or tick marks
+Problem: Only labeled points visible, no way to read intermediate values
+Impact: Students cannot verify coordinates or read unlabeled points
+Score: Clarity < 0.50, Pedagogy < 0.50 → REFINE
+```
+
+**Example 3: Axis Doesn't Match Bounding Box**
+```
+Visual: Short axis lines that don't reach the edges of the graph
+Problem: Bounding box is [-1, 260, 9, -10] but axis only goes to (1, 0)
+Impact: Most of the graph has no visible coordinate reference
+Score: Clarity < 0.50 → REFINE
+```
+
+### ✅ GOOD Coordinate Graph Requirements
+
+A properly rendered coordinate graph shows:
+- **Full-length axes** spanning from edge to edge of the visible area
+- **Tick marks** at regular intervals (e.g., every 1 unit, every 50 units)
+- **Scale numbers** at tick marks (e.g., 0, 1, 2, 3... or 0, 50, 100, 150...)
+- **Axis labels** indicating what each axis represents
+- **Grid lines** (optional) for easier reading of intermediate values
+- **Arrows** at axis ends indicating direction
+
+### JSXGraph Axis Implementation Check
+
+When reviewing JSXGraph JSON for coordinate graphs, verify:
+
+```json
+// GOOD: Full axis using board dimensions
+{"type": "axis", "args": [[0,0], [1,0]], "attributes": {"ticks": {"drawLabels": true}}}
+
+// BAD: Tiny line segment (common error)
+{"type": "line", "args": [[0,0], [1,0]], "attributes": {"lastArrow": true}}
+```
+
+The `axis` type automatically spans the bounding box and includes ticks.
+The `line` type with short args creates invisible/tiny axes.
+
+### Coordinate Graph Scoring Adjustments
+
+> **REMINDER**: Critical axis failures (invisible axes, no tick marks, no scale numbers) are caught by the **PRE-FLIGHT GATE** and cause immediate rejection. The adjustments below are for MINOR issues in diagrams that passed pre-flight.
+
+| Minor Issue | Clarity Penalty | Pedagogy Penalty |
+|-------------|-----------------|------------------|
+| Missing axis labels (x/y text) | -0.10 | -0.10 |
+| No grid lines | -0.05 | -0.05 |
+| No arrow tips on axes | -0.05 | 0 |
+| Function not labeled | -0.05 | -0.10 |
+
+**If you see a coordinate graph with invisible or missing axes, the PRE-FLIGHT GATE should have rejected it. If it somehow reached scoring, add to `critical_issues` and return REFINE.**
+
 ## Scoring Formula
 
 Calculate the final score using weighted dimensions:
@@ -336,16 +599,114 @@ Round to 2 decimal places (e.g., 0.87, 0.91).
 
 ## Decision Threshold
 
-- **score ≥ 0.85**: **ACCEPT** (high quality, ready for use in lessons)
-- **score < 0.85**: **REFINE** (needs improvement, provide feedback)
+### Progressive Threshold Policy (Token-Efficient)
 
-### Iteration-Specific Leniency
+To reduce unnecessary iterations while maintaining quality, use **progressive thresholds** based on iteration count and dimension scores:
 
-- **Iteration 1**: Strict (threshold 0.85) - identify all issues
-- **Iteration 2**: Moderate (threshold 0.82) - accept if significant progress
-- **Iteration 3**: Lenient (threshold 0.80) - final chance, prioritize critical issues
+| Iteration | Base Threshold | Early Accept Condition | Rationale |
+|-----------|----------------|------------------------|-----------|
+| **1-2** | 0.85 | None - maintain high bar | First attempts should meet full quality |
+| **3-4** | 0.82 | If accuracy ≥ 0.90 | Minor aesthetics shouldn't block accurate diagrams |
+| **5-6** | 0.80 | If accuracy ≥ 0.90 AND no critical issues | Prioritize mathematical correctness |
+| **7-10** | 0.78 | If accuracy ≥ 0.90 AND pedagogy ≥ 0.80 | Accept usable diagrams, avoid token waste |
 
-If iteration 3 still scores below 0.80, the diagram will be rejected (no fallback to low-quality diagrams).
+### Early Accept Rules (ACCEPT_WITH_NOTES)
+
+**Automatically accept if ALL conditions met:**
+
+1. **Accuracy Perfect Rule**: If `accuracy = 1.0` AND `pedagogy ≥ 0.85` → **ACCEPT** regardless of aesthetics score
+   - Rationale: A mathematically perfect, pedagogically sound diagram is more valuable than a pretty but imprecise one
+   - Even if aesthetics = 0.60, the diagram serves its educational purpose
+
+2. **Iteration 5+ Accuracy Priority**: If `accuracy ≥ 0.95` AND `clarity ≥ 0.75` AND no critical issues → **ACCEPT**
+   - Rationale: After 5 iterations, minor visual polish should not consume more tokens
+   - Use `decision: "ACCEPT_WITH_NOTES"` to indicate accepted with minor suggestions
+
+3. **No Critical Issues Override**: A diagram with `final_score ≥ 0.78` and NO entries in `critical_issues` array can be accepted after iteration 5+
+
+### Decision Logic
+
+**CRITICAL: The pre-flight gate (Step 1.5) populates `critical_issues` with fundamental failures. If ANY issues were added by the pre-flight gate, the diagram was already rejected - you should not reach this decision logic.**
+
+For diagrams that PASSED the pre-flight gate, use this logic:
+
+```
+def decide(iteration, scores, critical_issues):
+    # ════════════════════════════════════════════════════════════
+    # FIRST CHECK: Critical Issues ALWAYS force REFINE
+    # This catches issues found DURING scoring (overlaps, CFU answers, etc.)
+    # Pre-flight gate issues already caused early rejection
+    # ════════════════════════════════════════════════════════════
+    if len(critical_issues) > 0:
+        return "REFINE"  # NO EXCEPTIONS - critical issues block acceptance
+
+    accuracy = scores['accuracy']
+    pedagogy = scores['pedagogy']
+    clarity = scores['clarity']
+    final_score = weighted_average(scores)
+
+    # Early accept: Perfect accuracy + good pedagogy (no critical issues)
+    if accuracy == 1.0 and pedagogy >= 0.85:
+        return "ACCEPT"
+
+    # Iteration-based progressive thresholds
+    if iteration <= 2:
+        threshold = 0.85
+    elif iteration <= 4:
+        threshold = 0.82 if accuracy >= 0.90 else 0.85
+    elif iteration <= 6:
+        threshold = 0.80 if accuracy >= 0.90 else 0.85
+    else:  # iteration 7-10
+        if accuracy >= 0.90 and pedagogy >= 0.80:
+            threshold = 0.78
+        else:
+            threshold = 0.82
+
+    # Apply threshold
+    if final_score >= threshold:
+        return "ACCEPT" if iteration <= 4 else "ACCEPT_WITH_NOTES"
+    else:
+        return "REFINE"
+```
+
+**KEY INSIGHT**: The old logic scattered `len(critical_issues) == 0` checks inside threshold conditions. This new logic puts the critical_issues check FIRST, as an immediate gate. If critical_issues is non-empty, we REFINE - period, regardless of iteration or scores.
+
+### ACCEPT_WITH_NOTES Decision
+
+Use `"decision": "ACCEPT_WITH_NOTES"` when:
+- Diagram meets the progressive threshold
+- There are minor improvements that would enhance quality
+- These improvements are NOT blocking issues
+
+**Output format for ACCEPT_WITH_NOTES:**
+```json
+{
+  "decision": "ACCEPT_WITH_NOTES",
+  "final_score": 0.81,
+  "accepted_reason": "Iteration 5+ with accuracy 0.95, clarity 0.80, no critical issues",
+  "notes": [
+    "Minor: Grid lines would improve readability",
+    "Minor: Font size could be increased for accessibility"
+  ],
+  ...
+}
+```
+
+### Critical Issues ALWAYS Block Acceptance
+
+**Regardless of iteration or score, these issues FORCE "REFINE":**
+
+**Caught by PRE-FLIGHT GATE (Step 1.5) - rejected before scoring:**
+- Invisible/broken axes on coordinate graphs
+- Fragmented/non-circular pie charts
+- Missing fundamental structural elements
+
+**Caught during scoring - add to `critical_issues` and REFINE:**
+- Mathematical errors (wrong calculations, incorrect relationships)
+- CFU diagrams showing answers (defeats assessment purpose)
+- Severe label overlaps (>50% obstruction)
+
+**THE RULE**: If `critical_issues` array is non-empty, decision MUST be "REFINE" - no exceptions, even at iteration 10.
 
 ## Output Format
 
@@ -395,23 +756,53 @@ Return JSON with this exact structure:
 
 ## Iteration-Specific Guidance
 
-### Iteration 1
+**Max iterations: 10** | **Progressive Thresholds: 0.85 → 0.82 → 0.80 → 0.78**
+
+### Early Iterations (1-2) - Full Quality Bar
+**Threshold: 0.85 (strict)**
+
 - **Be thorough**: Identify all issues (major and minor)
 - **Set expectations**: Clearly communicate what needs improvement
 - **Provide specifics**: Give exact JSXGraph changes (not vague suggestions)
 - **Be constructive**: Acknowledge strengths before listing improvements
+- **No shortcuts**: Full 0.85 threshold - first attempts should meet quality bar
 
-### Iteration 2
-- **Focus on progress**: Did the diagram improve from iteration 1?
-- **Increased leniency**: Accept if score ≥ 0.82 (instead of 0.85)
-- **Prioritize critical issues**: Don't block on minor aesthetics if accuracy is good
-- **Encourage**: Note improvements made, provide targeted feedback
+### Middle Iterations (3-4) - Accuracy-Aware Leniency
+**Threshold: 0.82 if accuracy ≥ 0.90, else 0.85**
 
-### Iteration 3 (Final)
-- **Last chance**: This is the final refinement opportunity
-- **Maximum leniency**: Accept if score ≥ 0.80 (instead of 0.85)
-- **Critical only**: Focus on accuracy and clarity (pedagogy and aesthetics secondary)
-- **Clear decision**: If still below 0.80, clearly state why rejection is necessary
+- **Focus on progress**: Did the diagram improve from previous iterations?
+- **Track patterns**: Note if the same issues keep recurring
+- **Prioritize critical issues**: Focus on blocking problems (accuracy, clarity)
+- **Accept accurate diagrams**: If accuracy is excellent (≥0.90), minor aesthetic issues shouldn't block acceptance
+- **Early accept check**: Consider `accuracy = 1.0 AND pedagogy ≥ 0.85` rule
+
+### Middle-Late Iterations (5-6) - Efficiency Mode
+**Threshold: 0.80 if accuracy ≥ 0.90 AND no critical issues, else 0.85**
+
+- **Token awareness**: Each iteration costs ~5K tokens - prioritize essential fixes
+- **Critical issues only**: If no critical issues, accept diagrams that are mathematically sound
+- **Use ACCEPT_WITH_NOTES**: Accept with suggestions rather than forcing another iteration
+- **Aesthetic trade-offs**: A score of 0.80 with accuracy 0.95 is better than wasting tokens for 0.85
+
+### Late Iterations (7-10) - Minimum Viable Quality
+**Threshold: 0.78 if accuracy ≥ 0.90 AND pedagogy ≥ 0.80 AND no critical issues**
+
+- **Accept usable diagrams**: The goal is educational value, not perfection
+- **No critical issues mandate**: Only reject if there are actual blocking problems
+- **Clear decision rationale**: If accepting with score < 0.85, explain why in `accepted_reason`
+- **Iteration 10 special case**: If reaching iteration 10, strongly prefer `ACCEPT_WITH_NOTES` over rejection unless critical issues exist
+
+### Iteration 10 Final Decision
+
+At iteration 10, apply this decision tree:
+```
+1. If critical_issues is empty AND accuracy >= 0.85 → ACCEPT_WITH_NOTES
+2. If critical_issues is empty AND final_score >= 0.75 → ACCEPT_WITH_NOTES
+3. If critical_issues is NOT empty → REFINE (will trigger rejection in caller)
+4. If accuracy < 0.75 → REFINE (fundamental problems exist)
+```
+
+**Rationale**: A diagram scoring 0.78 after 10 iterations with no critical issues is MORE useful than rejecting it and having no diagram at all. The caller will handle rejection if we REFINE at iteration 10.
 
 ## Scottish Context Validation
 
@@ -777,7 +1168,7 @@ Even if these occur in iteration 3, the diagram should be rejected.
 2. **Check JSXGraph JSON**: Verify structure matches the rendered output
 3. **Score each dimension**: Apply rubrics objectively (0.00-1.00 for each)
 4. **Calculate final score**: Apply weighted formula
-5. **Make decision**: Compare to threshold (0.85, 0.82, or 0.80 based on iteration)
+5. **Make decision**: Compare to strict 0.85 threshold (same for all iterations)
 6. **Write feedback**: Balance strengths with improvements, provide specific changes
 7. **Return JSON**: Follow exact output format
 

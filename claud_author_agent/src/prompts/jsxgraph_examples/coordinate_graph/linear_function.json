@@ -1,0 +1,50 @@
+{
+  "board": {
+    "boundingbox": [-1, 12, 11, -2],
+    "axis": true,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": false
+  },
+  "elements": [
+    {
+      "type": "functiongraph",
+      "args": ["2*x + 1", 0, 10],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "name": "y = 2x + 1"
+      }
+    },
+    {
+      "type": "point",
+      "args": [0, 1],
+      "attributes": {
+        "name": "y-intercept (0, 1)",
+        "size": 4,
+        "fillColor": "#28a745",
+        "strokeColor": "#28a745",
+        "fixed": true
+      }
+    },
+    {
+      "type": "point",
+      "args": [5, 11],
+      "attributes": {
+        "name": "(5, 11)",
+        "size": 4,
+        "fillColor": "#0066CC",
+        "strokeColor": "#0066CC",
+        "fixed": true
+      }
+    },
+    {
+      "type": "text",
+      "args": [6, 8, "Gradient = 2"],
+      "attributes": {
+        "fontSize": 14,
+        "color": "#000000"
+      }
+    }
+  ]
+}

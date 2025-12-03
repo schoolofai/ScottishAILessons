@@ -28,6 +28,9 @@ interface CardEditorProps {
   index: number;
   totalCards: number;
   lessonTemplateId: string;
+  sowOrder?: number;
+  lessonType?: string;
+  lessonTitle?: string;
   onSave: (card: LessonCard) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -39,6 +42,9 @@ export function CardEditor({
   index,
   totalCards,
   lessonTemplateId,
+  sowOrder,
+  lessonType,
+  lessonTitle,
   onSave,
   onDelete,
   onMoveUp,
@@ -158,6 +164,36 @@ export function CardEditor({
       {/* Expanded Edit View */}
       {expanded && (
         <CardContent className="pt-0">
+          {/* SOW Context Header */}
+          {(sowOrder !== undefined || lessonType) && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                {sowOrder !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">SOW Order:</span>
+                    <Badge variant="outline" className="bg-white border-blue-300 text-blue-700">
+                      Lesson {sowOrder}
+                    </Badge>
+                  </div>
+                )}
+                {lessonType && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">Type:</span>
+                    <Badge variant="outline" className="bg-white border-blue-300 text-blue-700 capitalize">
+                      {lessonType.replace(/_/g, ' ')}
+                    </Badge>
+                  </div>
+                )}
+                {lessonTitle && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-600 font-medium">Lesson:</span>
+                    <span className="text-blue-700">{lessonTitle}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Validation Summary */}
           {showValidation && hasValidationErrors(errors) && (
             <Alert variant="destructive" className="mb-4">

@@ -1,0 +1,146 @@
+{
+  "board": {
+    "boundingbox": [-10, 7, 10, -7],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "chart",
+      "args": [[40, 30, 20, 10]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#0066CC", "#28a745", "#FFA500", "#DC3545"],
+        "center": [-2, -0.5],
+        "radius": 3.5,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "highlightOnSector": true,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 5.5, "Favourite Subjects"],
+      "attributes": {
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Legend box background",
+      "type": "polygon",
+      "args": [[5, 3], [9.5, 3], [9.5, -3], [5, -3]],
+      "attributes": {
+        "fillColor": "#f8f9fa",
+        "fillOpacity": 0.8,
+        "strokeColor": "#dee2e6",
+        "strokeWidth": 1,
+        "hasInnerPoints": false,
+        "vertices": { "visible": false }
+      }
+    },
+    {
+      "type": "text",
+      "args": [5.3, 2.5, "Legend"],
+      "attributes": {
+        "fontSize": 14,
+        "fontWeight": "bold",
+        "anchorX": "left",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Legend item 1 - Maths (Blue)",
+      "type": "polygon",
+      "args": [[5.3, 1.5], [5.8, 1.5], [5.8, 1.0], [5.3, 1.0]],
+      "attributes": {
+        "fillColor": "#0066CC",
+        "fillOpacity": 0.95,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 1,
+        "hasInnerPoints": false,
+        "vertices": { "visible": false }
+      }
+    },
+    {
+      "type": "text",
+      "args": [6.0, 1.25, "Maths (40%)"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "left",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Legend item 2 - English (Green)",
+      "type": "polygon",
+      "args": [[5.3, 0.3], [5.8, 0.3], [5.8, -0.2], [5.3, -0.2]],
+      "attributes": {
+        "fillColor": "#28a745",
+        "fillOpacity": 0.95,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 1,
+        "hasInnerPoints": false,
+        "vertices": { "visible": false }
+      }
+    },
+    {
+      "type": "text",
+      "args": [6.0, 0.05, "English (30%)"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "left",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Legend item 3 - Science (Orange)",
+      "type": "polygon",
+      "args": [[5.3, -0.9], [5.8, -0.9], [5.8, -1.4], [5.3, -1.4]],
+      "attributes": {
+        "fillColor": "#FFA500",
+        "fillOpacity": 0.95,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 1,
+        "hasInnerPoints": false,
+        "vertices": { "visible": false }
+      }
+    },
+    {
+      "type": "text",
+      "args": [6.0, -1.15, "Science (20%)"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "left",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Legend item 4 - Art (Red)",
+      "type": "polygon",
+      "args": [[5.3, -2.1], [5.8, -2.1], [5.8, -2.6], [5.3, -2.6]],
+      "attributes": {
+        "fillColor": "#DC3545",
+        "fillOpacity": 0.95,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 1,
+        "hasInnerPoints": false,
+        "vertices": { "visible": false }
+      }
+    },
+    {
+      "type": "text",
+      "args": [6.0, -2.35, "Art (10%)"],
+      "attributes": {
+        "fontSize": 11,
+        "anchorX": "left",
+        "color": "#333333"
+      }
+    }
+  ]
+}

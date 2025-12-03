@@ -1,0 +1,27 @@
+{
+  "category": "algebra",
+  "description": "Algebraic visualizations including balance scales and equation models",
+  "templates": [
+    {
+      "file": "balance_scale.json",
+      "name": "Balance Scale for Equations",
+      "description": "Balance scale showing equation with unknown on one side",
+      "diagram_type": "algebra",
+      "use_cases": [
+        "Solving equations",
+        "Balance method",
+        "Unknown variables",
+        "Algebraic thinking"
+      ],
+      "curriculum_level": "N3-N4"
+    }
+  ],
+  "key_features": {
+    "balance_beam": "Line element for the horizontal beam",
+    "fulcrum": "Triangle polygon for the support",
+    "pans": "Rectangles for the scale pans",
+    "weights": "Colored rectangles with labels"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01"
+}

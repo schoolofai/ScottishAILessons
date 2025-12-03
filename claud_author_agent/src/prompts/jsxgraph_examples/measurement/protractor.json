@@ -1,0 +1,169 @@
+{
+  "board": {
+    "boundingbox": [-6, 6.5, 6, -1],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "arc",
+      "args": [[0, 0], [5, 0], [-5, 0]],
+      "attributes": {
+        "strokeColor": "#8B4513",
+        "strokeWidth": 3,
+        "fillColor": "rgba(255, 248, 220, 0.8)"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[-5, 0], [5, 0]],
+      "attributes": {
+        "strokeColor": "#8B4513",
+        "strokeWidth": 3,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "point",
+      "args": [[0, 0]],
+      "attributes": {
+        "name": "",
+        "size": 4,
+        "fillColor": "#DC3545",
+        "strokeColor": "#DC3545",
+        "fixed": true
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [4.5, 0]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 1,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [4.7, -0.4, "0°"],
+      "attributes": {
+        "fontSize": 10,
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [3.18, 3.18]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 1,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [3.4, 3.4, "45°"],
+      "attributes": {
+        "fontSize": 10,
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [0, 4.5]],
+      "attributes": {
+        "strokeColor": "#DC3545",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [0.3, 4.6, "90°"],
+      "attributes": {
+        "fontSize": 10,
+        "fontWeight": "bold",
+        "color": "#DC3545"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [-3.18, 3.18]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 1,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [-3.9, 3.4, "135°"],
+      "attributes": {
+        "fontSize": 10,
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [-4.5, 0]],
+      "attributes": {
+        "strokeColor": "#333333",
+        "strokeWidth": 1,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "text",
+      "args": [-5.2, -0.4, "180°"],
+      "attributes": {
+        "fontSize": 10,
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "line",
+      "args": [[0, 0], [2.17, 3.83]],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2,
+        "straightFirst": false,
+        "straightLast": false
+      }
+    },
+    {
+      "type": "arc",
+      "args": [[0, 0], [1.5, 0], [1.02, 1.81]],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "text",
+      "args": [1.8, 1.2, "60°"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 6, "Protractor"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    }
+  ]
+}

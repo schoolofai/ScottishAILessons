@@ -1,0 +1,42 @@
+{
+  "category": "measurement",
+  "description": "Measurement tool visualizations including rulers, protractors, and scales",
+  "templates": [
+    {
+      "file": "ruler.json",
+      "name": "Centimetre Ruler",
+      "description": "10cm ruler with major (cm) and minor (0.5cm) tick marks",
+      "diagram_type": "measurement",
+      "use_cases": [
+        "Reading ruler scales",
+        "Measuring length",
+        "Estimating measurements",
+        "Understanding centimetres"
+      ],
+      "curriculum_level": "N2-N4"
+    },
+    {
+      "file": "protractor.json",
+      "name": "Protractor",
+      "description": "Semicircle protractor with degree markings (0-180°)",
+      "diagram_type": "measurement",
+      "use_cases": [
+        "Measuring angles",
+        "Drawing angles",
+        "Reading protractor scales",
+        "Angle estimation"
+      ],
+      "curriculum_level": "N3-N5"
+    }
+  ],
+  "key_features": {
+    "ruler_body": "Polygon with cream fill and brown border",
+    "major_ticks": "Longer lines at whole numbers",
+    "minor_ticks": "Shorter lines at half marks",
+    "labels": "Numbers positioned above tick marks",
+    "protractor_arc": "Arc element for semicircle shape",
+    "angle_lines": "Lines from center to edge at key angles"
+  },
+  "validated": true,
+  "validated_date": "2025-12-01"
+}

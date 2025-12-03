@@ -1,0 +1,86 @@
+{
+  "board": {
+    "boundingbox": [-8, 7, 8, -7],
+    "axis": false,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": true
+  },
+  "elements": [
+    {
+      "type": "chart",
+      "args": [[30, 25, 20, 15, 10]],
+      "attributes": {
+        "chartStyle": "pie",
+        "colors": ["#0066CC", "#28a745", "#FFA500", "#DC3545", "#6c757d"],
+        "center": [0, -0.5],
+        "radius": 3.5,
+        "strokeColor": "#ffffff",
+        "strokeWidth": 2,
+        "highlightOnSector": true,
+        "fillOpacity": 0.95
+      }
+    },
+    {
+      "type": "text",
+      "args": [0, 5.5, "Student Transport Survey"],
+      "attributes": {
+        "fontSize": 18,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "comment": "Label positions calculated: start at 12 o'clock, go clockwise. Each label at midpoint of its sector arc, offset outward from center",
+      "type": "text",
+      "args": [1.8, 3.2, "Walk 30%"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [4.2, 0.3, "Bus 25%"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "left",
+        "color": "#28a745"
+      }
+    },
+    {
+      "type": "text",
+      "args": [2.5, -3.5, "Car 20%"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#FFA500"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-2.5, -3.2, "Cycle 15%"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#DC3545"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-4.0, 0.5, "Other 10%"],
+      "attributes": {
+        "fontSize": 12,
+        "fontWeight": "bold",
+        "anchorX": "right",
+        "color": "#6c757d"
+      }
+    }
+  ]
+}

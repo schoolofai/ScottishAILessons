@@ -202,6 +202,40 @@ export default function LessonCardEditorPage({ params }: PageProps) {
           Back to Admin
         </Button>
 
+        {/* SOW Context Banner */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex flex-wrap items-center gap-4 text-sm">
+            {template.sow_order !== undefined && (
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-medium">SOW Order:</span>
+                <Badge variant="outline" className="bg-white border-blue-300 text-blue-700">
+                  Lesson {template.sow_order}
+                </Badge>
+              </div>
+            )}
+            {template.lesson_type && (
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-medium">Type:</span>
+                <Badge variant="outline" className="bg-white border-blue-300 text-blue-700 capitalize">
+                  {template.lesson_type.replace(/_/g, ' ')}
+                </Badge>
+              </div>
+            )}
+            {template.courseId && (
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-medium">Course:</span>
+                <span className="text-blue-700 font-mono text-xs">{template.courseId}</span>
+              </div>
+            )}
+            {template.authored_sow_id && (
+              <div className="flex items-center gap-2">
+                <span className="text-blue-600 font-medium">SOW ID:</span>
+                <span className="text-blue-700 font-mono text-xs">{template.authored_sow_id}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold mb-2">{template.title}</h1>
@@ -274,6 +308,9 @@ export default function LessonCardEditorPage({ params }: PageProps) {
               index={index}
               totalCards={cards.length}
               lessonTemplateId={templateId}
+              sowOrder={template.sow_order}
+              lessonType={template.lesson_type}
+              lessonTitle={template.title}
               onSave={(updatedCard) => handleCardUpdate(index, updatedCard)}
               onDelete={() => handleCardDelete(index)}
               onMoveUp={() => handleCardMoveUp(index)}

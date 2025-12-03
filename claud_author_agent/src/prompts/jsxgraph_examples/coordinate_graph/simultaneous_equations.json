@@ -1,0 +1,78 @@
+{
+  "board": {
+    "boundingbox": [-6, 8, 8, -4],
+    "axis": true,
+    "showNavigation": false,
+    "showCopyright": false,
+    "keepAspectRatio": false
+  },
+  "elements": [
+    {
+      "type": "functiongraph",
+      "args": ["x + 1", -5, 7],
+      "attributes": {
+        "strokeColor": "#0066CC",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "functiongraph",
+      "args": ["-x + 5", -5, 7],
+      "attributes": {
+        "strokeColor": "#28a745",
+        "strokeWidth": 2
+      }
+    },
+    {
+      "type": "point",
+      "args": [[2, 3]],
+      "attributes": {
+        "name": "(2, 3)",
+        "size": 5,
+        "fillColor": "#DC3545",
+        "strokeColor": "#DC3545",
+        "fixed": true,
+        "label": {
+          "offset": [10, 10],
+          "fontSize": 14,
+          "fontWeight": "bold"
+        }
+      }
+    },
+    {
+      "type": "text",
+      "args": [5, 6.5, "y = x + 1"],
+      "attributes": {
+        "fontSize": 14,
+        "color": "#0066CC"
+      }
+    },
+    {
+      "type": "text",
+      "args": [-4, 6.5, "y = -x + 5"],
+      "attributes": {
+        "fontSize": 14,
+        "color": "#28a745"
+      }
+    },
+    {
+      "type": "text",
+      "args": [1, 7.2, "Simultaneous Equations"],
+      "attributes": {
+        "fontSize": 16,
+        "fontWeight": "bold",
+        "anchorX": "middle",
+        "color": "#333333"
+      }
+    },
+    {
+      "type": "text",
+      "args": [1, -3.2, "Solution: x = 2, y = 3"],
+      "attributes": {
+        "fontSize": 14,
+        "anchorX": "middle",
+        "color": "#DC3545"
+      }
+    }
+  ]
+}
