@@ -1,0 +1,41 @@
+{
+  "diagram": {
+    "boundingBox": [-5, 5, 5, -5],
+    "elements": [
+      {
+        "type": "point",
+        "id": "A",
+        "coords": [-2, -2],
+        "attributes": {
+          "name": "A",
+          "color": "blue",
+          "size": 4
+        }
+      },
+      {
+        "type": "point",
+        "id": "B",
+        "coords": [2, 2],
+        "attributes": {
+          "name": "B",
+          "color": "blue",
+          "size": 4
+        }
+      },
+      {
+        "type": "line",
+        "id": "lineAB",
+        "parents": ["A", "B"],
+        "attributes": {
+          "strokeColor": "red",
+          "strokeWidth": 2
+        }
+      }
+    ]
+  },
+  "options": {
+    "width": 800,
+    "height": 600,
+    "format": "png"
+  }
+}

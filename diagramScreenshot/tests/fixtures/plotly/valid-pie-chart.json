@@ -1,0 +1,28 @@
+{
+  "chart": {
+    "data": [
+      {
+        "type": "pie",
+        "values": [30, 25, 20, 15, 10],
+        "labels": ["Chrome", "Firefox", "Safari", "Edge", "Other"],
+        "textposition": "inside",
+        "marker": {
+          "color": ["#3498db", "#e74c3c", "#f39c12", "#9b59b6", "#95a5a6"]
+        }
+      }
+    ],
+    "layout": {
+      "title": "Browser Market Share",
+      "showlegend": true,
+      "legend": {
+        "orientation": "h",
+        "y": -0.1
+      }
+    }
+  },
+  "options": {
+    "width": 600,
+    "height": 600,
+    "format": "png"
+  }
+}

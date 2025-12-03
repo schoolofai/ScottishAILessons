@@ -1,0 +1,29 @@
+{
+  "state": {
+    "expressions": {
+      "list": [
+        {
+          "id": "1",
+          "latex": "y=x^2",
+          "color": "#c74440"
+        }
+      ]
+    },
+    "graph": {
+      "viewport": {
+        "xmin": -10,
+        "xmax": 10,
+        "ymin": -5,
+        "ymax": 20
+      },
+      "showGrid": true,
+      "showXAxis": true,
+      "showYAxis": true
+    }
+  },
+  "options": {
+    "width": 800,
+    "height": 600,
+    "format": "png"
+  }
+}

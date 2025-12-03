@@ -1,0 +1,29 @@
+{
+  "chart": {
+    "data": [
+      {
+        "type": "bar",
+        "x": ["Apples", "Oranges", "Bananas"],
+        "y": [10, 15, 7],
+        "name": "Fruit Sales",
+        "marker": {
+          "color": "#3498db"
+        }
+      }
+    ],
+    "layout": {
+      "title": "Fruit Sales Chart",
+      "xaxis": {
+        "title": "Fruit"
+      },
+      "yaxis": {
+        "title": "Sales"
+      }
+    }
+  },
+  "options": {
+    "width": 800,
+    "height": 600,
+    "format": "png"
+  }
+}

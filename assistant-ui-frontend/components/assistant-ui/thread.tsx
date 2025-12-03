@@ -4,10 +4,13 @@ import {
   MessagePrimitive,
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  useMessage,
+  useThread,
   // TODO: this template is on an older version of @assistant-ui/react, this should be updated
-  // ErrorPrimitive, 
+  // ErrorPrimitive,
 } from "@assistant-ui/react";
 import type { FC } from "react";
+import { useRef, useEffect, useState } from "react";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -31,6 +34,74 @@ import { ToolFallback } from "./tool-fallback";
 import { useSessionContext } from "@/lib/SessionContext";
 import { useReplayMode } from "@/contexts/ReplayModeContext";
 
+// Component to handle scroll and glow when streaming completes
+const StreamCompleteHandler: FC = () => {
+  const isRunning = useThread((t) => t.isRunning);
+  const wasRunningRef = useRef(false);
+
+  useEffect(() => {
+    // Track when thread starts running
+    if (isRunning) {
+      wasRunningRef.current = true;
+    }
+
+    // When streaming completes (was running, now not running)
+    if (wasRunningRef.current && !isRunning) {
+      wasRunningRef.current = false;
+
+      // Helper function to scroll to the top of the last assistant message
+      const scrollToMessageTop = () => {
+        const assistantMessages = document.querySelectorAll('[data-role="assistant"]');
+        const lastMessage = assistantMessages[assistantMessages.length - 1] as HTMLElement;
+
+        if (lastMessage) {
+          // Find the scroll container (ThreadPrimitive.Viewport with overflow-y-auto)
+          const viewport = lastMessage.closest('.overflow-y-auto') as HTMLElement;
+
+          if (viewport) {
+            // Calculate the absolute position of the message within the scroll container
+            const messageRect = lastMessage.getBoundingClientRect();
+            const viewportRect = viewport.getBoundingClientRect();
+            const targetScrollTop = messageRect.top - viewportRect.top + viewport.scrollTop;
+            const viewportPadding = 16;
+
+            // Use instant scroll to override any auto-scroll
+            viewport.scrollTop = Math.max(0, targetScrollTop - viewportPadding);
+          }
+
+          return lastMessage;
+        }
+        return null;
+      };
+
+      // First scroll attempt after initial render
+      setTimeout(() => {
+        const lastMessage = scrollToMessageTop();
+
+        if (lastMessage) {
+          // Add glow animation
+          lastMessage.classList.add('animate-message-glow');
+          setTimeout(() => {
+            lastMessage.classList.remove('animate-message-glow');
+          }, 1500);
+        }
+      }, 300);
+
+      // Second scroll attempt after components settle (images load, inputs focus)
+      setTimeout(() => {
+        scrollToMessageTop();
+      }, 800);
+
+      // Third scroll attempt as final override
+      setTimeout(() => {
+        scrollToMessageTop();
+      }, 1200);
+    }
+  }, [isRunning]);
+
+  return null;
+};
+
 export const Thread: FC = () => {
   const { isSessionMode } = useSessionContext();
   const { isReplayMode } = useReplayMode();
@@ -44,6 +115,9 @@ export const Thread: FC = () => {
         ["--thread-padding-x" as string]: "1rem",
       }}
     >
+      {/* Handler for scroll and glow on stream complete */}
+      <StreamCompleteHandler />
+
       {/* aui-thread-viewport */}
       <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 min-h-0 flex-col gap-6 overflow-y-auto px-[var(--thread-padding-x)] py-4">
         <ThreadWelcome />
@@ -288,7 +362,7 @@ const AssistantMessage: FC = () => {
     <MessagePrimitive.Root asChild>
       <motion.div
         // aui-assistant-message-root
-        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4"
+        className="relative mx-auto grid w-full max-w-[var(--thread-max-width)] grid-cols-[auto_auto_1fr] grid-rows-[auto_1fr] py-4 px-3 scroll-mt-4 rounded-lg transition-colors"
         initial={{ y: 5, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         data-role="assistant"

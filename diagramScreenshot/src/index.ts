@@ -10,6 +10,19 @@ import { apiKeyAuth } from './middleware/auth';
 import logger from './utils/logger';
 import { DiagramRenderer } from './services/renderer';
 
+// NEW: Plotly renderer imports
+import { plotlyRouter, initPlotlyRenderer } from './routes/plotly.routes';
+import { BrowserService } from './services/browser.service';
+
+// NEW: Desmos renderer imports
+import { desmosRouter, initDesmosRenderer } from './routes/desmos.routes';
+
+// NEW: GeoGebra renderer imports
+import { geogebraRouter, initGeoGebraRenderer } from './routes/geogebra.routes';
+
+// NEW: Imagen AI image generation imports
+import { imagenRouter, initImagenClient, isImagenConfigured } from './routes/imagen.routes';
+
 dotenv.config();
 
 const app: Express = express();
@@ -33,6 +46,10 @@ app.use(express.json({ limit: process.env.MAX_REQUEST_SIZE || '5mb' }));
 
 // Routes
 app.use('/api/v1/render', apiKeyAuth, renderRouter);
+app.use('/api/v1/render/plotly', apiKeyAuth, plotlyRouter);
+app.use('/api/v1/render/desmos', apiKeyAuth, desmosRouter);
+app.use('/api/v1/render/geogebra', apiKeyAuth, geogebraRouter);
+app.use('/api/v1/render/imagen', apiKeyAuth, imagenRouter);
 app.use('/health', healthRouter);
 
 // 404 handler
@@ -51,9 +68,28 @@ async function start() {
   try {
     logger.info('Initializing DiagramScreenshot service...');
 
-    // Initialize Playwright browser
+    // Initialize Playwright browser (existing JSXGraph renderer)
     await renderer.initialize();
     logger.info('Playwright browser initialized');
+
+    // Initialize new renderers (Plotly, Desmos, etc.)
+    await initPlotlyRenderer();
+    logger.info('Plotly renderer initialized');
+
+    await initDesmosRenderer();
+    logger.info('Desmos renderer initialized');
+
+    // Initialize GeoGebra renderer
+    await initGeoGebraRenderer();
+    logger.info('GeoGebra renderer initialized');
+
+    // Initialize Imagen client (optional - depends on API key)
+    const imagenInitialized = initImagenClient();
+    if (imagenInitialized) {
+      logger.info('Imagen client initialized');
+    } else {
+      logger.warn('Imagen client not initialized - GOOGLE_AI_API_KEY not set');
+    }
 
     // Start server
     app.listen(PORT, () => {
@@ -79,12 +115,14 @@ async function start() {
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
   await renderer.close();
+  await BrowserService.getInstance().close();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
   await renderer.close();
+  await BrowserService.getInstance().close();
   process.exit(0);
 });
 

@@ -1,0 +1,32 @@
+{
+  "state": {
+    "expressions": {
+      "list": [
+        {
+          "id": "1",
+          "latex": "y=\\sin(x)",
+          "color": "#2d70b3"
+        },
+        {
+          "id": "2",
+          "latex": "y=\\cos(x)",
+          "color": "#388c46",
+          "lineStyle": "DASHED"
+        }
+      ]
+    },
+    "graph": {
+      "viewport": {
+        "xmin": -6.28,
+        "xmax": 6.28,
+        "ymin": -2,
+        "ymax": 2
+      },
+      "showGrid": true
+    }
+  },
+  "options": {
+    "width": 800,
+    "height": 400
+  }
+}

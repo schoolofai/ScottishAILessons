@@ -7,7 +7,31 @@ const config: Config = {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        "message-glow": {
+          "0%": {
+            boxShadow: "0 0 0 0 rgba(59, 130, 246, 0)",
+            backgroundColor: "rgba(59, 130, 246, 0)",
+          },
+          "20%": {
+            boxShadow: "0 0 20px 4px rgba(59, 130, 246, 0.3)",
+            backgroundColor: "rgba(59, 130, 246, 0.05)",
+          },
+          "50%": {
+            boxShadow: "0 0 25px 6px rgba(59, 130, 246, 0.2)",
+            backgroundColor: "rgba(59, 130, 246, 0.03)",
+          },
+          "100%": {
+            boxShadow: "0 0 0 0 rgba(59, 130, 246, 0)",
+            backgroundColor: "rgba(59, 130, 246, 0)",
+          },
+        },
+      },
+      animation: {
+        "message-glow": "message-glow 1.5s ease-out forwards",
+      },
+    },
   },
   plugins: [
     require("@tailwindcss/typography"),
