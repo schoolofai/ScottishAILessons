@@ -23,13 +23,20 @@ class CardType(str, Enum):
 
 
 class LessonType(str, Enum):
-    """Valid lesson types for SOW entries."""
+    """Valid lesson types for SOW entries.
+
+    IMPORTANT: Only these 5 values are valid:
+    - teach: Core teaching lessons with new content
+    - independent_practice: Skill consolidation with minimal scaffolding
+    - formative_assessment: Progress check with no scaffolding
+    - revision: Review and consolidation of previously taught content
+    - mock_exam: Exam preparation simulating real SQA conditions (exactly 1 per course)
+    """
     TEACH = "teach"
-    REVISION = "revision"
-    FORMATIVE_ASSESSMENT = "formative_assessment"
     INDEPENDENT_PRACTICE = "independent_practice"
-    MOCK_ASSESSMENT = "mock_assessment"
-    SPIRAL_REVISIT = "spiral_revisit"
+    FORMATIVE_ASSESSMENT = "formative_assessment"
+    REVISION = "revision"
+    MOCK_EXAM = "mock_exam"
 
 
 class CalculatorSection(str, Enum):
@@ -462,11 +469,11 @@ class AuthoredSOW(BaseModel):
                 f"Course must have at least 1 independent_practice lesson, found {independent_count}"
             )
 
-        # Count mock_assessment
-        mock_count = lesson_types.count(LessonType.MOCK_ASSESSMENT)
+        # Count mock_exam
+        mock_count = lesson_types.count(LessonType.MOCK_EXAM)
         if mock_count != 1:
             raise ValueError(
-                f"Course must have exactly 1 mock_assessment lesson, found {mock_count}"
+                f"Course must have exactly 1 mock_exam lesson, found {mock_count}"
             )
 
         return self

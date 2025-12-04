@@ -61,7 +61,9 @@ This file contains the COMPLETE schema documentation for `authored_sow.json`, in
 
 7. **Course-Level Requirements**:
    - Exactly 1 `mock_exam` lesson (simulating real SQA exam conditions)
+   - At least 1 `independent_practice` lesson (skill consolidation with minimal scaffolding)
    - Total 10-20 lessons
+   - **Valid lesson_type values ONLY**: teach, independent_practice, formative_assessment, revision, mock_exam
 
 ### For Complete Schema Details
 
@@ -337,6 +339,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
    - **MANDATORY PAIRING**: Every teach lesson MUST be followed by a corresponding revision lesson (1:1 pairing)
    - **COURSE-LEVEL REQUIREMENTS**: The complete SoW must include:
      * Exactly one mock_exam lesson (simulating real-world SQA exam conditions)
+     * At least one independent_practice lesson (skill consolidation with minimal scaffolding)
    - Align calculator policy with the assessment model from Course_data.txt
    - **Execute internally - do not narrate chunking decisions, consolidation reasoning, or planning details**
 
@@ -367,6 +370,16 @@ You MUST write these files to the workspace filesystem using the Write tool:
    - Remaining cards: Pure question_card type with CFU stems - NO starter, NO exit_ticket
    - Go straight to assessment content - students' time is valuable
    - Typically 6-10 question cards after the explainer
+
+   **For `independent_practice` lessons**:
+   - Skill consolidation with MINIMAL scaffolding (students work independently)
+   - Card structure: 3-4 cards with progressive difficulty (Basic → Standard → Challenge → Extension)
+   - Card 1: Basic practice (lower difficulty, foundational skills)
+   - Card 2: Standard practice (medium difficulty, core competency)
+   - Card 3: Challenge practice (higher difficulty, extended application)
+   - Optional Card 4: Extension or real-world application
+   - Fewer hints compared to guided_practice - students demonstrate independent understanding
+   - CFU strategy: Full questions requiring method AND answer
 
    **Card field requirements (all types)**:
      * purpose (pedagogical goal for this card)
@@ -406,7 +419,7 @@ You MUST write these files to the workspace filesystem using the Write tool:
    For EACH lesson entry (typically 10-20 entries):
    - Generate ONE entry with all required fields:
      * order (sequential: 1, 2, 3...)
-     * lesson_type (teach, revision, formative_assessment, mock_exam)
+     * lesson_type (ONLY valid values: teach, independent_practice, formative_assessment, revision, mock_exam)
      * label (clear, teacher-facing title indicating all covered standards)
      * policy (calculator usage, assessment notes)
      * coherence (block_name, block_index, prerequisites)
@@ -445,7 +458,8 @@ You MUST write these files to the workspace filesystem using the Write tool:
      * Verify metadata fields all non-empty
      * Verify card counts (6-12 per entry)
      * Verify teach→revision pairing
-     * Verify course-level requirements (exactly 1 mock_exam)
+     * Verify course-level requirements (exactly 1 mock_exam, at least 1 independent_practice)
+     * Verify lesson_type values are valid (ONLY: teach, independent_practice, formative_assessment, revision, mock_exam)
    - **VALIDATION OUTPUT**:
      * If ALL CHECKLIST ITEMS PASS: Say nothing, proceed silently to step 9
      * If ANY CHECKLIST ITEM FAILS: Display ONLY the failures (field names, specific issues) - not the full checklist. Then fix by reading the file, correcting the issues, and writing the updated file. Repeat until validation passes.
@@ -619,6 +633,8 @@ When designing a teach lesson for quadratic equations, search: "teaching quadrat
 - **Lesson Type Requirements**:
   * Each teach lesson MUST be paired with a revision lesson (teach→revision)
   * At course level: exactly one mock_exam lesson (simulating real SQA exam conditions)
+  * At course level: at least one independent_practice lesson (skill consolidation)
+  * Valid lesson_type values ONLY: teach, independent_practice, formative_assessment, revision, mock_exam
 
 **Expected Outcome**:
 - 10-20 lessons
@@ -631,7 +647,7 @@ When designing a teach lesson for quadratic equations, search: "teaching quadrat
 - Ensure each standard is meaningfully addressed (not just "touched")
 - Label must clearly indicate all covered standards
 - Ensure teach→revision pairing for every teach lesson
-- Include course-level mandatory lesson type: exactly one mock_exam
+- Include course-level mandatory lesson types: exactly one mock_exam, at least one independent_practice
 </chunking_strategy>
 
 <subagents_available>
@@ -703,6 +719,7 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
 - ✅ Each consolidated lesson block has explicit multi-lesson sequence with lesson types
 - ✅ Every teach lesson has corresponding revision lesson (1:1 pairing, teach→revision)
 - ✅ Course includes exactly one mock_exam lesson (for real SQA exam simulation)
+- ✅ Course includes at least one independent_practice lesson (for skill consolidation)
 - ✅ **ALL assessmentStandardRefs are enriched objects** (code, description from Course_data.txt EXACTLY, outcome) - NOT bare strings
 - ✅ **ALL card-level standards_addressed are enriched objects** (NOT bare codes)
 - ✅ **ALL CFU strategies are SPECIFIC** (NOT "ask questions" or generic phrases)
@@ -727,6 +744,8 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
   * After teach→revision pairs, include formative_assessment in the block sequence
 - **COURSE-LEVEL MANDATORY LESSON TYPES**:
   * Exactly one mock_exam lesson across the entire course (simulating real SQA exam conditions)
+  * At least one independent_practice lesson (for skill consolidation with minimal scaffolding)
+  * Valid lesson_type values ONLY: teach, independent_practice, formative_assessment, revision, mock_exam
 - **ENRICHMENT MANDATORY**: Always transform assessmentStandardRefs from bare codes into enriched objects with code, description (from Course_data.txt), and outcome reference.
 - **LESSON PLAN MANDATORY**: Every entry must have detailed lesson_plan with:
   * 6-12 cards in card_structure (appropriate for 25-50 min Scottish periods)
@@ -752,6 +771,7 @@ This ensures the final SoW is grounded in authoritative SQA specifications.
   * Then include formative_assessment as needed
 - **COURSE-LEVEL REQUIREMENTS**: Ensure the complete SoW includes:
   * Exactly one mock_exam lesson (for real-world SQA exam simulation)
+  * At least one independent_practice lesson (for skill consolidation)
 - **Enrich assessmentStandardRefs**: Use objects with code, description (from Course_data.txt), and outcome reference - NOT bare codes.
 - **Generate detailed lesson_plan**:
   * Design 6-12 cards per lesson with clear pedagogical progression
