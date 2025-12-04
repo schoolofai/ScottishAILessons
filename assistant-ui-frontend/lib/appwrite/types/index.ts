@@ -321,21 +321,74 @@ export interface AppwriteResponse<T> {
 }
 
 // Authored SOW types - Phase 1 MVP2.5
+
+/**
+ * Card structure within a lesson plan
+ */
+export interface AuthoredSOWCard {
+  card_number: number;
+  card_type: 'starter' | 'explainer' | 'modelling' | 'guided_practice' | 'independent_practice' | 'exit_ticket';
+  title: string;
+  purpose: string;
+  standards_addressed: Array<{
+    code?: string;
+    description: string;
+    outcome?: string;
+    skill_name?: string;
+  }>;
+  pedagogical_approach: string;
+  key_concepts?: string[];
+  worked_example?: string;
+  practice_problems?: string[];
+  cfu_strategy: string;
+  misconceptions_addressed?: Array<{
+    misconception: string;
+    remediation: string;
+  }>;
+  rubric_guidance?: {
+    total_points: number;
+    criteria: Array<{ description: string; points: number }>;
+  };
+  estimated_minutes?: number;
+}
+
+/**
+ * Lesson plan structure with card_structure
+ */
+export interface AuthoredSOWLessonPlan {
+  summary: string;
+  card_structure: AuthoredSOWCard[];
+  lesson_flow_summary: string;
+  multi_standard_integration_strategy: string;
+  misconceptions_embedded_in_cards: string[];
+  assessment_progression: string;
+}
+
+/**
+ * Standard or skill reference (unified for unit-based and skills-based courses)
+ */
+export interface StandardOrSkillRef {
+  code?: string;
+  description: string;
+  outcome?: string;
+  skill_name?: string;
+}
+
 export interface AuthoredSOWEntry {
   order: number;
-  lessonTemplateRef: string;
+  lessonTemplateRef?: string; // Optional - may not exist in authored SOWs
   label: string;
   lesson_type: 'teach' | 'independent_practice' | 'formative_assessment' |
-                'mock_assessment' | 'revision' | 'project' | 'spiral_revisit' | 'summative_assessment';
+                'mock_assessment' | 'revision' | 'project' | 'spiral_revisit' | 'summative_assessment' | 'mock_exam';
   coherence: {
-    unit: string;
+    unit?: string;
     block_name: string;
     block_index: string;
-    prerequisites: string[];
+    prerequisites?: string[];
   };
   policy: {
-    calculator_section: 'non_calc' | 'calc' | 'mixed';
-    assessment_notes: string;
+    calculator_section: 'non_calc' | 'calc' | 'mixed' | 'exam_conditions';
+    assessment_notes?: string;
     accessibility?: {
       dyslexia_friendly: boolean;
       plain_language_level: string;
@@ -343,12 +396,35 @@ export interface AuthoredSOWEntry {
     };
   };
   engagement_tags: string[];
-  outcomeRefs: string[];
-  assessmentStandardRefs: string[];
+
+  // NEW: Unified standards/skills field (preferred)
+  standards_or_skills_addressed?: StandardOrSkillRef[];
+
+  // LEGACY: Old fields for backwards compatibility
+  outcomeRefs?: string[];
+  assessmentStandardRefs?: Array<{ code: string; description: string; outcome: string }>;
+
+  // NEW: Lesson plan with card_structure (actual JSON structure)
+  lesson_plan?: AuthoredSOWLessonPlan;
+
+  // LEGACY: Old pedagogical_blocks for backwards compatibility
   pedagogical_blocks?: any[];
-  accessibility_profile?: any;
-  estMinutes: number;
-  notes: string;
+
+  accessibility_profile?: {
+    dyslexia_friendly: boolean;
+    plain_language_level?: string;
+    extra_time?: boolean;
+    extra_time_percentage?: number;
+    key_terms_simplified?: string[];
+    visual_support_strategy?: string;
+  };
+  estMinutes?: number;
+
+  // NEW: lesson_instruction (preferred)
+  lesson_instruction?: string;
+
+  // LEGACY: notes field for backwards compatibility
+  notes?: string;
 }
 
 export interface AuthoredSOWMetadata {
