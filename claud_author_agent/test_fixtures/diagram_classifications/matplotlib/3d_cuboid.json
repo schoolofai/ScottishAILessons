@@ -1,0 +1,44 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_geo_cuboid_001",
+      "question_number": 1,
+      "tool": "MATPLOTLIB",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "3D cuboid/box with dimensions - geometric solid visualization",
+        "content_analysis": "Box (cuboid) 10cm x 5cm x 4cm - three-dimensional shape",
+        "decision_rule_applied": "Rule 6: Geometric shape (3D) -> MATPLOTLIB supports 3D",
+        "alternatives_rejected": "Other tools don't handle 3D geometric shapes well",
+        "summary": "3D cuboid visualization aids volume concept understanding"
+      },
+      "visualization_focus": "3D cuboid with length 10cm, width 5cm, height 4cm labeled",
+      "alternative_tool": null,
+      "curriculum_topic": "Cuboid Volume",
+      "diagram_specs": {
+        "key_elements": [
+          "3D box/cuboid",
+          "dimensions labeled",
+          "perspective view",
+          "clear depth indication"
+        ],
+        "educational_purpose": "Show three dimensions for volume = length x width x height"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "3D cuboid with labeled dimensions for volume calculation",
+    "tool": "MATPLOTLIB",
+    "expected_features": ["3d_perspective", "three_dimensions_labeled", "depth_indication"],
+    "common_issues_to_check": [
+      "3D mode must be enabled",
+      "All three dimensions clearly visible",
+      "Perspective view not flat"
+    ],
+    "difficulty": "intermediate"
+  }
+}

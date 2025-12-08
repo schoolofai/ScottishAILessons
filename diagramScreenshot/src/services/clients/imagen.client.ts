@@ -15,7 +15,7 @@ import type {
 import logger from '../../utils/logger';
 
 /** Model to use for image generation */
-const IMAGEN_MODEL = 'gemini-2.0-flash-exp';
+const IMAGEN_MODEL = 'gemini-3-pro-image-preview';
 
 /**
  * Client for generating educational images using Google Gemini
@@ -26,9 +26,9 @@ export class ImagenClient {
   private initialized: boolean = false;
 
   constructor() {
-    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error('IMAGEN_NOT_CONFIGURED: GOOGLE_AI_API_KEY environment variable not set');
+      throw new Error('IMAGEN_NOT_CONFIGURED: GEMINI_API_KEY environment variable not set');
     }
 
     this.client = new GoogleGenerativeAI(apiKey);
@@ -254,8 +254,8 @@ export function initImagenClient(): boolean {
     return true;
   }
 
-  if (!process.env.GOOGLE_AI_API_KEY) {
-    logger.warn('GOOGLE_AI_API_KEY not set - Imagen endpoint disabled');
+  if (!process.env.GEMINI_API_KEY) {
+    logger.warn('GEMINI_API_KEY not set - Imagen endpoint disabled');
     return false;
   }
 

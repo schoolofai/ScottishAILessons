@@ -1,0 +1,78 @@
+{
+  "mock_exam": {
+    "examId": "test_algebra_001",
+    "courseId": "national5_maths",
+    "version": "1",
+    "title": "Algebra - Graphs and Functions",
+    "sections": [
+      {
+        "sectionId": "section_A",
+        "title": "Section A - Graphs",
+        "total_marks": 12,
+        "questions": [
+          {
+            "question_id": "alg_001",
+            "question_number": 1,
+            "question_stem": "Sketch the graph of y = x^2 - 4x + 3, showing clearly the coordinates of the turning point and where the graph crosses the axes.",
+            "question_stem_plain": "Sketch the graph of y = x squared minus 4x plus 3, showing clearly the coordinates of the turning point and where the graph crosses the axes.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Quadratic functions and graphs"}]
+          },
+          {
+            "question_id": "alg_002",
+            "question_number": 2,
+            "question_stem": "Solve the equation 3x + 7 = 22.",
+            "question_stem_plain": "Solve the equation 3x + 7 = 22.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Linear equations"}]
+          },
+          {
+            "question_id": "alg_003",
+            "question_number": 3,
+            "question_stem": "The graph shows y = sin(x) for 0 <= x <= 360. Identify the maximum value and the x-coordinates where y = 0.",
+            "question_stem_plain": "The graph shows y = sin(x) for 0 less than or equal to x less than or equal to 360. Identify the maximum value and the x-coordinates where y = 0.",
+            "question_type": "short_answer",
+            "marks": 3,
+            "standards_addressed": [{"description": "Trigonometric graphs"}]
+          },
+          {
+            "question_id": "alg_004",
+            "question_number": 4,
+            "question_stem": "Draw the graph of y = 2x + 1 for values of x from -2 to 3.",
+            "question_stem_plain": "Draw the graph of y = 2x + 1 for values of x from -2 to 3.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Linear functions"}]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_questions": 4,
+      "total_marks": 12,
+      "total_time_minutes": 20
+    }
+  },
+  "sow_context": {
+    "subject": "mathematics",
+    "level": "national-5",
+    "course_id": "national5_maths",
+    "course_title": "National 5 Mathematics"
+  },
+  "expected_classifications": {
+    "expected": [
+      {"question_id": "alg_001", "expected_tool": "DESMOS"},
+      {"question_id": "alg_002", "expected_tool": "NONE"},
+      {"question_id": "alg_003", "expected_tool": "DESMOS"},
+      {"question_id": "alg_004", "expected_tool": "DESMOS"}
+    ]
+  },
+  "_fixture_metadata": {
+    "description": "Algebra questions focusing on graphing quadratic, linear, and trigonometric functions",
+    "category": "algebra",
+    "difficulty": "intermediate",
+    "expected_tools": ["DESMOS", "NONE"]
+  }
+}

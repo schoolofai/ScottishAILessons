@@ -1,0 +1,78 @@
+{
+  "mock_exam": {
+    "examId": "test_stats_001",
+    "courseId": "national5_maths",
+    "version": "1",
+    "title": "Statistics - Data Analysis",
+    "sections": [
+      {
+        "sectionId": "section_A",
+        "title": "Section A - Statistical Diagrams",
+        "total_marks": 10,
+        "questions": [
+          {
+            "question_id": "stat_001",
+            "question_number": 1,
+            "question_stem": "The following data shows the number of hours students spent studying: 2, 3, 5, 5, 6, 7, 8, 8, 8, 10. Draw a bar chart to represent this data.",
+            "question_stem_plain": "The following data shows the number of hours students spent studying: 2, 3, 5, 5, 6, 7, 8, 8, 8, 10. Draw a bar chart to represent this data.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Bar charts and data representation"}]
+          },
+          {
+            "question_id": "stat_002",
+            "question_number": 2,
+            "question_stem": "Calculate the mean of the following numbers: 12, 15, 18, 21, 24.",
+            "question_stem_plain": "Calculate the mean of the following numbers: 12, 15, 18, 21, 24.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Measures of central tendency"}]
+          },
+          {
+            "question_id": "stat_003",
+            "question_number": 3,
+            "question_stem": "A school surveyed students about their favourite sport. Football: 45%, Basketball: 25%, Tennis: 20%, Other: 10%. Draw a pie chart to display this information.",
+            "question_stem_plain": "A school surveyed students about their favourite sport. Football: 45%, Basketball: 25%, Tennis: 20%, Other: 10%. Draw a pie chart to display this information.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Pie charts"}]
+          },
+          {
+            "question_id": "stat_004",
+            "question_number": 4,
+            "question_stem": "The heights of 30 students were recorded. Draw a histogram to show the distribution with class intervals of 5cm.",
+            "question_stem_plain": "The heights of 30 students were recorded. Draw a histogram to show the distribution with class intervals of 5cm.",
+            "question_type": "extended_response",
+            "marks": 2,
+            "standards_addressed": [{"description": "Histograms and frequency distributions"}]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_questions": 4,
+      "total_marks": 10,
+      "total_time_minutes": 15
+    }
+  },
+  "sow_context": {
+    "subject": "mathematics",
+    "level": "national-5",
+    "course_id": "national5_maths",
+    "course_title": "National 5 Mathematics"
+  },
+  "expected_classifications": {
+    "expected": [
+      {"question_id": "stat_001", "expected_tool": "PLOTLY"},
+      {"question_id": "stat_002", "expected_tool": "NONE"},
+      {"question_id": "stat_003", "expected_tool": "PLOTLY"},
+      {"question_id": "stat_004", "expected_tool": "PLOTLY"}
+    ]
+  },
+  "_fixture_metadata": {
+    "description": "Statistics questions requiring bar charts, pie charts, and histograms",
+    "category": "statistics",
+    "difficulty": "intermediate",
+    "expected_tools": ["PLOTLY", "NONE"]
+  }
+}

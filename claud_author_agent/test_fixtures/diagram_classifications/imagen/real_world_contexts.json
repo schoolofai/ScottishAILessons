@@ -1,0 +1,45 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_imagen_tessellation_001",
+      "question_number": 1,
+      "tool": "IMAGE_GENERATION",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Tessellation pattern on a real floor cannot be represented as simple geometry",
+        "content_analysis": "Student needs to see how hexagonal tiles tessellate in a real bathroom setting",
+        "decision_rule_applied": "Rule 9: LAST RESORT - visual pattern recognition where geometry insufficient",
+        "alternatives_rejected": "MATPLOTLIB could draw abstract hexagons but misses the spatial intuition goal",
+        "summary": "Photorealistic tessellation helps students recognize patterns in real-world contexts"
+      },
+      "visualization_focus": "Bathroom floor with hexagonal tiles showing how they fit together without gaps",
+      "alternative_tool": "MATPLOTLIB",
+      "curriculum_topic": "Geometry - Tessellations",
+      "diagram_specs": {
+        "key_elements": [
+          "hexagonal tiles",
+          "realistic floor texture",
+          "visible grout lines showing tessellation",
+          "no mathematical notation in image"
+        ],
+        "educational_purpose": "Help students recognize tessellation patterns in everyday contexts"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Tessellation pattern recognition - valid IMAGE_GENERATION use case",
+    "tool": "IMAGE_GENERATION",
+    "expected_features": ["realistic_scene", "tessellation_pattern", "recognizable_context"],
+    "common_issues_to_check": [
+      "Prompt must be at least 10 characters",
+      "Should NOT include mathematical notation in image",
+      "60s timeout (longer than other tools)",
+      "Focus on pattern recognition, not mathematical structure"
+    ],
+    "difficulty": "intermediate"
+  }
+}

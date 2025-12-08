@@ -1,0 +1,130 @@
+{
+  "mock_exam": {
+    "examId": "test_trig_realworld_001",
+    "courseId": "national5_maths",
+    "version": "1",
+    "title": "Trigonometry - Real World Scenarios (Should Use Geometric Tools)",
+    "sections": [
+      {
+        "sectionId": "section_A",
+        "title": "Section A - Word Problems with Geometric Structure",
+        "total_marks": 20,
+        "questions": [
+          {
+            "question_id": "trig_ladder_001",
+            "question_number": 1,
+            "question_stem": "A 6 metre ladder leans against a vertical wall. The foot of the ladder is 2 metres from the base of the wall. Calculate the angle the ladder makes with the ground.",
+            "question_stem_plain": "A 6 metre ladder leans against a vertical wall. The foot of the ladder is 2 metres from the base of the wall. Calculate the angle the ladder makes with the ground.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Right triangles"}],
+            "_test_note": "Ladder scenario - fundamentally a right triangle, should be MATPLOTLIB not IMAGE_GENERATION"
+          },
+          {
+            "question_id": "trig_shadow_001",
+            "question_number": 2,
+            "question_stem": "A person 1.8m tall casts a shadow 2.4m long on horizontal ground. Calculate the angle of elevation of the sun.",
+            "question_stem_plain": "A person 1.8m tall casts a shadow 2.4m long on horizontal ground. Calculate the angle of elevation of the sun.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Angles of elevation"}],
+            "_test_note": "Shadow problem - right triangle with angle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_building_001",
+            "question_number": 3,
+            "question_stem": "A cable is stretched from the top of a 15m tall building to a point on the ground 20m from the base of the building. Calculate the length of the cable.",
+            "question_stem_plain": "A cable is stretched from the top of a 15m tall building to a point on the ground 20m from the base of the building. Calculate the length of the cable.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Pythagoras theorem"}],
+            "_test_note": "Cable/building - right triangle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_ramp_001",
+            "question_number": 4,
+            "question_stem": "A ramp rises 1.5m over a horizontal distance of 8m. Calculate the angle the ramp makes with the horizontal ground.",
+            "question_stem_plain": "A ramp rises 1.5m over a horizontal distance of 8m. Calculate the angle the ramp makes with the horizontal ground.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Gradient and angle"}],
+            "_test_note": "Ramp problem - right triangle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_kite_001",
+            "question_number": 5,
+            "question_stem": "A kite is flying at the end of a 50m string. The string makes an angle of 55 degrees with the horizontal ground. Calculate the height of the kite above the ground.",
+            "question_stem_plain": "A kite is flying at the end of a 50m string. The string makes an angle of 55 degrees with the horizontal ground. Calculate the height of the kite above the ground.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Height calculation"}],
+            "_test_note": "Kite problem - right triangle with angle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_ship_001",
+            "question_number": 6,
+            "question_stem": "A ship sails from port A on a bearing of 065 degrees for 30km to reach port B. How far east of A is port B?",
+            "question_stem_plain": "A ship sails from port A on a bearing of 065 degrees for 30km to reach port B. How far east of A is port B?",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Bearings and trigonometry"}],
+            "_test_note": "Ship/bearing - bearing diagram with angle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_cliff_001",
+            "question_number": 7,
+            "question_stem": "From the top of a cliff 40m high, the angle of depression to a boat at sea is 25 degrees. How far is the boat from the base of the cliff?",
+            "question_stem_plain": "From the top of a cliff 40m high, the angle of depression to a boat at sea is 25 degrees. How far is the boat from the base of the cliff?",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Angle of depression"}],
+            "_test_note": "Cliff/boat - right triangle with depression angle, should be MATPLOTLIB"
+          },
+          {
+            "question_id": "trig_tree_001",
+            "question_number": 8,
+            "question_stem": "To find the height of a tree, a student stands 20m from its base. The angle of elevation to the top of the tree is 35 degrees. Calculate the height of the tree.",
+            "question_stem_plain": "To find the height of a tree, a student stands 20m from its base. The angle of elevation to the top of the tree is 35 degrees. Calculate the height of the tree.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Trigonometry - Angle of elevation"}],
+            "_test_note": "Tree height - right triangle, should be MATPLOTLIB"
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_questions": 8,
+      "total_marks": 32,
+      "total_time_minutes": 40
+    }
+  },
+  "sow_context": {
+    "subject": "mathematics",
+    "level": "national-5",
+    "course_id": "national5_maths",
+    "course_title": "National 5 Mathematics"
+  },
+  "expected_classifications": {
+    "expected": [
+      {"question_id": "trig_ladder_001", "expected_tool": "MATPLOTLIB", "reason": "Ladder = right triangle"},
+      {"question_id": "trig_shadow_001", "expected_tool": "MATPLOTLIB", "reason": "Shadow = right triangle with angle"},
+      {"question_id": "trig_building_001", "expected_tool": "MATPLOTLIB", "reason": "Cable/building = right triangle"},
+      {"question_id": "trig_ramp_001", "expected_tool": "MATPLOTLIB", "reason": "Ramp = right triangle"},
+      {"question_id": "trig_kite_001", "expected_tool": "MATPLOTLIB", "reason": "Kite string = right triangle"},
+      {"question_id": "trig_ship_001", "expected_tool": "MATPLOTLIB", "reason": "Bearing = angle diagram"},
+      {"question_id": "trig_cliff_001", "expected_tool": "MATPLOTLIB", "reason": "Cliff/boat = right triangle"},
+      {"question_id": "trig_tree_001", "expected_tool": "MATPLOTLIB", "reason": "Tree height = right triangle"}
+    ],
+    "forbidden_tool": "IMAGE_GENERATION",
+    "forbidden_reason": "All these scenarios are mathematically representable as triangles/angles - IMAGE_GENERATION adds cost without educational value"
+  },
+  "_fixture_metadata": {
+    "description": "Real-world trigonometry word problems that should ALL be classified as MATPLOTLIB, NOT IMAGE_GENERATION",
+    "category": "trigonometry",
+    "difficulty": "intermediate",
+    "expected_tools": ["MATPLOTLIB"],
+    "forbidden_tools": ["IMAGE_GENERATION"],
+    "test_purpose": "Verify classifier prefers geometric representation over expensive IMAGE_GENERATION for scenarios that can be drawn as triangles"
+  }
+}

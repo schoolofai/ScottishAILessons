@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_matplotlib_ladder_001",
+      "question_number": 1,
+      "tool": "MATPLOTLIB",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Ladder against wall is fundamentally a right triangle - geometry can represent this",
+        "content_analysis": "Ladder leaning against wall - this forms a right triangle with labeled sides",
+        "decision_rule_applied": "Rule 8: Real-world scenario drawable as geometry -> MATPLOTLIB",
+        "alternatives_rejected": "IMAGE_GENERATION costs 10x more and adds no educational value here",
+        "summary": "Right triangle diagram with labeled hypotenuse (ladder), vertical (wall), horizontal (ground)"
+      },
+      "visualization_focus": "Right triangle showing: 6m hypotenuse (ladder), vertical side (wall), horizontal side (ground), 60-degree angle marked at base, right angle marked at wall-ground junction",
+      "alternative_tool": null,
+      "curriculum_topic": "Trigonometry - Right Triangles",
+      "diagram_specs": {
+        "key_elements": [
+          "right triangle",
+          "hypotenuse labeled '6m' (ladder)",
+          "vertical side (wall)",
+          "horizontal side (ground)",
+          "60° angle arc at base",
+          "right angle symbol at corner"
+        ],
+        "educational_purpose": "Show the mathematical structure so students can apply trigonometry"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Ladder against wall - drawn as geometric right triangle",
+    "tool": "MATPLOTLIB",
+    "expected_features": ["right_triangle", "labeled_sides", "angle_arcs"],
+    "common_issues_to_check": [
+      "Right angle must be marked at wall-ground junction",
+      "60-degree angle should have arc marking",
+      "Labels should use math notation (6m, 60°)"
+    ],
+    "difficulty": "beginner"
+  }
+}

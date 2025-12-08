@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_plotly_hist_001",
+      "question_number": 1,
+      "tool": "PLOTLY",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Histogram for continuous frequency distribution",
+        "content_analysis": "Test scores distribution showing frequency across score ranges",
+        "decision_rule_applied": "Rule 4: Statistical chart (distribution) -> PLOTLY",
+        "alternatives_rejected": "Bar chart for categorical, histogram for continuous data",
+        "summary": "Histogram shows distribution shape of continuous data"
+      },
+      "visualization_focus": "Histogram of test scores from 0-100 with bins of width 10",
+      "alternative_tool": null,
+      "curriculum_topic": "Statistics - Histograms",
+      "diagram_specs": {
+        "key_elements": [
+          "continuous bars (no gaps)",
+          "x-axis showing score ranges",
+          "y-axis showing frequency",
+          "appropriate bin widths",
+          "title describing data"
+        ],
+        "educational_purpose": "Understanding frequency distributions and data spread"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Histogram showing test score distribution",
+    "tool": "PLOTLY",
+    "expected_features": ["continuous_bars", "frequency_axis", "bin_ranges"],
+    "common_issues_to_check": [
+      "Chart type must be 'histogram'",
+      "Bars should touch (no gaps)",
+      "Bin width appropriate for data",
+      "Axes properly labeled"
+    ],
+    "difficulty": "intermediate"
+  }
+}

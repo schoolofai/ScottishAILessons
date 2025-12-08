@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_plotly_bar_001",
+      "question_number": 1,
+      "tool": "PLOTLY",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Statistical bar chart for frequency data",
+        "content_analysis": "Bar chart showing weekly sales data across 5 days",
+        "decision_rule_applied": "Rule 4: Statistical chart -> PLOTLY",
+        "alternatives_rejected": "DESMOS for functions, other tools for non-statistical diagrams",
+        "summary": "Bar chart effectively shows categorical comparison"
+      },
+      "visualization_focus": "Vertical bar chart with 5 bars for Monday-Friday, values 10,15,13,17,20",
+      "alternative_tool": null,
+      "curriculum_topic": "Statistics - Bar Charts",
+      "diagram_specs": {
+        "key_elements": [
+          "vertical bars for each category",
+          "x-axis with day labels",
+          "y-axis with numerical scale",
+          "title describing the data",
+          "appropriate bar colors"
+        ],
+        "educational_purpose": "Reading and interpreting bar chart data"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Simple bar chart showing categorical data",
+    "tool": "PLOTLY",
+    "expected_features": ["bars", "axis_labels", "title", "scale"],
+    "common_issues_to_check": [
+      "Chart type must be 'bar'",
+      "X and Y axes properly labeled",
+      "Title present and descriptive",
+      "Colors from Scottish palette"
+    ],
+    "difficulty": "basic"
+  }
+}

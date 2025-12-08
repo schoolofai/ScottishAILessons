@@ -1,0 +1,45 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_jsx_vector_001",
+      "question_number": 1,
+      "tool": "JSXGRAPH",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Vector diagram on coordinate plane",
+        "content_analysis": "Vector from point A to point B shown as arrow with components",
+        "decision_rule_applied": "Rule 3: Vectors on coordinates -> JSXGRAPH",
+        "alternatives_rejected": "Other tools don't handle vector arrows well on coordinates",
+        "summary": "Arrow diagram shows vector direction and magnitude"
+      },
+      "visualization_focus": "Arrow from A(1,2) to B(4,5) with vector notation and component breakdown",
+      "alternative_tool": null,
+      "curriculum_topic": "Vectors",
+      "diagram_specs": {
+        "key_elements": [
+          "coordinate grid",
+          "arrow from A to B",
+          "start point A labeled",
+          "end point B labeled",
+          "arrow head clear"
+        ],
+        "educational_purpose": "Understanding vector as directed line segment"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Vector shown as arrow between two points",
+    "tool": "JSXGRAPH",
+    "expected_features": ["arrow_element", "labeled_endpoints", "coordinate_grid"],
+    "common_issues_to_check": [
+      "Arrow head clearly visible",
+      "Direction unambiguous",
+      "Start and end points labeled"
+    ],
+    "difficulty": "intermediate"
+  }
+}

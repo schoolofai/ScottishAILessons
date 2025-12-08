@@ -1,0 +1,118 @@
+{
+  "mock_exam": {
+    "examId": "test_mixed_001",
+    "courseId": "national5_maths",
+    "version": "1",
+    "title": "National 5 Mixed Practice",
+    "sections": [
+      {
+        "sectionId": "section_A",
+        "title": "Section A - Mixed Topics",
+        "total_marks": 18,
+        "questions": [
+          {
+            "question_id": "mix_001",
+            "question_number": 1,
+            "question_stem": "A ladder leans against a wall. The ladder is 5m long and reaches 4m up the wall. Calculate the distance from the base of the ladder to the wall.",
+            "question_stem_plain": "A ladder leans against a wall. The ladder is 5m long and reaches 4m up the wall. Calculate the distance from the base of the ladder to the wall.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Pythagoras theorem"}]
+          },
+          {
+            "question_id": "mix_002",
+            "question_number": 2,
+            "question_stem": "Plot the points A(2,3), B(5,3), C(5,7), D(2,7) on a coordinate grid and identify the shape formed.",
+            "question_stem_plain": "Plot the points A(2,3), B(5,3), C(5,7), D(2,7) on a coordinate grid and identify the shape formed.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Coordinate geometry"}]
+          },
+          {
+            "question_id": "mix_003",
+            "question_number": 3,
+            "question_stem": "Simplify: 3(2x + 5) - 4(x - 2)",
+            "question_stem_plain": "Simplify: 3(2x + 5) - 4(x - 2)",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Algebraic expressions"}]
+          },
+          {
+            "question_id": "mix_004",
+            "question_number": 4,
+            "question_stem": "A baker uses flour, sugar and butter in the ratio 5:3:2. If she uses 750g of flour, how much sugar does she need?",
+            "question_stem_plain": "A baker uses flour, sugar and butter in the ratio 5:3:2. If she uses 750g of flour, how much sugar does she need?",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Ratio and proportion"}]
+          },
+          {
+            "question_id": "mix_005",
+            "question_number": 5,
+            "question_stem": "Draw a scale diagram of a garden that measures 15m by 10m. Use a scale of 1cm to 2m.",
+            "question_stem_plain": "Draw a scale diagram of a garden that measures 15m by 10m. Use a scale of 1cm to 2m.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Scale drawings"}]
+          },
+          {
+            "question_id": "mix_006",
+            "question_number": 6,
+            "question_stem": "The scatter graph shows the relationship between hours of sunshine and ice cream sales. Describe the correlation and estimate sales when there are 8 hours of sunshine.",
+            "question_stem_plain": "The scatter graph shows the relationship between hours of sunshine and ice cream sales. Describe the correlation and estimate sales when there are 8 hours of sunshine.",
+            "question_type": "extended_response",
+            "marks": 3,
+            "standards_addressed": [{"description": "Scatter graphs and correlation"}]
+          },
+          {
+            "question_id": "mix_007",
+            "question_number": 7,
+            "question_stem": "A car travels 240 miles in 4 hours. Calculate the average speed.",
+            "question_stem_plain": "A car travels 240 miles in 4 hours. Calculate the average speed.",
+            "question_type": "short_answer",
+            "marks": 1,
+            "standards_addressed": [{"description": "Speed, distance, time"}]
+          },
+          {
+            "question_id": "mix_008",
+            "question_number": 8,
+            "question_stem": "A cuboid has dimensions 4cm x 3cm x 2cm. Sketch the cuboid and calculate its volume.",
+            "question_stem_plain": "A cuboid has dimensions 4cm x 3cm x 2cm. Sketch the cuboid and calculate its volume.",
+            "question_type": "extended_response",
+            "marks": 2,
+            "standards_addressed": [{"description": "3D shapes and volume"}]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_questions": 8,
+      "total_marks": 18,
+      "total_time_minutes": 30
+    }
+  },
+  "sow_context": {
+    "subject": "mathematics",
+    "level": "national-5",
+    "course_id": "national5_maths",
+    "course_title": "National 5 Mathematics"
+  },
+  "expected_classifications": {
+    "expected": [
+      {"question_id": "mix_001", "expected_tool": "IMAGE_GENERATION"},
+      {"question_id": "mix_002", "expected_tool": "JSXGRAPH"},
+      {"question_id": "mix_003", "expected_tool": "NONE"},
+      {"question_id": "mix_004", "expected_tool": "NONE"},
+      {"question_id": "mix_005", "expected_tool": "MATPLOTLIB"},
+      {"question_id": "mix_006", "expected_tool": "PLOTLY"},
+      {"question_id": "mix_007", "expected_tool": "NONE"},
+      {"question_id": "mix_008", "expected_tool": "MATPLOTLIB"}
+    ]
+  },
+  "_fixture_metadata": {
+    "description": "Mixed topic practice exam covering geometry, algebra, statistics, and measurement",
+    "category": "mixed",
+    "difficulty": "intermediate",
+    "expected_tools": ["MATPLOTLIB", "JSXGRAPH", "PLOTLY", "IMAGE_GENERATION", "NONE"]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_imagen_garden_001",
+      "question_number": 1,
+      "tool": "IMAGE_GENERATION",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Real-world measurement context requiring photorealistic scene",
+        "content_analysis": "Rectangular garden with flower bed for area calculation",
+        "decision_rule_applied": "Rule 5: Real-world measurement context -> IMAGE_GENERATION",
+        "alternatives_rejected": "GEOGEBRA for abstract rectangle, this needs realistic garden visual",
+        "summary": "Garden image helps contextualize area and perimeter problems"
+      },
+      "visualization_focus": "Rectangular garden viewed from above, showing grass lawn with rectangular flower bed in corner",
+      "alternative_tool": null,
+      "curriculum_topic": "Measurement - Area and Perimeter",
+      "diagram_specs": {
+        "key_elements": [
+          "rectangular garden from above",
+          "clearly defined boundaries",
+          "flower bed visible",
+          "realistic grass texture",
+          "no dimension labels in image"
+        ],
+        "educational_purpose": "Real-world context for area calculation problem"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Garden aerial view for area/perimeter measurement context",
+    "tool": "IMAGEN",
+    "expected_features": ["aerial_view", "rectangular_shape", "garden_elements", "realistic"],
+    "common_issues_to_check": [
+      "Prompt descriptive enough for clear image",
+      "No numbers or labels expected in generated image",
+      "Boundaries clearly visible",
+      "Educational subject=mathematics, level=secondary"
+    ],
+    "difficulty": "basic"
+  }
+}

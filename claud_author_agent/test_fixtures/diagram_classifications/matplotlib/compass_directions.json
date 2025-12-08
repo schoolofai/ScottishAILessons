@@ -1,0 +1,44 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_geo_compass_001",
+      "question_number": 1,
+      "tool": "MATPLOTLIB",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Compass directions and rotation - geometric directional concept",
+        "content_analysis": "North -> 90 degree clockwise rotation - compass rose needed",
+        "decision_rule_applied": "Edge case: Compass directions -> MATPLOTLIB (compass rose)",
+        "alternatives_rejected": "IMAGEN could show compass, but MATPLOTLIB better for angular rotation",
+        "summary": "Compass rose shows cardinal directions and rotation"
+      },
+      "visualization_focus": "Compass rose with N, E, S, W marked and 90 degree clockwise arrow",
+      "alternative_tool": "IMAGEN",
+      "curriculum_topic": "Compass Directions",
+      "diagram_specs": {
+        "key_elements": [
+          "compass rose",
+          "N, E, S, W labels",
+          "90 degree clockwise rotation arrow",
+          "angle marking"
+        ],
+        "educational_purpose": "Visual understanding of clockwise rotation and cardinal directions"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Compass rose showing cardinal directions with rotation arrow",
+    "tool": "MATPLOTLIB",
+    "expected_features": ["compass_rose", "cardinal_labels", "rotation_arrow", "angle_marking"],
+    "common_issues_to_check": [
+      "N/E/S/W labels correctly positioned",
+      "Rotation direction clearly shown",
+      "Angle clearly marked as 90 degrees"
+    ],
+    "difficulty": "intermediate"
+  }
+}

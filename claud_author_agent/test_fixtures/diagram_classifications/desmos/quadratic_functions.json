@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_desmos_quad_001",
+      "question_number": 1,
+      "tool": "DESMOS",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Quadratic function graph with roots and turning point - pure function visualization",
+        "content_analysis": "y = x^2 - 4x + 3 showing parabola, roots at x=1 and x=3, vertex at (2,-1)",
+        "decision_rule_applied": "Rule 1: Algebraic function -> DESMOS for graphing",
+        "alternatives_rejected": "GEOGEBRA for geometry, JSXGRAPH for coordinate - this is function graphing",
+        "summary": "Quadratic graph helps visualize parabola shape and key features"
+      },
+      "visualization_focus": "Parabola y=x^2-4x+3 with x-intercepts at (1,0) and (3,0), vertex at (2,-1)",
+      "alternative_tool": null,
+      "curriculum_topic": "Quadratic Functions",
+      "diagram_specs": {
+        "key_elements": [
+          "parabola curve",
+          "x-intercepts (roots) marked",
+          "vertex point marked",
+          "axis of symmetry (optional)",
+          "grid and axes"
+        ],
+        "educational_purpose": "Visual understanding of quadratic function shape and key points"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Quadratic function with roots and turning point",
+    "tool": "DESMOS",
+    "expected_features": ["parabola_shape", "root_points", "vertex_point", "grid_axes"],
+    "common_issues_to_check": [
+      "Viewport should show all key features",
+      "Expression uses correct LaTeX syntax",
+      "Scottish color palette (#2d70b3, #c74440, #388c46)",
+      "Points should use POINT style not OPEN"
+    ],
+    "difficulty": "intermediate"
+  }
+}

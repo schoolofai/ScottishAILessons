@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_plotly_pie_001",
+      "question_number": 1,
+      "tool": "PLOTLY",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Pie chart for proportional data",
+        "content_analysis": "Budget breakdown showing percentages for different categories",
+        "decision_rule_applied": "Rule 4: Statistical chart (proportions) -> PLOTLY",
+        "alternatives_rejected": "Other tools don't handle pie charts",
+        "summary": "Pie chart shows parts of a whole effectively"
+      },
+      "visualization_focus": "Pie chart with 4 segments: Rent 40%, Food 25%, Transport 20%, Other 15%",
+      "alternative_tool": null,
+      "curriculum_topic": "Statistics - Pie Charts",
+      "diagram_specs": {
+        "key_elements": [
+          "circular pie divided into segments",
+          "different color for each segment",
+          "labels showing categories",
+          "percentage values visible",
+          "legend or direct labels"
+        ],
+        "educational_purpose": "Understanding proportions and percentages visually"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Pie chart showing budget breakdown",
+    "tool": "PLOTLY",
+    "expected_features": ["pie_segments", "labels", "percentages", "legend"],
+    "common_issues_to_check": [
+      "Chart type must be 'pie'",
+      "All segments labeled",
+      "Percentages add to 100%",
+      "Distinct colors for segments"
+    ],
+    "difficulty": "basic"
+  }
+}

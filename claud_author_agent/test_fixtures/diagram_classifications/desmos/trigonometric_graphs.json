@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_desmos_trig_001",
+      "question_number": 1,
+      "tool": "DESMOS",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Trigonometric function graphs - periodic function visualization",
+        "content_analysis": "y = sin(x) and y = cos(x) showing both curves for comparison",
+        "decision_rule_applied": "Rule 1: Trigonometric functions -> DESMOS for graphing",
+        "alternatives_rejected": "Other tools don't handle trig functions well",
+        "summary": "Overlaid sin and cos graphs show phase relationship"
+      },
+      "visualization_focus": "Sin(x) in blue and cos(x) in red, showing one complete period from 0 to 2pi",
+      "alternative_tool": null,
+      "curriculum_topic": "Trigonometric Functions",
+      "diagram_specs": {
+        "key_elements": [
+          "sin curve in blue",
+          "cos curve in red (different color)",
+          "x-axis in radians or degrees",
+          "amplitude of 1 visible",
+          "period of 2pi (or 360 degrees)"
+        ],
+        "educational_purpose": "Compare sine and cosine waves, show phase shift"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Sine and cosine functions overlaid for comparison",
+    "tool": "DESMOS",
+    "expected_features": ["two_curves", "different_colors", "periodic_pattern", "full_period_visible"],
+    "common_issues_to_check": [
+      "Both curves clearly distinguishable (different colors)",
+      "Viewport shows at least one complete period",
+      "X-axis appropriately scaled (radians or degrees)",
+      "Amplitude clearly shown as 1"
+    ],
+    "difficulty": "intermediate"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_desmos_linear_001",
+      "question_number": 1,
+      "tool": "DESMOS",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Linear equation graph - simple function visualization",
+        "content_analysis": "y = 2x + 1 showing straight line with gradient 2 and y-intercept 1",
+        "decision_rule_applied": "Rule 1: Algebraic function -> DESMOS for graphing",
+        "alternatives_rejected": "Other tools for non-function graphs",
+        "summary": "Linear graph demonstrates gradient and intercept concepts"
+      },
+      "visualization_focus": "Straight line y=2x+1 with y-intercept at (0,1) and gradient triangle shown",
+      "alternative_tool": null,
+      "curriculum_topic": "Linear Equations",
+      "diagram_specs": {
+        "key_elements": [
+          "straight line",
+          "y-intercept marked at (0,1)",
+          "gradient indication (optional triangle)",
+          "grid and axes"
+        ],
+        "educational_purpose": "Visual understanding of y=mx+c form"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Simple linear equation y=2x+1",
+    "tool": "DESMOS",
+    "expected_features": ["straight_line", "y_intercept", "grid_visible"],
+    "common_issues_to_check": [
+      "Viewport centered on key features",
+      "Line extends across viewport",
+      "Intercept clearly visible"
+    ],
+    "difficulty": "basic"
+  }
+}

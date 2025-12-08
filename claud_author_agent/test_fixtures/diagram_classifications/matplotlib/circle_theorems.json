@@ -1,0 +1,46 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_geo_circle_001",
+      "question_number": 1,
+      "tool": "MATPLOTLIB",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Circle theorem diagram - geometric construction with angles",
+        "content_analysis": "Angle at center is double angle at circumference - circle geometry",
+        "decision_rule_applied": "Rule 6: Geometric shape -> MATPLOTLIB for circles and angles",
+        "alternatives_rejected": "JSXGRAPH for coordinate geometry - this is pure circle theorem",
+        "summary": "Circle with inscribed angle demonstrates theorem visually"
+      },
+      "visualization_focus": "Circle with center O, points A and B on circumference, point C on circumference, showing angle AOB at center and angle ACB at circumference",
+      "alternative_tool": null,
+      "curriculum_topic": "Circle Theorems",
+      "diagram_specs": {
+        "key_elements": [
+          "circle with center O",
+          "points A and B on circumference",
+          "point C on major arc",
+          "angle at center AOB",
+          "angle at circumference ACB",
+          "angle labels"
+        ],
+        "educational_purpose": "Visual demonstration that angle at center = 2 x angle at circumference"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Circle theorem: angle at center is double angle at circumference",
+    "tool": "MATPLOTLIB",
+    "expected_features": ["circle", "center_point", "circumference_points", "angle_markings", "point_labels"],
+    "common_issues_to_check": [
+      "Points clearly labeled",
+      "Angles clearly marked with arcs",
+      "Center point distinct from circumference points"
+    ],
+    "difficulty": "advanced"
+  }
+}

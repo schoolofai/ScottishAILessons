@@ -183,6 +183,49 @@ Multi-stage lesson authoring with research, authoring, and critique
 The `/workspace/` path is mapped to: `{self.root}`
 """
 
+        elif self.workspace_type == "mock_exam":
+            return f"""# Mock Exam Author Workspace - Execution {self.execution_id}
+
+## Purpose
+Generate frontend-ready mock exam JSON from Authored_SOW mock_exam entries
+
+## Workspace Structure
+
+### Input Files (Pre-populated by Python extraction)
+- `mock_exam_source.json` - Mock exam entry extracted from Authored_SOW
+  - Contains: courseId, sowId, mock_exam_entries array
+- `sow_context.json` - Course-level SOW metadata
+  - Contains: subject, level, accessibility_notes, engagement_notes
+
+### Output Files (Created by Subagents)
+- `mock_exam.json` - Complete frontend-ready exam structure
+- `mock_exam_critic_result.json` - UX quality validation results
+
+## Mock Exam Authoring Pipeline
+
+1. **Pre-processing (Python)** → Extracts mock_exam entries from Authored_SOW
+2. **Mock Exam Author Subagent** → Transforms SOW entry to exam JSON
+3. **UX Critic Subagent** → Validates frontend UX quality
+4. **Revision Loop** → Iterates until UX validation passes
+5. **Post-processing (Python)** → Upserts to Appwrite mock_exams collection
+
+## Schema Validation
+
+Use `mcp__validator__validate_mock_exam_schema` tool for Pydantic validation:
+- Validates question structure, marks sums, accessibility fields
+- Returns specific error locations for quick fixes
+
+## Key Requirements
+
+- Every question_stem must have question_stem_plain
+- Marks must sum correctly (scheme → question → section → total)
+- Worked solutions must be complete and step-by-step
+- Scottish contexts only (£, NHS, Scottish shops)
+- Time estimates must not exceed timeLimit
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
         elif self.workspace_type == "notes_author":
             return f"""# Revision Notes Author Workspace - Execution {self.execution_id}
 

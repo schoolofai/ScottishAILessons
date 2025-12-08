@@ -1,0 +1,78 @@
+{
+  "mock_exam": {
+    "examId": "test_geometry_001",
+    "courseId": "national5_maths",
+    "version": "1",
+    "title": "Geometry - Circles and Angles",
+    "sections": [
+      {
+        "sectionId": "section_A",
+        "title": "Section A - Short Response",
+        "total_marks": 10,
+        "questions": [
+          {
+            "question_id": "geo_001",
+            "question_number": 1,
+            "question_stem": "In the diagram, O is the centre of the circle. A and B are points on the circumference. The angle AOB at the centre is 120 degrees. Calculate the angle ACB at point C on the major arc.",
+            "question_stem_plain": "In the diagram, O is the centre of the circle. A and B are points on the circumference. The angle AOB at the centre is 120 degrees. Calculate the angle ACB at point C on the major arc.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Circle theorems - angle at centre"}]
+          },
+          {
+            "question_id": "geo_002",
+            "question_number": 2,
+            "question_stem": "A rectangle has length 12cm and width 8cm. Calculate its perimeter.",
+            "question_stem_plain": "A rectangle has length 12cm and width 8cm. Calculate its perimeter.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Perimeter calculations"}]
+          },
+          {
+            "question_id": "geo_003",
+            "question_number": 3,
+            "question_stem": "The bearing of B from A is 045 degrees. A ship sails from A to B, a distance of 50km. Draw a diagram showing this journey and calculate how far east the ship has travelled.",
+            "question_stem_plain": "The bearing of B from A is 045 degrees. A ship sails from A to B, a distance of 50km. Draw a diagram showing this journey and calculate how far east the ship has travelled.",
+            "question_type": "extended_response",
+            "marks": 4,
+            "standards_addressed": [{"description": "Bearings and trigonometry"}]
+          },
+          {
+            "question_id": "geo_004",
+            "question_number": 4,
+            "question_stem": "In triangle ABC, angle A = 35 degrees and angle B = 72 degrees. Calculate angle C.",
+            "question_stem_plain": "In triangle ABC, angle A = 35 degrees and angle B = 72 degrees. Calculate angle C.",
+            "question_type": "short_answer",
+            "marks": 2,
+            "standards_addressed": [{"description": "Angles in triangles"}]
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_questions": 4,
+      "total_marks": 10,
+      "total_time_minutes": 15
+    }
+  },
+  "sow_context": {
+    "subject": "mathematics",
+    "level": "national-5",
+    "course_id": "national5_maths",
+    "course_title": "National 5 Mathematics"
+  },
+  "expected_classifications": {
+    "expected": [
+      {"question_id": "geo_001", "expected_tool": "MATPLOTLIB"},
+      {"question_id": "geo_002", "expected_tool": "NONE"},
+      {"question_id": "geo_003", "expected_tool": "MATPLOTLIB"},
+      {"question_id": "geo_004", "expected_tool": "MATPLOTLIB"}
+    ]
+  },
+  "_fixture_metadata": {
+    "description": "Geometry questions testing circle theorems, bearings, and basic shapes",
+    "category": "geometry",
+    "difficulty": "intermediate",
+    "expected_tools": ["MATPLOTLIB", "NONE"]
+  }
+}

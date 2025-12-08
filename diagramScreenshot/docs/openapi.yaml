@@ -1,0 +1,653 @@
+openapi: 3.0.3
+info:
+  title: Diagram Rendering Service API
+  description: |
+    Multi-tool mathematical diagram rendering service for Scottish National 5 Mathematics.
+    Supports Plotly charts, Desmos graphs, GeoGebra geometry, and AI image generation.
+  version: 1.0.0
+  contact:
+    name: Scottish AI Lessons
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    # Common
+    RenderOptions:
+      type: object
+      properties:
+        width:
+          type: integer
+          minimum: 100
+          maximum: 4000
+          default: 800
+        height:
+          type: integer
+          minimum: 100
+          maximum: 4000
+          default: 600
+        format:
+          type: string
+          enum: [png, jpeg]
+          default: png
+        quality:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 90
+        scale:
+          type: number
+          minimum: 1
+          maximum: 4
+          default: 2
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: string
+
+    # Plotly
+    PlotlyTrace:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [scatter, bar, pie, histogram, box, heatmap, line]
+        x:
+          type: array
+          items:
+            oneOf:
+              - type: number
+              - type: string
+        y:
+          type: array
+          items:
+            type: number
+        values:
+          type: array
+          items:
+            type: number
+        labels:
+          type: array
+          items:
+            type: string
+        name:
+          type: string
+        mode:
+          type: string
+          enum: [lines, markers, lines+markers, text, none]
+        marker:
+          type: object
+          properties:
+            color:
+              type: string
+            size:
+              type: number
+
+    PlotlyLayout:
+      type: object
+      properties:
+        title:
+          type: string
+        xaxis:
+          type: object
+          properties:
+            title:
+              type: string
+            range:
+              type: array
+              items:
+                type: number
+        yaxis:
+          type: object
+          properties:
+            title:
+              type: string
+            range:
+              type: array
+              items:
+                type: number
+        showlegend:
+          type: boolean
+        barmode:
+          type: string
+          enum: [group, stack, overlay, relative]
+
+    PlotlyRequest:
+      type: object
+      required: [chart]
+      properties:
+        chart:
+          type: object
+          required: [data]
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/PlotlyTrace'
+              minItems: 1
+            layout:
+              $ref: '#/components/schemas/PlotlyLayout'
+        options:
+          $ref: '#/components/schemas/RenderOptions'
+
+    PlotlyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        image:
+          type: string
+          description: Base64-encoded image
+        metadata:
+          type: object
+          properties:
+            tool:
+              type: string
+            traceCount:
+              type: integer
+            renderTimeMs:
+              type: integer
+
+    # Desmos
+    DesmosExpression:
+      type: object
+      required: [latex]
+      properties:
+        latex:
+          type: string
+          description: LaTeX expression (e.g., y=2x+3)
+        color:
+          type: string
+        lineStyle:
+          type: string
+          enum: [SOLID, DASHED, DOTTED]
+        lineWidth:
+          type: number
+        label:
+          type: string
+        showLabel:
+          type: boolean
+
+    DesmosViewport:
+      type: object
+      properties:
+        xmin:
+          type: number
+          default: -10
+        xmax:
+          type: number
+          default: 10
+        ymin:
+          type: number
+          default: -10
+        ymax:
+          type: number
+          default: 10
+
+    SimpleDesmosRequest:
+      type: object
+      required: [expressions]
+      properties:
+        expressions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DesmosExpression'
+          minItems: 1
+        viewport:
+          $ref: '#/components/schemas/DesmosViewport'
+        settings:
+          type: object
+          properties:
+            showGrid:
+              type: boolean
+              default: true
+            showXAxis:
+              type: boolean
+              default: true
+            showYAxis:
+              type: boolean
+              default: true
+            degreeMode:
+              type: boolean
+              default: false
+        options:
+          $ref: '#/components/schemas/RenderOptions'
+
+    DesmosResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        image:
+          type: string
+        metadata:
+          type: object
+          properties:
+            tool:
+              type: string
+            expressionCount:
+              type: integer
+            renderTimeMs:
+              type: integer
+
+    # GeoGebra
+    GeoGebraCoordSystem:
+      type: object
+      properties:
+        xmin:
+          type: number
+          default: -10
+        xmax:
+          type: number
+          default: 10
+        ymin:
+          type: number
+          default: -10
+        ymax:
+          type: number
+          default: 10
+
+    SimpleGeoGebraRequest:
+      type: object
+      required: [commands]
+      properties:
+        commands:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Array of GeoGebra commands
+        coordSystem:
+          $ref: '#/components/schemas/GeoGebraCoordSystem'
+        showAxes:
+          type: boolean
+          default: false
+        showGrid:
+          type: boolean
+          default: false
+        options:
+          $ref: '#/components/schemas/RenderOptions'
+
+    GeoGebraResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        image:
+          type: string
+        metadata:
+          type: object
+          properties:
+            tool:
+              type: string
+            commandCount:
+              type: integer
+            appType:
+              type: string
+            renderTimeMs:
+              type: integer
+
+    # Imagen
+    ImageStyle:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [realistic, diagram, illustration, simple]
+        colorScheme:
+          type: string
+          enum: [full-color, muted, monochrome]
+        perspective:
+          type: string
+          enum: [front, side, top, isometric, aerial]
+
+    EducationalContext:
+      type: object
+      properties:
+        subject:
+          type: string
+        level:
+          type: string
+        topic:
+          type: string
+
+    ImagenPrompt:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        context:
+          type: string
+        style:
+          $ref: '#/components/schemas/ImageStyle'
+        educational:
+          $ref: '#/components/schemas/EducationalContext'
+        negativePrompt:
+          type: string
+
+    ImagenRequest:
+      type: object
+      required: [prompt]
+      properties:
+        prompt:
+          $ref: '#/components/schemas/ImagenPrompt'
+        options:
+          type: object
+          properties:
+            width:
+              type: integer
+              minimum: 256
+              maximum: 2048
+              default: 1024
+            height:
+              type: integer
+              minimum: 256
+              maximum: 2048
+              default: 1024
+            numberOfImages:
+              type: integer
+              minimum: 1
+              maximum: 4
+              default: 1
+
+    ImagenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              image:
+                type: string
+              mimeType:
+                type: string
+        metadata:
+          type: object
+          properties:
+            tool:
+              type: string
+            model:
+              type: string
+            imageCount:
+              type: integer
+            renderTimeMs:
+              type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        timestamp:
+          type: string
+        uptime:
+          type: number
+        renderers:
+          type: object
+          properties:
+            jsxgraph:
+              type: object
+              properties:
+                initialized:
+                  type: boolean
+            plotly:
+              type: object
+              properties:
+                initialized:
+                  type: boolean
+            desmos:
+              type: object
+              properties:
+                initialized:
+                  type: boolean
+            geogebra:
+              type: object
+              properties:
+                initialized:
+                  type: boolean
+            imagen:
+              type: object
+              properties:
+                configured:
+                  type: boolean
+                note:
+                  type: string
+
+paths:
+  /api/v1/render/plotly:
+    post:
+      operationId: renderPlotlyChart
+      summary: Render Plotly statistical chart
+      description: |
+        Renders statistical charts using Plotly. Best for bar charts, line graphs,
+        scatter plots, histograms, pie charts, and box plots.
+      tags: [Plotly]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlotlyRequest'
+            example:
+              chart:
+                data:
+                  - type: bar
+                    x: [Mon, Tue, Wed, Thu, Fri]
+                    y: [20, 14, 25, 22, 18]
+                    name: Weekly Sales
+                layout:
+                  title: Weekly Sales Data
+                  xaxis:
+                    title: Day
+                  yaxis:
+                    title: Units Sold
+              options:
+                width: 800
+                height: 600
+      responses:
+        '200':
+          description: Chart rendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlotlyResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '503':
+          description: Renderer not available
+
+  /api/v1/render/desmos/simple:
+    post:
+      operationId: renderDesmosGraph
+      summary: Render Desmos mathematical graph
+      description: |
+        Renders mathematical function graphs using Desmos calculator.
+        Best for algebra, functions, and coordinate geometry.
+      tags: [Desmos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleDesmosRequest'
+            example:
+              expressions:
+                - latex: "y=2x+1"
+                  color: "#2196F3"
+                  label: "y = 2x + 1"
+                  showLabel: true
+                - latex: "y=-x+4"
+                  color: "#E91E63"
+              viewport:
+                xmin: -5
+                xmax: 5
+                ymin: -5
+                ymax: 10
+              settings:
+                showGrid: true
+      responses:
+        '200':
+          description: Graph rendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DesmosResponse'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '503':
+          description: Renderer not available
+
+  /api/v1/render/geogebra/simple:
+    post:
+      operationId: renderGeoGebraGeometry
+      summary: Render GeoGebra geometric construction
+      description: |
+        Renders geometric constructions using GeoGebra. Best for circle theorems,
+        geometric proofs, angle properties, and constructions.
+      tags: [GeoGebra]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleGeoGebraRequest'
+            example:
+              commands:
+                - "O = (0, 0)"
+                - "c = Circle(O, 4)"
+                - "A = Point(c)"
+                - "B = Point(c)"
+                - "Segment(A, B)"
+              coordSystem:
+                xmin: -6
+                xmax: 6
+                ymin: -6
+                ymax: 6
+              showAxes: false
+              showGrid: false
+      responses:
+        '200':
+          description: Geometry rendered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoGebraResponse'
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '503':
+          description: Renderer not available
+
+  /api/v1/render/imagen:
+    post:
+      operationId: generateEducationalImage
+      summary: Generate AI educational image
+      description: |
+        Generates educational images using Google's Gemini AI model.
+        Best for real-world mathematical applications and context illustrations.
+        Rate limited to 10 requests per minute.
+      tags: [Imagen]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImagenRequest'
+            example:
+              prompt:
+                text: "A construction worker using a measuring tape to measure the diagonal of a rectangular floor tile"
+                context: "For teaching Pythagoras theorem applications"
+                style:
+                  type: realistic
+                  colorScheme: full-color
+                educational:
+                  subject: Mathematics
+                  level: National 5
+                  topic: Pythagoras Theorem
+              options:
+                width: 1024
+                height: 1024
+      responses:
+        '200':
+          description: Image generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImagenResponse'
+        '400':
+          description: Validation error or safety block
+        '401':
+          description: Unauthorized
+        '429':
+          description: Rate limit exceeded
+        '503':
+          description: Imagen not configured
+
+  /health:
+    get:
+      operationId: getHealth
+      summary: Health check
+      description: Returns service status and renderer availability
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service unhealthy
+
+tags:
+  - name: Plotly
+    description: Statistical chart rendering (bar, line, scatter, histogram, pie, box)
+  - name: Desmos
+    description: Mathematical function graphing (linear, quadratic, trigonometric)
+  - name: GeoGebra
+    description: Geometric construction rendering (circles, angles, polygons)
+  - name: Imagen
+    description: AI-generated educational images
+  - name: Health
+    description: Service health monitoring

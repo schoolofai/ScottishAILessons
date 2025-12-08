@@ -1,0 +1,45 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_jsx_transform_001",
+      "question_number": 1,
+      "tool": "JSXGRAPH",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Transformation geometry showing reflection in coordinate plane",
+        "content_analysis": "Triangle ABC reflected in y-axis to produce image A'B'C'",
+        "decision_rule_applied": "Rule 3: Coordinate transformations -> JSXGRAPH",
+        "alternatives_rejected": "GEOGEBRA for pure geometry without coordinate system",
+        "summary": "Shows original shape and transformed image on coordinate grid"
+      },
+      "visualization_focus": "Original triangle in blue with vertices labeled, reflected triangle in red with prime notation",
+      "alternative_tool": null,
+      "curriculum_topic": "Transformations - Reflection",
+      "diagram_specs": {
+        "key_elements": [
+          "coordinate grid with y-axis as mirror line",
+          "original triangle ABC in one color",
+          "reflected triangle A'B'C' in different color",
+          "vertex labels on both shapes",
+          "mirror line emphasized"
+        ],
+        "educational_purpose": "Visual understanding of reflection transformation"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Triangle reflection in y-axis showing original and image",
+    "tool": "JSXGRAPH",
+    "expected_features": ["two_triangles", "different_colors", "vertex_labels", "mirror_line"],
+    "common_issues_to_check": [
+      "CRITICAL: Boundingbox must include both original and image",
+      "Original and image clearly distinguishable by color",
+      "Prime notation for reflected vertices"
+    ],
+    "difficulty": "intermediate"
+  }
+}

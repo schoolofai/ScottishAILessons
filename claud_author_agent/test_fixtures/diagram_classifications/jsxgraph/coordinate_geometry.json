@@ -1,0 +1,45 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_jsx_coord_001",
+      "question_number": 1,
+      "tool": "JSXGRAPH",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Coordinate geometry with points and lines on a grid",
+        "content_analysis": "Plot points A(2,3), B(5,1) and draw line segment AB on coordinate grid",
+        "decision_rule_applied": "Rule 3: Coordinate geometry with specific points -> JSXGRAPH",
+        "alternatives_rejected": "DESMOS for functions, GEOGEBRA for pure geometry without coords",
+        "summary": "Coordinate grid with plotted points demonstrates coordinate concepts"
+      },
+      "visualization_focus": "Coordinate grid with points A(2,3) and B(5,1) connected by line segment",
+      "alternative_tool": null,
+      "curriculum_topic": "Coordinate Geometry",
+      "diagram_specs": {
+        "key_elements": [
+          "coordinate grid",
+          "point A at (2,3) labeled",
+          "point B at (5,1) labeled",
+          "line segment AB",
+          "axis labels"
+        ],
+        "educational_purpose": "Understanding coordinate plotting and distance/midpoint concepts"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Basic coordinate geometry with two points and line segment",
+    "tool": "JSXGRAPH",
+    "expected_features": ["coordinate_grid", "labeled_points", "line_segment", "axis_labels"],
+    "common_issues_to_check": [
+      "CRITICAL: Boundingbox order is [xmin, ymax, xmax, ymin] NOT [xmin,ymin,xmax,ymax]",
+      "Points should be visible and labeled",
+      "Grid should be enabled for coordinate reading"
+    ],
+    "difficulty": "basic"
+  }
+}

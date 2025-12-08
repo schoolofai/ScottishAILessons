@@ -1,0 +1,44 @@
+{
+  "batch_mode": true,
+  "total_questions": 1,
+  "questions_needing_diagrams": 1,
+  "questions_no_diagram": 0,
+  "classifications": [
+    {
+      "question_id": "fixture_geo_rect_001",
+      "question_number": 1,
+      "tool": "MATPLOTLIB",
+      "confidence": "HIGH",
+      "reasoning": {
+        "selected_because": "Rectangle with labeled dimensions for perimeter calculation - geometric shape",
+        "content_analysis": "Rectangle 8cm x 3cm - geometric shape with dimensions",
+        "decision_rule_applied": "Rule 6: Geometric shape without coordinates -> MATPLOTLIB",
+        "alternatives_rejected": "JSXGRAPH for coordinate geometry, DESMOS for functions - this is pure geometry",
+        "summary": "Rectangle diagram aids understanding of perimeter concept"
+      },
+      "visualization_focus": "Rectangle with length 8cm and width 3cm clearly labeled",
+      "alternative_tool": null,
+      "curriculum_topic": "Rectangle Perimeter",
+      "diagram_specs": {
+        "key_elements": [
+          "rectangle",
+          "length 8cm labeled",
+          "width 3cm labeled",
+          "right angles marked"
+        ],
+        "educational_purpose": "Visual representation of perimeter as sum of all sides"
+      }
+    }
+  ],
+  "_fixture_metadata": {
+    "description": "Simple rectangle with dimensions for perimeter calculation",
+    "tool": "MATPLOTLIB",
+    "expected_features": ["rectangle_shape", "dimension_labels", "right_angle_markers"],
+    "common_issues_to_check": [
+      "SetFontSize command should NOT be used",
+      "SetColor should be SetDynamicColor",
+      "Axes should be OFF for pure geometry"
+    ],
+    "difficulty": "basic"
+  }
+}
