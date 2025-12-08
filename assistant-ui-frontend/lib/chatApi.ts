@@ -36,9 +36,10 @@ export const sendMessage = async (params: {
   messages?: LangChainMessage[];
   command?: LangGraphCommand | undefined;
   sessionContext?: SessionContext;
+  assistantId?: string; // Optional: defaults to env var, use "infinite_practice" for practice mode
 }) => {
   const client = createClient();
-  
+
   // Prepare input with session context if provided
   const input: any = {};
   if (params.messages?.length) {
@@ -47,7 +48,7 @@ export const sendMessage = async (params: {
   if (params.sessionContext) {
     input.session_context = params.sessionContext;
   }
-  
+
   // Update session last message timestamp if we have session context
   if (params.sessionContext?.session_id) {
     try {
@@ -58,10 +59,13 @@ export const sendMessage = async (params: {
       console.warn('chatApi.sendMessage - Failed to update session timestamp:', error);
     }
   }
-  
+
+  // Use provided assistantId or fall back to environment variable
+  const assistantId = params.assistantId || process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!;
+
   const rawStream = client.runs.stream(
     params.threadId,
-    process.env["NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID"]!,
+    assistantId,
     {
       input: Object.keys(input).length > 0 ? input : null,
       command: params.command,
