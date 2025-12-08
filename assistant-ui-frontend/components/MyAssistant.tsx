@@ -19,6 +19,11 @@ import { FeedbackPresentationTool } from "@/components/tools/FeedbackPresentatio
 import { ProgressAcknowledgmentTool } from "@/components/tools/ProgressAcknowledgmentTool";
 import { LessonCompletionSummaryTool } from "@/components/tools/LessonCompletionSummaryTool";
 
+// Import infinite practice Tool UI components
+import { ConceptPresentationTool } from "@/components/tools/ConceptPresentationTool";
+import { PracticeQuestionTool } from "@/components/tools/PracticeQuestionTool";
+import { PracticeFeedbackTool } from "@/components/tools/PracticeFeedbackTool";
+
 export interface SessionContext {
   session_id: string;
   student_id: string;
@@ -174,6 +179,11 @@ export function MyAssistant({
           <FeedbackPresentationTool />
           <ProgressAcknowledgmentTool />
           <LessonCompletionSummaryTool />
+
+          {/* Infinite Practice Tool UI components */}
+          <ConceptPresentationTool />
+          <PracticeQuestionTool />
+          <PracticeFeedbackTool />
         </AssistantRuntimeProvider>
       </SessionProvider>
     </ReplayModeProvider>
