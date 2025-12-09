@@ -57,35 +57,72 @@ class CEFRLevel(str, Enum):
 class StandardRef(BaseModel):
     """Reference to SQA standard/outcome or skill being assessed.
 
-    Supports both:
-    - Unit-based courses (National 1-4): type="outcome", code, description
-    - Skills-based courses (National 5+): type="skill", skill_name, description
+    Uses field presence to determine structure type (matches SOW StandardOrSkillRef):
+    - Unit-based courses (National 1-4): code + outcome + description
+    - Skills-based courses (National 5+): skill_name + description
+
+    NOTE: There is NO 'type' discriminator field - structure is inferred from
+    which fields are present. This matches the source data format exactly.
+
+    Examples:
+        Unit-based: {"code": "AS1.2", "outcome": "O1", "description": "Add fractions..."}
+        Skills-based: {"skill_name": "Working with surds", "description": "Simplification..."}
     """
-    type: Literal["outcome", "skill"] = Field(
-        ...,
-        description="Type of reference: 'outcome' for unit-based, 'skill' for skills-based"
-    )
+    # Unit-based fields (Optional for skills-based)
     code: Optional[str] = Field(
         None,
-        description="Standard code for unit-based courses (e.g., 'MTH 4-03a')"
+        description="Assessment standard code (unit-based only, e.g., 'AS1.2')"
     )
+    outcome: Optional[str] = Field(
+        None,
+        description="Parent outcome reference (unit-based only, e.g., 'O1', 'O2', 'O3')"
+    )
+
+    # Skills-based fields (Optional for unit-based)
     skill_name: Optional[str] = Field(
         None,
-        description="Skill name for skills-based courses"
+        description="Skill name (skills-based only, e.g., 'Working with surds')"
     )
+
+    # Common field (REQUIRED for both)
     description: str = Field(
         ...,
-        min_length=10,
-        description="Full description of what this standard/skill assesses"
+        min_length=5,
+        description="Exact SQA description or skill description from Course_data.txt"
     )
 
     @model_validator(mode='after')
-    def validate_type_fields(self):
-        """Ensure correct fields are present for each type."""
-        if self.type == "outcome" and not self.code:
-            raise ValueError("Outcome type requires 'code' field")
-        if self.type == "skill" and not self.skill_name:
-            raise ValueError("Skill type requires 'skill_name' field")
+    def validate_structure_type(self):
+        """Ensure exactly one structure type is used (field-presence based)."""
+        is_unit_based = self.code is not None or self.outcome is not None
+        is_skills_based = self.skill_name is not None
+
+        if is_unit_based and is_skills_based:
+            raise ValueError(
+                "Cannot mix unit-based (code/outcome) with skills-based (skill_name) in same reference. "
+                "Use either unit-based structure (code + outcome + description) OR "
+                "skills-based structure (skill_name + description)."
+            )
+
+        if not is_unit_based and not is_skills_based:
+            raise ValueError(
+                "Must provide either unit-based fields (code, outcome) OR skills-based field (skill_name). "
+                "Check Course_data.txt structure_type to determine which structure to use."
+            )
+
+        # Unit-based validation
+        if is_unit_based:
+            if not self.code or not self.outcome:
+                raise ValueError(
+                    "Unit-based structure requires BOTH code AND outcome. "
+                    f"Provided: code={self.code}, outcome={self.outcome}"
+                )
+
+        # Skills-based validation
+        if is_skills_based:
+            if not self.skill_name:
+                raise ValueError("Skills-based structure requires skill_name")
+
         return self
 
 

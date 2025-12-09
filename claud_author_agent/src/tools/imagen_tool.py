@@ -519,8 +519,8 @@ if __name__ == "__main__":
     import os
 
     workspace_path = os.environ.get("WORKSPACE_PATH")
-    api_base_url = os.environ.get("API_BASE_URL", "http://localhost:8080")
-    api_key = os.environ.get("API_KEY", "")
+    api_base_url = os.environ.get("DIAGRAM_SCREENSHOT_URL", "http://localhost:3001")
+    api_key = os.environ.get("DIAGRAM_SCREENSHOT_API_KEY", "")
 
     if not workspace_path:
         raise RuntimeError("WORKSPACE_PATH environment variable is required")

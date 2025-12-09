@@ -34,7 +34,9 @@ class Question(BaseModel):
     estimated_minutes: int
 
     # Standards - list of dicts instead of nested StandardRef model
-    # Format: [{"type": "outcome", "code": "MTH 4-03a", "description": "..."}]
+    # Uses field presence to determine type (NO "type" discriminator):
+    # Unit-based format: [{"code": "AS1.1", "outcome": "O1", "description": "..."}]
+    # Skills-based format: [{"skill_name": "Working with surds", "description": "..."}]
     standards_addressed: list[dict[str, Any]]
 
     # Question content
@@ -178,20 +180,67 @@ def convert_to_full_schema(simplified: dict) -> dict:
                 "final_answer": q["worked_solution_answer"]
             }
 
-            # Ensure standards_addressed has description field
+            # Convert standards_addressed - uses field presence (NO type discriminator)
+            # Unit-based: code + outcome + description
+            # Skills-based: skill_name + description
             standards = []
             for std in q["standards_addressed"]:
-                standards.append({
-                    "code": std.get("code", ""),
-                    "type": std.get("type", "outcome"),
-                    "description": std.get("description", f"Standard {std.get('code', 'unknown')}")
-                })
+                # Pass through fields as-is - validation happens in Pydantic schema
+                converted_std = {
+                    "description": std.get("description", "")
+                }
 
-            # For MCQ, mark correct option in cfu_config
-            if q["question_type"] == "mcq" and cfu_config.get("options"):
+                # Copy optional fields if present
+                if std.get("code"):
+                    converted_std["code"] = std["code"]
+                if std.get("outcome"):
+                    converted_std["outcome"] = std["outcome"]
+                if std.get("skill_name"):
+                    converted_std["skill_name"] = std["skill_name"]
+
+                standards.append(converted_std)
+
+            # For MCQ/MCQ_multiselect, ensure correct option(s) are marked
+            if q["question_type"] in ("mcq", "mcq_multiselect") and cfu_config.get("options"):
                 correct_answer = q["correct_answer"]
-                for opt in cfu_config["options"]:
-                    opt["is_correct"] = opt.get("label", "") == correct_answer
+                options = cfu_config["options"]
+
+                # Check if agent already set is_correct on any option
+                has_agent_marking = any(opt.get("is_correct") is True for opt in options)
+
+                if has_agent_marking:
+                    # Trust agent's explicit marking - ensure all options have is_correct field
+                    for opt in options:
+                        if "is_correct" not in opt:
+                            opt["is_correct"] = False
+                else:
+                    # No agent marking - try to infer from correct_answer field
+                    # Strategy: match by label first, then by text content
+                    matched = False
+                    for opt in options:
+                        label = opt.get("label", "")
+                        text = opt.get("text", "")
+
+                        # Match by label (A, B, C, D) or by text content
+                        is_match = (
+                            label == correct_answer or
+                            text == correct_answer or
+                            correct_answer in [label, text] or
+                            label.lower() == correct_answer.lower()
+                        )
+                        opt["is_correct"] = is_match
+                        if is_match:
+                            matched = True
+
+                    # If no match found, log warning but don't fail silently
+                    # The downstream validator will catch this as "0 correct options"
+                    if not matched:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(
+                            f"MCQ q{q.get('question_number', '?')}: Could not match "
+                            f"correct_answer '{correct_answer}' to any option label/text"
+                        )
 
             converted_questions.append({
                 "question_id": q["question_id"],

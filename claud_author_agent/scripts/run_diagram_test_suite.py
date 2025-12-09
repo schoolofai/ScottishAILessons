@@ -40,8 +40,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+from dotenv import load_dotenv
+
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Load environment variables from .env file
+load_dotenv()
 
 from src.agents.diagram_author_agent import run_diagram_author
 from src.tools.diagram_classifier_schema_models import DIAGRAM_CLASSIFICATION_OUTPUT_FILE
@@ -294,7 +299,7 @@ async def run_fixture(fixture: FixtureInfo, suite_workspace: Path) -> FixtureRes
     try:
         # Get API key from environment or use default development key
         import os
-        api_key = os.environ.get("DIAGRAM_API_KEY", "dev-api-key-change-in-production")
+        api_key = os.environ.get("DIAGRAM_SCREENSHOT_API_KEY", "dev-api-key-change-in-production")
 
         # Run diagram author
         result = await run_diagram_author(

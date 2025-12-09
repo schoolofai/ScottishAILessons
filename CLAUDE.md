@@ -453,3 +453,4 @@ ScottishAILessons/
 - do not run long runnign author agents in @claud_author_agent/ without confirming even in bypass mode
 - the @start.sh script starts local servers so it loads fast do not sleep more that 10 seconds when testing with playwright
 - all access to appwrite should use server side auth and any client side auth is not allowed
+- in @langgraph-agent/ @claud_author_agent/ @langgraph-generic-chat/ and @langgraph-author-agent/ are generative AI apps - is schema validation fails e.g. with pydantic - then you should not silently implement post porcessing hacks to fix the issue - the real issue needs to be sorted with context and / or prompt engineering.

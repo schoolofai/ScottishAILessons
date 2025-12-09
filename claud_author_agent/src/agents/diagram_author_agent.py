@@ -883,15 +883,15 @@ Generate a **COMPLETELY NEW** diagram that:
 
 async def run_diagram_author(
     workspace_path: Path,
-    rendering_api_base: str = "http://localhost:3001",
-    rendering_api_key: str = ""
+    rendering_api_base: str = None,
+    rendering_api_key: str = None
 ) -> DiagramAuthorResult:
     """Run diagram author agent and return result.
 
     Args:
         workspace_path: Path to workspace with classification_output.json
-        rendering_api_base: Base URL for rendering API
-        rendering_api_key: API key for rendering service
+        rendering_api_base: Base URL for rendering API (default: from env or localhost:3001)
+        rendering_api_key: API key for rendering service (default: from DIAGRAM_SCREENSHOT_API_KEY env)
 
     Returns:
         DiagramAuthorResult
@@ -899,6 +899,16 @@ async def run_diagram_author(
     Raises:
         RuntimeError: If agent fails
     """
+    # Read from environment if not provided
+    if rendering_api_base is None:
+        rendering_api_base = os.environ.get("DIAGRAM_SCREENSHOT_URL", "http://localhost:3001")
+    if rendering_api_key is None:
+        rendering_api_key = os.environ.get("DIAGRAM_SCREENSHOT_API_KEY", "")
+
+    logger.info(f"🔧 Diagram Author API config:")
+    logger.info(f"   Base URL: {rendering_api_base}")
+    logger.info(f"   API Key: {'***' + rendering_api_key[-4:] if rendering_api_key else 'NOT SET'}")
+
     agent = DiagramAuthorAgent(
         workspace_path=workspace_path,
         rendering_api_base=rendering_api_base,

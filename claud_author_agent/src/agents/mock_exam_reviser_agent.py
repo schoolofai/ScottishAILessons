@@ -16,13 +16,15 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, ResultMessage
 
 from ..tools.mock_exam_generation_schema import MockExamGeneration, convert_to_full_schema
 from ..tools.mock_exam_schema_models import MockExam
-from ..tools.mock_exam_critic_schema_models import MockExamCriticResult
+from ..tools.mock_exam_critic_schema_models import (
+    MockExamCriticResult, MOCK_EXAM_CRITIC_OUTPUT_FILE
+)
 from ..utils.schema_sanitizer import sanitize_schema_for_structured_output
 
 logger = logging.getLogger(__name__)
 
 MOCK_EXAM_OUTPUT_FILE = "mock_exam.json"
-CRITIC_RESULT_FILE = "mock_exam_critic_result.json"
+# Use MOCK_EXAM_CRITIC_OUTPUT_FILE from schema_models for consistency
 
 
 class MockExamReviserAgent:
@@ -77,13 +79,13 @@ class MockExamReviserAgent:
 
         # Validate required files exist
         mock_exam_file = self.workspace_path / MOCK_EXAM_OUTPUT_FILE
-        critic_file = self.workspace_path / CRITIC_RESULT_FILE
+        critic_file = self.workspace_path / MOCK_EXAM_CRITIC_OUTPUT_FILE
         source_file = self.workspace_path / "mock_exam_source.json"
         context_file = self.workspace_path / "sow_context.json"
 
         for f, name in [
-            (mock_exam_file, "mock_exam.json"),
-            (critic_file, "critic_result.json"),
+            (mock_exam_file, MOCK_EXAM_OUTPUT_FILE),
+            (critic_file, MOCK_EXAM_CRITIC_OUTPUT_FILE),
             (source_file, "mock_exam_source.json"),
             (context_file, "sow_context.json")
         ]:

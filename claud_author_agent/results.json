@@ -1,0 +1,89 @@
+{
+  "success": true,
+  "execution_id": "20251209_105712",
+  "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712",
+  "mock_exam_id": "exam_68f3d6eacb2696fd0591_16",
+  "appwrite_document_id": "6938095acb6a2a596f16",
+  "pipeline_metrics": {
+    "total_duration_seconds": 2258.639044046402,
+    "total_messages": 0,
+    "steps": [
+      {
+        "name": "preprocessing",
+        "success": true,
+        "duration_seconds": 0.6767628192901611,
+        "message_count": 0,
+        "details": {
+          "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712",
+          "mock_exam_entries": 1,
+          "sow_id": "68f3d6eacb2696fd0591"
+        }
+      },
+      {
+        "name": "orchestration",
+        "success": true,
+        "duration_seconds": 1415.4338369369507,
+        "message_count": 0,
+        "details": {
+          "iterations": 3,
+          "exam_id": "exam_68f3d6eacb2696fd0591_16",
+          "total_questions": 25,
+          "critic_score": 4.6
+        }
+      },
+      {
+        "name": "classification",
+        "success": true,
+        "duration_seconds": 78.4686689376831,
+        "message_count": 0,
+        "details": {
+          "total_questions": 25,
+          "questions_needing_diagrams": 5,
+          "tool_distribution": {
+            "NONE": 20,
+            "MATPLOTLIB": 2,
+            "PLOTLY": 3
+          }
+        }
+      },
+      {
+        "name": "diagram_authoring",
+        "success": true,
+        "duration_seconds": 763.0323760509491,
+        "message_count": 0,
+        "details": {
+          "total_diagrams": 5,
+          "successful_diagrams": 5,
+          "total_iterations": 11,
+          "manifest_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712/diagram_manifest.json"
+        }
+      },
+      {
+        "name": "upsert",
+        "success": true,
+        "duration_seconds": 1.0263328552246094,
+        "message_count": 0,
+        "details": {
+          "document_id": "6938095acb6a2a596f16",
+          "collection": "mock_exams",
+          "force_mode": true
+        }
+      }
+    ]
+  },
+  "diagram_metrics": {
+    "questions_classified": 25,
+    "questions_needing_diagrams": 5,
+    "diagrams_generated": 5,
+    "diagrams_failed": 0
+  },
+  "cost_metrics": {
+    "execution_id": "20251209_105712",
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "total_tokens": 0,
+    "total_cost_usd": 0.0,
+    "subagent_count": 0,
+    "subagents": {}
+  }
+}

@@ -28,6 +28,10 @@ async def extract_mock_exam_entries_to_workspace(
     Creates files in workspace:
     1. mock_exam_source.json: All mock_exam type entries from SOW
     2. sow_context.json: Course-level SOW metadata for context
+    3. sow.json: Full SOW with all lesson entries (for mock exam inspiration)
+
+    The sow.json file contains all lesson entries that precede the mock exam,
+    allowing the mock exam author to base questions on what the student has learned.
 
     Note: Only SOW documents with status='published' are retrieved.
     Draft SOWs are excluded to ensure quality control.
@@ -120,6 +124,24 @@ async def extract_mock_exam_entries_to_workspace(
         json.dump(sow_metadata, f, indent=2)
     logger.info(f"Written sow_context.json to {context_file_path}")
 
+    # Step 7: Write sow.json (full SOW with all lesson entries for context)
+    # This provides the mock exam author with the full curriculum the student has learned
+    lesson_entries = _filter_lesson_entries(entries)
+    sow_file_path = workspace_path / "sow.json"
+    sow_data = {
+        "courseId": courseId,
+        "sowId": sow_id,
+        "subject": sow_doc.get('subject', ''),
+        "level": sow_doc.get('level', ''),
+        "coherence": sow_doc.get('coherence', ''),
+        "lesson_entries": lesson_entries,
+        "total_lessons": len(lesson_entries),
+        "lesson_type_breakdown": _get_lesson_type_counts(lesson_entries)
+    }
+    with open(sow_file_path, 'w') as f:
+        json.dump(sow_data, f, indent=2)
+    logger.info(f"Written sow.json with {len(lesson_entries)} lesson entries to {sow_file_path}")
+
     return (mock_exam_entries, sow_metadata)
 
 
@@ -146,6 +168,37 @@ def _filter_mock_exam_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, A
             )
 
     return mock_exam_entries
+
+
+def _filter_lesson_entries(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Filter SOW entries to include all lesson types EXCEPT mock_exam.
+
+    These are the lessons the student has learned before the mock exam.
+    The mock exam author uses these to craft questions that test learned content.
+
+    Args:
+        entries: List of SOW entry dictionaries
+
+    Returns:
+        Filtered list containing all non-mock_exam entries (sorted by order)
+    """
+    lesson_entries = []
+
+    for entry in entries:
+        lesson_type = entry.get('lesson_type', '')
+
+        # Include all lesson types except mock_exam
+        if lesson_type != 'mock_exam':
+            lesson_entries.append(entry)
+            logger.debug(
+                f"Found lesson: order={entry.get('order')}, "
+                f"type='{lesson_type}', label='{entry.get('label', 'N/A')}'"
+            )
+
+    # Sort by order to maintain curriculum sequence
+    lesson_entries.sort(key=lambda e: e.get('order', 0))
+
+    return lesson_entries
 
 
 def _get_unique_lesson_types(entries: List[Dict[str, Any]]) -> List[str]:

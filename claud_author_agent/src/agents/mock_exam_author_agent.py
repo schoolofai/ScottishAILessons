@@ -25,7 +25,15 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, ResultMessage
 from ..tools.mock_exam_generation_schema import MockExamGeneration, convert_to_full_schema
 # Use FULL schema for final validation only
 from ..tools.mock_exam_schema_models import MockExam
-from ..utils.schema_sanitizer import sanitize_schema_for_structured_output
+# Critic schema for synthetic result when validation fails
+from ..tools.mock_exam_critic_schema_models import (
+    MockExamCriticResult, SchemaGate, MOCK_EXAM_CRITIC_OUTPUT_FILE
+)
+from ..utils.schema_sanitizer import (
+    sanitize_schema_for_structured_output,
+    wrap_schema_for_sdk_structured_output,
+    unwrap_sdk_structured_output
+)
 # Note: MCP validator not needed - structured output guarantees schema compliance
 
 logger = logging.getLogger(__name__)
@@ -102,10 +110,15 @@ class MockExamAuthorAgent:
         # Generate JSON schema from SIMPLIFIED Pydantic model (3 models vs 17+)
         # This is the key optimization - smaller schema = faster, more reliable generation
         raw_schema = MockExamGeneration.model_json_schema()
-        mock_exam_schema = sanitize_schema_for_structured_output(raw_schema)
-        logger.info(f"📊 SIMPLIFIED Schema size: {len(json.dumps(mock_exam_schema)):,} chars, {len(mock_exam_schema.get('$defs', {}))} definitions")
+        sanitized_schema = sanitize_schema_for_structured_output(raw_schema)
+        logger.info(f"📊 SIMPLIFIED Schema size: {len(json.dumps(sanitized_schema)):,} chars, {len(sanitized_schema.get('$defs', {}))} definitions")
         logger.info(f"   (vs ~13,000 chars with full MockExam schema)")
         logger.info(f"Schema sanitized for structured outputs (removed unsupported constraints)")
+
+        # CRITICAL: Wrap schema for SDK's StructuredOutput tool
+        # The SDK wraps output in {"parameter": ...}, so schema must expect that
+        mock_exam_schema = wrap_schema_for_sdk_structured_output(sanitized_schema)
+        logger.info(f"📦 Schema wrapped for SDK StructuredOutput tool (expects 'parameter' key)")
 
         # Configure agent with STRUCTURED OUTPUT (the key change!)
         options = ClaudeAgentOptions(
@@ -214,9 +227,13 @@ class MockExamAuthorAgent:
                 "Check SDK version and output_format configuration."
             )
 
-        # structured_output is valid JSON matching SIMPLIFIED schema (SDK guaranteed)
-        simplified_json = structured_output
-        logger.info(f"Structured output type: {type(simplified_json)}")
+        # structured_output is wrapped in {"parameter": <data>} by SDK
+        logger.info(f"Structured output type: {type(structured_output)}")
+        logger.info(f"Structured output keys: {list(structured_output.keys()) if isinstance(structured_output, dict) else 'N/A'}")
+
+        # CRITICAL: Unwrap from SDK's {"parameter": ...} wrapper
+        simplified_json = unwrap_sdk_structured_output(structured_output)
+        logger.info(f"Unwrapped JSON keys: {list(simplified_json.keys()) if isinstance(simplified_json, dict) else 'N/A'}")
 
         # ═══════════════════════════════════════════════════════════════
         # POST-PROCESSING: Convert simplified → full schema
@@ -229,6 +246,7 @@ class MockExamAuthorAgent:
             logger.info("✅ Simplified schema validation passed")
         except Exception as e:
             logger.error(f"Simplified schema validation failed: {e}")
+            logger.error(f"Raw data keys: {list(simplified_json.keys()) if isinstance(simplified_json, dict) else simplified_json}")
             raise RuntimeError(f"Structured output doesn't match simplified schema: {e}")
 
         # Step 2: Convert flattened structure to nested MockExam format
@@ -246,13 +264,28 @@ class MockExamAuthorAgent:
         logger.info(f"✅ Written {MOCK_EXAM_OUTPUT_FILE} ({output_file.stat().st_size:,} bytes)")
 
         # Step 3: Validate with FULL schema (belt-and-suspenders)
+        # NOTE: If validation fails, we create a synthetic critic result so Reviser can fix it
         logger.info("Validating with full MockExam schema (belt-and-suspenders)...")
         try:
             mock_exam = MockExam.model_validate(raw_json)
+            logger.info("✅ Full schema validation passed")
         except Exception as e:
-            # Log validation error details
-            logger.error(f"Full MockExam schema validation failed: {e}")
-            raise RuntimeError(f"Mock exam JSON failed full schema validation: {e}")
+            # Validation failed - create synthetic critic result for Reviser
+            error_message = str(e)
+            logger.warning(f"⚠️ Full MockExam schema validation failed: {error_message}")
+            logger.warning("   Creating synthetic critic result for Reviser...")
+
+            # Create synthetic critic result with the validation error
+            synthetic_critic = self._create_synthetic_critic_result(error_message, raw_json)
+
+            # Write synthetic critic result to workspace
+            critic_output_file = self.workspace_path / MOCK_EXAM_CRITIC_OUTPUT_FILE
+            with open(critic_output_file, 'w') as f:
+                json.dump(synthetic_critic.model_dump(by_alias=True), f, indent=2)
+            logger.info(f"✅ Written synthetic critic result to {MOCK_EXAM_CRITIC_OUTPUT_FILE}")
+
+            # Construct a lenient MockExam object without strict validation
+            mock_exam = MockExam.model_construct(**raw_json)
 
         logger.info("=" * 60)
         logger.info("MOCK EXAM AUTHOR AGENT - Execution complete")
@@ -370,6 +403,54 @@ class MockExamAuthorAgent:
 
         raw_json["summary"] = corrected_summary
         return raw_json
+
+    def _create_synthetic_critic_result(
+        self,
+        validation_error: str,
+        raw_json: Dict[str, Any]
+    ) -> MockExamCriticResult:
+        """Create a synthetic critic result from a validation error.
+
+        When Author validation fails, we create a synthetic critic result
+        so the Reviser can immediately fix the issue without waiting for
+        the Critic LLM call.
+
+        Args:
+            validation_error: Pydantic validation error message
+            raw_json: The raw mock exam JSON that failed validation
+
+        Returns:
+            MockExamCriticResult with schema_gate failed and improvement guidance
+        """
+        # Parse error to extract actionable information
+        error_summary = validation_error.split('\n')[0] if '\n' in validation_error else validation_error
+
+        # Create synthetic result with failed schema gate
+        return MockExamCriticResult(
+            **{
+                "pass": False,
+                "overall_score": 0.0,
+                "schema_gate": SchemaGate(
+                    **{
+                        "pass": False,
+                        "failed_checks": [error_summary]
+                    }
+                ),
+                "validation_errors": [validation_error],
+                "dimensions": None,  # Skip dimension scoring - schema must pass first
+                "summary": (
+                    f"Schema validation failed. The mock exam JSON does not conform to the required schema. "
+                    f"Error: {error_summary}. The Reviser must fix this structural error before "
+                    f"proceeding with quality evaluation."
+                ),
+                "improvements_required": [
+                    f"FIX SCHEMA ERROR: {error_summary}",
+                    "Ensure all section marks equal the sum of question marks",
+                    "Verify totalMarks equals sum of all section_marks"
+                ],
+                "stats": None
+            }
+        )
 
 
 async def run_mock_exam_author(

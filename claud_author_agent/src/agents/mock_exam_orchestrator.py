@@ -18,14 +18,16 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from ..tools.mock_exam_schema_models import MockExam
-from ..tools.mock_exam_critic_schema_models import MockExamCriticResult
+from ..tools.mock_exam_critic_schema_models import (
+    MockExamCriticResult, MOCK_EXAM_CRITIC_OUTPUT_FILE
+)
 
 logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_MAX_ITERATIONS = 3
 MOCK_EXAM_FILE = "mock_exam.json"
-CRITIC_RESULT_FILE = "mock_exam_critic_result.json"
+# Use MOCK_EXAM_CRITIC_OUTPUT_FILE from schema_models for consistency
 
 
 @dataclass
@@ -213,14 +215,25 @@ class MockExamOrchestrator:
         logger.info(f"   ✅ Mock exam ready: {mock_exam.examId}")
         logger.info(f"      Questions: {mock_exam.summary.total_questions}")
 
-        # Step 2: Run critic
-        logger.info("🔍 Running Mock Exam Critic...")
-        from .mock_exam_critic_agent import run_mock_exam_critic
+        # Step 2: Run critic (or use synthetic result if Author validation failed)
+        critic_result_file = self.workspace_path / MOCK_EXAM_CRITIC_OUTPUT_FILE
+        if critic_result_file.exists() and iteration == 1:
+            # Author created a synthetic critic result due to validation failure
+            # Skip the LLM critic call and use the synthetic result directly
+            logger.info("🔄 Using synthetic critic result (Author validation failed)...")
+            with open(critic_result_file) as f:
+                critic_data = json.load(f)
+            critic_result = MockExamCriticResult.model_validate(critic_data)
+            message_counts["critic"] = 0  # No LLM call made
+        else:
+            # Normal path: run the LLM critic
+            logger.info("🔍 Running Mock Exam Critic...")
+            from .mock_exam_critic_agent import run_mock_exam_critic
 
-        critic_result = await run_mock_exam_critic(
-            workspace_path=self.workspace_path
-        )
-        message_counts["critic"] = 0  # TODO: capture from agent
+            critic_result = await run_mock_exam_critic(
+                workspace_path=self.workspace_path
+            )
+            message_counts["critic"] = 0  # TODO: capture from agent
 
         # Log critic results
         logger.info(f"   Schema Gate: {'PASS' if critic_result.schema_gate.pass_ else 'FAIL'}")

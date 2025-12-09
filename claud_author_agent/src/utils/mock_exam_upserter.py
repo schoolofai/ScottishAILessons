@@ -63,17 +63,18 @@ async def upsert_mock_exam_to_appwrite(
     mock_exam_data = _read_mock_exam_file(mock_exam_file_path)
     logger.info("Mock exam file loaded successfully")
 
-    # Step 2: Validate structure with Pydantic
-    _validate_mock_exam_structure(mock_exam_data)
-    logger.info("Mock exam structure validated")
+    # Step 2: Auto-correct and validate structure with Pydantic
+    # Auto-correction applies deterministic fixes before validation
+    corrected_data = _validate_mock_exam_structure(mock_exam_data)
+    logger.info("Mock exam structure validated (with auto-corrections applied)")
 
     # Step 3: Check for existing mock exam (handle force mode)
     existing_doc_id = await _check_existing_mock_exam(
         courseId, version, mcp_config_path, force
     )
 
-    # Step 4: Transform to Appwrite schema
-    document_data = _transform_to_appwrite_schema(mock_exam_data, courseId, version)
+    # Step 4: Transform to Appwrite schema (use corrected data)
+    document_data = _transform_to_appwrite_schema(corrected_data, courseId, version)
     logger.info("Data transformation complete")
 
     # Step 5: Create document in Appwrite
@@ -113,18 +114,38 @@ def _read_mock_exam_file(file_path: str) -> Dict[str, Any]:
         raise ValueError(f"Invalid JSON in mock exam file: {e}")
 
 
-def _validate_mock_exam_structure(mock_exam_data: Dict[str, Any]) -> None:
+def _validate_mock_exam_structure(mock_exam_data: Dict[str, Any]) -> Dict[str, Any]:
     """Validate mock exam structure with Pydantic schema.
+
+    Applies auto-correction before validation for more deterministic results.
 
     Args:
         mock_exam_data: Mock exam data dictionary
 
+    Returns:
+        Corrected mock exam data dictionary
+
     Raises:
-        ValueError: If validation fails
+        ValueError: If validation fails after auto-correction
     """
+    from .mock_exam_auto_correction import auto_correct_mock_exam, get_correction_stats
+
+    # Apply auto-correction before validation
+    logger.info("Running auto-correction on mock exam data...")
+    corrected_data, corrections = auto_correct_mock_exam(mock_exam_data)
+
+    if corrections:
+        stats = get_correction_stats(corrections)
+        logger.info(f"Auto-correction applied {stats['total']} fixes:")
+        logger.info(f"  - MCQ fixes: {stats['mcq_fixes']}")
+        logger.info(f"  - Hints fixes: {stats['hints_fixes']}")
+        logger.info(f"  - Misconceptions fixes: {stats['misconceptions_fixes']}")
+    else:
+        logger.info("No auto-corrections needed")
+
     logger.info("Running Pydantic schema validation...")
 
-    mock_exam_json = json.dumps(mock_exam_data)
+    mock_exam_json = json.dumps(corrected_data)
     validation_result = validate_mock_exam_schema(mock_exam_json)
 
     if not validation_result["valid"]:
@@ -149,6 +170,8 @@ def _validate_mock_exam_structure(mock_exam_data: Dict[str, Any]) -> None:
 
     logger.info(f"Pydantic validation passed: {validation_result['summary']}")
 
+    return corrected_data
+
 
 async def _check_existing_mock_exam(
     courseId: str,
@@ -158,11 +181,16 @@ async def _check_existing_mock_exam(
 ) -> Optional[str]:
     """Check for existing mock exam and handle force mode.
 
+    When force=True, this function deletes:
+    1. The existing mock exam document
+    2. All associated diagram documents (prevents orphaned diagrams)
+    3. All associated diagram images from storage
+
     Args:
         courseId: Course identifier
         version: Mock exam version
         mcp_config_path: Path to MCP config
-        force: If True, delete existing document
+        force: If True, delete existing document and its diagrams
 
     Returns:
         Existing document ID if found and not deleted, None otherwise
@@ -171,6 +199,7 @@ async def _check_existing_mock_exam(
         ValueError: If existing mock exam found and force=False
     """
     from .appwrite_mcp import list_appwrite_documents, delete_appwrite_document
+    from .diagram_cleanup import delete_existing_diagrams_for_mock_exam
 
     existing_docs = await list_appwrite_documents(
         database_id="default",
@@ -185,9 +214,34 @@ async def _check_existing_mock_exam(
     if existing_docs and len(existing_docs) > 0:
         existing_doc = existing_docs[0]
         existing_id = existing_doc.get('$id', '')
+        existing_exam_id = existing_doc.get('examId', '')
 
         if force:
             logger.warning(f"FORCE MODE: Deleting existing mock exam {existing_id}")
+
+            # Step 1: Delete associated diagrams FIRST (to prevent orphans)
+            if existing_exam_id:
+                logger.info(f"Cleaning up diagrams for exam: {existing_exam_id}")
+                try:
+                    diagram_cleanup_result = await delete_existing_diagrams_for_mock_exam(
+                        exam_id=existing_exam_id,
+                        course_id=courseId,
+                        version=version,
+                        mcp_config_path=mcp_config_path
+                    )
+                    if diagram_cleanup_result["deleted_count"] > 0:
+                        logger.info(
+                            f"✅ Cleaned up {diagram_cleanup_result['deleted_count']} diagrams "
+                            f"({len(diagram_cleanup_result['storage_ids'])} storage files)"
+                        )
+                    else:
+                        logger.info("No existing diagrams found to clean up")
+                except Exception as e:
+                    # Log warning but continue - diagram cleanup is best-effort
+                    # (diagrams may not have been persisted yet)
+                    logger.warning(f"⚠️  Diagram cleanup failed (non-fatal): {e}")
+
+            # Step 2: Delete the mock exam document
             await delete_appwrite_document(
                 database_id="default",
                 collection_id="mock_exams",

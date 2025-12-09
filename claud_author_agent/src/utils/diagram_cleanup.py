@@ -150,6 +150,148 @@ async def delete_existing_diagrams_for_lesson(
     }
 
 
+async def delete_existing_diagrams_for_mock_exam(
+    exam_id: str,
+    course_id: str,
+    version: str,
+    mcp_config_path: str
+) -> Dict[str, Any]:
+    """Delete all diagrams associated with a mock exam (database + storage).
+
+    Used when --force flag is set to regenerate mock exam with new diagrams.
+    Queries diagrams by examId to find all associated diagram documents.
+
+    NOTE: This requires diagrams to have an `examId` field. If diagrams are
+    stored in lesson_diagrams collection, they may need to be adapted or
+    a mock_exam_diagrams collection created.
+
+    For now, this function also attempts to query by courseId+version as a
+    fallback identifier pattern.
+
+    Args:
+        exam_id: Mock exam identifier (e.g., "exam_c84473_v1")
+        course_id: Course identifier (e.g., "course_c84473")
+        version: Mock exam version (e.g., "1", "2")
+        mcp_config_path: Path to MCP config file
+
+    Returns:
+        Dictionary with deletion results:
+        {
+            "deleted_count": int,
+            "database_ids": List[str],
+            "storage_ids": List[str],
+            "errors": List[str]
+        }
+
+    Raises:
+        Exception: On fatal delete errors (fast-fail)
+    """
+    from .appwrite_mcp import list_appwrite_documents, delete_appwrite_document
+    from .storage_uploader import delete_diagram_image
+
+    logger.info(f"Checking for existing diagrams for mock exam: {exam_id}")
+    logger.info(f"   Course: {course_id}, Version: {version}")
+
+    # Try to query diagrams by examId (if they have this field)
+    # This supports future mock_exam_diagrams collection
+    diagrams = []
+
+    try:
+        # Try querying by examId in lesson_diagrams (future-compatible)
+        result = await list_appwrite_documents(
+            database_id="default",
+            collection_id="lesson_diagrams",
+            queries=[f'equal("examId", "{exam_id}")'],
+            mcp_config_path=mcp_config_path
+        )
+        diagrams = result.get("documents", []) if isinstance(result, dict) else result
+
+    except Exception as e:
+        # examId field may not exist yet - this is expected
+        logger.debug(f"No examId field in lesson_diagrams (expected): {e}")
+
+    # If no diagrams found by examId, try querying by lessonTemplateId pattern
+    # Mock exams may store diagrams with lessonTemplateId = exam_id
+    if not diagrams:
+        try:
+            result = await list_appwrite_documents(
+                database_id="default",
+                collection_id="lesson_diagrams",
+                queries=[f'equal("lessonTemplateId", "{exam_id}")'],
+                mcp_config_path=mcp_config_path
+            )
+            diagrams = result.get("documents", []) if isinstance(result, dict) else result
+
+        except Exception as e:
+            logger.debug(f"No diagrams found with lessonTemplateId={exam_id}: {e}")
+
+    if not diagrams or len(diagrams) == 0:
+        logger.info(f"No existing diagrams found for mock exam {exam_id}")
+        return {
+            "deleted_count": 0,
+            "database_ids": [],
+            "storage_ids": [],
+            "errors": []
+        }
+
+    logger.info(f"Found {len(diagrams)} existing diagrams to delete for mock exam {exam_id}")
+
+    # Delete each diagram
+    deleted_count = 0
+    database_ids = []
+    storage_ids = []
+    errors = []
+
+    for diagram in diagrams:
+        diagram_id = diagram["$id"]
+        card_id = diagram.get("cardId", "unknown")
+        image_file_id = diagram.get("image_file_id")
+
+        logger.info(f"Deleting mock exam diagram for card {card_id} (diagram_id: {diagram_id})...")
+
+        # Delete storage file if exists
+        if image_file_id:
+            try:
+                await delete_diagram_image(
+                    file_id=image_file_id,
+                    mcp_config_path=mcp_config_path
+                )
+                storage_ids.append(image_file_id)
+                logger.info(f"✅ Deleted storage file: {image_file_id}")
+            except Exception as e:
+                # Log warning but continue (storage file may already be deleted)
+                logger.warning(f"⚠️  Failed to delete storage file {image_file_id}: {e}")
+                errors.append(f"Storage delete failed for {image_file_id}: {str(e)}")
+
+        # Delete database record
+        try:
+            await delete_appwrite_document(
+                database_id="default",
+                collection_id="lesson_diagrams",
+                document_id=diagram_id,
+                mcp_config_path=mcp_config_path
+            )
+            database_ids.append(diagram_id)
+            deleted_count += 1
+            logger.info(f"✅ Deleted diagram document: {diagram_id}")
+
+        except Exception as e:
+            # Fast-fail on database delete errors
+            error_msg = f"Failed to delete diagram {diagram_id}: {str(e)}"
+            logger.error(f"❌ {error_msg}")
+            errors.append(error_msg)
+            raise Exception(error_msg)  # Fast-fail
+
+    logger.info(f"✅ Deleted {deleted_count} diagrams for mock exam {exam_id}")
+
+    return {
+        "deleted_count": deleted_count,
+        "database_ids": database_ids,
+        "storage_ids": storage_ids,
+        "errors": errors
+    }
+
+
 async def delete_diagrams_batch(
     course_id: str,
     lesson_orders: List[int],

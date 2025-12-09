@@ -134,6 +134,65 @@ def sanitize_schema_for_structured_output(schema: Dict[str, Any]) -> Dict[str, A
     return sanitized
 
 
+def wrap_schema_for_sdk_structured_output(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Wrap schema for Claude Agent SDK's StructuredOutput tool.
+
+    The SDK's StructuredOutput tool wraps the output in {"parameter": <data>}.
+    This function wraps the schema to expect that structure.
+
+    Args:
+        schema: The actual data schema (e.g., MockExamGeneration schema)
+
+    Returns:
+        Wrapped schema expecting {"parameter": <data>}
+
+    Example:
+        Input schema expects: {"examId": "...", "courseId": "...", ...}
+        SDK outputs: {"parameter": {"examId": "...", "courseId": "...", ...}}
+        Wrapped schema expects: {"parameter": {"examId": "...", ...}}
+    """
+    # Move $defs to top level of wrapper if present
+    defs = schema.pop('$defs', None)
+
+    wrapped = {
+        "type": "object",
+        "properties": {
+            "parameter": schema  # The actual schema goes inside "parameter"
+        },
+        "required": ["parameter"],
+        "additionalProperties": False
+    }
+
+    # Restore $defs at top level if present
+    if defs:
+        wrapped['$defs'] = defs
+
+    logger.info(f"Schema wrapped for SDK StructuredOutput tool (expects 'parameter' key)")
+
+    return wrapped
+
+
+def unwrap_sdk_structured_output(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Unwrap data from SDK StructuredOutput tool's {"parameter": ...} wrapper.
+
+    Args:
+        data: Data from SDK structured_output (may or may not be wrapped)
+
+    Returns:
+        The actual data, unwrapped from {"parameter": ...} if present
+
+    Raises:
+        ValueError: If data is wrapped but "parameter" key is missing
+    """
+    if "parameter" in data and len(data) == 1:
+        # Data is wrapped - unwrap it
+        logger.info("Unwrapping SDK structured output from 'parameter' wrapper")
+        return data["parameter"]
+    else:
+        # Data is not wrapped - return as-is
+        return data
+
+
 def get_schema_stats(schema: Dict[str, Any]) -> Dict[str, Any]:
     """Get statistics about a JSON schema.
 

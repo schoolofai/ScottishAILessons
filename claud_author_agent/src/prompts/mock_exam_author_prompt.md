@@ -11,6 +11,70 @@ Generate a complete mock exam from SOW source data.
 - Entry Count: {{entry_count}}
 - Accessibility: {{accessibility_notes}}
 
+## CRITICAL: SQA Standard System (Field-Presence Based)
+
+SQA uses **two different standard systems** depending on the course level. The structure type is determined by **which fields are present** (NO `type` discriminator field).
+
+### Unit-Based Courses (National 1-4, Application of Mathematics)
+
+These courses use **Assessment Standards** (AS codes) grouped into **Outcomes** (O1, O2, O3).
+
+**Source data format:**
+```json
+{
+  "code": "AS1.1",
+  "description": "Selecting and using appropriate numerical notation",
+  "outcome": "O1"
+}
+```
+
+**Output format - Use `code` + `outcome` + `description` fields:**
+```json
+{
+  "code": "AS1.1",
+  "outcome": "O1",
+  "description": "Selecting and using appropriate numerical notation"
+}
+```
+
+**Rule:** Copy all three fields from source: `code`, `outcome`, and `description`.
+
+### Skills-Based Courses (National 5, Higher, Advanced Higher)
+
+These courses use **Skills** with skill names and descriptions.
+
+**Source data format:**
+```json
+{
+  "skill_name": "Working with surds",
+  "description": "Working with surds and indices"
+}
+```
+
+**Output format - Use `skill_name` + `description` fields:**
+```json
+{
+  "skill_name": "Working with surds",
+  "description": "Working with surds and indices"
+}
+```
+
+**Rule:** Copy both fields from source: `skill_name` and `description`.
+
+### Quick Reference Table
+
+| Source Structure | Output Fields |
+|------------------|---------------|
+| Has `code` + `outcome` | `{"code": "AS1.1", "outcome": "O1", "description": "..."}` |
+| Has `skill_name` | `{"skill_name": "Working with surds", "description": "..."}` |
+
+**⚠️ IMPORTANT:** There is NO `type` field - the structure type is inferred from field presence:
+- Unit-based → REQUIRES `code` AND `outcome` fields
+- Skills-based → REQUIRES `skill_name` field
+- Both → REQUIRE `description` field
+
+Do NOT add a `type` field - it will cause validation errors!
+
 ## Input Files
 
 Read these files from your workspace using `pwd` for the absolute path:
@@ -21,6 +85,70 @@ Read these files from your workspace using `pwd` for the absolute path:
    - `calculator_policy` - Determines section structure
 
 2. **sow_context.json** - Course metadata and accessibility requirements
+
+3. **sow.json** - Complete Scheme of Work with ALL lesson entries (see below)
+
+## Using SOW Context for Question Inspiration
+
+The `sow.json` file contains **all lessons the student has completed** before this mock exam. This is your primary source for crafting contextually relevant questions.
+
+### sow.json Structure
+
+```json
+{
+  "courseId": "course_xxx",
+  "sowId": "sow_xxx",
+  "subject": "mathematics",
+  "level": "national-5",
+  "coherence": "cumulative",
+  "lesson_entries": [
+    {
+      "order": 1,
+      "label": "Introduction to Fractions",
+      "lesson_type": "teach",
+      "lesson_plan": {
+        "card_structure": [...]
+      },
+      "standards": [...]
+    },
+    {
+      "order": 2,
+      "label": "Adding and Subtracting Fractions",
+      "lesson_type": "independent_practice",
+      ...
+    }
+  ],
+  "total_lessons": 15,
+  "lesson_type_breakdown": {"teach": 5, "independent_practice": 8, "revision": 2}
+}
+```
+
+### How to Use Lesson Context
+
+1. **Scan lesson labels** - Understand what topics the student has covered
+2. **Review lesson_plan.card_structure** - See the exact content and difficulty they've encountered
+3. **Note cumulative progression** - Later lessons build on earlier ones; questions can integrate multiple topics
+4. **Match standards** - Your mock exam questions should align with standards from the lessons
+
+### Question Design Principles from SOW
+
+| SOW Element | Use in Mock Exam |
+|-------------|------------------|
+| Lesson labels | Identify core topics to test |
+| Card difficulty levels | Match question difficulty distribution |
+| Standards from lessons | Ensure curriculum coverage |
+| Lesson types (teach vs practice) | Weight questions toward practiced content |
+| Coherence strategy | Build questions that integrate multiple lessons |
+
+### Example Workflow
+
+1. Read `sow.json` to understand the learning journey
+2. Identify 3-4 key topics from lesson labels
+3. Extract standards that were taught multiple times
+4. Design questions that test those standards using contexts from lessons
+5. Include some integrative questions that combine 2-3 topics
+
+**IMPORTANT**: The mock exam should feel like a natural assessment of what the student has learned, not a collection of disconnected problems.
 
 ## Output Schema
 
@@ -61,7 +189,7 @@ Produce this exact JSON structure:
           "difficulty": "easy",
           "estimated_minutes": 2,
           "standards_addressed": [
-            {"type": "outcome", "code": "MTH 3-07a", "description": "Solve problems involving fractions"}
+            {"code": "AS1.2", "outcome": "O1", "description": "Selecting and carrying out calculations"}
           ],
           "question_stem": "Calculate $\\frac{3}{4} + \\frac{1}{2}$",
           "question_stem_plain": "Calculate three quarters plus one half",
@@ -107,8 +235,11 @@ Produce this exact JSON structure:
 | `question_type` | `mcq`, `mcq_multiselect`, `numeric`, `short_text`, `structured_response` |
 | `difficulty` | `easy`, `medium`, `hard` |
 | `calculator_policy` | `non_calc`, `calc`, `mixed`, `exam_conditions` |
-| `standards_addressed[].type` | `outcome`, `skill` |
 | `plain_language_level` | `A1`, `A2`, `B1`, `B2` |
+
+### standards_addressed Structure (Field-Presence Based)
+- Unit-based courses: `{"code": "AS1.1", "outcome": "O1", "description": "..."}`
+- Skills-based courses: `{"skill_name": "...", "description": "..."}`
 
 ## Validation Rules
 
@@ -121,15 +252,76 @@ Produce this exact JSON structure:
    - `question_stem_plain` - Plain English at CEFR B1 level
    - `marking_scheme` - Even 1-mark questions: `[{"step": "Correct answer", "marks": 1}]`
    - `worked_solution_steps` and `worked_solution_answer`
-   - `hints` - 1-3 hints
-   - `misconceptions` - At least 1
 
 3. **Summary counts**:
    - Omit keys with zero count: `{"easy": 5, "medium": 10}` not `{"easy": 5, "medium": 10, "hard": 0}`
 
-4. **MCQ questions**:
-   - Set `mcq_options` array with `{"label": "A", "text": "...", "is_correct": false, "feedback": "..."}`
+4. **CRITICAL - MCQ options (is_correct marking)**:
+   - For `mcq` type: **EXACTLY ONE** option must have `is_correct: true`
+   - For `mcq_multiselect` type: **AT LEAST ONE** option must have `is_correct: true` (can have multiple)
+   - All other options MUST have `is_correct: false` explicitly set
+   - The `correct_answer` field format:
+     - Single-select: just the label (e.g., `"B"`)
+     - Multi-select: comma-separated labels (e.g., `"A, C"`)
+
+   **Example single-select MCQ (`mcq` type):**
+   ```json
+   {
+     "question_type": "mcq",
+     "correct_answer": "B",
+     "mcq_options": [
+       {"label": "A", "text": "42", "is_correct": false, "feedback": "Incorrect - check your calculation"},
+       {"label": "B", "text": "56", "is_correct": true, "feedback": "Correct!"},
+       {"label": "C", "text": "28", "is_correct": false, "feedback": "You may have divided instead of multiplied"},
+       {"label": "D", "text": "64", "is_correct": false, "feedback": "Check your arithmetic"}
+     ]
+   }
+   ```
+
+   **Example multi-select MCQ (`mcq_multiselect` type):**
+   ```json
+   {
+     "question_type": "mcq_multiselect",
+     "correct_answer": "A, C",
+     "mcq_options": [
+       {"label": "A", "text": "It is a prime number", "is_correct": true, "feedback": "Correct - 7 is only divisible by 1 and itself"},
+       {"label": "B", "text": "It is an even number", "is_correct": false, "feedback": "Incorrect - 7 is odd"},
+       {"label": "C", "text": "It is less than 10", "is_correct": true, "feedback": "Correct - 7 < 10"},
+       {"label": "D", "text": "It is a square number", "is_correct": false, "feedback": "Incorrect - 7 is not a perfect square"}
+     ]
+   }
+   ```
    - Non-MCQ questions: `mcq_options: null`
+
+5. **REQUIRED - hints (minimum 1)**:
+   - Every question MUST have at least 1 hint
+   - Maximum 3 hints allowed
+   - Hints should guide without giving away the answer
+
+   **Example:**
+   ```json
+   "hints": ["Think about what operation is needed first", "Check your units"]
+   ```
+
+6. **REQUIRED - misconceptions (minimum 1, all fields required)**:
+   - Every question MUST have at least 1 misconception
+   - Each misconception MUST have BOTH fields:
+     - `error_pattern`: What incorrect answer the student might give
+     - `feedback`: Corrective feedback explaining the error
+
+   **Example:**
+   ```json
+   "misconceptions": [
+     {
+       "error_pattern": "350",
+       "feedback": "You may have forgotten to convert units. Remember 1km = 1000m."
+     },
+     {
+       "error_pattern": "3.5",
+       "feedback": "Check your decimal placement - you divided by 10 instead of multiplying."
+     }
+   ]
+   ```
 
 ## Section Structure
 
@@ -165,7 +357,9 @@ Based on `calculator_policy` in source:
 
 ## Process
 
-1. Read `mock_exam_source.json` and `sow_context.json`
-2. Transform each card from `card_structure` into a question
-3. Build sections based on calculator_policy
-4. Generate the exam JSON - SDK captures your structured output automatically
+1. Read `sow.json` FIRST - understand the full learning journey and identify key topics
+2. Read `mock_exam_source.json` and `sow_context.json` for exam structure
+3. Design questions inspired by lesson content and standards from `sow.json`
+4. Transform cards from `card_structure` into questions, ensuring alignment with learned content
+5. Build sections based on calculator_policy
+6. Generate the exam JSON - SDK captures your structured output automatically
