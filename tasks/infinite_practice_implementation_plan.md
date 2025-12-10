@@ -50,11 +50,16 @@ Implement critical robustness and persistence features for the Infinite Practice
 
 - [x] Create implementation plan in `tasks/infinite_practice_implementation_plan.md`
 - [x] Create detailed refactor plan in `tasks/infinite_practice_refactor_plan.md`
-- [ ] **Frontend**: Implement `PracticeSessionDriver` (Mock/Real)
-- [ ] **Frontend**: Update `PracticeChatAssistant.tsx` to check/load session
-- [ ] **Backend**: Remove Appwrite Stubs from `infinite_practice_graph.py`
-- [ ] **Backend**: Update `initialize_node` to parse session from context
-- [ ] **Backend**: Ensure `PracticeSession` model is serializable/clean
+- [x] **Backend**: Implement Pydantic structured output parsing (`GeneratedQuestion`, `MarkingResult` models)
+- [x] **Backend**: Add environment variable configuration for LLM model (`INFINITE_PRACTICE_MODEL`)
+- [x] **Backend**: Add configurable thresholds via `adaptive_thresholds` parameter
+- [x] **Backend**: Remove Appwrite stubs from `infinite_practice_graph.py` (backend now stateless)
+- [x] **Backend**: Update `initialize_node` to parse session from `session_context.stored_session`
+- [x] **Backend**: Add `session_needs_save` flag to signal frontend when persistence is needed
+- [x] **Frontend**: Implement `PracticeSessionDriver.ts` with full CRUD operations
+- [x] **Frontend**: Update `PracticeChatAssistant.tsx` to check/load/save sessions
+- [x] **Appwrite**: Create `practice_sessions` collection with schema matching `PracticeSession` (23 columns, 4 indexes)
+- [x] **Code Quality**: Remove fallback anti-pattern from `block_factory.py` (fail-fast with detailed errors)
 - [ ] **Verification**: Verify session resumes after refresh
 
 ## Verification Plan

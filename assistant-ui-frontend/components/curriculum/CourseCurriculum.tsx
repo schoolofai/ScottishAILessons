@@ -13,7 +13,8 @@ import {
   Loader2,
   BookOpen,
   Clock,
-  RotateCcw
+  RotateCcw,
+  Dumbbell
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '@/lib/logger';
@@ -488,6 +489,23 @@ export function CourseCurriculum({
                     isAvailable={lessonNotesAvailability[lesson.order] ?? null}
                     onClick={() => {}}
                   />
+
+                  {/* Infinite Practice Button */}
+                  {lesson.status !== 'locked' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/practice/${lesson.lessonTemplateId}`);
+                      }}
+                      className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
+                      aria-label={`Practice ${lesson.label}`}
+                    >
+                      <Dumbbell className="h-4 w-4" aria-hidden="true" />
+                      Practice
+                    </Button>
+                  )}
 
                   {/* Start Lesson Button */}
                   {getActionButton(lesson)}

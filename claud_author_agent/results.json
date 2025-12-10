@@ -1,70 +1,70 @@
 {
   "success": true,
-  "execution_id": "20251209_105712",
-  "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712",
-  "mock_exam_id": "exam_68f3d6eacb2696fd0591_16",
-  "appwrite_document_id": "6938095acb6a2a596f16",
+  "execution_id": "20251209_155146",
+  "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_155146",
+  "mock_exam_id": "exam_68f10f694f1fcb56c9a4_16",
+  "appwrite_document_id": "6938490525bbd5d67ff6",
   "pipeline_metrics": {
-    "total_duration_seconds": 2258.639044046402,
+    "total_duration_seconds": 882.3113572597504,
     "total_messages": 0,
     "steps": [
       {
         "name": "preprocessing",
         "success": true,
-        "duration_seconds": 0.6767628192901611,
+        "duration_seconds": 0.45984578132629395,
         "message_count": 0,
         "details": {
-          "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712",
+          "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_155146",
           "mock_exam_entries": 1,
-          "sow_id": "68f3d6eacb2696fd0591"
+          "sow_id": "68f10f694f1fcb56c9a4"
         }
       },
       {
         "name": "orchestration",
         "success": true,
-        "duration_seconds": 1415.4338369369507,
+        "duration_seconds": 479.287269115448,
         "message_count": 0,
         "details": {
-          "iterations": 3,
-          "exam_id": "exam_68f3d6eacb2696fd0591_16",
-          "total_questions": 25,
-          "critic_score": 4.6
+          "iterations": 1,
+          "exam_id": "exam_68f10f694f1fcb56c9a4_16",
+          "total_questions": 16,
+          "critic_score": 4.875
         }
       },
       {
         "name": "classification",
         "success": true,
-        "duration_seconds": 78.4686689376831,
+        "duration_seconds": 64.01895594596863,
         "message_count": 0,
         "details": {
-          "total_questions": 25,
-          "questions_needing_diagrams": 5,
+          "total_questions": 16,
+          "questions_needing_diagrams": 4,
           "tool_distribution": {
-            "NONE": 20,
-            "MATPLOTLIB": 2,
-            "PLOTLY": 3
+            "NONE": 12,
+            "PLOTLY": 2,
+            "MATPLOTLIB": 2
           }
         }
       },
       {
         "name": "diagram_authoring",
         "success": true,
-        "duration_seconds": 763.0323760509491,
+        "duration_seconds": 338.0395908355713,
         "message_count": 0,
         "details": {
-          "total_diagrams": 5,
-          "successful_diagrams": 5,
-          "total_iterations": 11,
-          "manifest_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_105712/diagram_manifest.json"
+          "total_diagrams": 4,
+          "successful_diagrams": 4,
+          "total_iterations": 4,
+          "manifest_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_155146/diagram_manifest.json"
         }
       },
       {
         "name": "upsert",
         "success": true,
-        "duration_seconds": 1.0263328552246094,
+        "duration_seconds": 0.5045108795166016,
         "message_count": 0,
         "details": {
-          "document_id": "6938095acb6a2a596f16",
+          "document_id": "6938490525bbd5d67ff6",
           "collection": "mock_exams",
           "force_mode": true
         }
@@ -72,13 +72,13 @@
     ]
   },
   "diagram_metrics": {
-    "questions_classified": 25,
-    "questions_needing_diagrams": 5,
-    "diagrams_generated": 5,
+    "questions_classified": 16,
+    "questions_needing_diagrams": 4,
+    "diagrams_generated": 4,
     "diagrams_failed": 0
   },
   "cost_metrics": {
-    "execution_id": "20251209_105712",
+    "execution_id": "20251209_155146",
     "total_input_tokens": 0,
     "total_output_tokens": 0,
     "total_tokens": 0,

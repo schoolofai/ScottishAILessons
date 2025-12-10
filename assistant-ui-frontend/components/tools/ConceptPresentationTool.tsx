@@ -6,7 +6,6 @@ import { useSafeLangGraphInterruptState, useSafeLangGraphSendCommand } from "@/l
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -62,12 +61,11 @@ export const ConceptPresentationTool = makeAssistantToolUI<
     const [selectedDifficulty, setSelectedDifficulty] = useState(args.current_difficulty);
     const [showSettings, setShowSettings] = useState(false);
 
-    if (!interrupt) return null;
+    // isActive: true when interrupt is active (waiting for user action)
+    // When false, show read-only/static version of the concept presentation
+    const isActive = !!interrupt;
 
     const {
-      block_id,
-      block_index,
-      total_blocks,
       title,
       explanation,
       worked_example,
@@ -75,7 +73,6 @@ export const ConceptPresentationTool = makeAssistantToolUI<
       current_difficulty,
       difficulty_mode,
       can_set_difficulty,
-      progress,
     } = args;
 
     const handleContinue = () => {
@@ -99,40 +96,9 @@ export const ConceptPresentationTool = makeAssistantToolUI<
       }
     };
 
-    const overallProgress = (progress.completed_blocks / progress.total_blocks) * 100;
-
     return (
-      <Card className="w-full max-w-3xl mx-auto">
+      <Card className={`w-full max-w-3xl mx-auto ${!isActive ? "opacity-90" : ""}`}>
         <CardHeader>
-          {/* Progress bar */}
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm text-gray-500">
-                Block {block_index + 1} of {total_blocks}
-              </span>
-              <span className="text-sm text-gray-500">
-                {Math.round(progress.overall_mastery * 100)}% mastery
-              </span>
-            </div>
-            <Progress value={overallProgress} className="h-2" />
-            {/* Block indicators */}
-            <div className="flex gap-1 mt-2">
-              {progress.blocks.map((block, idx) => (
-                <div
-                  key={block.block_id}
-                  className={`h-2 flex-1 rounded ${
-                    block.is_complete
-                      ? "bg-green-500"
-                      : idx === block_index
-                      ? "bg-blue-500"
-                      : "bg-gray-200"
-                  }`}
-                  title={`Block ${idx + 1}: ${Math.round(block.mastery_score * 100)}%`}
-                />
-              ))}
-            </div>
-          </div>
-
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <BookOpenIcon className="w-6 h-6 text-blue-500" />
@@ -145,6 +111,11 @@ export const ConceptPresentationTool = makeAssistantToolUI<
               {difficulty_mode === "adaptive" && (
                 <Badge variant="outline" className="text-blue-600">
                   Adaptive
+                </Badge>
+              )}
+              {!isActive && (
+                <Badge variant="secondary" className="text-green-600">
+                  ✓ Reviewed
                 </Badge>
               )}
             </div>
@@ -206,8 +177,8 @@ export const ConceptPresentationTool = makeAssistantToolUI<
             </div>
           )}
 
-          {/* Difficulty Settings */}
-          {can_set_difficulty && (
+          {/* Difficulty Settings - only show when active */}
+          {isActive && can_set_difficulty && (
             <div className="border-t pt-4">
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -247,17 +218,19 @@ export const ConceptPresentationTool = makeAssistantToolUI<
             </div>
           )}
 
-          {/* Continue Button */}
-          <div className="pt-4 border-t">
-            <Button
-              onClick={handleContinue}
-              className="w-full flex items-center justify-center gap-2"
-              size="lg"
-            >
-              Start Practicing
-              <ChevronRightIcon className="w-5 h-5" />
-            </Button>
-          </div>
+          {/* Continue Button - only show when active */}
+          {isActive && (
+            <div className="pt-4 border-t">
+              <Button
+                onClick={handleContinue}
+                className="w-full flex items-center justify-center gap-2"
+                size="lg"
+              >
+                Start Practicing
+                <ChevronRightIcon className="w-5 h-5" />
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     );

@@ -13,7 +13,7 @@ import { getReviewRecommendations, getReviewStats, getUpcomingReviews } from "@/
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import { CourseCard } from "../courses/CourseCard";
 import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
@@ -102,6 +102,11 @@ export function EnhancedStudentDashboard() {
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState<PriceInfo | null>(null);
 
+  // Mock exam availability state
+  const [mockExamAvailable, setMockExamAvailable] = useState<boolean>(false);
+  const [mockExamId, setMockExamId] = useState<string | null>(null);
+  const [mockExamLoading, setMockExamLoading] = useState(false);
+
   useEffect(() => {
     initializeStudent();
   }, []);
@@ -134,6 +139,49 @@ export function EnhancedStudentDashboard() {
 
     checkCheatSheetAvailability();
   }, [activeCourse]);
+
+  // Check mock exam availability when active course changes
+  // Note: Depends on student to ensure session is authenticated before making API call
+  useEffect(() => {
+    if (!activeCourse || !student) {
+      setMockExamAvailable(false);
+      setMockExamId(null);
+      return;
+    }
+
+    const checkMockExamAvailability = async () => {
+      try {
+        setMockExamLoading(true);
+        const response = await fetch(`/api/exam/availability/${activeCourse}`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setMockExamAvailable(data.available);
+          setMockExamId(data.examId);
+          console.log('[Dashboard] Mock exam availability:', { courseId: activeCourse, available: data.available, examId: data.examId });
+        } else {
+          // Log non-200 responses for debugging
+          console.error('[Dashboard] Mock exam availability check failed:', {
+            courseId: activeCourse,
+            status: response.status,
+            statusText: response.statusText
+          });
+          setMockExamAvailable(false);
+          setMockExamId(null);
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to check mock exam availability:', error);
+        setMockExamAvailable(false);
+        setMockExamId(null);
+      } finally {
+        setMockExamLoading(false);
+      }
+    };
+
+    checkMockExamAvailability();
+  }, [activeCourse, student]);
 
   // Prefetch subscription price for instant paywall modal display
   useEffect(() => {
@@ -791,6 +839,23 @@ export function EnhancedStudentDashboard() {
     initializeStudent();
   }, []);
 
+  // Handle mock exam start
+  const handleStartMockExam = useCallback(() => {
+    if (!mockExamId) {
+      toast.error('No mock exam available for this course');
+      return;
+    }
+
+    // Check subscription access before starting exam
+    if (!hasAccess) {
+      setShowPaywallModal(true);
+      return;
+    }
+
+    console.log('[Dashboard] Starting mock exam:', { examId: mockExamId, courseId: activeCourse });
+    router.push(`/exam/${mockExamId}`);
+  }, [mockExamId, hasAccess, activeCourse, router]);
+
   // Memoized computed values for performance
   const studentDisplayName = useMemo(() => getStudentDisplayName(student), [student]);
 
@@ -877,14 +942,33 @@ export function EnhancedStudentDashboard() {
             <BookOpen className="h-5 w-5 mr-2" />
             Your Courses
           </h2>
-          <Button
-            variant="outline"
-            onClick={() => router.push('/courses/catalog')}
-            className="gap-2 w-full sm:w-auto"
-          >
-            <GraduationCap className="h-4 w-4" />
-            Browse More Courses
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            {/* Mock Exam Button - shown only when exam is available for active course */}
+            {mockExamAvailable && mockExamId && (
+              <Button
+                variant="default"
+                onClick={handleStartMockExam}
+                disabled={mockExamLoading}
+                className="gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700"
+                data-testid="take-mock-exam-button"
+              >
+                {mockExamLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                Take Mock Exam
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => router.push('/courses/catalog')}
+              className="gap-2 w-full sm:w-auto"
+            >
+              <GraduationCap className="h-4 w-4" />
+              Browse More Courses
+            </Button>
+          </div>
         </div>
         <CourseNavigationTabs
           courses={courseData}

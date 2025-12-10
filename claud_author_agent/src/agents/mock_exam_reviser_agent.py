@@ -143,8 +143,56 @@ class MockExamReviserAgent:
 
             async for message in client.receive_messages():
                 message_count += 1
+
+                # Log message for debugging
                 msg_type = type(message).__name__
                 logger.info(f"📨 Message #{message_count}: {msg_type}")
+
+                # ═══════════════════════════════════════════════════════════════
+                # VERBOSE RAW MESSAGE LOGGING (DEBUG mode)
+                # ═══════════════════════════════════════════════════════════════
+                logger.debug(f"   RAW MESSAGE DUMP:")
+                logger.debug(f"   ├─ Type: {msg_type}")
+                if hasattr(message, 'subtype'):
+                    logger.debug(f"   ├─ Subtype: {message.subtype}")
+                if hasattr(message, 'structured_output'):
+                    has_output = message.structured_output is not None
+                    logger.debug(f"   ├─ Has structured_output: {has_output}")
+                    if has_output:
+                        output_type = type(message.structured_output).__name__
+                        logger.debug(f"   ├─ structured_output type: {output_type}")
+
+                # Log content blocks with full detail
+                if hasattr(message, 'content'):
+                    content = message.content
+                    if isinstance(content, list):
+                        logger.debug(f"   ├─ Content blocks: {len(content)}")
+                        for idx, block in enumerate(content):
+                            block_type = type(block).__name__
+                            logger.debug(f"   │  ├─ Block {idx}: {block_type}")
+
+                            # TextBlock - show truncated text
+                            if hasattr(block, 'text'):
+                                text_preview = block.text[:200] + "..." if len(block.text) > 200 else block.text
+                                logger.debug(f"   │  │  └─ Text: {text_preview}")
+
+                            # ToolUseBlock - show tool name and input
+                            if hasattr(block, 'name'):
+                                logger.debug(f"   │  │  ├─ Tool: {block.name}")
+                                if hasattr(block, 'input'):
+                                    input_str = json.dumps(block.input, default=str)[:500]
+                                    logger.debug(f"   │  │  └─ Input: {input_str}")
+
+                            # ToolResultBlock - show result preview
+                            if hasattr(block, 'content') and block_type == 'ToolResultBlock':
+                                result_preview = str(block.content)[:300] + "..." if len(str(block.content)) > 300 else str(block.content)
+                                logger.debug(f"   │  │  └─ Result: {result_preview}")
+                    elif isinstance(content, str):
+                        content_preview = content[:300] + "..." if len(content) > 300 else content
+                        logger.debug(f"   ├─ Content (str): {content_preview}")
+
+                logger.debug(f"   └─ END RAW MESSAGE #{message_count}")
+                # ═══════════════════════════════════════════════════════════════
 
                 if isinstance(message, ResultMessage):
                     logger.info(f"✅ Agent completed after {message_count} messages")

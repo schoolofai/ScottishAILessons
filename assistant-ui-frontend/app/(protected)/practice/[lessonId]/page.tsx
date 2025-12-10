@@ -5,7 +5,7 @@
  *
  * Route: /practice/[lessonId]
  *
- * This page loads the student ID and renders the PracticeChatAssistant
+ * This page loads the student ID via server API and renders the PracticeChatAssistant
  * which connects to the infinite_practice graph.
  */
 
@@ -13,7 +13,6 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Header } from "@/components/ui/header";
 import { PracticeChatAssistant } from "@/components/PracticeChatAssistant";
-import { Client, Account, Databases, Query } from "appwrite";
 import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,7 +26,7 @@ export default function PracticePage() {
   const [error, setError] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | undefined>(undefined);
 
-  // Load student ID from current user
+  // Load student ID via server API (uses httpOnly cookie auth)
   useEffect(() => {
     const loadStudentId = async () => {
       try {
@@ -36,47 +35,24 @@ export default function PracticePage() {
           throw new Error("Invalid lesson ID");
         }
 
-        const client = new Client()
-          .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-          .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
+        // Use server API to get student data (proper server-side auth)
+        const response = await fetch('/api/student/me');
 
-        // Get session from localStorage (same pattern as other protected pages)
-        const cookieFallback = localStorage.getItem("cookieFallback");
-        if (!cookieFallback) {
-          throw new Error("Session expired. Please log in again.");
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error("Session expired. Please log in again.");
+          }
+          throw new Error("Failed to fetch student data");
         }
 
-        const cookieData = JSON.parse(cookieFallback);
-        const sessionKey = `a_session_${process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID}`;
-        const storedSession = cookieData[sessionKey];
+        const data = await response.json();
 
-        if (!storedSession) {
-          throw new Error("Session expired. Please log in again.");
-        }
-
-        client.setSession(storedSession);
-
-        const account = new Account(client);
-        const databases = new Databases(client);
-
-        // Get current user
-        const user = await account.get();
-
-        // Get student record
-        const studentsResult = await databases.listDocuments(
-          "default",
-          "students",
-          [Query.equal("userId", user.$id), Query.limit(1)]
-        );
-
-        if (studentsResult.documents.length === 0) {
+        if (!data.success || !data.student) {
           throw new Error("Student record not found. Please contact support.");
         }
 
-        const student = studentsResult.documents[0];
-        setStudentId(student.$id);
-
-        console.log("✅ [PracticePage] Student ID loaded:", student.$id);
+        setStudentId(data.student.$id);
+        console.log("✅ [PracticePage] Student ID loaded via API:", data.student.$id);
       } catch (err) {
         console.error("❌ [PracticePage] Failed to load student ID:", err);
         setError(err instanceof Error ? err.message : "Failed to load user data");

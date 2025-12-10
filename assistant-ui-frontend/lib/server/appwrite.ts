@@ -33,6 +33,9 @@ const apiKey = process.env.APPWRITE_API_KEY;
  * WARNING: Never share client instance between requests
  */
 export async function createAdminClient() {
+  // Debug: Log what project ID is being used
+  console.log('[Appwrite Admin Client] Using project ID:', projectId);
+
   if (!endpoint || !projectId || !apiKey) {
     throw new Error(
       'Missing Appwrite environment variables. Check .env.local:\n' +

@@ -6,20 +6,27 @@ Autonomous pipeline for authoring frontend-ready mock examination JSON from Sche
 
 This agent transforms `mock_exam` type entries from `Authored_SOW` into comprehensive, static frontend-ready exam JSON structures. Unlike interactive teaching lessons (which use LangGraph), mock exams are rendered as static pages where students see all questions at once, navigate freely, and submit when ready.
 
-**Pipeline Architecture**:
+**Two Pipeline Options Available**:
+- **Monolithic** (`mock_exam_author_claude_client_v2.py`) - Single structured output for smaller exams (~9 questions)
+- **Section-Based** (`mock_exam_author_sectioned.py`) - Parallel section generation for larger exams (13+ questions)
+
+**Pipeline Architecture (Section-Based)**:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    MOCK EXAM AUTHOR PIPELINE                            │
+│                    MOCK EXAM AUTHOR PIPELINE (SECTION-BASED)            │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                         │
 │  Phase 1: PRE-PROCESSING (Python, 0 tokens)                            │
 │  ├── SOW Extractor → Extract mock_exam entries by courseId             │
 │  └── Context Loader → Load course metadata, accessibility notes        │
 │                                                                         │
-│  Phase 2: AGENT EXECUTION (Claude SDK)                                 │
-│  ├── @mock_exam_author → Transform SOW to rich exam JSON               │
-│  └── @ux_critic → Validate frontend UX quality (iterate until pass)    │
+│  Phase 2: SECTION-BASED GENERATION (Claude SDK, Parallel)              │
+│  ├── Parse assessment cards → Identify section boundaries              │
+│  ├── FOR EACH section (in parallel):                                   │
+│  │   └── @section_author → Generate section JSON (~2-3K tokens each)   │
+│  ├── Section Merger → Combine sections, renumber questions             │
+│  └── @ux_critic → Validate full exam UX (iterate until pass)           │
 │                                                                         │
 │  Phase 3: DIAGRAM GENERATION (Reusable Subagents)                      │
 │  FOR EACH question:                                                     │
@@ -34,6 +41,12 @@ This agent transforms `mock_exam` type entries from `Authored_SOW` into comprehe
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
+
+**Why Section-Based Generation?**
+- **Smaller outputs**: Each section ~2-3K tokens vs ~9K+ for monolithic
+- **Parallel execution**: 4 sections generate concurrently (~4x faster)
+- **Partial recovery**: Failed section doesn't invalidate others
+- **Better scaling**: Handles larger exams (13+ questions) reliably
 
 ## Features
 
@@ -84,25 +97,40 @@ cp .mcp.json.example .mcp.json
 # NOTE: This file is used as a config source for Appwrite Python SDK
 #       (NOT for MCP server - the agent uses direct SDK calls)
 
-# 6. Run the agent
-python -m src.mock_exam_author_cli --courseId course_c84474
+# 6. Run the agent (section-based for large exams, recommended)
+python scripts/run_mock_exam_author_sectioned.py --course course_c74774
+
+# Or use monolithic for smaller exams (~9 questions)
+python scripts/run_mock_exam_author.py --course course_c84474
 ```
 
 ### Quick Test (Dry Run)
 
 ```bash
-# Test extraction and generation without upserting to Appwrite
-python -m src.mock_exam_author_cli \
-  --courseId course_c84474 \
+# Section-based (parallel generation, recommended for 13+ questions)
+python scripts/run_mock_exam_author_sectioned.py \
+  --course course_c74774 \
+  --dry-run \
+  --log-level DEBUG
+
+# Monolithic (single structured output, for smaller exams)
+python scripts/run_mock_exam_author.py \
+  --course course_c84474 \
   --dry-run \
   --log-level DEBUG
 ```
 
 This will:
 1. Extract the mock_exam entry from `Authored_SOW`
-2. Generate the complete exam JSON
+2. Generate the complete exam JSON (in sections or monolithically)
 3. Generate diagrams for eligible questions
 4. Write output to workspace (but NOT upsert to Appwrite)
+
+To persist after dry-run:
+```bash
+python scripts/upsert_mock_exam_from_workspace.py \
+  --workspace workspace/<timestamp_folder> --force
+```
 
 ---
 
@@ -179,44 +207,102 @@ Create `.mcp.json` (used as a credentials config file, NOT for MCP server):
 
 ## Usage
 
-### CLI Reference
+### Available Scripts
+
+| Script | Purpose | Best For |
+|--------|---------|----------|
+| `run_mock_exam_author.py` | Monolithic generation | Small exams (~9 questions) |
+| `run_mock_exam_author_sectioned.py` | Section-based parallel generation | Large exams (13+ questions) |
+| `upsert_mock_exam_from_workspace.py` | Upsert only (from existing workspace) | Re-running upsert after dry-run |
+
+### Section-Based Pipeline (Recommended for Large Exams)
 
 ```bash
-python -m src.mock_exam_author_cli [OPTIONS]
+python scripts/run_mock_exam_author_sectioned.py [OPTIONS]
 ```
 
 | Option | Required | Default | Description |
 |--------|----------|---------|-------------|
-| `--courseId` | Yes | - | Course identifier (e.g., `course_c84474`) |
+| `--course` | Yes | - | Course identifier (e.g., `course_c74774`) |
 | `--version` | No | `"1"` | Exam version number |
 | `--force` | No | False | Overwrite existing exam |
 | `--dry-run` | No | False | Generate but don't upsert |
-| `--mcp-config` | No | `.mcp.json` | MCP configuration path |
+| `--sequential` | No | False | Disable parallel section generation |
 | `--log-level` | No | `INFO` | Logging verbosity |
-| `--persist-workspace` | No | True | Keep workspace after run |
-| `--no-persist-workspace` | No | - | Delete workspace after run |
 
-### Examples
+```bash
+# Parallel section generation (default, ~4x faster)
+python scripts/run_mock_exam_author_sectioned.py --course course_c74774
+
+# Dry run for testing
+python scripts/run_mock_exam_author_sectioned.py --course course_c74774 --dry-run
+
+# Sequential mode (for debugging)
+python scripts/run_mock_exam_author_sectioned.py --course course_c74774 --sequential
+
+# Force overwrite existing
+python scripts/run_mock_exam_author_sectioned.py --course course_c74774 --force
+```
+
+### Monolithic Pipeline (Original)
+
+```bash
+python scripts/run_mock_exam_author.py [OPTIONS]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--course` | Yes | - | Course identifier (e.g., `course_c84474`) |
+| `--version` | No | `"1"` | Exam version number |
+| `--force` | No | False | Overwrite existing exam |
+| `--dry-run` | No | False | Generate but don't upsert |
+| `--log-level` | No | `INFO` | Logging verbosity |
 
 ```bash
 # Basic usage
-python -m src.mock_exam_author_cli --courseId course_c84474
-
-# Generate version 2
-python -m src.mock_exam_author_cli --courseId course_c84474 --version 2
-
-# Force overwrite existing
-python -m src.mock_exam_author_cli --courseId course_c84474 --force
-
-# Debug mode with workspace preservation
-python -m src.mock_exam_author_cli \
-  --courseId course_c84474 \
-  --log-level DEBUG \
-  --persist-workspace
+python scripts/run_mock_exam_author.py --course course_c84474
 
 # Dry run for testing
-python -m src.mock_exam_author_cli --courseId course_c84474 --dry-run
+python scripts/run_mock_exam_author.py --course course_c84474 --dry-run
 ```
+
+### Upsert-Only Script (From Existing Workspace)
+
+Use this to upsert a mock exam from an existing workspace without regenerating:
+
+```bash
+python scripts/upsert_mock_exam_from_workspace.py [OPTIONS]
+```
+
+| Option | Required | Default | Description |
+|--------|----------|---------|-------------|
+| `--workspace` | Yes | - | Path to workspace directory |
+| `--course` | No | From JSON | Course ID (extracted from mock_exam.json if not provided) |
+| `--version` | No | `"1"` | Exam version number |
+| `--force` | No | False | Delete existing exam before upserting |
+| `--log-level` | No | `INFO` | Logging verbosity |
+
+```bash
+# Basic upsert from workspace (courseId extracted from mock_exam.json)
+python scripts/upsert_mock_exam_from_workspace.py \
+  --workspace workspace/20251209_173055_sectioned
+
+# Force overwrite existing exam
+python scripts/upsert_mock_exam_from_workspace.py \
+  --workspace workspace/20251209_173055_sectioned --force
+
+# With explicit courseId (overrides value in mock_exam.json)
+python scripts/upsert_mock_exam_from_workspace.py \
+  --workspace workspace/20251209_173055_sectioned \
+  --course course_c74774 \
+  --version 2
+```
+
+**Common use cases for upsert-only:**
+- Re-running upsert after a `--dry-run` to persist to database
+- Fixing issues in `mock_exam.json` manually and re-upserting
+- Debugging the persistence layer independently
+- Version control: upserting same exam as different version
 
 ### Batch Processing
 
@@ -224,9 +310,9 @@ python -m src.mock_exam_author_cli --courseId course_c84474 --dry-run
 # Run batch script for multiple courses
 ./batch_mock_exams.sh
 
-# Or manually loop
-for course in course_c84474 course_c85123 course_c86789; do
-  python -m src.mock_exam_author_cli --courseId $course
+# Or manually loop (using section-based for large exams)
+for course in course_c74774 course_c85123 course_c86789; do
+  python scripts/run_mock_exam_author_sectioned.py --course $course
 done
 ```
 
@@ -236,10 +322,27 @@ done
 
 ### Subagent Definitions
 
+**Monolithic Pipeline Agents:**
+
 | Subagent | Model | Purpose |
 |----------|-------|---------|
-| `mock_exam_author` | claude-sonnet-4-5 | Transform SOW entry to exam JSON |
+| `mock_exam_author` | claude-sonnet-4-5 | Transform SOW entry to exam JSON (single output) |
 | `ux_critic` | claude-sonnet-4-5 | Validate frontend UX quality |
+
+**Section-Based Pipeline Agents:**
+
+| Subagent | Model | Purpose |
+|----------|-------|---------|
+| `section_author` | claude-sonnet-4-5 | Generate single section (~2-3K tokens) |
+| `section_reviser` | claude-sonnet-4-5 | Revise section based on critic feedback |
+| `section_orchestrator` | Python | Coordinate parallel section generation |
+| `section_merger` | Python | Combine sections, renumber questions |
+| `ux_critic` | claude-sonnet-4-5 | Validate full exam UX quality |
+
+**Diagram Pipeline Agents (shared):**
+
+| Subagent | Model | Purpose |
+|----------|-------|---------|
 | `diagram_classifier` | claude-haiku-3-5 | Classify content for diagram tool |
 | `diagram_author` | claude-sonnet-4-5 | Generate diagrams via MCP tools |
 | `diagram_critic` | claude-sonnet-4-5 | Validate diagram quality |
@@ -571,6 +674,23 @@ cat /tmp/mock_exam_*/mock_exam_critic_result.json
 ---
 
 ## Changelog
+
+### v1.1.0 (2025-12-09)
+- **Section-Based Pipeline**: Added parallel section generation for large exams (13+ questions)
+  - New orchestrator: `section_based_orchestrator.py`
+  - New agent: `section_author_agent.py` with dedicated prompt
+  - New merger: `section_merger.py` for combining sections with renumbering
+  - New runner: `run_mock_exam_author_sectioned.py`
+  - ~4x faster generation via parallel section execution
+- **Standalone Upsert Script**: Added `upsert_mock_exam_from_workspace.py`
+  - Run upsert from existing workspace without re-running pipeline
+  - Auto-extracts courseId from mock_exam.json
+  - Supports `--force` to overwrite existing exams
+- **Validation Fixes**:
+  - Fixed empty string handling for metadata.subject and metadata.level
+  - Added calculator_policy mapping ('both' → 'mixed')
+  - Fixed CEFR prefix stripping (CEFR_B1 → B1)
+  - Added integer marks validation in section author prompt
 
 ### v1.0.0 (2025-12-04)
 - Initial release

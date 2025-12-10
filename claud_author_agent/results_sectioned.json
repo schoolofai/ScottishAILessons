@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "execution_id": "20251209_173055_sectioned",
+  "workspace_path": "/Users/niladribose/code/ScottishAILessons_All/ScottishAILessons/claud_author_agent/workspace/20251209_173055_sectioned",
+  "mock_exam_id": "exam_68f4ecd6763357b2cc1f_14",
+  "appwrite_document_id": null,
+  "pipeline_type": "sectioned",
+  "pipeline_metrics": {
+    "total_duration_seconds": 1382.7318460941315,
+    "total_messages": 48,
+    "sections_generated": 4,
+    "parallel_generation": true,
+    "steps": [
+      {
+        "name": "preprocessing",
+        "success": true,
+        "duration_seconds": 0.49472594261169434,
+        "message_count": 0
+      },
+      {
+        "name": "section_orchestration",
+        "success": true,
+        "duration_seconds": 544.8616287708282,
+        "message_count": 48
+      },
+      {
+        "name": "classification",
+        "success": true,
+        "duration_seconds": 104.70947480201721,
+        "message_count": 0
+      },
+      {
+        "name": "diagram_authoring",
+        "success": true,
+        "duration_seconds": 732.6657249927521,
+        "message_count": 0
+      },
+      {
+        "name": "upsert",
+        "success": true,
+        "duration_seconds": 0.0,
+        "message_count": 0
+      }
+    ]
+  },
+  "diagram_metrics": {
+    "questions_classified": 13,
+    "questions_needing_diagrams": 8,
+    "diagrams_generated": 8,
+    "diagrams_failed": 0
+  }
+}
