@@ -497,7 +497,7 @@ export function CourseCurriculum({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/practice/${lesson.lessonTemplateId}`);
+                        router.push(`/practice_wizard/${lesson.lessonTemplateId}`);
                       }}
                       className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
                       aria-label={`Practice ${lesson.label}`}

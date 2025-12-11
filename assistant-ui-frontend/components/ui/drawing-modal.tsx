@@ -249,7 +249,7 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
         // Disable ESC key from closing the modal to prevent accidental data loss
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+        <DialogHeader className="px-6 py-4 border-b flex-shrink-0 z-[9999] bg-white relative">
           <DialogTitle>Draw a Diagram</DialogTitle>
         </DialogHeader>
 
@@ -294,7 +294,7 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t flex justify-between items-center flex-shrink-0">
+        <DialogFooter className="px-6 py-4 border-t flex justify-between items-center flex-shrink-0 z-[9999] bg-white relative">
           {/* Left side - File operations */}
           <div className="flex gap-2">
             <Button

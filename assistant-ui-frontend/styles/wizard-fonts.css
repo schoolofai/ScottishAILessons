@@ -1,0 +1,391 @@
+/**
+ * Wizard Fonts & Base Styles
+ * Gamified, playful aesthetic for infinite practice
+ */
+
+/* Google Fonts - Nunito for friendly, rounded typography */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&family=Fredoka:wght@400;500;600;700&display=swap');
+
+/* CSS Variables for Wizard Theme */
+:root {
+  /* Primary Colors (Duolingo-inspired) */
+  --wizard-green: #58CC02;
+  --wizard-green-dark: #46a302;
+  --wizard-green-light: #89e219;
+  --wizard-green-glow: rgba(88, 204, 2, 0.3);
+
+  /* Secondary */
+  --wizard-blue: #1CB0F6;
+  --wizard-blue-dark: #1899d6;
+  --wizard-blue-light: #4dc4f9;
+
+  /* Accent */
+  --wizard-gold: #FFC800;
+  --wizard-gold-dark: #e6b400;
+  --wizard-gold-light: #ffdb4d;
+
+  /* Feedback */
+  --wizard-correct: #58CC02;
+  --wizard-incorrect: #FF4B4B;
+  --wizard-incorrect-soft: #ffeaea;
+
+  /* Neutrals */
+  --wizard-bg: #F7F7F7;
+  --wizard-card: #FFFFFF;
+  --wizard-border: #E5E5E5;
+  --wizard-text: #3C3C3C;
+  --wizard-text-light: #777777;
+
+  /* Fonts */
+  --wizard-font-display: 'Fredoka', 'Nunito', system-ui, sans-serif;
+  --wizard-font-body: 'Nunito', system-ui, sans-serif;
+
+  /* Shadows */
+  --wizard-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --wizard-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --wizard-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --wizard-shadow-glow: 0 0 20px var(--wizard-green-glow);
+
+  /* Transitions */
+  --wizard-transition-fast: 150ms ease;
+  --wizard-transition-normal: 250ms ease;
+  --wizard-transition-slow: 400ms ease;
+  --wizard-transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Base Wizard Page Styles */
+.wizard-page {
+  font-family: var(--wizard-font-body);
+  color: var(--wizard-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.wizard-page h1,
+.wizard-page h2,
+.wizard-page h3,
+.wizard-page h4 {
+  font-family: var(--wizard-font-display);
+  font-weight: 600;
+}
+
+/* Animations */
+@keyframes wizard-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wizard-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wizard-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes wizard-pop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes wizard-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes wizard-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  20%, 60% {
+    transform: translateX(-5px);
+  }
+  40%, 80% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes wizard-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--wizard-green-glow);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--wizard-green-glow), 0 0 30px var(--wizard-green-glow);
+  }
+}
+
+@keyframes wizard-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes wizard-confetti {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+@keyframes wizard-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes wizard-xp-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-50px) scale(1.2);
+  }
+}
+
+/* Animation Classes */
+.animate-fade-in {
+  animation: wizard-fade-in 0.3s ease forwards;
+}
+
+.animate-slide-up {
+  animation: wizard-slide-up 0.4s ease forwards;
+}
+
+.animate-slide-left {
+  animation: wizard-slide-left 0.4s ease forwards;
+}
+
+.animate-pop {
+  animation: wizard-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-pulse-wizard {
+  animation: wizard-pulse 2s ease-in-out infinite;
+}
+
+.animate-shake {
+  animation: wizard-shake 0.5s ease;
+}
+
+.animate-glow {
+  animation: wizard-glow 2s ease-in-out infinite;
+}
+
+.animate-bounce-wizard {
+  animation: wizard-bounce 1s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: wizard-float 3s ease-in-out infinite;
+}
+
+.animate-xp-float {
+  animation: wizard-xp-float 1s ease-out forwards;
+}
+
+/* Staggered Animations */
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+
+/* Wizard Button Styles */
+.wizard-btn {
+  font-family: var(--wizard-font-display);
+  font-weight: 600;
+  border-radius: 16px;
+  transition: all var(--wizard-transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.wizard-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
+  pointer-events: none;
+}
+
+.wizard-btn:active {
+  transform: scale(0.98);
+}
+
+.wizard-btn-primary {
+  background: linear-gradient(to bottom, var(--wizard-green-light), var(--wizard-green));
+  color: white;
+  border: none;
+  box-shadow: 0 4px 0 var(--wizard-green-dark), var(--wizard-shadow-md);
+}
+
+.wizard-btn-primary:hover {
+  background: linear-gradient(to bottom, var(--wizard-green), var(--wizard-green-dark));
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--wizard-green-dark), var(--wizard-shadow-lg);
+}
+
+.wizard-btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 var(--wizard-green-dark);
+}
+
+/* Card Styles */
+.wizard-card {
+  background: var(--wizard-card);
+  border-radius: 20px;
+  box-shadow: var(--wizard-shadow-md);
+  border: 2px solid var(--wizard-border);
+  overflow: hidden;
+}
+
+.wizard-card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--wizard-shadow-lg);
+}
+
+/* Progress Orb Styles */
+.wizard-orb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--wizard-font-display);
+  font-weight: 700;
+  font-size: 14px;
+  transition: all var(--wizard-transition-normal);
+}
+
+.wizard-orb-empty {
+  background: var(--wizard-border);
+  color: var(--wizard-text-light);
+  border: 3px solid #d0d0d0;
+}
+
+.wizard-orb-active {
+  background: var(--wizard-blue);
+  color: white;
+  border: 3px solid var(--wizard-blue-dark);
+  animation: wizard-pulse 2s ease-in-out infinite;
+}
+
+.wizard-orb-complete {
+  background: linear-gradient(135deg, var(--wizard-green-light), var(--wizard-green));
+  color: white;
+  border: 3px solid var(--wizard-green-dark);
+}
+
+.wizard-orb-golden {
+  background: linear-gradient(135deg, var(--wizard-gold-light), var(--wizard-gold));
+  color: #5a4500;
+  border: 3px solid var(--wizard-gold-dark);
+  box-shadow: var(--wizard-shadow-glow);
+}
+
+/* XP Badge */
+.wizard-xp-badge {
+  background: linear-gradient(135deg, var(--wizard-gold-light), var(--wizard-gold));
+  color: #5a4500;
+  font-family: var(--wizard-font-display);
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  box-shadow: 0 2px 0 var(--wizard-gold-dark);
+}
+
+/* Streak Badge */
+.wizard-streak-badge {
+  background: linear-gradient(135deg, #ff9500, #ff6b00);
+  color: white;
+  font-family: var(--wizard-font-display);
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Mastery Bar */
+.wizard-mastery-bar {
+  height: 12px;
+  background: var(--wizard-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.wizard-mastery-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--wizard-green), var(--wizard-green-light));
+  border-radius: 6px;
+  transition: width var(--wizard-transition-slow);
+}
+
+/* Hint Panel Styles */
+.wizard-hint {
+  background: linear-gradient(135deg, #fff8e6, #fff3cc);
+  border: 2px solid var(--wizard-gold);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+/* Correct/Incorrect Feedback */
+.wizard-correct {
+  background: linear-gradient(135deg, #e6ffe6, #ccffcc);
+  border: 2px solid var(--wizard-correct);
+}
+
+.wizard-incorrect {
+  background: var(--wizard-incorrect-soft);
+  border: 2px solid var(--wizard-incorrect);
+}
