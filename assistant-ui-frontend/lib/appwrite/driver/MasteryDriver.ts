@@ -1,6 +1,8 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { Mastery } from '../types';
+import { batchCalculateEMAs } from '@/lib/utils/ema-calculator';
+import { EMA_CONFIG } from '@/lib/config/ema-config';
 
 export interface MasteryData {
   studentId: string;
@@ -369,55 +371,158 @@ export class MasteryDriver extends BaseDriver {
   }
 
   /**
-   * Batch update multiple outcome EMAs
+   * Batch update multiple outcome EMAs using true Exponential Moving Average
    * Auto-creates mastery record if it doesn't exist
+   * 
+   * EMA Formula: new_ema = α * new_score + (1 - α) * old_ema
+   * Where α (alpha) = smoothing factor (default: 0.3)
+   * 
+   * @param studentId - Student identifier
+   * @param courseId - Course identifier
+   * @param newScores - New observation scores by outcome ID (raw scores from lesson)
+   * @param config - Optional EMA configuration override
+   * @returns Updated MasteryV2 record
    */
-  async batchUpdateEMAs(studentId: string, courseId: string, emaUpdates: { [outcomeId: string]: number }): Promise<any> {
+  async batchUpdateEMAs(
+    studentId: string, 
+    courseId: string, 
+    newScores: { [outcomeId: string]: number },
+    config?: { alpha?: number }
+  ): Promise<any> {
     try {
-      console.log('[MasteryDriver] batchUpdateEMAs called:', { studentId, courseId, emaUpdates });
+      // Check if EMA is enabled (feature flag for rollback)
+      if (!EMA_CONFIG.enabled) {
+        console.warn('[MasteryDriver] EMA feature is disabled, using direct replacement');
+        return this.batchUpdateEMAsLegacy(studentId, courseId, newScores);
+      }
 
+      console.log('[MasteryDriver] batchUpdateEMAs called (EMA mode):', { 
+        studentId, 
+        courseId, 
+        newScores,
+        alpha: config?.alpha ?? EMA_CONFIG.alpha,
+        enabled: EMA_CONFIG.enabled
+      });
+
+      // 1. Fetch existing mastery record
       let existing = await this.getMasteryV2(studentId, courseId);
-      console.log('[MasteryDriver] Existing MasteryV2 record:', existing ? 'Found' : 'Not found', existing);
-
-      // Auto-create initial mastery record if none exists
+      
       if (!existing) {
         console.log('[MasteryDriver] No existing record, auto-creating initial MasteryV2...');
-        const firstOutcomeId = Object.keys(emaUpdates)[0];
+        const firstOutcomeId = Object.keys(newScores)[0];
         existing = await this.createInitialMasteryV2(studentId, courseId, firstOutcomeId);
         console.log('[MasteryDriver] Initial MasteryV2 created:', existing);
       }
 
-      const emaByOutcome = { ...existing.emaByOutcome };
-      console.log('[MasteryDriver] Current EMAs before update:', emaByOutcome);
+      console.log('[MasteryDriver] Current EMAs before update:', existing.emaByOutcome);
 
-      // Apply all updates
-      Object.entries(emaUpdates).forEach(([outcomeId, score]) => {
-        const clampedScore = Math.max(0, Math.min(1, score)); // Clamp to [0,1]
-        console.log(`[MasteryDriver] Updating outcome ${outcomeId}: ${score} -> ${clampedScore}`);
-        emaByOutcome[outcomeId] = clampedScore;
+      // 2. Calculate new EMAs using true exponential averaging
+      const emaConfig = {
+        alpha: config?.alpha ?? EMA_CONFIG.alpha,
+        bootstrapAlpha: EMA_CONFIG.bootstrapAlpha,
+        bootstrapThreshold: EMA_CONFIG.bootstrapThreshold
+      };
+
+      const { updatedEMAs, metadata } = batchCalculateEMAs(
+        existing.emaByOutcome,     // Old EMAs
+        newScores,                 // New observations
+        {},                        // Observation counts (TODO: track in Phase 6)
+        emaConfig
+      );
+
+      // 3. Log EMA calculations for debugging
+      console.log('[MasteryDriver] EMA calculations:');
+      Object.entries(metadata).forEach(([outcomeId, result]) => {
+        const oldEMA = existing!.emaByOutcome[outcomeId] ?? 0.0;
+        const changeSign = result.change >= 0 ? '+' : '';
+        const bootstrapFlag = result.wasBootstrapped ? ' [BOOTSTRAP]' : '';
+        console.log(
+          `  ${outcomeId}: ${oldEMA.toFixed(3)} → ${result.newEMA.toFixed(3)} ` +
+          `(Δ${changeSign}${result.change.toFixed(3)}, α=${result.effectiveAlpha}${bootstrapFlag})`
+        );
       });
 
-      console.log('[MasteryDriver] Merged EMAs to upsert:', emaByOutcome);
+      // 4. Preserve outcomes not updated in this lesson
+      const finalEMAs = { ...existing.emaByOutcome, ...updatedEMAs };
+      console.log('[MasteryDriver] Final EMAs to persist:', finalEMAs);
 
+      // 5. Upsert to database
       const result = await this.upsertMasteryV2({
         studentId,
         courseId,
-        emaByOutcome,
+        emaByOutcome: finalEMAs,
         updatedAt: new Date().toISOString()
       });
 
-      console.log('[MasteryDriver] batchUpdateEMAs completed successfully:', result);
+      console.log('[MasteryDriver] batchUpdateEMAs completed successfully (EMA mode)');
+      
+      // Log analytics for monitoring
+      console.log('[EMA Analytics]', {
+        studentId,
+        courseId,
+        timestamp: new Date().toISOString(),
+        alpha: emaConfig.alpha,
+        outcomesUpdated: Object.keys(newScores).length,
+        outcomes: Object.entries(metadata).map(([outcomeId, result]) => ({
+          outcomeId,
+          oldEMA: existing!.emaByOutcome[outcomeId] ?? 0.0,
+          newObservation: newScores[outcomeId],
+          newEMA: result.newEMA,
+          change: result.change,
+          effectiveAlpha: result.effectiveAlpha,
+          wasBootstrapped: result.wasBootstrapped
+        }))
+      });
+
       return result;
+
     } catch (error) {
       console.error('[MasteryDriver] batchUpdateEMAs failed:', {
         studentId,
         courseId,
-        emaUpdates,
+        newScores,
         error: error.message,
         stack: error.stack
       });
       throw this.handleError(error, 'batch update EMAs');
     }
+  }
+
+  /**
+   * Legacy batch update method (direct replacement, no EMA)
+   * Used as fallback when EMA is disabled
+   * 
+   * @deprecated This will be removed once EMA is fully validated
+   * @private
+   */
+  private async batchUpdateEMAsLegacy(
+    studentId: string, 
+    courseId: string, 
+    emaUpdates: { [outcomeId: string]: number }
+  ): Promise<any> {
+    console.log('[MasteryDriver] Using legacy direct replacement (EMA disabled)');
+
+    let existing = await this.getMasteryV2(studentId, courseId);
+
+    if (!existing) {
+      const firstOutcomeId = Object.keys(emaUpdates)[0];
+      existing = await this.createInitialMasteryV2(studentId, courseId, firstOutcomeId);
+    }
+
+    const emaByOutcome = { ...existing.emaByOutcome };
+
+    // Direct replacement (old behavior)
+    Object.entries(emaUpdates).forEach(([outcomeId, score]) => {
+      const clampedScore = Math.max(0, Math.min(1, score));
+      emaByOutcome[outcomeId] = clampedScore;
+    });
+
+    return await this.upsertMasteryV2({
+      studentId,
+      courseId,
+      emaByOutcome,
+      updatedAt: new Date().toISOString()
+    });
   }
 
   /**
