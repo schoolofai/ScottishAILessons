@@ -522,16 +522,23 @@ export function BlockReferencePanel({
                         count={displayedContent.key_formulas.length}
                       >
                         <div className="flex flex-wrap gap-2">
-                          {displayedContent.key_formulas.map((formula, idx) => (
-                            <div
-                              key={idx}
-                              className="px-3 py-2 bg-gradient-to-r from-violet-100 to-purple-100 text-purple-700 rounded-lg text-sm font-medium border border-purple-200"
-                            >
-                              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                                {formula}
-                              </ReactMarkdown>
-                            </div>
-                          ))}
+                          {displayedContent.key_formulas.map((formula, idx) => {
+                            // Ensure formula has LaTeX delimiters for remarkMath to parse
+                            // If formula doesn't start with $ or \[, wrap it in $$...$$ for display math
+                            const hasDelimiters = formula.startsWith('$') || formula.startsWith('\\[') || formula.startsWith('\\(');
+                            const wrappedFormula = hasDelimiters ? formula : `$$${formula}$$`;
+
+                            return (
+                              <div
+                                key={idx}
+                                className="px-3 py-2 bg-gradient-to-r from-violet-100 to-purple-100 text-purple-700 rounded-lg text-sm font-medium border border-purple-200"
+                              >
+                                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                                  {wrappedFormula}
+                                </ReactMarkdown>
+                              </div>
+                            );
+                          })}
                         </div>
                       </ExpandableSection>
                     )}
