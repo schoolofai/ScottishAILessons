@@ -33,7 +33,9 @@
     "test:parallel": "playwright test --workers=4",
     "test:serial": "playwright test --workers=1",
     "test:jest": "jest",
-    "test:integration": "jest __tests__/integration/",
+    "test:unit": "jest --selectProjects unit",
+    "test:unit:watch": "jest --selectProjects unit --watch",
+    "test:integration": "jest --selectProjects integration",
     "test:integration:watch": "jest __tests__/integration/ --watch",
     "flag-test-users": "tsx scripts/flag-test-users.ts"
   },

@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * WizardProgressBar - Gamified progress visualization
+ * WizardProgressBar - Compact inline progress visualization
  *
- * Shows block progress as orbs that fill and glow as students
- * progress through the practice session.
+ * Shows block progress as a sleek single-line indicator with
+ * mastery percentage and block dots.
  */
 
 import React from "react";
-import { Check, Star } from "lucide-react";
+import { Check, Star, Sparkles } from "lucide-react";
 import type { ProgressReport, WizardStage } from "@/hooks/practice/useLangGraphWizard";
 
 interface WizardProgressBarProps {
@@ -23,117 +23,72 @@ export function WizardProgressBar({ progress, currentStage }: WizardProgressBarP
   const completedBlocks = blocks.filter((b) => b.is_complete).length;
 
   return (
-    <div className="space-y-2">
-      {/* Mastery text */}
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500 font-medium">
-          Block {current_block_index + 1} of {total_blocks}
-        </span>
-        <span className="font-semibold text-emerald-600">
-          {masteryPercent}% Mastery
-        </span>
-      </div>
+    <div className="flex items-center gap-3">
+      {/* Block indicator dots */}
+      <div className="flex items-center gap-1.5">
+        {blocks.map((block, index) => {
+          const isComplete = block.is_complete;
+          const isCurrent = index === current_block_index;
+          const isGolden = block.mastery_score >= 0.9;
 
-      {/* Progress track with orbs */}
-      <div className="relative">
-        {/* Track background */}
-        <div className="absolute top-1/2 left-0 right-0 h-2 -translate-y-1/2 bg-gray-200 rounded-full" />
-
-        {/* Track fill */}
-        <div
-          className="absolute top-1/2 left-0 h-2 -translate-y-1/2 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${(completedBlocks / total_blocks) * 100}%`,
-          }}
-        />
-
-        {/* Block orbs */}
-        <div className="relative flex justify-between">
-          {blocks.map((block, index) => {
-            const isComplete = block.is_complete;
-            const isCurrent = index === current_block_index;
-            const isPast = index < current_block_index;
-            const isGolden = block.mastery_score >= 0.9;
-
-            // Determine orb style
-            let orbClass = "wizard-orb ";
-            if (isGolden && isComplete) {
-              orbClass += "wizard-orb-golden";
-            } else if (isComplete) {
-              orbClass += "wizard-orb-complete";
-            } else if (isCurrent) {
-              orbClass += "wizard-orb-active";
-            } else {
-              orbClass += "wizard-orb-empty";
-            }
-
-            return (
+          return (
+            <div
+              key={block.block_id}
+              className="relative group"
+            >
+              {/* Dot */}
               <div
-                key={block.block_id}
-                className="relative group"
-                style={{
-                  // Distribute orbs evenly along the track
-                  flex: "0 0 auto",
-                }}
-              >
-                {/* Orb */}
-                <div
-                  className={`${orbClass} relative z-10 transition-all duration-300`}
-                  style={{
-                    transform: isCurrent ? "scale(1.15)" : "scale(1)",
-                  }}
-                >
-                  {isComplete ? (
-                    isGolden ? (
-                      <Star className="w-5 h-5 fill-current" />
-                    ) : (
-                      <Check className="w-5 h-5" />
-                    )
+                className={`
+                  w-2.5 h-2.5 rounded-full transition-all duration-300
+                  ${isGolden && isComplete
+                    ? "bg-gradient-to-br from-amber-400 to-yellow-500 shadow-sm shadow-amber-200"
+                    : isComplete
+                    ? "bg-emerald-500"
+                    : isCurrent
+                    ? "bg-cyan-500 ring-2 ring-cyan-200 ring-offset-1"
+                    : "bg-gray-200"
+                  }
+                `}
+              />
+
+              {/* Current pulse */}
+              {isCurrent && !isComplete && (
+                <div className="absolute inset-0 rounded-full bg-cyan-400/40 animate-ping" />
+              )}
+
+              {/* Tooltip on hover */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                <div className="bg-gray-900 text-white text-[10px] px-2 py-1 rounded-md whitespace-nowrap shadow-lg">
+                  {block.is_complete ? (
+                    <span className="flex items-center gap-1">
+                      {isGolden ? <Star className="w-3 h-3 text-amber-400" /> : <Check className="w-3 h-3" />}
+                      {Math.round(block.mastery_score * 100)}%
+                    </span>
                   ) : (
-                    <span>{index + 1}</span>
+                    `Block ${index + 1}`
                   )}
                 </div>
-
-                {/* Current indicator pulse */}
-                {isCurrent && !isComplete && (
-                  <div className="absolute inset-0 z-0 rounded-full bg-cyan-400/30 animate-ping" />
-                )}
-
-                {/* Tooltip */}
-                <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
-                  <div className="bg-gray-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                    Block {index + 1}: {Math.round(block.mastery_score * 100)}%
-                  </div>
-                </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Segment bars (alternative view for many blocks) */}
-      {total_blocks > 6 && (
-        <div className="flex gap-1 mt-3">
-          {blocks.map((block, index) => {
-            const isComplete = block.is_complete;
-            const isCurrent = index === current_block_index;
-            const isGolden = block.mastery_score >= 0.9;
+      {/* Divider */}
+      <div className="w-px h-4 bg-gray-200" />
 
-            let barClass = "h-1.5 flex-1 rounded-full transition-all duration-300 ";
-            if (isGolden && isComplete) {
-              barClass += "bg-gradient-to-r from-amber-400 to-yellow-400";
-            } else if (isComplete) {
-              barClass += "bg-emerald-500";
-            } else if (isCurrent) {
-              barClass += "bg-cyan-500 animate-pulse";
-            } else {
-              barClass += "bg-gray-200";
-            }
-
-            return <div key={`bar-${block.block_id}`} className={barClass} />;
-          })}
-        </div>
-      )}
+      {/* Mastery badge */}
+      <div className="flex items-center gap-1.5">
+        {masteryPercent >= 80 && (
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+        )}
+        <span className={`
+          text-xs font-semibold tabular-nums
+          ${masteryPercent >= 80 ? "text-amber-600" : masteryPercent >= 50 ? "text-emerald-600" : "text-gray-500"}
+        `}>
+          {masteryPercent}%
+        </span>
+      </div>
     </div>
   );
 }

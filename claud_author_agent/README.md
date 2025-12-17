@@ -1,10 +1,11 @@
 # Scottish AI Lessons - Authoring Agents
 
-This repository contains three autonomous agents for Scottish secondary education content creation using Claude Agent SDK:
+This repository contains four autonomous agents for Scottish secondary education content creation using Claude Agent SDK:
 
 1. **SOW Author** - Creates complete Schemes of Work (course-level planning)
 2. **Lesson Author** - Creates detailed lesson templates (lesson-level design)
 3. **Revision Notes Author** - Creates pedagogically-sound revision materials (course cheat sheets + per-lesson notes)
+4. **Practice Question Author** - Pre-generates practice questions for the Infinite Practice system (instant delivery)
 
 ## Which Agent Do I Need?
 
@@ -13,11 +14,13 @@ This repository contains three autonomous agents for Scottish secondary educatio
 | **Create course overview** with 8-15 lesson entries | SOW Author | subject + level + courseId | Authored_SOW document | [SOW Author docs](#sow-author) |
 | **Create detailed lesson** with 3-15 interactive cards | Lesson Author | courseId + order | lesson_templates document | [Lesson Author docs](LESSON_AUTHOR_README.md) |
 | **Create revision notes** for exam preparation | Revision Notes Author | courseId | revision_notes documents (cheat sheet + per-lesson notes) | [Revision Notes docs](../specs/002-revision-notes-author/quickstart.md) |
+| **Pre-generate practice questions** for instant delivery | Practice Question Author | lessonTemplateId (or courseId) | practice_questions + practice_blocks | [Practice Question docs](PRACTICE_QUESTION_AUTHOR_README.md) |
 
 **Typical Workflow**:
 1. Use **SOW Author** to create the initial course plan (8-15 lesson entries)
 2. Use **Lesson Author** to flesh out each lesson entry into a full lesson template
 3. Use **Revision Notes Author** to generate student revision materials from completed course
+4. Use **Practice Question Author** to pre-generate practice questions for instant student experience
 
 ---
 
@@ -177,6 +180,21 @@ Options:
 | **CLI Tool** | `src.sow_author_cli` | `src.lesson_author_cli` |
 | **Documentation** | This README | [LESSON_AUTHOR_README.md](LESSON_AUTHOR_README.md) |
 | **Implementation Status** | [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) | [LESSON_AUTHOR_IMPLEMENTATION_STATUS.md](LESSON_AUTHOR_IMPLEMENTATION_STATUS.md) |
+
+### Additional Agents
+
+| Feature | Revision Notes Author | Practice Question Author |
+|---------|----------------------|--------------------------|
+| **Purpose** | Exam preparation materials | Practice question cache |
+| **Input** | courseId | lessonTemplateId (or courseId) |
+| **Output** | Cheat sheet + per-lesson notes | Questions per block per difficulty |
+| **Database Collection** | `revision_notes` | `practice_questions`, `practice_blocks` |
+| **Subagents** | 1 | 2 + reused diagram agents |
+| **Expected Tokens** | 30-50K | 40-70K per lesson |
+| **Expected Cost** | $1.35-2.55 | $1.50-3.00 per lesson |
+| **Execution Time** | 2-3 minutes | 5-15 minutes per lesson |
+| **CLI Tool** | `scripts/notes_author_cli.py` | `src.practice_question_author_cli` |
+| **Documentation** | [quickstart.md](../specs/002-revision-notes-author/quickstart.md) | [PRACTICE_QUESTION_AUTHOR_README.md](PRACTICE_QUESTION_AUTHOR_README.md) |
 
 ### When to Use Each Agent
 
@@ -340,3 +358,11 @@ python scripts/setup_revision_notes_infrastructure.py --mcp-config .mcp.json
 - Main README: [LESSON_AUTHOR_README.md](LESSON_AUTHOR_README.md)
 - Implementation Status: [LESSON_AUTHOR_IMPLEMENTATION_STATUS.md](LESSON_AUTHOR_IMPLEMENTATION_STATUS.md)
 - Implementation Specification: `tasks/LESSON_AUTHOR_AGENT_SPEC.md`
+
+**Mock Exam Author**:
+- Detailed Guide: [docs/MOCK_EXAM_AUTHOR_GUIDE.md](docs/MOCK_EXAM_AUTHOR_GUIDE.md)
+
+**Practice Question Author**:
+- Main README: [PRACTICE_QUESTION_AUTHOR_README.md](PRACTICE_QUESTION_AUTHOR_README.md)
+- Detailed Guide: [docs/PRACTICE_QUESTION_AUTHOR_GUIDE.md](docs/PRACTICE_QUESTION_AUTHOR_GUIDE.md)
+- Architecture Plan: `/Users/niladribose/.claude/plans/swirling-marinating-hellman.md`

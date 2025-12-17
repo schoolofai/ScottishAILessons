@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { WizardPracticeContainer } from "@/components/practice_wizard/WizardPracticeContainer";
 import { useAppwrite } from "@/lib/appwrite/hooks/useAppwrite";
 import { LessonDriver } from "@/lib/appwrite/driver/LessonDriver";
+import { PracticeQuestionDriver, type QuestionAvailability } from "@/lib/appwrite/driver/PracticeQuestionDriver";
 import { decompressCards } from "@/lib/appwrite/utils/compression";
 import { useSubscription } from "@/hooks/useSubscription";
 import { checkBackendAvailable, BackendUnavailableError } from "@/lib/backend-check";
@@ -39,6 +40,9 @@ export default function PracticeWizardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [backendAvailable, setBackendAvailable] = useState(false);
+  // V2 offline questions state
+  const [questionAvailability, setQuestionAvailability] = useState<QuestionAvailability | null>(null);
+  const [useV2Mode, setUseV2Mode] = useState(false);
 
   // Check backend availability
   useEffect(() => {
@@ -106,6 +110,25 @@ export default function PracticeWizardPage() {
         }
 
         setLessonTitle(lessonTemplate.title || "Practice Session");
+
+        // 2.5. Check for V2 offline questions availability
+        try {
+          const questionDriver = createDriver(PracticeQuestionDriver);
+          const availability = await questionDriver.checkQuestionsAvailable(lessonId);
+          setQuestionAvailability(availability);
+
+          if (availability.hasQuestions) {
+            console.log("[PracticeWizardPage] V2 offline questions available:", availability.totalCount);
+            setUseV2Mode(true);
+          } else {
+            console.log("[PracticeWizardPage] No offline questions, falling back to V1 real-time generation");
+            setUseV2Mode(false);
+          }
+        } catch (v2Error) {
+          // V2 check failed, fall back to V1 mode
+          console.warn("[PracticeWizardPage] V2 availability check failed, using V1:", v2Error);
+          setUseV2Mode(false);
+        }
 
         // 3. Check for existing active session
         let existingSession = null;
@@ -229,6 +252,8 @@ export default function PracticeWizardPage() {
       practiceContext={practiceContext}
       lessonTitle={lessonTitle}
       onExit={handleExit}
+      useV2Mode={useV2Mode}
+      questionAvailability={questionAvailability}
     />
   );
 }

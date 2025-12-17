@@ -105,6 +105,22 @@ export interface PracticeQuestion {
 
   /** Session progress report */
   progress: ProgressReport;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Optional diagram fields (when question includes generated diagram)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Base64-encoded PNG diagram image (if generated) */
+  diagram_base64?: string;
+
+  /** Description of the diagram for accessibility */
+  diagram_description?: string;
+
+  /** Title of the diagram */
+  diagram_title?: string;
+
+  /** Type of diagram (e.g., "geometry", "graph", "table") */
+  diagram_type?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -278,6 +294,10 @@ export type ResumeAction =
 /**
  * Resume payload for submitting an answer.
  * CRITICAL: Use "answer" field, NOT "student_response"
+ *
+ * Drawing support fields (for structured response questions):
+ * - drawing_data_url: Base64 PNG of student drawing (for multimodal marking)
+ * - drawing_scene_data: Excalidraw scene data (for re-editing in frontend)
  */
 export interface ResumeSubmitPayload {
   action: "submit";
@@ -287,6 +307,10 @@ export interface ResumeSubmitPayload {
   hints_used: number;
   /** Optional question ID for validation */
   question_id?: string;
+  /** Base64 PNG of student drawing (for multimodal marking) */
+  drawing_data_url?: string;
+  /** Excalidraw scene data (for re-editing in frontend) */
+  drawing_scene_data?: unknown;
 }
 
 /**
@@ -385,6 +409,51 @@ export function isConceptBlock(data: unknown): data is ConceptBlock {
   const d = data as Record<string, unknown>;
   return (
     typeof d.block_id === "string" &&
+    typeof d.title === "string" &&
+    typeof d.explanation === "string"
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BLOCK CONTENT CONTRACT (Frontend-fetched for Reference Panel)
+// Source: practice_blocks collection + storage files
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Parsed block content loaded from storage files.
+ * Used by BlockReferencePanel to display explanatory content during practice.
+ *
+ * Source: PracticeQuestionDriver.getBlockContent()
+ */
+export interface ParsedBlockContent {
+  /** Unique block identifier */
+  blockId: string;
+
+  /** Zero-based index of block in lesson */
+  blockIndex: number;
+
+  /** Block title */
+  title: string;
+
+  /** Full explanation text (markdown/LaTeX) from storage file */
+  explanation: string;
+
+  /** Worked example with problem, steps, and answer */
+  worked_example: WorkedExample | null;
+
+  /** Key formulas for this block (LaTeX strings) */
+  key_formulas: string[];
+
+  /** Common misconceptions students may have */
+  common_misconceptions: string[];
+}
+
+export function isParsedBlockContent(data: unknown): data is ParsedBlockContent {
+  if (typeof data !== "object" || data === null) return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.blockId === "string" &&
+    typeof d.blockIndex === "number" &&
     typeof d.title === "string" &&
     typeof d.explanation === "string"
   );

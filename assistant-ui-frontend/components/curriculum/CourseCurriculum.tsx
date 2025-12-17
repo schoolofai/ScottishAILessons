@@ -21,6 +21,7 @@ import { logger } from '@/lib/logger';
 import { cache, createCacheKey } from '@/lib/cache';
 import { LessonQuickNotesButton } from '@/components/revision-notes/LessonQuickNotesButton';
 import { RevisionNotesDriver } from '@/lib/appwrite/driver/RevisionNotesDriver';
+import { PracticeQuestionDriver } from '@/lib/appwrite/driver/PracticeQuestionDriver';
 
 interface Lesson {
   order: number;
@@ -60,6 +61,7 @@ export function CourseCurriculum({
   const [error, setError] = useState<string | null>(null);
   const [completedCount, setCompletedCount] = useState(0);
   const [lessonNotesAvailability, setLessonNotesAvailability] = useState<Record<number, boolean>>({});
+  const [practiceAvailability, setPracticeAvailability] = useState<Record<string, { hasQuestions: boolean; count: number }>>({});
 
   useEffect(() => {
     loadCurriculum();
@@ -91,6 +93,36 @@ export function CourseCurriculum({
 
     checkAllLessonNotesAvailability();
   }, [lessons, courseId]);
+
+  // Check practice question availability for all lessons (V2 offline questions)
+  useEffect(() => {
+    if (lessons.length === 0) return;
+
+    const checkPracticeAvailability = async () => {
+      const driver = new PracticeQuestionDriver();
+      const availabilityMap: Record<string, { hasQuestions: boolean; count: number }> = {};
+
+      // Batch check all lessons
+      await Promise.all(
+        lessons.map(async (lesson) => {
+          try {
+            const availability = await driver.checkQuestionsAvailable(lesson.lessonTemplateId);
+            availabilityMap[lesson.lessonTemplateId] = {
+              hasQuestions: availability.hasQuestions,
+              count: availability.totalCount
+            };
+          } catch (error) {
+            // On error, assume no questions (will fallback to V1 real-time generation)
+            availabilityMap[lesson.lessonTemplateId] = { hasQuestions: false, count: 0 };
+          }
+        })
+      );
+
+      setPracticeAvailability(availabilityMap);
+    };
+
+    checkPracticeAvailability();
+  }, [lessons]);
 
   const loadCurriculum = async () => {
     try {
@@ -490,22 +522,47 @@ export function CourseCurriculum({
                     onClick={() => {}}
                   />
 
-                  {/* Infinite Practice Button */}
-                  {lesson.status !== 'locked' && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/practice_wizard/${lesson.lessonTemplateId}`);
-                      }}
-                      className="gap-1 text-purple-600 border-purple-300 hover:bg-purple-50"
-                      aria-label={`Practice ${lesson.label}`}
-                    >
-                      <Dumbbell className="h-4 w-4" aria-hidden="true" />
-                      Practice
-                    </Button>
-                  )}
+                  {/* Infinite Practice Button - grayed out when no offline questions available */}
+                  {lesson.status !== 'locked' && (() => {
+                    const availability = practiceAvailability[lesson.lessonTemplateId];
+                    const hasOfflineQuestions = availability?.hasQuestions ?? null;
+                    const isLoading = hasOfflineQuestions === null;
+
+                    // Gray out if no offline questions (will fallback to slower V1 real-time generation)
+                    const isGrayedOut = !isLoading && !hasOfflineQuestions;
+
+                    return (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/practice_wizard/${lesson.lessonTemplateId}`);
+                        }}
+                        className={`gap-1 ${
+                          isGrayedOut
+                            ? 'text-gray-400 border-gray-200 hover:bg-gray-50 cursor-not-allowed opacity-50'
+                            : 'text-purple-600 border-purple-300 hover:bg-purple-50'
+                        }`}
+                        disabled={isGrayedOut}
+                        aria-label={
+                          isGrayedOut
+                            ? `Practice unavailable for ${lesson.label} - no questions generated`
+                            : `Practice ${lesson.label}`
+                        }
+                        title={
+                          isGrayedOut
+                            ? 'Practice questions not yet generated for this lesson'
+                            : hasOfflineQuestions
+                              ? `${availability?.count || 0} practice questions available`
+                              : 'Loading...'
+                        }
+                      >
+                        <Dumbbell className="h-4 w-4" aria-hidden="true" />
+                        Practice
+                      </Button>
+                    );
+                  })()}
 
                   {/* Start Lesson Button */}
                   {getActionButton(lesson)}

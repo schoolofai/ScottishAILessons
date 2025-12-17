@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * NumericInput - Number input for numeric CFU questions
+ * NumericInput - Text input for numeric CFU questions
  *
- * Large, clear input field optimized for number entry.
- * Supports currency symbols (£, $, €, ¥) and percentage signs.
+ * Large, clear input field optimized for numeric answers with units.
+ * Allows arbitrary text to support units (cm², m³, kg), currency (£, $, €),
+ * and other formats that the backend agent can parse semantically.
  */
 
 import React from "react";
@@ -17,23 +18,6 @@ interface NumericInputProps {
   placeholder?: string;
 }
 
-/**
- * Validates numeric input including currency symbols.
- * Allows: numbers, decimals, negative values, currency symbols (£$€¥), and %
- * Examples: "42", "-3.14", "£50", "$99.99", "€100", "25%", "-£50.00"
- */
-function isValidNumericInput(value: string): boolean {
-  if (value === "") return true;
-
-  // Pattern allows:
-  // - Optional leading currency symbol (£$€¥)
-  // - Optional minus sign (before or after currency)
-  // - Numbers with optional decimal
-  // - Optional trailing currency symbol or percentage
-  const numericPattern = /^[£$€¥]?-?\d*\.?\d*[£$€¥%]?$|^-?[£$€¥]?\d*\.?\d*[%]?$/;
-  return numericPattern.test(value);
-}
-
 export function NumericInput({
   value,
   onChange,
@@ -41,11 +25,9 @@ export function NumericInput({
   placeholder = "Enter your answer",
 }: NumericInputProps) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Allow numbers, decimal points, minus sign, and currency symbols
-    const newValue = e.target.value;
-    if (isValidNumericInput(newValue)) {
-      onChange(newValue);
-    }
+    // Allow any text - the backend agent handles semantic parsing
+    // Examples: "42", "3.14 cm²", "£50.00", "5 m/s²", "-273.15 °C"
+    onChange(e.target.value);
   };
 
   return (
@@ -58,7 +40,7 @@ export function NumericInput({
         </div>
         <input
           type="text"
-          inputMode="decimal"
+          inputMode="text"
           value={value}
           onChange={handleChange}
           disabled={disabled}
@@ -74,7 +56,7 @@ export function NumericInput({
         />
       </div>
       <p className="text-sm text-gray-500 pl-2">
-        Enter a number (decimals, negatives, and currency symbols like £$€ allowed)
+        Enter your answer (units like cm², m³, £, % are allowed)
       </p>
     </div>
   );

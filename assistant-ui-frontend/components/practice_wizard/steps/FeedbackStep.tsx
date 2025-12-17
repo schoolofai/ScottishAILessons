@@ -36,6 +36,13 @@ interface FeedbackStepProps {
   currentStreak?: number;
   onContinue: () => void;
   isLoading?: boolean;
+  // V2 Multi-Block Progression Props
+  /** Frontend-detected block completion (V2 mode doesn't send backend flag) */
+  blockJustCompleted?: boolean;
+  /** Current block index (0-based) for progress display */
+  currentBlockIndex?: number;
+  /** Total number of blocks in the lesson */
+  totalBlocks?: number;
 }
 
 export function FeedbackStep({
@@ -44,15 +51,60 @@ export function FeedbackStep({
   currentStreak = 0,
   onContinue,
   isLoading = false,
+  // V2 Multi-Block Progression Props
+  blockJustCompleted = false,
+  currentBlockIndex = 0,
+  totalBlocks = 1,
 }: FeedbackStepProps) {
   const [showMasteryAnimation, setShowMasteryAnimation] = useState(false);
-  const [animatedMastery, setAnimatedMastery] = useState(previousMastery);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // V2 COMPATIBILITY: Compute new_mastery_score from mastery_delta if missing
+  // V1 backend sends: new_mastery_score (absolute value 0-1)
+  // V2 backend sends: mastery_delta (change in mastery, e.g., 0.05)
+  // Frontend must handle both formats gracefully
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Cast to extended type that includes V2's mastery_delta field
+  const extendedFeedback = feedbackData as PracticeFeedback & { mastery_delta?: number };
+
+  let rawMasteryScore: number;
+
+  if (extendedFeedback.new_mastery_score !== undefined && extendedFeedback.new_mastery_score !== null) {
+    // V1 format: Use new_mastery_score directly
+    rawMasteryScore = extendedFeedback.new_mastery_score;
+    console.log("[FeedbackStep] Using V1 new_mastery_score:", rawMasteryScore);
+  } else if (extendedFeedback.mastery_delta !== undefined && extendedFeedback.mastery_delta !== null) {
+    // V2 format: Compute new mastery from previousMastery + delta
+    rawMasteryScore = previousMastery + extendedFeedback.mastery_delta;
+    console.log("[FeedbackStep] Using V2 mastery_delta:", {
+      previousMastery,
+      delta: extendedFeedback.mastery_delta,
+      computed: rawMasteryScore
+    });
+  } else {
+    // Fallback: Keep previous mastery (no change)
+    rawMasteryScore = previousMastery;
+    console.warn("[FeedbackStep] ⚠️ No mastery data - keeping previous:", previousMastery);
+  }
+
+  // Convert decimal (0-1) to percentage (0-100) for display
+  const masteryBefore = previousMastery * 100;
+  const masteryAfter = rawMasteryScore * 100;
+  const masteryGain = masteryAfter - masteryBefore;
+
+  // Initialize with percentage value (not raw 0-1)
+  const [animatedMastery, setAnimatedMastery] = useState(masteryBefore);
 
   // Use backend field names directly
   const isCorrect = feedbackData.is_correct;
-  const masteryBefore = previousMastery;
-  const masteryAfter = feedbackData.new_mastery_score;
-  const masteryGain = masteryAfter - masteryBefore;
+  // V2 COMPATIBILITY: Use frontend's blockJustCompleted OR backend's block_complete flag
+  // V1 backend sends block_complete; V2 mode uses frontend detection via blockJustCompleted
+  const isBlockComplete = blockJustCompleted || (feedbackData.block_complete ?? false);
+
+  // Multi-block progression: Check if more blocks remain after current one
+  const hasMoreBlocks = totalBlocks > 1 && currentBlockIndex < totalBlocks - 1;
+  const blockNumber = currentBlockIndex + 1; // Display as 1-indexed
 
   // Animate mastery progress
   useEffect(() => {
@@ -280,21 +332,36 @@ export function FeedbackStep({
             <span className="text-gray-500">100%</span>
           </div>
 
-          {/* Mastery milestone celebration */}
-          {masteryAfter >= 100 && (
+          {/* Mastery milestone celebration - only show when block is ACTUALLY complete
+              (backend requires high mastery + 2 hard questions answered) */}
+          {isBlockComplete && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 1.2, type: "spring" }}
-              className="mt-4 p-3 rounded-xl bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 flex items-center gap-3"
+              className={`mt-4 p-4 rounded-xl flex items-center gap-3 ${
+                hasMoreBlocks
+                  ? "bg-gradient-to-r from-emerald-50 to-cyan-50 border border-emerald-200"
+                  : "bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200"
+              }`}
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center">
-                <Award className="w-5 h-5 text-white" />
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                hasMoreBlocks
+                  ? "bg-gradient-to-br from-emerald-400 to-cyan-500"
+                  : "bg-gradient-to-br from-yellow-400 to-amber-500"
+              }`}>
+                <Award className="w-6 h-6 text-white" />
               </div>
-              <div>
-                <div className="font-bold text-amber-800">Block Mastered!</div>
-                <div className="text-sm text-amber-600">
-                  You've achieved full mastery of this concept!
+              <div className="flex-1">
+                <div className={`font-bold ${hasMoreBlocks ? "text-emerald-800" : "text-amber-800"}`}>
+                  {hasMoreBlocks
+                    ? `Block ${blockNumber} of ${totalBlocks} Complete!`
+                    : "Block Mastered!"}
+                </div>
+                <div className={`text-sm ${hasMoreBlocks ? "text-emerald-600" : "text-amber-600"}`}>
+                  {hasMoreBlocks
+                    ? `Great work! Ready to continue to block ${blockNumber + 1}?`
+                    : "You've achieved full mastery of this concept!"}
                 </div>
               </div>
             </motion.div>
@@ -330,7 +397,13 @@ export function FeedbackStep({
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <span>{feedbackData.block_complete ? "Next Topic" : "Continue"}</span>
+              <span>
+                {isBlockComplete && hasMoreBlocks
+                  ? "Continue to Next Block"
+                  : isBlockComplete
+                    ? "Complete Lesson"
+                    : "Continue"}
+              </span>
               <ArrowRight className="w-5 h-5" />
             </div>
           )}

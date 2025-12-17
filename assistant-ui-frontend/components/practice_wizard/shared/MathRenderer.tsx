@@ -27,6 +27,28 @@ interface MathRendererProps {
  * Tables require consecutive lines - cannot have blank lines between rows.
  */
 function processContentForMarkdown(content: string): string {
+  // Type guard: ensure content is a string
+  if (typeof content !== "string") {
+    console.error(
+      "%o\n\n%s",
+      content,
+      `MathRenderer received non-string content (type: ${typeof content}). Converting to string.`
+    );
+    // Convert to string representation
+    if (content === null || content === undefined) {
+      return "";
+    }
+    if (typeof content === "object") {
+      // Handle objects that might have a text property
+      const obj = content as Record<string, unknown>;
+      if ("text" in obj && typeof obj.text === "string") {
+        return obj.text;
+      }
+      return JSON.stringify(content);
+    }
+    return String(content);
+  }
+
   // First, convert literal "\n" strings to actual newlines
   let processed = content.replace(/\\n/g, "\n");
 

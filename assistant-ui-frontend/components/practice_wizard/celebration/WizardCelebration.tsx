@@ -258,7 +258,7 @@ export function WizardCelebration({
           <div className="wizard-card p-5 text-center">
             <TrendingUp className="w-8 h-8 mx-auto mb-2 text-purple-500" />
             <div className="text-3xl font-bold text-gray-800">
-              {Math.round(stats.final_mastery)}%
+              {Math.round(stats.final_mastery * 100)}%
             </div>
             <div className="text-sm text-gray-500">Mastery</div>
             <div className="text-xs text-gray-400 mt-1">
@@ -299,18 +299,18 @@ export function WizardCelebration({
           <div className="flex items-center justify-between mb-3">
             <span className="font-semibold text-gray-700">Overall Mastery</span>
             <span className="font-bold text-purple-600">
-              {Math.round(stats.final_mastery)}%
+              {Math.round(stats.final_mastery * 100)}%
             </span>
           </div>
           <div className="h-4 bg-gray-100 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: `${stats.final_mastery}%` }}
+              animate={{ width: `${stats.final_mastery * 100}%` }}
               transition={{ delay: 1, duration: 1, ease: "easeOut" }}
               className="h-full bg-gradient-to-r from-purple-500 to-violet-500 rounded-full"
             />
           </div>
-          {stats.final_mastery >= 100 && (
+          {stats.final_mastery >= 1.0 && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}

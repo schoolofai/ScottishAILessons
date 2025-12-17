@@ -273,6 +273,55 @@ Generated notes include review schedule:
 The `/workspace/` path is mapped to: `{self.root}`
 """
 
+        elif self.workspace_type == "practice_questions":
+            return f"""# Practice Question Author Workspace - Execution {self.execution_id}
+
+## Purpose
+Generate offline practice questions for Infinite Practice V2 system
+
+## Workspace Structure
+
+### Input Files (Pre-populated by Python extraction)
+- `lesson_template.json` - Lesson template with decompressed cards
+
+### Intermediate Files (Created by Block Agent)
+- `blocks_output.json` - Extracted concept blocks with content hashes
+
+### Output Files (Created by Question Agent)
+- `questions_output.json` - Generated questions per block/difficulty
+
+## Practice Question Pipeline
+
+1. **Pre-processing (Python)** → Fetches lesson template from Appwrite
+2. **Block Extraction Agent** → Extracts concept blocks from lesson cards
+3. **Question Generation Agent** → Generates N questions per block per difficulty
+4. **Post-processing (Python)** → Upserts to practice_questions + practice_blocks
+
+## Question Structure
+
+Each generated question contains:
+- `block_id` - Source concept block
+- `difficulty` - easy | medium | hard
+- `question_type` - multiple_choice | numeric | short_answer
+- `stem` - Question text with LaTeX math
+- `options` - For MCQ only
+- `correct_answer` - Expected answer
+- `solution` - Step-by-step worked solution
+- `hints` - Progressive hints (2-3 levels)
+- `content_hash` - For deduplication
+
+## Default Question Counts
+
+Per block:
+- Easy: 5 questions
+- Medium: 5 questions
+- Hard: 3 questions
+
+Total: 13 questions × N blocks
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
         else:
             # Generic fallback for unknown workspace types
             return f"""# Agent Workspace - Execution {self.execution_id}
