@@ -74,6 +74,76 @@ This agent takes a `lessonTemplateId` input and produces a complete set of pract
 - **Cost Tracking**: Per-subagent and total token/cost metrics
 - **Scottish Curriculum Compliant**: SQA standards, CfE alignment
 
+## How It Works
+
+### Automatic Execution Mode Detection
+
+The agent intelligently determines what work needs to be done:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   EXECUTION MODE LOGIC                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  --regenerate flag?                                         │
+│       │                                                     │
+│       ├─► YES → full_pipeline (delete all, regenerate)     │
+│       │                                                     │
+│       └─► NO → Check existing content...                   │
+│                   │                                         │
+│                   ├─► No questions exist → full_pipeline   │
+│                   │                                         │
+│                   ├─► Questions exist, no diagrams →       │
+│                   │       diagrams_only                     │
+│                   │                                         │
+│                   └─► Everything exists → skip_all         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Content Hashing for Deduplication
+
+Each question and block gets a SHA256 content hash computed from its core fields:
+
+```python
+# Questions: stem + correctAnswer + difficulty + questionType
+content_hash = sha256(f"{stem}|{correct_answer}|{difficulty}|{question_type}")
+
+# Blocks: title + explanation + worked_example
+content_hash = sha256(f"{title}|{explanation}|{worked_example}")
+```
+
+This enables:
+- **Skip unchanged content** - Don't regenerate identical questions
+- **Detect updates** - Regenerate only when lesson template changes
+- **Query by hash** - Fast lookup for existing content
+
+### Workspace Structure
+
+After execution, the workspace contains:
+
+```
+workspaces/practice_questions_{lesson_id}_{timestamp}/
+├── input/
+│   └── lesson_template.json      # Fetched lesson data
+├── blocks/
+│   ├── block_0_intro.json        # Extracted concept blocks
+│   ├── block_1_examples.json
+│   └── ...
+├── questions/
+│   ├── block_0_easy_001.json     # Generated questions
+│   ├── block_0_easy_002.json
+│   ├── block_0_medium_001.json
+│   └── ...
+├── diagrams/
+│   ├── q_001_matplotlib.png      # Generated diagram images
+│   └── q_003_jsxgraph.json       # Interactive diagram configs
+└── output/
+    └── summary.json              # Execution metrics
+```
+
+Use `--no-persist-workspace` to auto-delete after execution.
+
 ## Installation
 
 ### Prerequisites
@@ -95,10 +165,9 @@ pip install -r requirements.txt
 # Configure Appwrite MCP
 cp .mcp.json.example .mcp.json
 # Edit .mcp.json and add your APPWRITE_API_KEY
-
-# Create Appwrite collections (one-time setup)
-python scripts/setup_practice_questions_infrastructure.py --mcp-config .mcp.json
 ```
+
+> **Note**: Appwrite collections (`practice_questions`, `practice_blocks`) are created automatically on first execution. No manual setup required.
 
 ## Usage
 
@@ -153,15 +222,25 @@ result = await agent.execute_batch(course_id="course_c84474")
 python -m src.practice_question_author_cli --help
 
 Options:
-  --lesson-id TEXT        Single lesson template ID
-  --course-id TEXT        Process all lessons in course
-  --regenerate            Regenerate existing questions (default: skip)
-  --easy N                Number of easy questions per block (default: 5)
-  --medium N              Number of medium questions per block (default: 5)
-  --hard N                Number of hard questions per block (default: 3)
-  --mcp-config PATH       MCP config path (default: .mcp.json)
-  --persist-workspace     Keep workspace after execution
-  --log-level LEVEL       Logging level (default: INFO)
+  Input (one required):
+    --input FILE            JSON file with lesson_template_id or course_id
+    --lesson-id TEXT        Single lesson template ID
+    --course-id TEXT        Process all lessons in course
+    (none)                  Interactive mode - prompts for input
+
+  Question Counts:
+    --easy N                Number of easy questions per block (default: 5)
+    --medium N              Number of medium questions per block (default: 5)
+    --hard N                Number of hard questions per block (default: 3)
+
+  Batch Processing:
+    --max-concurrent N      Max parallel lessons for batch mode (default: 3)
+    --regenerate            Delete and regenerate existing questions
+
+  Configuration:
+    --mcp-config PATH       MCP config path (default: .mcp.json)
+    --no-persist-workspace  Delete workspace after execution
+    --log-level LEVEL       DEBUG | INFO | WARNING | ERROR (default: INFO)
 ```
 
 ## Appwrite Collections
@@ -343,12 +422,13 @@ raise ValueError(
 
 ## Implementation Status
 
-See [PRACTICE_QUESTION_AUTHOR_IMPLEMENTATION_STATUS.md](PRACTICE_QUESTION_AUTHOR_IMPLEMENTATION_STATUS.md) for current implementation progress.
+See [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) for current implementation progress across all author agents.
 
 ## Related Documentation
 
-- **Architecture Plan**: `/Users/niladribose/.claude/plans/swirling-marinating-hellman.md`
-- **Frontend Contracts**: `assistant-ui-frontend/types/practice-wizard-contracts.ts`
-- **Frontend Driver**: `assistant-ui-frontend/lib/appwrite/driver/PracticeQuestionDriver.ts`
-- **Backend Graph**: `langgraph-agent/src/agent/infinite_practice_graph.py`
-- **Backend Models**: `langgraph-agent/src/agent/practice_models.py`
+- **Detailed Guide**: `docs/PRACTICE_QUESTION_AUTHOR_GUIDE.md`
+- **Quick Reference**: `docs/QUICK_REFERENCE.md`
+- **Frontend Contracts**: `../assistant-ui-frontend/types/practice-wizard-contracts.ts`
+- **Frontend Driver**: `../assistant-ui-frontend/lib/appwrite/driver/PracticeQuestionDriver.ts`
+- **Backend Graph**: `../langgraph-agent/src/agent/infinite_practice_graph.py`
+- **Backend Models**: `../langgraph-agent/src/agent/practice_models.py`
