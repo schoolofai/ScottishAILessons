@@ -1,7 +1,7 @@
 # LangGraph Chat Applications - Official + Self-Hosted
 
-[![CI](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/unit-tests.yml)
-[![Integration Tests](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml/badge.svg)](https://github.com/langchain-ai/new-langgraph-project/actions/workflows/integration-tests.yml)
+[![CI](https://github.com/schoolofai/ScottishAILessons/actions/workflows/ci.yml/badge.svg)](https://github.com/schoolofai/ScottishAILessons/actions/workflows/ci.yml)
+[![E2E Tests](https://github.com/schoolofai/ScottishAILessons/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/schoolofai/ScottishAILessons/actions/workflows/e2e-tests.yml)
 
 This repository provides **two complete LangGraph implementations** for building AI-powered conversational applications:
 
