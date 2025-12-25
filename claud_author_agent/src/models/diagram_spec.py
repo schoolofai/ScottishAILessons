@@ -5,10 +5,28 @@ to PromptArchitectAgent. Each spec describes a single diagram to generate.
 
 Architecture:
     EligibilityAnalyzerAgent → DiagramSpec[] → PromptArchitectAgent → Gemini Prompts
+
+Tool Types (Multi-Tool Support):
+    - DESMOS: Function graphing (y=f(x), quadratics, trigonometry)
+    - MATPLOTLIB: Pure geometry (circle theorems, constructions, angles)
+    - JSXGRAPH: Coordinate geometry (transformations, vectors, line equations)
+    - PLOTLY: Statistics/data visualization (bar charts, histograms, box plots)
+    - IMAGE_GENERATION: Real-world contextual images
+    - NONE: No diagram needed
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Literal
+
+# Valid tool types for diagram generation
+ToolType = Literal[
+    "DESMOS",
+    "MATPLOTLIB",
+    "JSXGRAPH",
+    "PLOTLY",
+    "IMAGE_GENERATION",
+    "NONE"
+]
 
 
 @dataclass
@@ -45,6 +63,22 @@ class DiagramSpec:
 
         educational_focus: What concept this diagram reinforces.
             Example: "Students see how frequency maps to proportional angles"
+
+        tool_type: The rendering tool to use for this diagram.
+            Values: "DESMOS", "MATPLOTLIB", "JSXGRAPH", "PLOTLY",
+                    "IMAGE_GENERATION", "NONE"
+            - DESMOS: Function graphing (y=f(x), quadratics, trigonometry)
+            - MATPLOTLIB: Pure geometry (circle theorems, constructions, angles)
+            - JSXGRAPH: Coordinate geometry (transformations, vectors)
+            - PLOTLY: Statistics/data visualization (charts, histograms)
+            - IMAGE_GENERATION: Real-world contextual images
+            - NONE: No diagram needed
+
+        tool_confidence: Confidence level in the tool selection.
+            Values: "HIGH", "MEDIUM", "LOW"
+
+        tool_reasoning: Brief explanation of why this tool was chosen.
+            Example: "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
     """
 
     description: str
@@ -55,6 +89,10 @@ class DiagramSpec:
     context_type: str
     excluded: List[str] = field(default_factory=list)
     educational_focus: Optional[str] = None
+    # Multi-tool support fields
+    tool_type: str = field(default="JSXGRAPH")  # Default for backward compatibility
+    tool_confidence: str = field(default="HIGH")
+    tool_reasoning: Optional[str] = None
 
     def __post_init__(self):
         """Validate spec after initialization."""
@@ -88,6 +126,25 @@ class DiagramSpec:
             # Warning, not error - allow empty but encourage specifying
             pass
 
+        # Validate tool_type
+        valid_tools = {
+            "DESMOS", "MATPLOTLIB", "JSXGRAPH",
+            "PLOTLY", "IMAGE_GENERATION", "NONE"
+        }
+        if self.tool_type not in valid_tools:
+            raise ValueError(
+                f"DiagramSpec.tool_type must be one of {valid_tools}, "
+                f"got '{self.tool_type}'"
+            )
+
+        # Validate tool_confidence
+        valid_confidences = {"HIGH", "MEDIUM", "LOW"}
+        if self.tool_confidence not in valid_confidences:
+            raise ValueError(
+                f"DiagramSpec.tool_confidence must be one of {valid_confidences}, "
+                f"got '{self.tool_confidence}'"
+            )
+
     @property
     def is_lesson(self) -> bool:
         """Check if this is a lesson diagram."""
@@ -109,6 +166,10 @@ class DiagramSpec:
             "diagram_index": self.diagram_index,
             "context_type": self.context_type,
             "educational_focus": self.educational_focus,
+            # Multi-tool support fields
+            "tool_type": self.tool_type,
+            "tool_confidence": self.tool_confidence,
+            "tool_reasoning": self.tool_reasoning,
         }
 
     @classmethod
@@ -134,6 +195,10 @@ class DiagramSpec:
             diagram_index=data.get("diagram_index", 0),
             context_type=data.get("context_type", context_type),
             educational_focus=data.get("educational_focus"),
+            # Multi-tool support fields (backward compatible defaults)
+            tool_type=data.get("tool_type", "JSXGRAPH"),
+            tool_confidence=data.get("tool_confidence", "HIGH"),
+            tool_reasoning=data.get("tool_reasoning"),
         )
 
 

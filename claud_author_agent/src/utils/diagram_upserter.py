@@ -9,12 +9,20 @@ Supports multiple rendering backends:
 - jsxgraph: Traditional JSXGraph JSON code + DiagramScreenshot rendering
 - gemini_nano: Direct PNG generation via Gemini Nano Banana Pro
 
+Multi-Tool Support (tool_type field):
+- DESMOS: Function graphing (y=f(x), quadratics, trigonometry)
+- MATPLOTLIB: Pure geometry (circle theorems, constructions, angles)
+- JSXGRAPH: Coordinate geometry (transformations, vectors, lines)
+- PLOTLY: Statistics/charts (bar, pie, histogram, scatter)
+- IMAGE_GENERATION: Real-world contextual images
+
 Collection Schema (default.lesson_diagrams):
     - lessonTemplateId (string, required): Foreign key to lesson_templates
     - cardId (string, required): Card identifier (e.g., "card_001")
-    - jsxgraph_json (string, optional): Serialized JSXGraph JSON (empty for gemini_nano)
+    - jsxgraph_json (string, optional): Serialized diagram code (format varies by tool_type)
     - image_base64 (string, required): Base64-encoded PNG image
     - diagram_type (string, required): geometry|algebra|statistics|mixed
+    - tool_type (string, optional): DESMOS|MATPLOTLIB|JSXGRAPH|PLOTLY|IMAGE_GENERATION
     - visual_critique_score (double, required): Final accepted score (0.0-1.0)
     - critique_iterations (integer, required): Number of refinement iterations (1-10)
     - critique_feedback (string, required): Serialized critique history (JSON)
@@ -133,6 +141,7 @@ async def upsert_lesson_diagram(
     diagram_description: Optional[str] = None,
     diagram_index: int = 0,
     rendering_backend: str = "jsxgraph",
+    tool_type: Optional[str] = None,
     mcp_config_path: str = ".mcp.json"
 ) -> Dict[str, Any]:
     """Upsert lesson diagram to Appwrite lesson_diagrams collection.
@@ -144,7 +153,7 @@ async def upsert_lesson_diagram(
     Args:
         lesson_template_id: Foreign key to lesson_templates
         card_id: Card identifier (e.g., "card_001", "card_002")
-        jsxgraph_json: Serialized JSXGraph JSON string (optional, empty for gemini_nano backend)
+        jsxgraph_json: Serialized diagram code (format varies by tool_type)
         image_base64: Base64-encoded PNG image
         diagram_type: Diagram category (geometry|algebra|statistics|mixed)
         visual_critique_score: Final accepted score (0.0-1.0)
@@ -155,6 +164,7 @@ async def upsert_lesson_diagram(
         diagram_description: Optional 1-2 sentence description for downstream LLMs
         diagram_index: Diagram index for multi-diagram cards (0-indexed, default 0 for backward compatibility)
         rendering_backend: Rendering backend used ("jsxgraph" or "gemini_nano", default: jsxgraph)
+        tool_type: Rendering tool used (DESMOS, MATPLOTLIB, JSXGRAPH, PLOTLY, IMAGE_GENERATION) - optional for backward compatibility
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -216,6 +226,16 @@ async def upsert_lesson_diagram(
             f"Must be one of: {', '.join(valid_backends)}"
         )
     logger.info(f"Rendering backend: {rendering_backend}")
+
+    # Validate tool_type if provided
+    if tool_type is not None:
+        valid_tool_types = ["DESMOS", "MATPLOTLIB", "JSXGRAPH", "PLOTLY", "IMAGE_GENERATION"]
+        if tool_type not in valid_tool_types:
+            raise ValueError(
+                f"Invalid tool_type '{tool_type}'. "
+                f"Must be one of: {', '.join(valid_tool_types)} (or None for backward compatibility)"
+            )
+        logger.info(f"Tool type: {tool_type}")
 
     # Upload image to Appwrite Storage and get file ID
     logger.info("Uploading image to Appwrite Storage...")
@@ -302,6 +322,10 @@ async def upsert_lesson_diagram(
             if diagram_description is not None:
                 update_data["diagram_description"] = diagram_description
 
+            # Add tool_type if provided (optional for backward compatibility)
+            if tool_type is not None:
+                update_data["tool_type"] = tool_type
+
             updated_doc = await update_appwrite_document(
                 database_id="default",
                 collection_id="lesson_diagrams",
@@ -351,6 +375,10 @@ async def upsert_lesson_diagram(
             # Add diagram_description if provided (optional for backward compatibility)
             if diagram_description is not None:
                 create_data["diagram_description"] = diagram_description
+
+            # Add tool_type if provided (optional for backward compatibility)
+            if tool_type is not None:
+                create_data["tool_type"] = tool_type
 
             created_doc = await create_appwrite_document(
                 database_id="default",
@@ -403,6 +431,7 @@ async def batch_upsert_diagrams(
             - diagram_description (str, optional): Brief description for downstream LLMs
             - diagram_index (int, optional): Diagram index for multi-diagram cards (default 0)
             - rendering_backend (str, optional): "jsxgraph" or "gemini_nano" (default: jsxgraph)
+            - tool_type (str, optional): DESMOS|MATPLOTLIB|JSXGRAPH|PLOTLY|IMAGE_GENERATION
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -451,6 +480,7 @@ async def batch_upsert_diagrams(
                 diagram_description=diagram_data.get("diagram_description"),  # Optional - brief description for LLMs
                 diagram_index=diagram_index,  # Pass diagram_index for multi-diagram support
                 rendering_backend=diagram_data.get("rendering_backend", "jsxgraph"),  # Default to jsxgraph
+                tool_type=diagram_data.get("tool_type"),  # Optional - multi-tool support
                 mcp_config_path=mcp_config_path
             )
 
