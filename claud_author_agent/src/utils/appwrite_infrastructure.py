@@ -280,6 +280,76 @@ async def create_appwrite_datetime_attribute(
         raise
 
 
+async def create_appwrite_boolean_attribute(
+    database_id: str,
+    collection_id: str,
+    key: str,
+    required: bool,
+    mcp_config_path: str,
+    default: Optional[bool] = None
+) -> Dict[str, Any]:
+    """Create a boolean attribute in a collection."""
+    logger.info(f"Creating boolean attribute: {collection_id}.{key}")
+
+    try:
+        from appwrite.services.databases import Databases
+
+        client, _, _, _ = _get_appwrite_client(mcp_config_path)
+        databases = Databases(client)
+
+        result = databases.create_boolean_attribute(
+            database_id=database_id,
+            collection_id=collection_id,
+            key=key,
+            required=required,
+            default=default
+        )
+
+        logger.info(f"✓ Boolean attribute created: {key}")
+        return result
+
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed")
+    except Exception as e:
+        logger.error(f"Failed to create boolean attribute {key}: {e}")
+        raise
+
+
+async def create_appwrite_url_attribute(
+    database_id: str,
+    collection_id: str,
+    key: str,
+    required: bool,
+    mcp_config_path: str,
+    default: Optional[str] = None
+) -> Dict[str, Any]:
+    """Create a URL attribute in a collection."""
+    logger.info(f"Creating URL attribute: {collection_id}.{key}")
+
+    try:
+        from appwrite.services.databases import Databases
+
+        client, _, _, _ = _get_appwrite_client(mcp_config_path)
+        databases = Databases(client)
+
+        result = databases.create_url_attribute(
+            database_id=database_id,
+            collection_id=collection_id,
+            key=key,
+            required=required,
+            default=default
+        )
+
+        logger.info(f"✓ URL attribute created: {key}")
+        return result
+
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed")
+    except Exception as e:
+        logger.error(f"Failed to create URL attribute {key}: {e}")
+        raise
+
+
 async def create_appwrite_enum_attribute(
     database_id: str,
     collection_id: str,
