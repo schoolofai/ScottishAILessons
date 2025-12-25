@@ -38,6 +38,12 @@ from .utils.diagram_validator import validate_diagram_output_schema
 from .eligibility_analyzer_agent import EligibilityAnalyzerAgent
 from .tools.diagram_screenshot_tool import create_diagram_screenshot_server_with_workspace, check_diagram_service_health
 from .tools.json_validator_mcp_tool import json_validator_server
+from .tools.tool_factory import (
+    get_servers_for_types,
+    get_tool_names_for_types,
+    get_tool_config,
+    TOOL_CONFIG
+)
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +136,39 @@ class DiagramAuthorClaudeAgent:
 
         logger.info(f"Loaded {len(subagents)} subagent definitions")
         return subagents
+
+    def _extract_tool_types_from_eligible_cards(self, eligible_cards: List[Dict[str, Any]]) -> List[str]:
+        """Extract unique tool types from eligible cards.
+
+        Scans all lesson and CFU diagram specs to collect the tool_type field.
+        Used to determine which MCP servers to register.
+
+        Args:
+            eligible_cards: List of eligible card dictionaries with diagram specs
+
+        Returns:
+            List of unique tool types (e.g., ["MATPLOTLIB", "PLOTLY", "JSXGRAPH"])
+        """
+        tool_types = set()
+
+        for card in eligible_cards:
+            # Extract from lesson diagram specs
+            lesson_specs = card.get("lesson_diagram_specs", [])
+            for spec in lesson_specs:
+                tool_type = spec.get("tool_type", "JSXGRAPH")  # Default for backward compatibility
+                if tool_type and tool_type != "NONE":
+                    tool_types.add(tool_type)
+
+            # Extract from CFU diagram specs
+            cfu_specs = card.get("cfu_diagram_specs", [])
+            for spec in cfu_specs:
+                tool_type = spec.get("tool_type", "JSXGRAPH")  # Default for backward compatibility
+                if tool_type and tool_type != "NONE":
+                    tool_types.add(tool_type)
+
+        unique_types = list(tool_types)
+        logger.info(f"Extracted {len(unique_types)} unique tool types from eligible cards: {unique_types}")
+        return unique_types
 
     def _copy_jsxgraph_templates_to_workspace(self, workspace_path: Path) -> Dict[str, Any]:
         """Copy validated JSXGraph templates to workspace for agent reference.
@@ -372,45 +411,71 @@ class DiagramAuthorClaudeAgent:
                     }
 
                 # ═══════════════════════════════════════════════════════════════
-                # Register MCP Tools for Diagram Author Agent
+                # Register MCP Tools for Diagram Author Agent (Multi-Tool Support)
                 # ═══════════════════════════════════════════════════════════════
-                # ONLY register diagram_screenshot tool - Appwrite MCP excluded.
+                # Register ONLY the tools needed based on tool_type from eligibility.
+                #
+                # Multi-Tool Architecture:
+                # - Each diagram spec now has a tool_type field
+                # - Tool factory creates only the needed MCP servers
+                # - Reduces token context by excluding unused tools
+                #
+                # Available Tools:
+                # - DESMOS: Function graphing (mcp__desmos__render_desmos)
+                # - MATPLOTLIB: Pure geometry (mcp__matplotlib__render_matplotlib)
+                # - JSXGRAPH: Coordinate geometry (mcp__diagram-screenshot__render_diagram)
+                # - PLOTLY: Statistics/charts (mcp__plotly__render_plotly)
+                # - IMAGE_GENERATION: AI images (mcp__imagen__render_imagen)
                 #
                 # Why Appwrite MCP Not Needed:
                 # - Lesson template PRE-FETCHED by Python utility (diagram_extractor.py)
                 # - Diagram author agent works with FILES in workspace, not database
-                # - Removes ~50+ unused Appwrite tools from token context
-                #
-                # DiagramScreenshot MCP Tool (v1.0.0):
-                # - Renders JSXGraph JSON to PNG via HTTP POST to localhost:3001
-                # - Returns base64-encoded image on success
-                # - Fast-fail on timeout (30s) or HTTP errors (4xx/5xx)
-                # - Error format: {success: false, error: {code, message, details, suggestion}}
-                #
-                # Tool Name: mcp__diagram-screenshot__render_diagram
-                # Implementation: src/tools/diagram_screenshot_tool.py
                 # ═══════════════════════════════════════════════════════════════
-                # Create MCP server with workspace path captured in closure
-                diagram_screenshot_server = create_diagram_screenshot_server_with_workspace(str(workspace_path))
-                mcp_servers_for_diagram_author = {
-                    "diagram-screenshot": diagram_screenshot_server,  # DiagramScreenshot with workspace path
-                    "json-validator": json_validator_server  # JSON validation for self-correction
-                    # Appwrite MCP intentionally excluded - not used by diagram author
-                }
-                logger.info(f"Registered MCP tools: diagram-screenshot, json-validator")
+
+                # Extract unique tool types from eligible cards
+                tool_types_needed = self._extract_tool_types_from_eligible_cards(eligible_cards)
+
+                # If no tool types found (backward compatibility), default to JSXGRAPH
+                if not tool_types_needed:
+                    logger.warning("No tool_type found in eligible cards - defaulting to JSXGRAPH")
+                    tool_types_needed = ["JSXGRAPH"]
+
+                # Create MCP servers for the needed tool types
+                try:
+                    mcp_servers_for_diagram_author = get_servers_for_types(
+                        tool_types=tool_types_needed,
+                        workspace_path=str(workspace_path)
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to create diagram tool servers: {e}")
+                    raise
+
+                # Add JSON validator (always needed for self-correction)
+                mcp_servers_for_diagram_author["json-validator"] = json_validator_server
+
+                # Build list of tool names for allowed_tools
+                diagram_tool_names = get_tool_names_for_types(tool_types_needed)
+
+                logger.info(f"Registered {len(tool_types_needed)} diagram tools: {tool_types_needed}")
+                logger.info(f"MCP servers: {list(mcp_servers_for_diagram_author.keys())}")
 
                 # Configure Claude SDK client with permission_mode='bypassPermissions'
+                # Build allowed_tools with base tools + dynamic diagram tools
+                base_tools = [
+                    'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
+                    'WebSearch', 'WebFetch',
+                    'mcp__json-validator__validate_json'  # JSON validation for self-correction
+                ]
+                allowed_tools = base_tools + diagram_tool_names
+
+                logger.info(f"Allowed tools ({len(allowed_tools)}): {allowed_tools}")
+
                 options = ClaudeAgentOptions(
                     model='claude-sonnet-4-5',
                     agents=self._get_subagent_definitions(),
                     permission_mode='bypassPermissions',  # CRITICAL: Bypass all permission prompts
-                    mcp_servers=mcp_servers_for_diagram_author,  # Only diagram-screenshot MCP
-                    allowed_tools=[
-                        'Read', 'Write', 'Edit', 'Glob', 'Grep', 'TodoWrite', 'Task',
-                        'WebSearch', 'WebFetch',
-                        'mcp__diagram-screenshot__render_diagram',  # DiagramScreenshot tool
-                        'mcp__json-validator__validate_json'  # JSON validation for self-correction
-                    ],
+                    mcp_servers=mcp_servers_for_diagram_author,  # Dynamic tool servers
+                    allowed_tools=allowed_tools,  # Dynamic based on tool_type from eligibility
                     max_turns=500,  # High limit to ensure agent can complete complex diagram authoring work
                     cwd=str(workspace_path)  # Set agent working directory to isolated workspace
                 )
@@ -426,7 +491,8 @@ class DiagramAuthorClaudeAgent:
                         lesson_template_id=lesson_template_id,
                         title=title,
                         cards_needing_diagrams=cards_needing_diagrams,
-                        workspace_path=str(workspace_path)
+                        workspace_path=str(workspace_path),
+                        tool_types_needed=tool_types_needed  # Pass tool types for multi-tool guidance
                     )
 
                     logger.info("Sending initial prompt to Claude Agent SDK...")
@@ -723,7 +789,8 @@ class DiagramAuthorClaudeAgent:
         lesson_template_id: str,
         title: str,
         cards_needing_diagrams: int,
-        workspace_path: str
+        workspace_path: str,
+        tool_types_needed: Optional[List[str]] = None
     ) -> str:
         """Build initial prompt for the main orchestrator agent.
 
@@ -741,6 +808,7 @@ class DiagramAuthorClaudeAgent:
             title: Lesson title
             cards_needing_diagrams: Number of eligible cards
             workspace_path: Path to workspace directory
+            tool_types_needed: List of tool types needed (e.g., ["MATPLOTLIB", "PLOTLY"])
 
         Returns:
             Formatted initial prompt string
@@ -748,6 +816,10 @@ class DiagramAuthorClaudeAgent:
         # Load main orchestrator prompt
         prompts_dir = Path(__file__).parent / "prompts"
         main_prompt = (prompts_dir / "diagram_author_prompt.md").read_text()
+
+        # Build tool-specific guidance section
+        tool_types_needed = tool_types_needed or ["JSXGRAPH"]
+        tool_guidance = self._build_tool_guidance(tool_types_needed)
 
         # Build context-specific instruction
         instruction = f"""You are starting a diagram generation pipeline.
@@ -763,60 +835,97 @@ class DiagramAuthorClaudeAgent:
 
 **Available files**:
 - lesson_template.json (complete lesson template)
-- eligible_cards.json (pre-filtered cards needing diagrams)
-- jsxgraph_templates/ (VALIDATED template examples - READ THESE FIRST!)
+- eligible_cards.json (pre-filtered cards needing diagrams with tool_type classification)
+- jsxgraph_templates/ (VALIDATED template examples - READ THESE FIRST for JSXGRAPH tools!)
   - bar_chart/vertical_bars.json (chart element with chartStyle="bar")
   - pie_chart/basic_pie_chart.json (chart element with chartStyle="pie")
   - coordinate_graph/linear_function.json (function graph with axis)
   - geometry/right_triangle.json (polygon with labels and angles)
 
-**⚠️ CRITICAL: USE TEMPLATE FILES FOR CORRECT SYNTAX**
-The jsxgraph_templates/ directory contains VALIDATED JSXGraph JSON files that render correctly.
-Before generating any diagram, READ the appropriate template file to understand:
-- Correct element types (e.g., "chart" not "polygon" for pie/bar charts)
-- Proper attribute names and formats
-- Bounding box sizing for good margins
-DO NOT hallucinate JSXGraph syntax - USE these templates as references.
+{tool_guidance}
 
 **Your task**:
 1. Read eligible_cards.json to see which cards need diagrams
-2. **RESEARCH PHASE (CRITICAL)**: Before generating any diagrams, identify the UNIQUE diagram types needed:
-   - Analyze all cards to identify diagram types (pie_chart, coordinate_graph, geometry, etc.)
-   - For EACH unique diagram type, use the **Task tool** with subagent_type="jsxgraph_researcher_subagent"
-   - Store the research findings to guide generation (correct element types, attributes, pitfalls to avoid)
-   - This prevents wasting iterations on fundamentally broken approaches
+2. **IMPORTANT**: Each diagram spec has a `tool_type` field - use the CORRECT MCP tool for each:
+{self._get_tool_mapping_instructions(tool_types_needed)}
 3. For EVERY card in eligible_cards.json, orchestrate the diagram generation and critique loop:
-   - Use the **Task tool** with subagent_type="diagram_generation_subagent" (include research findings in prompt)
+   - Use the **Task tool** with subagent_type="diagram_generation_subagent" (include tool_type in prompt)
    - Use the **Task tool** with subagent_type="visual_critic_subagent" to critique the diagram
-   - If score < 0.85 and iteration < 10, refine and iterate (using research guidance)
+   - If score < 0.85 and iteration < 10, refine and iterate
    - If score ≥ 0.85, accept and move to next card
    - If score < 0.85 after 10 iterations, mark as failed and continue to next card
 4. After processing ALL cards, write diagrams_output.json with all accepted diagrams and errors
 
 **CRITICAL REQUIREMENTS**:
-- ❌ DO NOT skip the research phase - it prevents fundamental implementation errors
+- ❌ DO NOT ignore the `tool_type` field - use the correct rendering tool for each diagram
 - ❌ DO NOT stop after a few diagrams to "demonstrate" the workflow
 - ❌ DO NOT write `diagrams_output_partial.json` or any filename other than `diagrams_output.json`
 - ❌ DO NOT use placeholder text like "[Generated successfully]" - include actual base64 PNG data
-- ✅ MUST research diagram types BEFORE generating any diagrams
+- ✅ MUST use the tool_type specified in each diagram spec
 - ✅ MUST process ALL {cards_needing_diagrams} cards before completing
 - ✅ MUST write EXACT filename: `diagrams_output.json`
-- ✅ MUST include actual base64 image data from render_diagram tool
-
-**Research Phase Example**:
-If you identify cards needing: 2 pie charts, 1 coordinate graph, 1 triangle
-1. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "pie_chart" → Get findings on chart element vs sector pitfalls
-2. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "coordinate_graph" → Get findings on axis configuration
-3. Use Task tool with subagent_type="jsxgraph_researcher_subagent" for "geometry" → Get findings on polygon vertex visibility
-4. Use these findings when generating each diagram
+- ✅ MUST include actual base64 image data from the appropriate render tool
+- ✅ MUST include `tool_type` field in diagrams_output.json for each diagram
 
 **IMPORTANT**: You MUST use the Task tool to invoke subagents. Writing "@subagent_name" as text will NOT invoke the subagent - it will just output text and terminate the pipeline!
 
 **Quality threshold**: ≥0.85 across 4 dimensions (clarity, accuracy, pedagogy, aesthetics)
 **Max iterations per card**: 10
 
-Begin by reading eligible_cards.json, identifying unique diagram types, and conducting research BEFORE any generation.
+Begin by reading eligible_cards.json and processing each diagram with its specified tool_type.
 """
 
         # Combine main prompt with instruction
         return f"{main_prompt}\n\n---\n\n{instruction}"
+
+    def _build_tool_guidance(self, tool_types: List[str]) -> str:
+        """Build tool-specific guidance for the prompt.
+
+        Args:
+            tool_types: List of tool types needed
+
+        Returns:
+            Formatted tool guidance string
+        """
+        tool_descriptions = {
+            "DESMOS": "DESMOS: Function graphing (y=f(x), quadratics, trigonometry) - use mcp__desmos__render_desmos",
+            "MATPLOTLIB": "MATPLOTLIB: Pure geometry (circle theorems, constructions, angles) - use mcp__matplotlib__render_matplotlib",
+            "JSXGRAPH": "JSXGRAPH: Coordinate geometry (transformations, vectors, lines) - use mcp__diagram-screenshot__render_diagram",
+            "PLOTLY": "PLOTLY: Statistics/charts (bar, pie, histogram, scatter) - use mcp__plotly__render_plotly",
+            "IMAGE_GENERATION": "IMAGE_GENERATION: Real-world images (word problem illustrations) - use mcp__imagen__render_imagen"
+        }
+
+        guidance_lines = ["**🔧 MULTI-TOOL SUPPORT - Tool Types Available**:"]
+        for tool_type in tool_types:
+            if tool_type in tool_descriptions:
+                guidance_lines.append(f"- {tool_descriptions[tool_type]}")
+
+        guidance_lines.append("")
+        guidance_lines.append("Each diagram spec in eligible_cards.json has a `tool_type` field.")
+        guidance_lines.append("You MUST use the correct MCP tool based on this field.")
+
+        return "\n".join(guidance_lines)
+
+    def _get_tool_mapping_instructions(self, tool_types: List[str]) -> str:
+        """Get tool mapping instructions for the prompt.
+
+        Args:
+            tool_types: List of tool types needed
+
+        Returns:
+            Formatted instructions string
+        """
+        mappings = {
+            "DESMOS": "   - tool_type: DESMOS → call mcp__desmos__render_desmos",
+            "MATPLOTLIB": "   - tool_type: MATPLOTLIB → call mcp__matplotlib__render_matplotlib",
+            "JSXGRAPH": "   - tool_type: JSXGRAPH → call mcp__diagram-screenshot__render_diagram",
+            "PLOTLY": "   - tool_type: PLOTLY → call mcp__plotly__render_plotly",
+            "IMAGE_GENERATION": "   - tool_type: IMAGE_GENERATION → call mcp__imagen__render_imagen"
+        }
+
+        lines = []
+        for tool_type in tool_types:
+            if tool_type in mappings:
+                lines.append(mappings[tool_type])
+
+        return "\n".join(lines)

@@ -158,7 +158,10 @@ Write results to `eligible_cards.json` with **detailed diagram specifications**:
         "reasoning": "Worked example showing Pythagorean theorem calculation result",
         "key_elements": ["right triangle", "right-angle marker", "side a=3cm", "side b=4cm", "hypotenuse c=5cm", "formula a²+b²=c²"],
         "diagram_type": "geometry",
-        "diagram_index": 0
+        "diagram_index": 0,
+        "tool_type": "MATPLOTLIB",
+        "tool_confidence": "HIGH",
+        "tool_reasoning": "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
       }
     ],
 
@@ -169,7 +172,10 @@ Write results to `eligible_cards.json` with **detailed diagram specifications**:
         "key_elements": ["right triangle", "right-angle marker", "one side 5cm", "one side 12cm", "hypotenuse with '?'"],
         "excluded": ["the answer 13cm", "calculation", "formula result"],
         "diagram_type": "geometry",
-        "diagram_index": 0
+        "diagram_index": 0,
+        "tool_type": "MATPLOTLIB",
+        "tool_confidence": "HIGH",
+        "tool_reasoning": "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
       }
     ],
 
@@ -191,10 +197,97 @@ Each diagram specification MUST include:
 | `excluded` | For CFU | Array of elements that must NOT appear (answers, solutions) |
 | `diagram_type` | ✅ YES | Category: "geometry", "algebra", "statistics", "science", "geography", "history", "mixed" |
 | `diagram_index` | ✅ YES | 0 for first/only diagram, 1, 2, etc. for additional |
+| `tool_type` | ✅ YES | Rendering tool: "DESMOS", "MATPLOTLIB", "JSXGRAPH", "PLOTLY", "IMAGE_GENERATION", "NONE" |
+| `tool_confidence` | ✅ YES | Confidence in tool choice: "HIGH", "MEDIUM", "LOW" |
+| `tool_reasoning` | ✅ YES | Brief explanation of why this tool was chosen |
+
+## 🔧 Tool Classification Rules (8-Rule Priority Order)
+
+**CRITICAL**: Apply these rules IN ORDER. Stop at the FIRST matching rule.
+
+### Rule 1: Data Points/Frequencies Present → PLOTLY
+**Trigger**: Explicit data values, frequencies, or categorical data to visualize
+**Examples**:
+- "Walk: 10, Car: 15, Bus: 20" → PLOTLY (bar/pie chart)
+- "Test scores: 45, 67, 82, 55, 78" → PLOTLY (histogram/box plot)
+- "Population by year: 2020: 5M, 2021: 5.2M" → PLOTLY (line graph)
+**Tool reasoning**: "Rule 1: Data points/frequencies present → PLOTLY"
+
+### Rule 2: Function Graphing (y=, f(x), curves) → DESMOS
+**Trigger**: Mathematical functions to graph, especially y=f(x) form
+**Examples**:
+- "Graph y = 2x + 3" → DESMOS
+- "Plot f(x) = x² - 4x + 3" → DESMOS
+- "Sketch the sine curve for 0° ≤ x ≤ 360°" → DESMOS
+- "Graph the quadratic y = (x-2)(x+3)" → DESMOS
+**Tool reasoning**: "Rule 2: Function graphing (y=, f(x)) → DESMOS"
+
+### Rule 3: Pure Geometry WITHOUT Coordinates → MATPLOTLIB
+**Trigger**: Geometric figures described without coordinate points
+**Examples**:
+- "Triangle ABC with AB=5cm, angle BAC=60°" → MATPLOTLIB
+- "Circle with center O, radius 4cm, chord PQ" → MATPLOTLIB
+- "Circle theorem: angle at center vs angle at circumference" → MATPLOTLIB
+- "Construct the perpendicular bisector of line segment AB" → MATPLOTLIB
+**Tool reasoning**: "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
+
+### Rule 4: Transformations ON Coordinate Plane → JSXGRAPH
+**Trigger**: Reflections, rotations, translations, enlargements with coordinates
+**Examples**:
+- "Reflect triangle A in the line y = x" → JSXGRAPH
+- "Rotate shape B 90° clockwise about origin" → JSXGRAPH
+- "Enlarge triangle by scale factor 2, center (0,0)" → JSXGRAPH
+- "Translate vector (3, -2)" → JSXGRAPH
+**Tool reasoning**: "Rule 4: Transformations ON coordinate plane → JSXGRAPH"
+
+### Rule 5: Real-World Context (NOT Geometric) → IMAGE_GENERATION
+**Trigger**: Word problems needing realistic visualization (use sparingly)
+**Examples**:
+- "A ladder leaning against a wall at 70° angle" → IMAGE_GENERATION
+- "Ship sailing from lighthouse on bearing 135°" → IMAGE_GENERATION
+- "Shadow of a tree at 3pm" → IMAGE_GENERATION
+**⚠️ CAUTION**: Use sparingly. Most geometry can be rendered with MATPLOTLIB.
+**Tool reasoning**: "Rule 5: Real-world context needing realistic image → IMAGE_GENERATION"
+
+### Rule 6: Angles/Bearings WITHOUT Coordinates → MATPLOTLIB
+**Trigger**: Angle work, bearings, compass directions without coordinate grid
+**Examples**:
+- "Three-figure bearing from A to B is 072°" → MATPLOTLIB
+- "Interior angles of a pentagon" → MATPLOTLIB
+- "Angle between two intersecting lines" → MATPLOTLIB
+**Tool reasoning**: "Rule 6: Angles/bearings WITHOUT coordinates → MATPLOTLIB"
+
+### Rule 7: Coordinate Geometry (Points, Lines) → JSXGRAPH
+**Trigger**: Points, lines, vectors on coordinate plane
+**Examples**:
+- "Plot points A(2,3), B(5,7) and find midpoint" → JSXGRAPH
+- "Line passing through (1,2) with gradient 3" → JSXGRAPH
+- "Vector from A(-1,2) to B(4,5)" → JSXGRAPH
+- "Perpendicular lines on coordinate grid" → JSXGRAPH
+**Tool reasoning**: "Rule 7: Coordinate geometry (points, lines) → JSXGRAPH"
+
+### Rule 8: Purely Algebraic, No Visualization → NONE
+**Trigger**: No spatial/visual element needed
+**Examples**:
+- "Solve 2x + 5 = 13" → NONE
+- "Factorise x² + 5x + 6" → NONE
+- "Simplify 3a + 2b - a + 4b" → NONE
+**Tool reasoning**: "Rule 8: Purely algebraic, no visualization → NONE"
+
+## Tool Selection Summary Table
+
+| Tool | Best For | Example Content |
+|------|----------|-----------------|
+| **DESMOS** | Function graphing | y=mx+c, quadratics, trig curves, inequalities |
+| **MATPLOTLIB** | Pure geometry | Circle theorems, constructions, angle work, bearings |
+| **JSXGRAPH** | Coordinate geometry | Transformations, vectors, plotting points, line equations |
+| **PLOTLY** | Statistics/data | Bar charts, histograms, box plots, pie charts, scatter |
+| **IMAGE_GENERATION** | Real-world context | Word problem illustrations (ladders, ships, shadows) |
+| **NONE** | No diagram needed | Pure algebra, definitions, text-only content |
 
 ## Examples
 
-### Example 1: Single Diagram Each Context (Mathematics)
+### Example 1: Single Diagram Each Context (Mathematics - MATPLOTLIB)
 
 **Card:**
 ```json
@@ -218,7 +311,10 @@ Each diagram specification MUST include:
       "reasoning": "Demonstrates the theorem with concrete measurements students can verify",
       "key_elements": ["right triangle", "side a=3cm (horizontal)", "side b=4cm (vertical)", "hypotenuse c=5cm", "right-angle marker", "formula showing 9+16=25"],
       "diagram_type": "geometry",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
     }
   ],
   "cfu_diagram_specs": [
@@ -228,7 +324,10 @@ Each diagram specification MUST include:
       "key_elements": ["right triangle", "side 5cm", "side 12cm", "hypotenuse labeled '?'", "right-angle marker"],
       "excluded": ["the answer 13cm", "any calculation steps", "the formula result"],
       "diagram_type": "geometry",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Pure geometry WITHOUT coordinates → MATPLOTLIB"
     }
   ],
   "diagram_contexts": ["lesson", "cfu"],
@@ -238,7 +337,7 @@ Each diagram specification MUST include:
 
 ---
 
-### Example 2: Multiple Lesson Diagrams (Complex Card)
+### Example 2: Multiple Lesson Diagrams (Statistics - PLOTLY)
 
 **Card:**
 ```json
@@ -262,14 +361,20 @@ Each diagram specification MUST include:
       "reasoning": "First worked example - shows how frequencies become angles",
       "key_elements": ["pie chart", "Walk sector 60°", "Car sector 90°", "Bus sector 120°", "Train sector 90°", "angle labels on each sector", "legend with frequencies"],
       "diagram_type": "statistics",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "PLOTLY",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 1: Data points/frequencies present → PLOTLY"
     },
     {
       "description": "Pie chart for Problem 2: Favourite Sports with 5 sectors",
       "reasoning": "Second worked example - different data reinforces the method",
       "key_elements": ["pie chart", "5 colored sectors", "angle labels for each", "sport names in legend", "frequencies shown"],
       "diagram_type": "statistics",
-      "diagram_index": 1
+      "diagram_index": 1,
+      "tool_type": "PLOTLY",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 1: Data points/frequencies present → PLOTLY"
     }
   ],
   "cfu_diagram_specs": [
@@ -279,7 +384,10 @@ Each diagram specification MUST include:
       "key_elements": ["table format", "Cats: 12", "Dogs: 18", "Birds: 6", "Fish: 4", "Total: 40"],
       "excluded": ["any pie chart", "calculated angles", "sector sizes", "the formula result"],
       "diagram_type": "statistics",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "NONE",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 8: CFU shows only raw data table - no visualization needed as pie chart would reveal answer"
     }
   ],
   "diagram_contexts": ["lesson", "cfu"],
@@ -289,7 +397,7 @@ Each diagram specification MUST include:
 
 ---
 
-### Example 3: Science - Water Cycle (Non-Math Subject)
+### Example 3: Science - Water Cycle (Non-Math Subject - MATPLOTLIB)
 
 **Card:**
 ```json
@@ -313,7 +421,10 @@ Each diagram specification MUST include:
       "reasoning": "Visual representation of cyclical process aids understanding",
       "key_elements": ["ocean/water body at bottom", "sun with heat rays", "evaporation arrows rising", "clouds labeled 'Condensation'", "rain/precipitation arrows", "collection in rivers/lakes", "circular arrows showing cycle"],
       "diagram_type": "science",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Diagram showing process flow/cycle - MATPLOTLIB for clean scientific illustration"
     }
   ],
   "cfu_diagram_specs": [
@@ -323,7 +434,10 @@ Each diagram specification MUST include:
       "key_elements": ["water body", "evaporation arrows", "clouds with '?' label", "question mark for next stage"],
       "excluded": ["the word 'Condensation'", "the complete cycle", "all stage names"],
       "diagram_type": "science",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Partial cycle diagram - MATPLOTLIB for clean scientific illustration"
     }
   ],
   "diagram_contexts": ["lesson", "cfu"],
@@ -333,7 +447,7 @@ Each diagram specification MUST include:
 
 ---
 
-### Example 4: Neither Context Needs Diagram
+### Example 4: Neither Context Needs Diagram (NONE)
 
 **Card:**
 ```json
@@ -358,11 +472,11 @@ Each diagram specification MUST include:
 }
 ```
 
-**Note**: This card would be EXCLUDED from the output file (only include cards with at least one diagram needed).
+**Note**: This card would be EXCLUDED from the output file (only include cards with at least one diagram needed). No tool_type needed when no diagram is needed.
 
 ---
 
-### Example 5: History - Timeline (Non-Math Subject)
+### Example 5: History - Timeline (Non-Math Subject - MATPLOTLIB)
 
 **Card:**
 ```json
@@ -386,7 +500,10 @@ Each diagram specification MUST include:
       "reasoning": "Visual timeline helps students understand chronological relationships",
       "key_elements": ["horizontal timeline", "WWI bar 1914-1918", "WWII bar 1939-1945", "years labeled", "gap between wars visible", "21 years gap labeled"],
       "diagram_type": "history",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Timeline is a diagram without coordinate geometry → MATPLOTLIB"
     }
   ],
   "cfu_diagram_specs": [
@@ -396,7 +513,110 @@ Each diagram specification MUST include:
       "key_elements": ["timeline with 1918 marked", "timeline with 1939 marked", "gap between with '?' label"],
       "excluded": ["the answer '21 years'", "any calculation"],
       "diagram_type": "history",
-      "diagram_index": 0
+      "diagram_index": 0,
+      "tool_type": "MATPLOTLIB",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 3: Timeline is a diagram without coordinate geometry → MATPLOTLIB"
+    }
+  ],
+  "diagram_contexts": ["lesson", "cfu"],
+  "_eligibility_method": "claude_agent_sdk_analysis"
+}
+```
+
+---
+
+### Example 6: Coordinate Geometry - Transformations (JSXGRAPH)
+
+**Card:**
+```json
+{
+  "id": "card_006",
+  "title": "Reflection in the Line y = x",
+  "explainer": "Triangle ABC with vertices A(1,2), B(3,2), C(2,4). Reflect in y=x. Image vertices: A'(2,1), B'(2,3), C'(4,2)",
+  "cfu": "Reflect the point P(3,5) in the line y = x. What are the coordinates of P'?"
+}
+```
+
+**Output:**
+```json
+{
+  "id": "card_006",
+  "needs_lesson_diagram": true,
+  "needs_cfu_diagram": true,
+  "lesson_diagram_specs": [
+    {
+      "description": "Coordinate grid showing triangle ABC and its reflection A'B'C' across y=x",
+      "reasoning": "Visual showing original shape, mirror line, and reflected image reinforces transformation concept",
+      "key_elements": ["coordinate grid", "triangle ABC at (1,2), (3,2), (2,4)", "line y=x", "reflected triangle A'B'C' at (2,1), (2,3), (4,2)", "dashed lines connecting corresponding points"],
+      "diagram_type": "geometry",
+      "diagram_index": 0,
+      "tool_type": "JSXGRAPH",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 4: Transformations ON coordinate plane → JSXGRAPH"
+    }
+  ],
+  "cfu_diagram_specs": [
+    {
+      "description": "Coordinate grid showing point P(3,5) and line y=x, with P' position marked as '?'",
+      "reasoning": "Student must determine reflected coordinates without the answer shown",
+      "key_elements": ["coordinate grid", "point P at (3,5)", "line y=x", "question mark at P' position"],
+      "excluded": ["coordinates of P' (5,3)", "any calculation"],
+      "diagram_type": "geometry",
+      "diagram_index": 0,
+      "tool_type": "JSXGRAPH",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 4: Transformations ON coordinate plane → JSXGRAPH"
+    }
+  ],
+  "diagram_contexts": ["lesson", "cfu"],
+  "_eligibility_method": "claude_agent_sdk_analysis"
+}
+```
+
+---
+
+### Example 7: Function Graphing (DESMOS)
+
+**Card:**
+```json
+{
+  "id": "card_007",
+  "title": "Quadratic Graphs",
+  "explainer": "The function y = x² - 4x + 3 can be factorised as y = (x-1)(x-3). Roots at x=1 and x=3, turning point at (2,-1)",
+  "cfu": "What are the roots of y = x² - 6x + 8?"
+}
+```
+
+**Output:**
+```json
+{
+  "id": "card_007",
+  "needs_lesson_diagram": true,
+  "needs_cfu_diagram": true,
+  "lesson_diagram_specs": [
+    {
+      "description": "Graph of y = x² - 4x + 3 showing parabola with labeled features",
+      "reasoning": "Visual graph shows relationship between factorised form and x-intercepts",
+      "key_elements": ["parabola y = x² - 4x + 3", "x-intercepts at (1,0) and (3,0)", "turning point at (2,-1)", "y-intercept at (0,3)", "axis labels"],
+      "diagram_type": "algebra",
+      "diagram_index": 0,
+      "tool_type": "DESMOS",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 2: Function graphing (y=, f(x)) → DESMOS"
+    }
+  ],
+  "cfu_diagram_specs": [
+    {
+      "description": "Graph of y = x² - 6x + 8 with x-intercepts marked as '?'",
+      "reasoning": "Student must determine roots from factorised form without answer shown",
+      "key_elements": ["parabola shape", "x-intercepts marked with '?'", "axis labels"],
+      "excluded": ["the roots x=2 and x=4", "factorised form", "coordinates of turning point"],
+      "diagram_type": "algebra",
+      "diagram_index": 0,
+      "tool_type": "DESMOS",
+      "tool_confidence": "HIGH",
+      "tool_reasoning": "Rule 2: Function graphing (y=, f(x)) → DESMOS"
     }
   ],
   "diagram_contexts": ["lesson", "cfu"],
