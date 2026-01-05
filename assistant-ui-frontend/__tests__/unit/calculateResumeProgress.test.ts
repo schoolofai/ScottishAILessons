@@ -187,26 +187,33 @@ describe('calculateResumeProgress', () => {
       expect(result.blocks[2].is_complete).toBe(false);
     });
 
-    it('should not override stored progress that explicitly marks block as incomplete', () => {
+    it('should apply implicit completion even when stored progress says incomplete (BUG FIX)', () => {
       // Edge case: stored progress explicitly marks block 1 as incomplete
-      // This shouldn't happen in normal flow, but if it does, stored data wins
+      // This is an INCONSISTENT state - you cannot be on block 3 without completing block 1
+      // BUG FIX: Implicit completion logic should override stored is_complete:false
+      // because the stored data represents an impossible state
       const storedProgress: StoredBlockProgress[] = [
-        { block_id: 'block_001', mastery_score: 0.3, is_complete: false },
+        { block_id: 'block_001', mastery_score: 0.3, is_complete: false }, // Inconsistent!
         { block_id: 'block_002', mastery_score: 0.5, is_complete: true },
         { block_id: 'block_003', mastery_score: 0.05, is_complete: false },
       ];
 
       const result = calculateResumeProgress(
         THREE_BLOCK_IDS,
-        2, // resuming on block 3
+        2, // resuming on block 3 (index 2)
         storedProgress
       );
 
-      // Stored progress says block 1 is incomplete - respect that
-      // But block 2 is complete per stored progress
-      expect(result.completed_blocks).toBe(1);
-      expect(result.blocks[0].is_complete).toBe(false);
-      expect(result.blocks[1].is_complete).toBe(true);
+      // BUG FIX: Both block 0 and block 1 MUST be complete because we're on block 2
+      // You cannot be on block 3 without completing blocks 1 and 2
+      // The implicit completion logic corrects the inconsistent stored data
+      expect(result.completed_blocks).toBe(2); // Both blocks before current are complete
+      expect(result.blocks[0].is_complete).toBe(true); // Implicitly complete (index < currentBlockIndex)
+      expect(result.blocks[1].is_complete).toBe(true); // Implicitly complete (index < currentBlockIndex)
+      expect(result.blocks[2].is_complete).toBe(false); // Current block, not complete
+      // Mastery scores should be preserved from stored progress
+      expect(result.blocks[0].mastery_score).toBe(0.3);
+      expect(result.blocks[1].mastery_score).toBe(0.5);
     });
   });
 

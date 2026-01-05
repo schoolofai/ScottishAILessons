@@ -71,22 +71,26 @@ export function calculateResumeProgress(
   const blocks: ProgressBlock[] = allBlockIds.map((blockId, blockIndex) => {
     const storedBlock = storedProgress?.find(bp => bp.block_id === blockId);
 
-    // If stored progress exists, use it (respect explicit data)
-    if (storedBlock && storedBlock.is_complete !== undefined) {
+    // Implicit completion logic: blocks before currentBlockIndex must be complete
+    // (you cannot be on block N without having completed blocks 0..N-1)
+    const isImplicitlyComplete = blockIndex < currentBlockIndex;
+
+    // If stored progress exists, merge it with implicit completion logic
+    if (storedBlock) {
       return {
         block_id: blockId,
-        mastery_score: storedBlock.mastery_score ?? 0,
-        is_complete: storedBlock.is_complete,
+        mastery_score: storedBlock.mastery_score ?? (isImplicitlyComplete ? 1.0 : 0),
+        // BUG FIX: Implicit completion should ALWAYS apply for blocks before currentBlockIndex
+        // Previously, stored is_complete:false would override this, showing "0 of 3 complete"
+        // when user is on block 3 (which implies blocks 1 & 2 were completed)
+        is_complete: isImplicitlyComplete || (storedBlock.is_complete ?? false),
       };
     }
 
-    // No stored progress for this block - apply implicit completion logic:
-    // Blocks before currentBlockIndex are implicitly complete
-    const isImplicitlyComplete = blockIndex < currentBlockIndex;
-
+    // No stored progress for this block - apply implicit completion logic only
     return {
       block_id: blockId,
-      mastery_score: storedBlock?.mastery_score ?? (isImplicitlyComplete ? 1.0 : 0),
+      mastery_score: isImplicitlyComplete ? 1.0 : 0,
       is_complete: isImplicitlyComplete,
     };
   });
