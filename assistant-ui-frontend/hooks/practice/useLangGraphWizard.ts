@@ -28,7 +28,22 @@ import {
 } from "@/lib/appwrite/driver/PracticeQuestionDriver";
 
 // Import persistence hook for mastery and session updates (Gap P0, P2)
+// NOTE: Session creation now uses server-side API (/api/practice-sessions)
+// per CLAUDE.md requirement for server-side Appwrite auth
 import { usePracticePersistence } from "./usePracticePersistence";
+
+// Import configurable logger for debugging
+import { createLogger } from "@/lib/logger";
+
+// Create namespaced logger for practice wizard
+const log = createLogger("PracticeWizard");
+
+// Import BlockProgress type for session resume (TDD-validated)
+import type { BlockProgress } from "@/lib/utils/extractResumePosition";
+
+// Import TDD-validated resume progress calculation (fixes bug where overall_mastery
+// was calculated as average of all blocks instead of current block's mastery)
+import { calculateResumeProgress } from "@/lib/utils/calculateResumeProgress";
 
 // Import contract types - these match the backend EXACTLY
 import type {
@@ -324,21 +339,12 @@ const extractToolCallFromEvent = (event: unknown): ToolCall | null => {
   if (typeof toolCall.args === "string") {
     try {
       parsedArgs = JSON.parse(toolCall.args);
-      console.log("[extractToolCallFromEvent] Parsed args from string");
     } catch (e) {
       console.error("[extractToolCallFromEvent] Failed to parse args string:", e);
       parsedArgs = {};
     }
   } else {
     parsedArgs = toolCall.args || {};
-  }
-
-  // Debug: Log when diagram_base64 is found
-  if (parsedArgs.diagram_base64) {
-    console.log("[extractToolCallFromEvent] 📊 Found diagram_base64 in tool call args");
-    console.log("  - Type:", typeof parsedArgs.diagram_base64);
-    console.log("  - Length:", (parsedArgs.diagram_base64 as string).length);
-    console.log("  - First 100 chars:", (parsedArgs.diagram_base64 as string).substring(0, 100));
   }
 
   return {
@@ -450,6 +456,10 @@ export function useLangGraphWizard() {
   // Track hard questions ATTEMPTED (not just correct) for block completion criteria
   // Block completion requires: mastery >= 70% AND hard_attempted >= 2
   const hardQuestionsAttemptedRef = useRef<number>(0);
+
+  // Store blocks_progress from stored session for resume functionality
+  // Used during progress initialization to restore mastery from previous session
+  const storedBlocksProgressRef = useRef<BlockProgress[] | null>(null);
 
   // Block completion thresholds
   const MASTERY_THRESHOLD = 0.70; // 70% mastery required
@@ -623,19 +633,6 @@ export function useLangGraphWizard() {
           updates.currentBlock = args as unknown as ConceptBlock;
           break;
         case "practice_question":
-          // Debug: Log all diagram-related fields from backend tool call
-          console.log("[useLangGraphWizard] 🖼️ V2 DIAGRAM DEBUG - Tool call from backend:");
-          console.log("  - All args keys:", Object.keys(args));
-          console.log("  - diagram_base64 present:", !!args.diagram_base64);
-          console.log("  - diagram_base64 length:", args.diagram_base64 ? (args.diagram_base64 as string).length : 0);
-          console.log("  - diagramFileId:", args.diagramFileId);
-          console.log("  - diagramRequired:", args.diagramRequired);
-          console.log("  - diagram_title:", args.diagram_title);
-          console.log("  - diagram_type:", args.diagram_type);
-          console.log("  - diagram_description:", args.diagram_description);
-          if (args.diagram_base64) {
-            console.log("  - diagram_base64 first 50 chars:", (args.diagram_base64 as string).substring(0, 50));
-          }
           updates.currentQuestion = args as unknown as PracticeQuestion;
 
           // ═══════════════════════════════════════════════════════════════════════════
@@ -648,39 +645,30 @@ export function useLangGraphWizard() {
             const allBlockIds = v2ContextRef.current.allBlockIds;
             const currentBlockIndex = v2ContextRef.current.currentBlockIndex || 0;
 
-            // Create initial blocks array with 0 mastery
-            const initialBlocks = allBlockIds.map((blockId) => ({
-              block_id: blockId,
-              mastery_score: 0,
-              is_complete: false,
-            }));
+            // ═══════════════════════════════════════════════════════════════
+            // RESUME SUPPORT: Use TDD-validated calculateResumeProgress utility
+            // This fixes the bug where overall_mastery showed average of all blocks
+            // instead of current block's mastery (causing 5% → 27% → 5% jumps)
+            // ═══════════════════════════════════════════════════════════════
+            const storedProgress = storedBlocksProgressRef.current;
+            const resumeProgress = calculateResumeProgress(
+              allBlockIds,
+              currentBlockIndex,
+              storedProgress
+            );
 
             updates.progress = {
               session_id: v2ContextRef.current.sessionId || "",
               total_blocks: allBlockIds.length,
-              completed_blocks: 0,
+              completed_blocks: resumeProgress.completed_blocks,
               current_block_index: currentBlockIndex,
-              overall_mastery: 0,
-              blocks: initialBlocks,
+              overall_mastery: resumeProgress.overall_mastery,
+              blocks: resumeProgress.blocks,
             };
 
-            console.log("[PRACTICE-V2] 📦 PROGRESS: Initialized progress.blocks on first question", {
-              totalBlocks: allBlockIds.length,
-              blockIds: allBlockIds,
-              currentBlockIndex,
-            });
           }
           break;
         case "practice_feedback":
-          // Log raw args to debug new_mastery_score issue
-          console.log("[useLangGraphWizard] 🎯 practice_feedback args:", {
-            keys: Object.keys(args),
-            is_correct: args.is_correct,
-            new_mastery_score: args.new_mastery_score,
-            partial_credit: args.partial_credit,
-            fullArgs: JSON.stringify(args).slice(0, 500) + "..."
-          });
-
           const feedback = args as unknown as PracticeFeedback;
 
           // ═══════════════════════════════════════════════════════════════
@@ -745,12 +733,6 @@ export function useLangGraphWizard() {
           // Track cumulative mastery (V2 backend sends deltas, not absolute values)
           const rawFeedbackArgs = feedback as { mastery_delta?: number };
           const masteryDelta = rawFeedbackArgs.mastery_delta ?? 0;
-          console.log("[useLangGraphWizard] 📊 MASTERY DEBUG:", {
-            rawMasteryDelta: rawFeedbackArgs.mastery_delta,
-            parsedMasteryDelta: masteryDelta,
-            feedbackKeys: Object.keys(feedback),
-            isV2Mode: prev.isV2Mode,
-          });
           if (masteryDelta !== 0) {
             cumulativeMasteryRef.current = Math.max(0, Math.min(1, cumulativeMasteryRef.current + masteryDelta));
             debugLog.mastery("Cumulative mastery updated", {
@@ -858,6 +840,19 @@ export function useLangGraphWizard() {
               ? activeBlockIndex
               : 0;
 
+            // BUG FIX: Check if block was ALREADY complete to prevent double-counting
+            // If user answers another question after block is complete (race condition),
+            // we shouldn't increment completed_blocks again
+            const currentBlockAlreadyComplete = currentProgress.blocks[safeBlockIndex]?.is_complete ?? false;
+            const shouldIncrementCompletedBlocks = blockComplete && !currentBlockAlreadyComplete;
+
+            if (blockComplete && currentBlockAlreadyComplete) {
+              debugLog.block("Block already complete - not incrementing completed_blocks again", {
+                safeBlockIndex,
+                currentCompletedBlocks: currentProgress.completed_blocks,
+              });
+            }
+
             updates.progress = {
               ...currentProgress,
               overall_mastery: currentCumulativeMastery,
@@ -874,7 +869,10 @@ export function useLangGraphWizard() {
                 }
                 return block;
               }),
-              completed_blocks: blockComplete ? currentProgress.completed_blocks + 1 : currentProgress.completed_blocks,
+              // BUG FIX: Only increment if transitioning FROM incomplete TO complete
+              completed_blocks: shouldIncrementCompletedBlocks
+                ? currentProgress.completed_blocks + 1
+                : currentProgress.completed_blocks,
             };
 
             // BUG FIX: Verify consistency - overall_mastery should match current block mastery
@@ -931,25 +929,41 @@ export function useLangGraphWizard() {
                 const nextBlockIndex = safeBlockIndex + 1;
                 const nextBlockId = allBlockIds[nextBlockIndex];
 
-                debugLog.progression("➡️ PROGRESSING TO NEXT BLOCK", {
-                  fromBlock: safeBlockIndex,
-                  toBlock: nextBlockIndex,
-                  nextBlockId,
-                });
+                // Defensive check: Ensure nextBlockId is valid before setting pendingNextBlock
+                // This catches edge cases where isLastBlock calculation might be incorrect
+                if (!nextBlockId) {
+                  console.error("[useLangGraphWizard] BUG: nextBlockId is undefined but isLastBlock=false", {
+                    safeBlockIndex,
+                    nextBlockIndex,
+                    allBlockIds,
+                    totalBlocks,
+                    newCompletedBlocks,
+                    isLastBlock,
+                  });
+                  // Treat as session complete since we can't progress to an invalid block
+                  updates.stage = "complete";
+                  // Don't set pendingNextBlock - let the state update flow normally
+                } else {
+                  debugLog.progression("➡️ PROGRESSING TO NEXT BLOCK", {
+                    fromBlock: safeBlockIndex,
+                    toBlock: nextBlockIndex,
+                    nextBlockId,
+                  });
 
-                // Set stage to "block_transition" (new stage for multi-block)
-                // The useEffect will handle fetching the next question
-                updates.stage = "loading";
-                updates.pendingNextBlock = {
-                  blockIndex: nextBlockIndex,
-                  blockId: nextBlockId,
-                };
+                  // Set stage to "block_transition" (new stage for multi-block)
+                  // The useEffect will handle fetching the next question
+                  updates.stage = "loading";
+                  updates.pendingNextBlock = {
+                    blockIndex: nextBlockIndex,
+                    blockId: nextBlockId,
+                  };
 
-                // Update progress to reflect the new current block
-                updates.progress = {
-                  ...updates.progress,
-                  current_block_index: nextBlockIndex,
-                };
+                  // Update progress to reflect the new current block
+                  updates.progress = {
+                    ...updates.progress,
+                    current_block_index: nextBlockIndex,
+                  };
+                }
               }
 
               // ═══════════════════════════════════════════════════════════════
@@ -1009,16 +1023,20 @@ export function useLangGraphWizard() {
           // ═══════════════════════════════════════════════════════════════
           if (prev.isV2Mode && v2ContextRef.current) {
             const context = v2ContextRef.current;
-            console.log("[useLangGraphWizard] 💾 Triggering persistence for V2 feedback...");
 
             // Fire-and-forget persistence (non-blocking for UX)
+            // CRITICAL: Include currentDifficulty for blocks_progress resume support
             persistFeedbackResult(feedback, {
               studentId: context.studentId,
               courseId: context.courseId,
               sessionId: context.sessionId,
               outcomeIds: context.currentOutcomeIds,
+              currentDifficulty: context.difficulty, // For blocks_progress persistence
+              // CRITICAL FIX: Pass frontend-constructed progress for V2 mode
+              // V2 backend is stateless, so feedback.progress is undefined
+              progress: updates.progress,
             }).catch((err) => {
-              console.error("[useLangGraphWizard] Persistence error (non-fatal):", err);
+              log.error("Persistence error (non-fatal)", { error: err });
             });
           }
           break;
@@ -1524,6 +1542,7 @@ export function useLangGraphWizard() {
    * @param courseId - Course ID for mastery persistence (Gap P0)
    * @param sessionId - Practice session ID for session persistence (Gap P2)
    * @param questionAvailabilityParam - Pre-fetched question availability (contains all blocks!)
+   * @param storedBlocksProgress - Blocks progress from stored session for resume (TDD-validated)
    * @throws Error if no questions available (fast-fail)
    */
   const startSessionV2 = useCallback(
@@ -1535,7 +1554,8 @@ export function useLangGraphWizard() {
       sessionToken?: string,
       courseId?: string,
       sessionId?: string,
-      questionAvailabilityParam?: QuestionAvailability | null
+      questionAvailabilityParam?: QuestionAvailability | null,
+      storedBlocksProgress?: BlockProgress[] | null
     ) => {
       if (!clientRef.current) {
         throw new Error("LangGraph client not initialized");
@@ -1543,6 +1563,14 @@ export function useLangGraphWizard() {
 
       // Store session token for persistence (Gap P0, P2)
       sessionTokenRef.current = sessionToken;
+
+      // Store blocks progress from stored session for resume functionality
+      // This will be used during progress initialization to restore mastery
+      storedBlocksProgressRef.current = storedBlocksProgress || null;
+      debugLog.state("Stored blocks progress for resume", {
+        hasStoredProgress: !!storedBlocksProgress,
+        blockCount: storedBlocksProgress?.length || 0,
+      });
 
       // Initialize question driver
       if (!questionDriverRef.current) {
@@ -1563,16 +1591,35 @@ export function useLangGraphWizard() {
       // ═══════════════════════════════════════════════════════════════
       // Reset V2 block completion tracking for new session
       // These MUST be reset to ensure clean state - NOT a workaround
+      // EXCEPTION: When resuming, restore cumulative mastery from stored progress
       // ═══════════════════════════════════════════════════════════════
       processedToolCallIdsRef.current.clear(); // Deduplication Set
       computedStatesRef.current.clear();       // React StrictMode purity cache
-      cumulativeMasteryRef.current = 0;        // Mastery accumulator
       hardQuestionsAttemptedRef.current = 0;   // Hard question counter
-      debugLog.state("Session started - all tracking refs reset", {
+
+      // Initialize cumulative mastery: restore from stored progress OR start at 0
+      // When resuming, find the current block's mastery from stored_session.blocks_progress
+      let initialMastery = 0;
+      if (storedBlocksProgress && storedBlocksProgress.length > 0) {
+        const currentBlockProgress = storedBlocksProgress.find(bp => bp.block_id === blockId);
+        if (currentBlockProgress?.mastery_score !== undefined) {
+          // mastery_score is stored as percentage (0-100), convert to decimal (0-1) for internal use
+          initialMastery = currentBlockProgress.mastery_score / 100;
+          debugLog.mastery("Restored cumulative mastery from stored session", {
+            blockId,
+            storedMastery: currentBlockProgress.mastery_score,
+            initialMasteryDecimal: initialMastery,
+          });
+        }
+      }
+      cumulativeMasteryRef.current = initialMastery;
+
+      debugLog.state("Session started - tracking refs reset", {
         processedToolCallIds: processedToolCallIdsRef.current.size,
         computedStatesCache: computedStatesRef.current.size,
         cumulativeMastery: cumulativeMasteryRef.current,
         hardQuestionsAttempted: hardQuestionsAttemptedRef.current,
+        isResume: initialMastery > 0,
       });
 
       setState((prev) => ({
@@ -1596,6 +1643,98 @@ export function useLangGraphWizard() {
         startingBlockId: blockId,
       });
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // BUG FIX: Create Appwrite session when sessionId is undefined
+      // This fixes the issue where practice_sessions table has 0 rows!
+      // Sessions were never being created because:
+      // 1. sessionId comes from stored_session which is undefined for new sessions
+      // 2. persistSessionProgress silently returned when sessionId was undefined
+      // ═══════════════════════════════════════════════════════════════════════
+      let finalSessionId = sessionId;
+
+      if (!sessionId) {
+        log.info("No existing sessionId - creating new Appwrite session via API", {
+          studentId,
+          lessonTemplateId,
+          blockId,
+        });
+
+        try {
+          const newSessionId = `ps_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+          // Build the initial blocks_progress from allBlockIds
+          const initialBlocksProgress = allBlockIds.map((bId, idx) => ({
+            block_id: bId,
+            current_difficulty: idx === currentBlockIndex ? difficulty : "easy" as const,
+            questions_attempted: { easy: 0, medium: 0, hard: 0 },
+            questions_correct: { easy: 0, medium: 0, hard: 0 },
+            mastery_score: 0,
+            is_complete: false,
+            started_at: idx === currentBlockIndex ? new Date().toISOString() : null,
+            completed_at: null,
+          }));
+
+          const newSessionData = {
+            session_id: newSessionId,
+            student_id: studentId,
+            source_type: "lesson_template",
+            source_id: lessonTemplateId,
+            source_title: "",
+            // Appwrite stores these as JSON strings, not objects/arrays
+            source_metadata: JSON.stringify({}),
+            blocks: JSON.stringify([]),
+            total_blocks: allBlockIds.length,
+            status: "active",
+            current_block_index: currentBlockIndex >= 0 ? currentBlockIndex : 0,
+            blocks_progress: JSON.stringify(initialBlocksProgress),
+            difficulty_mode: "adaptive",
+            fixed_difficulty: null,
+            adaptive_threshold: 0.7,
+            current_question: null,
+            awaiting_response: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_activity_at: new Date().toISOString(),
+            total_time_seconds: 0,
+            total_questions_attempted: 0,
+            total_questions_correct: 0,
+            overall_mastery: 0,
+          };
+
+          // Use server-side API route instead of direct Appwrite SDK
+          // This follows CLAUDE.md requirement: "all access to appwrite should use server side auth"
+          const response = await fetch("/api/practice-sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newSessionData),
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+          finalSessionId = result.document?.session_id || newSessionId;
+
+          log.info("New Appwrite session created via API", {
+            sessionId: finalSessionId,
+            documentId: result.document?.$id,
+            totalBlocks: allBlockIds.length,
+          });
+        } catch (sessionError) {
+          // Log error but continue - session persistence is non-critical for UX
+          log.error("Failed to create Appwrite session via API - progress won't be saved", {
+            error: sessionError,
+            studentId,
+            lessonTemplateId,
+          });
+          // Don't throw - allow practice to continue without persistence
+        }
+      } else {
+        log.info("Using existing sessionId for resume", { sessionId });
+      }
+
       // Store context for nextQuestion calls AND persistence (Gap P0, P2)
       v2ContextRef.current = {
         lessonTemplateId,
@@ -1603,7 +1742,7 @@ export function useLangGraphWizard() {
         difficulty,
         studentId,
         courseId: courseId || "",
-        sessionId: sessionId,
+        sessionId: finalSessionId, // Use the created or existing sessionId
         sessionToken: sessionToken,
         currentOutcomeIds: undefined, // Will be set after question fetch
         // Multi-block progression support
@@ -1613,7 +1752,6 @@ export function useLangGraphWizard() {
 
       try {
         // 1. Fetch random question from Appwrite (throws if none available)
-        console.log("[useLangGraphWizard] V2: Fetching offline question...");
         const result = await driver.getRandomQuestion(
           lessonTemplateId,
           blockId,
@@ -1622,28 +1760,10 @@ export function useLangGraphWizard() {
         );
 
         const question = result.question;
-        console.log("[useLangGraphWizard] V2: Fetched question:", question.question_id, {
-          poolSize: result.poolSize,
-          poolReset: result.poolReset,
-        });
-
-        // DEBUG: Log diagram fields from Appwrite fetch
-        console.log("[useLangGraphWizard] 🖼️ V2 DIAGRAM DEBUG - After Appwrite fetch:");
-        console.log("  - diagramFileId:", question.diagramFileId);
-        console.log("  - diagramRequired:", question.diagramRequired);
-        console.log("  - diagramTool:", question.diagramTool);
-        console.log("  - diagram_base64 present:", !!question.diagram_base64);
-        console.log("  - diagram_base64 length:", question.diagram_base64?.length || 0);
-        console.log("  - diagram_title:", question.diagram_title);
-        console.log("  - diagram_type:", question.diagram_type);
-        if (question.diagram_base64) {
-          console.log("  - diagram_base64 first 50 chars:", question.diagram_base64.substring(0, 50));
-        }
 
         // Store outcome IDs for mastery persistence (Gap P0)
         if (v2ContextRef.current) {
           v2ContextRef.current.currentOutcomeIds = question.outcome_refs || [];
-          console.log("[useLangGraphWizard] V2: Outcome refs:", question.outcome_refs);
         }
 
         // Track shown question (update BOTH ref and state)
@@ -1669,8 +1789,6 @@ export function useLangGraphWizard() {
           block_id: blockId,
           current_question: question,
         };
-
-        console.log("[useLangGraphWizard] V2: Starting graph with offline question");
 
         // 4. Start the graph with question in session_context
         const stream = client.runs.stream(
@@ -1723,6 +1841,15 @@ export function useLangGraphWizard() {
         throw new Error("LangGraph client not initialized");
       }
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // BUG FIX: Guard against fetching questions when session is complete
+      // Defense-in-depth: This catches any callers that bypass handleContinueFromFeedback
+      // Per CLAUDE.md: "Never use fallback pattern - always throw exceptions for failing fast"
+      // ═══════════════════════════════════════════════════════════════════════
+      if (state.stage === "complete") {
+        throw new Error("Cannot fetch next question: session is already complete");
+      }
+
       const context = v2ContextRef.current;
       const driver = questionDriverRef.current;
       const client = clientRef.current;
@@ -1763,16 +1890,6 @@ export function useLangGraphWizard() {
           poolReset: result.poolReset,
           difficulty,
         });
-
-        // DEBUG: Log diagram fields from Appwrite fetch (nextQuestionV2)
-        console.log("[useLangGraphWizard] 🖼️ V2 DIAGRAM DEBUG - nextQuestionV2 After Appwrite fetch:");
-        console.log("  - diagramFileId:", question.diagramFileId);
-        console.log("  - diagramRequired:", question.diagramRequired);
-        console.log("  - diagram_base64 present:", !!question.diagram_base64);
-        console.log("  - diagram_base64 length:", question.diagram_base64?.length || 0);
-        if (question.diagram_base64) {
-          console.log("  - diagram_base64 first 50 chars:", question.diagram_base64.substring(0, 50));
-        }
 
         // CRITICAL: Handle pool reset intelligently based on difficulty
         // When pool exhausts at hard difficulty with a small pool (e.g., 3 questions),
@@ -1841,7 +1958,6 @@ export function useLangGraphWizard() {
         // Update outcome IDs for mastery persistence (Gap P0)
         if (v2ContextRef.current) {
           v2ContextRef.current.currentOutcomeIds = question.outcome_refs || [];
-          console.log("[useLangGraphWizard] V2: Next question outcome refs:", question.outcome_refs);
         }
 
         // Sync state with ref
@@ -1852,7 +1968,6 @@ export function useLangGraphWizard() {
 
         // CRITICAL: Create NEW thread for this question
         // V2 graph is one-question-per-thread - previous thread is at session_complete
-        console.log("[useLangGraphWizard] V2: Creating NEW thread for next question");
         const thread = await client.threads.create();
         threadIdRef.current = thread.thread_id;
         const threadId = thread.thread_id;
@@ -1867,8 +1982,6 @@ export function useLangGraphWizard() {
           current_question: question,
         };
 
-        console.log("[useLangGraphWizard] V2: Starting graph with new thread:", threadId);
-
         // Start the graph with the new question on new thread
         const stream = client.runs.stream(
           threadId,
@@ -1881,8 +1994,6 @@ export function useLangGraphWizard() {
         );
 
         await processStream(stream as AsyncIterable<unknown>);
-
-        console.log("[useLangGraphWizard] V2: Next question graph completed");
       } catch (error) {
         console.error("[useLangGraphWizard] V2 nextQuestionV2 error:", error);
         setState((prev) => ({

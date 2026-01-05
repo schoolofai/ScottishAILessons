@@ -31,8 +31,6 @@ export function useIsAdmin() {
   useEffect(() => {
     async function checkAdmin() {
       try {
-        console.log('[useIsAdmin] Checking admin status via server API...');
-
         const response = await fetch('/api/auth/me', {
           method: 'GET',
           credentials: 'include', // Include httpOnly cookies
@@ -41,7 +39,6 @@ export function useIsAdmin() {
         if (!response.ok) {
           if (response.status === 401) {
             // User not authenticated
-            console.log('[useIsAdmin] User not authenticated (401)');
             setIsAdmin(false);
             setError(null); // Not an error, just not authenticated
             return;
@@ -57,7 +54,6 @@ export function useIsAdmin() {
           throw new Error(result.error || 'Failed to check admin status');
         }
 
-        console.log(`[useIsAdmin] Admin status: ${result.isAdmin}`);
         setIsAdmin(result.isAdmin || false);
         setError(null);
       } catch (err) {

@@ -21,16 +21,6 @@ export function Header() {
   const { isAuthenticated } = useServerAuth(); // Use server-side session check
   const { hasAccess, isLoading: isLoadingSubscription, refetch } = useSubscription();
 
-  // Debug logging for button visibility
-  useEffect(() => {
-    console.log('[Header Debug] Button visibility check:', {
-      isAuthenticated,
-      isLoadingSubscription,
-      hasAccess,
-      shouldShowButton: isAuthenticated && !isLoadingSubscription && !hasAccess
-    });
-  }, [isAuthenticated, isLoadingSubscription, hasAccess]);
-
   // Prefetch subscription price for instant modal display
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -41,10 +31,8 @@ export function Header() {
         if (response.ok) {
           const data = await response.json();
           setSubscriptionPrice(data);
-          console.log('[Header] Subscription price prefetched:', data.formatted);
         }
       } catch (error) {
-        console.error('[Header] Failed to prefetch subscription price:', error);
         // Silently fail - modal will use fallback price
       }
     };

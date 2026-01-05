@@ -90,7 +90,7 @@ geogebraRouter.post('/', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    handleGeoGebraError(error, res, startTime);
+    handleGeoGebraError(error, res, startTime, req.body);
   }
 });
 
@@ -159,7 +159,7 @@ geogebraRouter.post('/simple', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
-    handleGeoGebraError(error, res, startTime);
+    handleGeoGebraError(error, res, startTime, req.body);
   }
 });
 
@@ -169,15 +169,18 @@ geogebraRouter.post('/simple', async (req: Request, res: Response) => {
 function handleGeoGebraError(
   error: unknown,
   res: Response,
-  startTime: number
+  startTime: number,
+  requestBody?: unknown
 ): void {
   const duration = Date.now() - startTime;
+  const inputLog = requestBody ? JSON.stringify(requestBody, null, 2) : 'N/A';
 
   // Check if it's a validation error
   if (error instanceof Error && error.name === 'ZodError') {
     logger.error('GeoGebra validation failed', {
       duration,
-      error: error.message
+      error: error.message,
+      input: inputLog
     });
 
     res.status(400).json({
@@ -193,7 +196,7 @@ function handleGeoGebraError(
 
   // Check for renderer not initialized
   if (error instanceof Error && error.message.includes('RENDERER_NOT_INITIALIZED')) {
-    logger.error('GeoGebra renderer not initialized', { duration });
+    logger.error('GeoGebra renderer not initialized', { duration, input: inputLog });
 
     res.status(503).json({
       success: false,
@@ -205,10 +208,12 @@ function handleGeoGebraError(
     return;
   }
 
-  // Generic error
+  // Generic error - LOG THE FULL INPUT for debugging
   logger.error('GeoGebra render failed', {
     duration,
-    error: error instanceof Error ? error.message : String(error)
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    input: inputLog
   });
 
   res.status(500).json({

@@ -12,18 +12,19 @@ Supports three input methods:
 2. Command-line args: --lesson-id 68f51d0d0009edd1b817
 3. Interactive prompts: (no args provided)
 
-Also supports batch mode with parallel execution:
-   --course-id course_c84474 --max-concurrent 3
+Also supports batch mode (sequential by default, parallel with --max-concurrent):
+   --course-id course_c84474
+   --course-id course_c84474 --max-concurrent 3  # parallel
 
 Usage Examples:
     # Single lesson (auto-detects what needs generating)
     python -m src.practice_question_author_cli --lesson-id 68f51d0d0009edd1b817
 
-    # Batch mode - parallel execution (default: 3 concurrent)
+    # Batch mode - sequential execution (default, safer)
     python -m src.practice_question_author_cli --course-id course_c84474
 
-    # Batch mode with custom parallelism
-    python -m src.practice_question_author_cli --course-id course_c84474 --max-concurrent 5
+    # Batch mode - parallel execution (faster, specify concurrency)
+    python -m src.practice_question_author_cli --course-id course_c84474 --max-concurrent 3
 
     # Delete everything and regenerate from scratch
     python -m src.practice_question_author_cli --lesson-id lt_abc123 --regenerate
@@ -36,11 +37,18 @@ import argparse
 import asyncio
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Dict, Any
 
+from dotenv import load_dotenv
+
 from .practice_question_author_claude_client import PracticeQuestionAuthorClaudeClient
+from .utils.integration_tester import run_integration_tests
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Setup logging
 logging.basicConfig(
@@ -225,9 +233,9 @@ Note: This generates pre-cached practice questions for the Infinite Practice V2 
     parser.add_argument(
         '--max-concurrent',
         type=int,
-        default=3,
+        default=1,
         metavar='N',
-        help='Max parallel lessons in batch mode (default: 3, prevents Appwrite rate limits)'
+        help='Max parallel lessons in batch mode (default: 1 = sequential, use 3-5 for parallel)'
     )
     parser.add_argument(
         '--mcp-config',
@@ -247,6 +255,11 @@ Note: This generates pre-cached practice questions for the Infinite Practice V2 
         choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
         default='INFO',
         help='Logging level (default: INFO)'
+    )
+    parser.add_argument(
+        '--skip-integration-tests',
+        action='store_true',
+        help='Skip pre-execution integration tests (use with caution - may cause batch failures)'
     )
     return parser.parse_args()
 
@@ -314,9 +327,9 @@ async def run_batch(
     persist_workspace: bool,
     log_level: str,
     regenerate: bool,
-    max_concurrent: int = 3
+    max_concurrent: int = 1
 ) -> Dict[str, Any]:
-    """Run practice question generation for all lessons in a course (PARALLEL).
+    """Run practice question generation for all lessons in a course.
 
     Automatic behavior per lesson:
     - If no content exists: Full pipeline (blocks + questions + diagrams)
@@ -330,18 +343,19 @@ async def run_batch(
         persist_workspace: Whether to preserve workspace
         log_level: Logging level
         regenerate: Whether to delete and regenerate all content
-        max_concurrent: Maximum parallel lesson executions (default 3)
+        max_concurrent: Maximum lesson executions (default 1 = sequential)
 
     Returns:
         Result dictionary from batch execution
     """
+    execution_mode = "PARALLEL" if max_concurrent > 1 else "SEQUENTIAL"
     print("=" * 70)
-    print("Practice Question Author - BATCH MODE (PARALLEL)")
+    print(f"Practice Question Author - BATCH MODE ({execution_mode})")
     print("=" * 70)
     print()
     print("Input Parameters:")
     print(f"  Course ID:       {course_id}")
-    print(f"  Max Concurrent:  {max_concurrent}")
+    print(f"  Execution:       {execution_mode}" + (f" (max {max_concurrent})" if max_concurrent > 1 else ""))
     print(f"  Questions:       easy={questions_per_difficulty['easy']}, "
           f"medium={questions_per_difficulty['medium']}, "
           f"hard={questions_per_difficulty['hard']}")
@@ -384,7 +398,9 @@ def print_result(result: Dict[str, Any], is_batch: bool = False) -> None:
             print(f"  Batch ID:           {result.get('batch_id')}")
             print(f"  Batch Folder:       workspace/{result.get('batch_folder')}/")
             print(f"  Course ID:          {result.get('course_id')}")
-            print(f"  Max Concurrent:     {result.get('max_concurrent', 3)} (parallel execution)")
+            max_conc = result.get('max_concurrent', 1)
+            exec_mode = "parallel" if max_conc > 1 else "sequential"
+            print(f"  Execution Mode:     {exec_mode}" + (f" (max {max_conc})" if max_conc > 1 else ""))
             print()
             print("Results:")
             print(f"  Lessons Processed:  {result.get('lessons_processed')}")
@@ -504,6 +520,40 @@ async def main() -> int:
     try:
         args = parse_arguments()
 
+        # ═══════════════════════════════════════════════════════════════════
+        # PRE-EXECUTION INTEGRATION TESTS
+        # Validates diagram rendering services before batch processing
+        # ═══════════════════════════════════════════════════════════════════
+        if not args.skip_integration_tests:
+            # Get API key from environment (check both variable names for compatibility)
+            diagram_api_key = os.getenv("DIAGRAM_API_KEY") or os.getenv(
+                "DIAGRAM_SCREENSHOT_API_KEY", ""
+            )
+            diagram_service_url = os.getenv(
+                "DIAGRAM_SERVICE_URL",
+                os.getenv("DIAGRAM_SCREENSHOT_URL", "http://localhost:3001")
+            )
+
+            logger.info("Running pre-execution integration tests...")
+            try:
+                tests_passed = await run_integration_tests(
+                    diagram_service_url=diagram_service_url,
+                    api_key=diagram_api_key
+                )
+                if not tests_passed:
+                    print("\n❌ INTEGRATION TESTS FAILED")
+                    print("Please ensure all diagram services are running and functional.")
+                    print("Use --skip-integration-tests to bypass (not recommended).\n")
+                    return 1
+            except RuntimeError as e:
+                print(f"\n❌ INTEGRATION TEST ERROR: {e}")
+                print("Please ensure all diagram services are running and functional.")
+                print("Use --skip-integration-tests to bypass (not recommended).\n")
+                return 1
+        else:
+            logger.warning("⚠️  Skipping integration tests (--skip-integration-tests flag set)")
+            print("\n⚠️  WARNING: Skipping integration tests. Batch may fail if services are down.\n")
+
         # Build questions per difficulty
         questions_per_difficulty = {
             "easy": args.easy,
@@ -534,7 +584,7 @@ async def main() -> int:
 
         # Execute appropriate mode
         if "course_id" in params:
-            # Batch mode (parallel execution)
+            # Batch mode (sequential by default, parallel with --max-concurrent > 1)
             result = await run_batch(
                 course_id=params["course_id"],
                 questions_per_difficulty=questions_per_difficulty,

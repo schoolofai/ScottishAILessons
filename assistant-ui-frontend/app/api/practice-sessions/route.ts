@@ -49,12 +49,33 @@ export async function POST(request: NextRequest) {
       source_id: sessionData.source_id,
     });
 
+    // Appwrite requires complex fields to be stored as JSON strings
+    // Handle stringification server-side so clients can send normal objects
+    const documentData = {
+      ...sessionData,
+      // Stringify complex fields if they're not already strings
+      source_metadata: typeof sessionData.source_metadata === 'string'
+        ? sessionData.source_metadata
+        : JSON.stringify(sessionData.source_metadata || {}),
+      blocks: typeof sessionData.blocks === 'string'
+        ? sessionData.blocks
+        : JSON.stringify(sessionData.blocks || []),
+      blocks_progress: typeof sessionData.blocks_progress === 'string'
+        ? sessionData.blocks_progress
+        : JSON.stringify(sessionData.blocks_progress || []),
+      current_question: sessionData.current_question === null
+        ? null
+        : (typeof sessionData.current_question === 'string'
+            ? sessionData.current_question
+            : JSON.stringify(sessionData.current_question)),
+    };
+
     // Create the document using admin client (bypasses permissions)
     const document = await adminDb.createDocument(
       DATABASE_ID,
       COLLECTION_ID,
       ID.unique(),
-      sessionData
+      documentData
     );
 
     console.log("[API] Practice session created:", document.$id);
@@ -124,7 +145,9 @@ export async function GET(request: NextRequest) {
     ];
 
     if (status) {
-      queries.push(Query.equal("status", status));
+      // Support comma-separated status values for OR matching (e.g., "active,paused")
+      const statusValues = status.split(",").map((s) => s.trim());
+      queries.push(Query.equal("status", statusValues));
     }
     if (sourceId) {
       queries.push(Query.equal("source_id", sourceId));
@@ -133,9 +156,12 @@ export async function GET(request: NextRequest) {
       queries.push(Query.equal("source_type", sourceType));
     }
 
+    // Parse status for logging
+    const statusValues = status ? status.split(",").map((s) => s.trim()) : null;
+
     console.log("[API] Listing practice sessions:", {
       student_id: studentDoc.$id,
-      status,
+      status: statusValues,
       sourceId,
       sourceType,
       limit,

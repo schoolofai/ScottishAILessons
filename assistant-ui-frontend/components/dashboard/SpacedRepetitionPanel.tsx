@@ -21,6 +21,36 @@ import {
   type UpcomingReview
 } from '@/lib/services/spaced-repetition-service';
 
+// ============================================================================
+// Module-level helper function for urgency badges
+// ============================================================================
+
+/**
+ * Returns a styled urgency badge based on review urgency level.
+ * Moved to module level so both SpacedRepetitionPanel and ReviewLessonCard can use it.
+ */
+function getUrgencyBadge(level: 'critical' | 'high' | 'medium' | 'low') {
+  const styles = {
+    critical: 'bg-red-100 text-red-800 border-red-300',
+    high: 'bg-orange-100 text-orange-800 border-orange-300',
+    medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    low: 'bg-blue-100 text-blue-800 border-blue-300'
+  };
+
+  const labels = {
+    critical: '🔴 Critical',
+    high: '🟠 High Priority',
+    medium: '🟡 Medium',
+    low: '🔵 Low'
+  };
+
+  return (
+    <Badge variant="outline" className={styles[level]}>
+      {labels[level]}
+    </Badge>
+  );
+}
+
 interface SpacedRepetitionPanelProps {
   data?: {
     recommendations: ReviewRecommendation[];
@@ -44,29 +74,6 @@ export const SpacedRepetitionPanel = memo(function SpacedRepetitionPanel({
   const recommendations = data?.recommendations || [];
   const stats = data?.stats || null;
   const upcomingReviews = data?.upcomingReviews || [];
-
-  // Urgency badge styling
-  const getUrgencyBadge = (level: 'critical' | 'high' | 'medium' | 'low') => {
-    const styles = {
-      critical: 'bg-red-100 text-red-800 border-red-300',
-      high: 'bg-orange-100 text-orange-800 border-orange-300',
-      medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      low: 'bg-blue-100 text-blue-800 border-blue-300'
-    };
-
-    const labels = {
-      critical: '🔴 Critical',
-      high: '🟠 High Priority',
-      medium: '🟡 Medium',
-      low: '🔵 Low'
-    };
-
-    return (
-      <Badge variant="outline" className={styles[level]}>
-        {labels[level]}
-      </Badge>
-    );
-  };
 
   // Loading state
   if (loading) {
@@ -174,7 +181,7 @@ export const SpacedRepetitionPanel = memo(function SpacedRepetitionPanel({
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-orange-600 font-semibold">{stats.totalOverdueOutcomes}</span>
-                <span className="text-gray-600">Overdue</span>
+                <span className="text-gray-600">Overdue Outcomes</span>
               </div>
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-red-600 font-semibold">{stats.criticalCount}</span>
@@ -184,16 +191,23 @@ export const SpacedRepetitionPanel = memo(function SpacedRepetitionPanel({
                 <span className="text-blue-600 font-semibold">{stats.recommendedLessons}</span>
                 <span className="text-gray-600">Lessons</span>
               </div>
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-purple-600 font-semibold">{stats.estimatedReviewTime}m</span>
-                <span className="text-gray-600">Est. Time</span>
-              </div>
             </div>
           </div>
         )}
 
-        {/* Scrollable reviews list */}
-        <div className="divide-y overflow-y-auto flex-1">
+        {/* Scrollable reviews list - unified compact style */}
+        <div className="overflow-y-auto flex-1 divide-y" data-testid="spaced-repetition-content">
+          {/* Overdue Lessons - Rendered FIRST for urgency */}
+          {recommendations.map((rec) => (
+            <OverdueReviewCard
+              key={rec.lessonTemplateId}
+              recommendation={rec}
+              onStartReview={onStartReview}
+              data-testid="overdue-lesson-card"
+            />
+          ))}
+
+          {/* Upcoming Reviews */}
           {upcomingReviews.map((review) => (
             <UpcomingReviewCard
               key={review.lessonTemplateId}
@@ -242,7 +256,7 @@ function ReviewLessonCard({ recommendation, rank, onStartReview }: ReviewLessonC
   };
 
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors" data-testid="overdue-lesson-card">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-2">
           {/* Header */}
@@ -306,6 +320,94 @@ function ReviewLessonCard({ recommendation, rank, onStartReview }: ReviewLessonC
           <ChevronRightIcon className="h-4 w-4 ml-1" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Overdue Review Card Component (Compact style matching UpcomingReviewCard)
+// ============================================================================
+
+interface OverdueReviewCardProps {
+  recommendation: ReviewRecommendation;
+  onStartReview: (lessonTemplateId: string) => void;
+}
+
+function OverdueReviewCard({ recommendation, onStartReview }: OverdueReviewCardProps) {
+  const {
+    lessonTemplateId,
+    lessonTitle,
+    overdueOutcomes,
+    averageMastery,
+    daysSinceCompleted,
+    estimatedMinutes,
+    urgencyLevel
+  } = recommendation;
+
+  // Mastery percentage for display
+  const masteryPercentage = Math.round(averageMastery * 100);
+
+  // Mastery color
+  const getMasteryColor = () => {
+    if (averageMastery >= 0.8) return 'text-green-600';
+    if (averageMastery >= 0.6) return 'text-blue-600';
+    if (averageMastery >= 0.4) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  // Urgency indicator (compact version)
+  const getUrgencyIndicator = () => {
+    const indicators = {
+      critical: { color: 'text-red-600', label: 'Overdue' },
+      high: { color: 'text-orange-600', label: 'Overdue' },
+      medium: { color: 'text-yellow-600', label: 'Due' },
+      low: { color: 'text-blue-600', label: 'Due' }
+    };
+    return indicators[urgencyLevel] || indicators.medium;
+  };
+
+  const urgency = getUrgencyIndicator();
+
+  return (
+    <div className="flex items-center gap-3 py-2.5 px-4 hover:bg-gray-50 transition-colors" data-testid="overdue-lesson-card">
+      {/* Lesson Title (flexible, truncates) */}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-medium text-sm truncate">{lessonTitle}</h4>
+      </div>
+
+      {/* Overdue Status (compact) */}
+      <div className={`flex items-center gap-1 text-xs whitespace-nowrap ${urgency.color}`}>
+        <AlertTriangleIcon className="h-3 w-3" />
+        <span>{urgency.label}</span>
+      </div>
+
+      {/* Mastery */}
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+        <TrendingUpIcon className={`h-3 w-3 ${getMasteryColor()}`} />
+        <span className={getMasteryColor()}>{masteryPercentage}%</span>
+      </div>
+
+      {/* Topics Count */}
+      <div className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+        <BookOpenIcon className="h-3 w-3" />
+        <span>{overdueOutcomes.length}</span>
+      </div>
+
+      {/* Duration */}
+      <div className="flex items-center gap-1 text-xs text-gray-600 whitespace-nowrap">
+        <ClockIcon className="h-3 w-3" />
+        <span>{estimatedMinutes}m</span>
+      </div>
+
+      {/* Action Button (compact) */}
+      <Button
+        onClick={() => onStartReview(lessonTemplateId)}
+        variant="outline"
+        size="sm"
+        className="flex-shrink-0 h-7 text-xs"
+      >
+        Review
+      </Button>
     </div>
   );
 }

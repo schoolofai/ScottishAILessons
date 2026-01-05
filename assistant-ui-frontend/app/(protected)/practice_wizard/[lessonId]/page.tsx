@@ -118,10 +118,8 @@ export default function PracticeWizardPage() {
           setQuestionAvailability(availability);
 
           if (availability.hasQuestions) {
-            console.log("[PracticeWizardPage] V2 offline questions available:", availability.totalCount);
             setUseV2Mode(true);
           } else {
-            console.log("[PracticeWizardPage] No offline questions, falling back to V1 real-time generation");
             setUseV2Mode(false);
           }
         } catch (v2Error) {
@@ -130,11 +128,12 @@ export default function PracticeWizardPage() {
           setUseV2Mode(false);
         }
 
-        // 3. Check for existing active session
+        // 3. Check for existing resumable session (active or paused)
         let existingSession = null;
         try {
+          // Query for sessions that can be resumed: both 'active' and 'paused' status
           const sessionResponse = await fetch(
-            `/api/practice-sessions?status=active&source_id=${lessonId}&source_type=lesson_template&limit=1`
+            `/api/practice-sessions?status=active,paused&source_id=${lessonId}&source_type=lesson_template&limit=1`
           );
 
           if (sessionResponse.ok) {

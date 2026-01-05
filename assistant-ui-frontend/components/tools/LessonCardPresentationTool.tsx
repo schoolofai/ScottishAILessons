@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
   useSafeLangGraphInterruptState,
@@ -31,6 +31,30 @@ import { useAppwrite } from "@/lib/appwrite/hooks/useAppwrite";
 import { RichTextEditor } from "@/components/ui/rich-text-editor";
 import { DrawingModal } from "@/components/ui/drawing-modal";
 import { useRetryPrepopulation } from "@/contexts/RetryPrepopulationContext";
+
+// MODULE-LEVEL INTERRUPT CACHE
+// This cache persists across component unmount/remount cycles.
+// When streaming completes, the component may unmount and remount, losing the useRef cache.
+// This module-level cache ensures the interrupt state survives these cycles.
+// Key: interaction_id, Value: interrupt object
+const moduleInterruptCache = new Map<string, any>();
+
+// Helper to get cached interrupt by interaction ID
+const getCachedInterrupt = (interactionId: string): any | null => {
+  return moduleInterruptCache.get(interactionId) ?? null;
+};
+
+// Helper to set cached interrupt
+const setCachedInterrupt = (interactionId: string, interrupt: any): void => {
+  if (interrupt !== null && interrupt !== undefined) {
+    moduleInterruptCache.set(interactionId, interrupt);
+    // Keep cache size reasonable - remove oldest entries if > 10
+    if (moduleInterruptCache.size > 10) {
+      const firstKey = moduleInterruptCache.keys().next().value;
+      if (firstKey) moduleInterruptCache.delete(firstKey);
+    }
+  }
+};
 
 type LessonCardPresentationArgs = {
   card_content: string;
@@ -105,8 +129,43 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
     // Get interrupt state and sendCommand hook
     // Safe versions that won't throw in replay mode
-    const interrupt = useSafeLangGraphInterruptState();
+    const rawInterrupt = useSafeLangGraphInterruptState();
     const sendCommand = useSafeLangGraphSendCommand();
+
+    // CRITICAL FIX: Two-level interrupt caching to prevent disappearing on re-renders
+    // Level 1: useRef cache - survives re-renders within same mount
+    // Level 2: Module-level cache - survives component unmount/remount cycles
+    //
+    // When streaming completes, the component may unmount and remount, losing useRef.
+    // The module-level cache (keyed by interaction_id) preserves interrupt across cycles.
+    const cachedInterruptRef = useRef<any>(null);
+
+    // Get interaction_id from args for module-level cache key
+    const interactionId = args.interaction_id;
+
+    // Update both caches when we get a valid interrupt
+    if (rawInterrupt !== null) {
+      cachedInterruptRef.current = rawInterrupt;
+      if (interactionId) {
+        setCachedInterrupt(interactionId, rawInterrupt);
+      }
+    }
+
+    // Try to get interrupt from: raw -> ref cache -> module cache
+    const interrupt = rawInterrupt
+      ?? cachedInterruptRef.current
+      ?? (interactionId ? getCachedInterrupt(interactionId) : null);
+
+    // Debug logging for tracking interrupt state
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔍 LessonCardTool interrupt state:`, {
+        hasRawInterrupt: rawInterrupt !== null,
+        hasRefCache: cachedInterruptRef.current !== null,
+        hasModuleCache: interactionId ? getCachedInterrupt(interactionId) !== null : false,
+        finalInterrupt: interrupt !== null,
+        interactionId
+      });
+    }
 
     // Get current card context for updating with real-time card data
     const { currentCard, setCurrentCard } = useCurrentCard();

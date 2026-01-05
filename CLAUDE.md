@@ -454,3 +454,57 @@ ScottishAILessons/
 - the @start.sh script starts local servers so it loads fast do not sleep more that 10 seconds when testing with playwright
 - all access to appwrite should use server side auth and any client side auth is not allowed
 - in @langgraph-agent/ @claud_author_agent/ @langgraph-generic-chat/ and @langgraph-author-agent/ are generative AI apps - is schema validation fails e.g. with pydantic - then you should not silently implement post porcessing hacks to fix the issue - the real issue needs to be sorted with context and / or prompt engineering.
+
+## Logging Standards
+
+**ALWAYS use the configurable logger from `lib/logger.ts` instead of direct console calls.**
+
+### Why
+- Configurable log levels can be toggled on/off via environment variables or runtime API
+- Settings persist in localStorage across browser sessions
+- Structured JSON output in production for log aggregation
+- Namespaced loggers for component-specific filtering
+
+### Usage
+
+```typescript
+// Import the logger
+import { logger, createLogger } from '@/lib/logger';
+
+// Use logger methods instead of console
+logger.debug('Verbose debugging info', { data });  // Instead of console.log
+logger.info('Normal operation event', { data });   // Instead of console.log
+logger.warn('Recoverable issue', { error });       // Instead of console.warn
+logger.error('Critical failure', { error });       // Instead of console.error
+
+// Create namespaced logger for component
+const log = createLogger('PracticeWizard');
+log.info('Session started', { lessonId });
+```
+
+### Configuration
+
+**Environment Variable:**
+```bash
+NEXT_PUBLIC_LOG_LEVELS=error,warn  # Only errors and warnings
+```
+
+**Runtime API (browser console):**
+```javascript
+window.__LOGGER__.disable('debug')      // Turn off debug logs
+window.__LOGGER__.setMinLevel('warn')   // Only warn + error
+window.__LOGGER__.getEnabledLevels()    // See what's enabled
+window.__LOGGER__.reset()               // Restore defaults
+```
+
+### Defaults by Environment
+- **development**: all levels enabled (debug, info, warn, error)
+- **production**: warn, error only
+- **test**: error only
+
+### Rules
+1. **NEVER use `console.log` directly** - use `logger.debug` or `logger.info`
+2. **NEVER use `console.warn` directly** - use `logger.warn`
+3. **NEVER use `console.error` directly** - use `logger.error`
+4. Keep `console.error` ONLY in error boundary handlers and critical startup code
+5. Use namespaced loggers for components to enable targeted debugging

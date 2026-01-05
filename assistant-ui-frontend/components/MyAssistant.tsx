@@ -65,6 +65,12 @@ export function MyAssistant({
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
 
+  // CRITICAL FIX: Track whether thread has been loaded to prevent re-loading
+  // When streaming completes, langGraphRuntime reference might change, triggering
+  // the useEffect below. Without this guard, switchToThread would be called again,
+  // causing messages to disappear as the thread reloads.
+  const hasLoadedThreadRef = useRef<boolean>(false);
+
   // Use replay runtime if in replay mode, otherwise use LangGraph runtime
   const langGraphRuntime = useLangGraphRuntime({
     threadId: threadIdRef.current,
@@ -119,14 +125,30 @@ export function MyAssistant({
   });
 
   // Manually load thread state if we're initializing with an existing thread
+  // CRITICAL: Only load once per thread ID to prevent messages disappearing
+  // Note: React StrictMode runs effects twice synchronously, so we must set the guard
+  // BEFORE the async call to prevent both runs from starting parallel loads.
   useEffect(() => {
     console.log('🔄 MyAssistant - useEffect triggered:', {
       hasInitialThreadId: !!initialThreadId,
       currentThreadId: threadIdRef.current,
-      willLoadThread: !!(initialThreadId && threadIdRef.current === initialThreadId)
+      hasAlreadyLoaded: hasLoadedThreadRef.current,
+      willLoadThread: !!(initialThreadId && threadIdRef.current === initialThreadId && !hasLoadedThreadRef.current)
     });
 
+    // Skip if we've already started loading this thread
+    // CRITICAL: This check must happen SYNCHRONOUSLY before any async operations
+    // to prevent React StrictMode's double-execution from causing parallel loads
+    if (hasLoadedThreadRef.current) {
+      console.log('⏭️ MyAssistant - Skipping thread reload (already loaded/loading, preventing message loss)');
+      return;
+    }
+
     if (initialThreadId && threadIdRef.current === initialThreadId) {
+      // CRITICAL: Set guard IMMEDIATELY (synchronously) before async call
+      // This prevents React StrictMode's second effect run from starting another load
+      hasLoadedThreadRef.current = true;
+
       console.log('📥 MyAssistant - Loading existing thread state:', initialThreadId);
 
       getThreadState(initialThreadId)
@@ -143,9 +165,11 @@ export function MyAssistant({
         })
         .catch(error => {
           console.error('❌ MyAssistant - Failed to load thread state:', error);
+          // Reset the guard on error so retry is possible
+          hasLoadedThreadRef.current = false;
         });
     } else {
-      console.log('⏭️ MyAssistant - Skipping thread load (no initial thread or already loaded)');
+      console.log('⏭️ MyAssistant - Skipping thread load (no initial thread or thread mismatch)');
     }
   }, [initialThreadId, langGraphRuntime]);
 

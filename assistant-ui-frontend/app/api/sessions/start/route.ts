@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
     // Validate request data
     const { lessonTemplateId, courseId } = CreateSessionRequestSchema.parse(body);
 
-    // Get session from cookies
-    const cookieStore = cookies();
+    // Get session from cookies (Next.js 15 - cookies() is async)
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('session');
 
     if (!sessionCookie) {
@@ -138,8 +138,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get session from cookies for authentication
-    const cookieStore = cookies();
+    // Get session from cookies for authentication (Next.js 15 - cookies() is async)
+    const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('session');
 
     if (!sessionCookie) {

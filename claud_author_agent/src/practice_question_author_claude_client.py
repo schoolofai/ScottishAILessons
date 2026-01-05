@@ -28,7 +28,7 @@ from typing import Dict, Any, Optional, List
 from .utils.filesystem import IsolatedFilesystem
 from .utils.appwrite_mcp import get_appwrite_document
 from .utils.compression import decompress_json_gzip_base64
-from .utils.logging_config import setup_logging
+from .utils.logging_config import setup_logging, add_workspace_file_handler, remove_workspace_file_handler
 from .agents.practice_block_agent import PracticeBlockAgent
 from .agents.practice_question_generator_agent import PracticeQuestionGeneratorAgent
 from .utils.practice_question_upserter import run_practice_content_upsert, PracticeQuestionUpserter
@@ -144,9 +144,19 @@ class PracticeQuestionAuthorClaudeClient:
             workspace_type="practice_questions"
         )
 
+        workspace_path = None  # Initialize for finally block safety
         try:
             workspace_path = filesystem.setup()
             logger.info(f"Workspace created: {workspace_path}")
+
+            # Add file handler to capture ALL logs to workspace
+            # This persists all agent activity for observability and analytics
+            log_file = add_workspace_file_handler(
+                workspace_path=workspace_path,
+                log_filename="full_run.log",  # Detailed logs (run.log is summary)
+                log_level="DEBUG"
+            )
+            logger.info(f"📝 Full logging enabled: {log_file}")
 
             # Initialize upserter for content checks and operations
             upserter = PracticeQuestionUpserter(str(self.mcp_config_path))
@@ -303,6 +313,10 @@ class PracticeQuestionAuthorClaudeClient:
             }
 
         finally:
+            # Remove file handler to prevent handler accumulation
+            if workspace_path:
+                remove_workspace_file_handler(workspace_path)
+
             if not self.persist_workspace:
                 filesystem.cleanup()
 
@@ -327,6 +341,32 @@ class PracticeQuestionAuthorClaudeClient:
         lesson_template = await self._fetch_lesson_template(lesson_template_id)
         logger.info(f"✅ Fetched lesson: {lesson_template.get('title', 'Untitled')}")
 
+        # Phase 1.5: Fetch Course Outcomes (for curriculum scope constraints)
+        logger.info("\n--- Phase 1.5: Fetch Course Outcomes ---")
+        course_id = lesson_template.get("courseId", "")
+        subject = lesson_template.get("courseSubject", "mathematics")
+        level = lesson_template.get("courseLevel", "national-3")
+
+        if not course_id:
+            raise ValueError(
+                f"lesson_template '{lesson_template_id}' missing 'courseId'. "
+                f"Cannot fetch course outcomes without courseId. "
+                f"Ensure the lesson template has courseId field populated."
+            )
+
+        # Reuse existing course outcomes extractor
+        from .utils.course_outcomes_extractor import extract_course_outcomes_to_file
+
+        outcomes_file = workspace_path / "Course_outcomes.json"
+        course_outcomes_data = await extract_course_outcomes_to_file(
+            courseId=course_id,
+            mcp_config_path=str(self.mcp_config_path),
+            output_path=outcomes_file
+        )
+
+        logger.info(f"✅ Fetched {len(course_outcomes_data['outcomes'])} course outcomes")
+        logger.info(f"   Course: {subject} ({level}), SQA Code: {course_outcomes_data.get('courseSqaCode', 'N/A')}")
+
         # Phase 2: Extract concept blocks
         logger.info("\n--- Phase 2: Extract Concept Blocks ---")
         block_agent = PracticeBlockAgent(workspace_path=workspace_path)
@@ -343,7 +383,11 @@ class PracticeQuestionAuthorClaudeClient:
         logger.info("\n--- Phase 3: Generate Practice Questions ---")
         question_agent = PracticeQuestionGeneratorAgent(
             workspace_path=workspace_path,
-            questions_per_difficulty=self.questions_per_difficulty
+            questions_per_difficulty=self.questions_per_difficulty,
+            # Course context for curriculum scope constraints
+            course_subject=subject,
+            course_level=level,
+            course_outcomes=course_outcomes_data['outcomes']
         )
 
         generation_result_dict = await question_agent.execute(
@@ -360,11 +404,7 @@ class PracticeQuestionAuthorClaudeClient:
         # Phase 3.5: Diagram Processing (AUTOMATIC - always runs in full pipeline)
         logger.info("\n--- Phase 3.5: Diagram Classification & Generation ---")
         diagrams_generated = 0
-
-        # Extract subject/level from lesson template for better classification
-        subject = lesson_template.get("courseSubject", "mathematics")
-        level = lesson_template.get("courseLevel", "national-3")
-        logger.info(f"   Subject: {subject}, Level: {level}")
+        # Note: subject and level already extracted in Phase 1.5
 
         # Run diagram classification and generation for all questions
         questions = await process_question_diagrams(
@@ -414,6 +454,145 @@ class PracticeQuestionAuthorClaudeClient:
             "diagrams_only_mode": False
         }
 
+    async def _prescan_lessons(
+        self,
+        lesson_templates: List[Dict[str, Any]],
+        regenerate: bool
+    ) -> Dict[str, Dict[str, Any]]:
+        """Pre-scan all lessons to determine execution mode for each.
+
+        Args:
+            lesson_templates: List of lesson template documents
+            regenerate: Whether --regenerate flag was passed
+
+        Returns:
+            Dict mapping lesson_id -> scan result with mode and counts
+        """
+        upserter = PracticeQuestionUpserter(str(self.mcp_config_path))
+        scan_results = {}
+
+        for idx, lesson in enumerate(lesson_templates):
+            lesson_id = lesson.get("$id")
+            lesson_title = lesson.get("title", "Untitled")
+
+            if regenerate:
+                # Force full_pipeline for all lessons when regenerating
+                scan_results[lesson_id] = {
+                    "mode": "full_pipeline",
+                    "title": lesson_title,
+                    "blocks": 0,
+                    "questions": 0,
+                    "diagrams": False,
+                    "reason": "REGENERATE flag set"
+                }
+            else:
+                # Check content existence
+                content_exists, block_count, question_count, diagrams_exist = \
+                    await upserter.check_content_exists(lesson_id)
+
+                if not content_exists:
+                    mode = "full_pipeline"
+                    reason = "No existing content"
+                elif content_exists and not diagrams_exist:
+                    mode = "diagrams_only"
+                    reason = f"Has {question_count} questions, no diagrams"
+                else:
+                    mode = "skip"
+                    reason = f"Complete ({block_count} blocks, {question_count} questions, has diagrams)"
+
+                scan_results[lesson_id] = {
+                    "mode": mode,
+                    "title": lesson_title,
+                    "blocks": block_count,
+                    "questions": question_count,
+                    "diagrams": diagrams_exist,
+                    "reason": reason
+                }
+
+            # Progress indicator
+            logger.info(f"   [{idx + 1}/{len(lesson_templates)}] {lesson_title[:40]:<40} → {scan_results[lesson_id]['mode'].upper()}")
+
+        return scan_results
+
+    def _print_batch_plan(
+        self,
+        lesson_templates: List[Dict[str, Any]],
+        scan_results: Dict[str, Dict[str, Any]],
+        regenerate: bool
+    ) -> None:
+        """Print a clear summary table showing what will be processed vs skipped.
+
+        Args:
+            lesson_templates: List of lesson template documents
+            scan_results: Pre-scan results from _prescan_lessons
+            regenerate: Whether regenerate flag was set
+        """
+        # Count by mode
+        full_count = sum(1 for r in scan_results.values() if r["mode"] == "full_pipeline")
+        diagrams_count = sum(1 for r in scan_results.values() if r["mode"] == "diagrams_only")
+        skip_count = sum(1 for r in scan_results.values() if r["mode"] == "skip")
+
+        print()
+        print("=" * 80)
+        print("                         BATCH EXECUTION PLAN")
+        print("=" * 80)
+        print()
+        print(f"  {'#':<4} {'Lesson Title':<45} {'Mode':<18} {'Reason'}")
+        print("  " + "-" * 76)
+
+        for idx, lesson in enumerate(lesson_templates):
+            lesson_id = lesson.get("$id")
+            result = scan_results[lesson_id]
+            title = result["title"][:43] + ".." if len(result["title"]) > 45 else result["title"]
+
+            # Mode with emoji
+            mode = result["mode"]
+            if mode == "full_pipeline":
+                mode_display = "🆕 GENERATE"
+            elif mode == "diagrams_only":
+                mode_display = "📊 DIAGRAMS"
+            else:
+                mode_display = "⏭️  SKIP"
+
+            reason = result["reason"][:30] if len(result["reason"]) > 30 else result["reason"]
+
+            print(f"  {idx + 1:<4} {title:<45} {mode_display:<18} {reason}")
+
+        print()
+        print("  " + "-" * 76)
+        print(f"  SUMMARY: {full_count} to generate, {diagrams_count} diagrams only, {skip_count} to skip")
+        print("=" * 80)
+        print()
+
+        # Log to file as well
+        logger.info(f"\nBatch Plan Summary: {full_count} generate, {diagrams_count} diagrams, {skip_count} skip")
+
+    async def _write_lesson_run_log(
+        self,
+        execution_id: str,
+        log_entries: List[str]
+    ) -> None:
+        """Write run.log file to the lesson workspace folder.
+
+        Args:
+            execution_id: The execution ID (contains batch_folder/lesson_XX_id path)
+            log_entries: List of log entry strings to write
+        """
+        # Construct workspace path
+        workspace_base = Path(__file__).parent.parent / "workspace"
+        workspace_path = workspace_base / execution_id
+
+        # Ensure workspace exists (it should, created by execute())
+        if not workspace_path.exists():
+            workspace_path.mkdir(parents=True, exist_ok=True)
+
+        # Write run.log
+        log_file = workspace_path / "run.log"
+        log_content = "\n".join(log_entries)
+
+        log_file.write_text(log_content, encoding='utf-8')
+        logger.debug(f"Written run.log to {log_file}")
+
     async def execute_batch(
         self,
         course_id: str,
@@ -439,7 +618,8 @@ class PracticeQuestionAuthorClaudeClient:
                 ├── lesson_01_lt_abc123/
                 │   ├── lesson_template.json
                 │   ├── blocks_output.json
-                │   └── questions_output.json
+                │   ├── questions_output.json
+                │   └── run.log              # Per-lesson agent output log
                 ├── lesson_02_lt_def456/
                 │   └── ...
                 └── batch_summary.json
@@ -456,13 +636,14 @@ class PracticeQuestionAuthorClaudeClient:
         batch_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         batch_folder = f"batch_{batch_id}"
 
+        execution_mode = "PARALLEL" if max_concurrent > 1 else "SEQUENTIAL"
         logger.info("=" * 70)
-        logger.info("PRACTICE QUESTION AUTHOR - Batch Execution (PARALLEL)")
+        logger.info(f"PRACTICE QUESTION AUTHOR - Batch Execution ({execution_mode})")
         logger.info(f"   Course ID: {course_id}")
         logger.info(f"   Batch ID: {batch_id}")
         logger.info(f"   Workspace: workspace/{batch_folder}/")
         logger.info(f"   Regenerate: {regenerate}")
-        logger.info(f"   Max Concurrent: {max_concurrent}")
+        logger.info(f"   Execution: {execution_mode}" + (f" (max {max_concurrent})" if max_concurrent > 1 else ""))
         logger.info(f"   Mode: {'DELETE ALL + FULL PIPELINE' if regenerate else 'SMART AUTO-DETECT'}")
         logger.info("=" * 70)
 
@@ -472,22 +653,39 @@ class PracticeQuestionAuthorClaudeClient:
         if not all_lessons:
             raise ValueError(f"No lesson templates found for course: {course_id}")
 
-        # Filter to only "teach" type lessons (practice questions are for teaching content)
+        # Filter to "teach" and "revision" type lessons (practice questions for learning content)
+        # Excludes: mock_exam, assessment, intro types
+        ELIGIBLE_LESSON_TYPES = {"teach", "revision"}
         lesson_templates = [
             lesson for lesson in all_lessons
-            if lesson.get("lesson_type", "teach") == "teach"
+            if lesson.get("lesson_type", "teach") in ELIGIBLE_LESSON_TYPES
         ]
 
-        logger.info(f"Found {len(all_lessons)} total lessons, {len(lesson_templates)} are 'teach' type")
+        logger.info(f"Found {len(all_lessons)} total lessons, {len(lesson_templates)} are 'teach' or 'revision' type")
 
         if not lesson_templates:
             raise ValueError(
-                f"No 'teach' type lessons found for course: {course_id}. "
+                f"No 'teach' or 'revision' type lessons found for course: {course_id}. "
                 f"Total lessons: {len(all_lessons)}"
             )
 
-        logger.info(f"Workspace structure: workspace/{batch_folder}/lesson_NN_<id>/")
-        logger.info(f"🚀 Running {max_concurrent} lessons in parallel...")
+        # ═══════════════════════════════════════════════════════════════
+        # PRE-SCAN PHASE: Categorize lessons before execution
+        # ═══════════════════════════════════════════════════════════════
+        logger.info("\n" + "=" * 70)
+        logger.info("PRE-SCAN: Checking existing content for all lessons...")
+        logger.info("=" * 70)
+
+        scan_results = await self._prescan_lessons(lesson_templates, regenerate)
+
+        # Print clear summary table
+        self._print_batch_plan(lesson_templates, scan_results, regenerate)
+
+        logger.info(f"\nWorkspace structure: workspace/{batch_folder}/lesson_NN_<id>/")
+        if max_concurrent > 1:
+            logger.info(f"🚀 Running lessons in parallel (max {max_concurrent} concurrent)...")
+        else:
+            logger.info("🚀 Running lessons sequentially...")
 
         # Create semaphore for rate limiting
         semaphore = asyncio.Semaphore(max_concurrent)
@@ -499,10 +697,12 @@ class PracticeQuestionAuthorClaudeClient:
             """Process a single lesson with semaphore-controlled concurrency.
 
             Each task gets its own execution_id for workspace isolation.
+            Writes run.log to the lesson workspace folder upon completion.
             """
             async with semaphore:
                 lesson_id = lesson.get("$id")
                 lesson_title = lesson.get("title", "Untitled")
+                scan_info = scan_results.get(lesson_id, {})
 
                 # Generate per-lesson execution_id as subfolder of batch
                 # Format: batch_20251215_120000/lesson_01_lt_abc123
@@ -511,6 +711,22 @@ class PracticeQuestionAuthorClaudeClient:
 
                 logger.info(f"\n🔄 [{idx + 1}/{len(lesson_templates)}] Starting: {lesson_title}")
                 logger.info(f"   Workspace: workspace/{execution_id}/")
+                logger.info(f"   Mode: {scan_info.get('mode', 'unknown').upper()}")
+
+                # Capture log entries for this lesson
+                log_entries = []
+                start_time = datetime.now()
+                log_entries.append(f"{'=' * 70}")
+                log_entries.append(f"PRACTICE QUESTION AUTHOR - Lesson Execution Log")
+                log_entries.append(f"{'=' * 70}")
+                log_entries.append(f"Lesson ID:     {lesson_id}")
+                log_entries.append(f"Lesson Title:  {lesson_title}")
+                log_entries.append(f"Execution ID:  {execution_id}")
+                log_entries.append(f"Start Time:    {start_time.isoformat()}")
+                log_entries.append(f"Pre-scan Mode: {scan_info.get('mode', 'unknown').upper()}")
+                log_entries.append(f"Pre-scan Info: {scan_info.get('reason', 'N/A')}")
+                log_entries.append(f"{'=' * 70}")
+                log_entries.append("")
 
                 try:
                     # Create a new client instance for this task to avoid shared state
@@ -533,15 +749,57 @@ class PracticeQuestionAuthorClaudeClient:
                     result["lesson_index"] = idx + 1
                     result["lesson_title"] = lesson_title
 
+                    end_time = datetime.now()
+                    duration = (end_time - start_time).total_seconds()
+
                     if result["success"]:
                         logger.info(f"✅ [{idx + 1}/{len(lesson_templates)}] Complete: {lesson_title}")
+                        log_entries.append(f"STATUS: SUCCESS")
                     else:
                         logger.error(f"❌ [{idx + 1}/{len(lesson_templates)}] Failed: {lesson_title}")
+                        log_entries.append(f"STATUS: FAILED")
+                        log_entries.append(f"ERROR: {result.get('error', 'Unknown')}")
+
+                    # Add execution details to log
+                    log_entries.append(f"End Time:      {end_time.isoformat()}")
+                    log_entries.append(f"Duration:      {duration:.1f} seconds")
+                    log_entries.append("")
+                    log_entries.append("EXECUTION RESULTS:")
+                    log_entries.append(f"  Blocks Extracted:    {result.get('blocks_extracted', 0)}")
+                    log_entries.append(f"  Questions Generated: {result.get('questions_generated', 0)}")
+                    log_entries.append(f"  Diagrams Generated:  {result.get('diagrams_generated', 0)}")
+                    log_entries.append(f"  Blocks Upserted:     {result.get('blocks_upserted', 0)}")
+                    log_entries.append(f"  Questions Upserted:  {result.get('questions_upserted', 0)}")
+
+                    if result.get('skip_all_mode'):
+                        log_entries.append("")
+                        log_entries.append("MODE: SKIP_ALL - All content already exists")
+                    elif result.get('diagrams_only_mode'):
+                        log_entries.append("")
+                        log_entries.append("MODE: DIAGRAMS_ONLY - Generated diagrams for existing questions")
+
+                    # Write run.log to workspace
+                    await self._write_lesson_run_log(execution_id, log_entries)
 
                     return result
 
                 except Exception as e:
                     logger.error(f"❌ [{idx + 1}/{len(lesson_templates)}] Exception: {lesson_title}: {e}")
+
+                    # Log exception details
+                    end_time = datetime.now()
+                    duration = (end_time - start_time).total_seconds()
+                    log_entries.append(f"STATUS: EXCEPTION")
+                    log_entries.append(f"ERROR: {str(e)}")
+                    log_entries.append(f"End Time: {end_time.isoformat()}")
+                    log_entries.append(f"Duration: {duration:.1f} seconds")
+
+                    # Try to write log even on failure
+                    try:
+                        await self._write_lesson_run_log(execution_id, log_entries)
+                    except Exception:
+                        pass  # Don't fail if we can't write the log
+
                     return {
                         "success": False,
                         "lesson_template_id": lesson_id,
@@ -628,10 +886,10 @@ class PracticeQuestionAuthorClaudeClient:
 
         # Log batch summary
         logger.info("\n" + "=" * 70)
-        logger.info("BATCH EXECUTION SUMMARY (PARALLEL)")
+        logger.info(f"BATCH EXECUTION SUMMARY ({execution_mode})")
         logger.info("=" * 70)
         logger.info(f"   Batch folder:      workspace/{batch_folder}/")
-        logger.info(f"   Max concurrent:    {max_concurrent}")
+        logger.info(f"   Execution:         {execution_mode}" + (f" (max {max_concurrent})" if max_concurrent > 1 else ""))
         logger.info(f"   Lessons processed: {len(processed_results)}")
         logger.info(f"   Full pipeline:     {lessons_full_pipeline}")
         logger.info(f"   Diagrams only:     {lessons_diagrams_only}")

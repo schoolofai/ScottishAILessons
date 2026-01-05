@@ -129,8 +129,6 @@ export function CourseCurriculum({
       setLoading(true);
       setError(null);
 
-      console.log('[CourseCurriculum] Loading curriculum for:', { courseId, studentId });
-
       if (!courseId || !studentId) {
         console.error('[CourseCurriculum] Missing required parameters:', { courseId, studentId });
         setError('Missing course or student information');
@@ -161,18 +159,7 @@ export function CourseCurriculum({
         allTemplates = allTemplates.concat(result.data.templates);
         offset += limit;
         hasMore = result.data.hasMore;
-
-        console.log('[CourseCurriculum] Fetched batch:', {
-          batchSize: result.data.templates.length,
-          totalSoFar: allTemplates.length,
-          hasMore
-        });
       }
-
-      console.log('[CourseCurriculum] Lesson templates result:', {
-        found: allTemplates.length,
-        total: allTemplates.length
-      });
 
       if (allTemplates.length === 0) {
         setError('No lessons found for this course');
@@ -181,7 +168,6 @@ export function CourseCurriculum({
       }
 
       const lessonTemplates = allTemplates;
-      console.log('[CourseCurriculum] Found lesson templates:', lessonTemplates.length);
 
       // Get ALL student's lesson sessions via secure server-side API
       let allSessions: any[] = [];
@@ -200,26 +186,12 @@ export function CourseCurriculum({
         } else {
           const sessionsData = await sessionsResponse.json();
           allSessions = sessionsData.sessions || [];
-
-          // 🔍 DEBUG: Log what sessions API returns
-          console.log('[CourseCurriculum] API returned sessions:', {
-            total: allSessions.length,
-            sessions: allSessions.map(s => ({
-              id: s.$id,
-              lessonTemplateId: s.lessonTemplateId,
-              studentId: s.studentId,
-              status: s.status,
-              createdAt: s.$createdAt
-            }))
-          });
         }
       } catch (sessionError) {
         console.error('[CourseCurriculum] Session fetch error:', sessionError);
         // Continue with empty sessions array
         allSessions = [];
       }
-
-      console.log('[CourseCurriculum] Lesson sessions found:', allSessions.length);
 
       // Build session map with strict security filtering
       const sessionsByLesson: SessionsByLessonMap = {};
@@ -305,18 +277,8 @@ export function CourseCurriculum({
 
       setLessons(lessonsWithStatus);
       setCompletedCount(lessonsWithStatus.filter(l => l.status === 'completed').length);
-
-      console.log('[CourseCurriculum] Successfully loaded curriculum:', {
-        totalLessons: lessonsWithStatus.length,
-        completedCount: lessonsWithStatus.filter(l => l.status === 'completed').length
-      });
     } catch (err: any) {
       console.error('[CourseCurriculum] Failed to load curriculum:', err);
-      console.error('[CourseCurriculum] Error details:', {
-        message: err.message,
-        code: err.code,
-        type: err.type
-      });
       setError(`Failed to load course curriculum: ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);

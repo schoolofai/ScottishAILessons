@@ -90,7 +90,8 @@ desmosRouter.post('/', async (req: Request, res: Response) => {
     if (error instanceof Error && error.name === 'ZodError') {
       logger.error('Desmos validation failed', {
         duration,
-        error: error.message
+        error: error.message,
+        input: JSON.stringify(req.body, null, 2)
       });
 
       res.status(400).json({
@@ -106,7 +107,7 @@ desmosRouter.post('/', async (req: Request, res: Response) => {
 
     // Check for renderer not initialized
     if (error instanceof Error && error.message.includes('RENDERER_NOT_INITIALIZED')) {
-      logger.error('Desmos renderer not initialized', { duration });
+      logger.error('Desmos renderer not initialized', { duration, input: JSON.stringify(req.body, null, 2) });
 
       res.status(503).json({
         success: false,
@@ -118,10 +119,12 @@ desmosRouter.post('/', async (req: Request, res: Response) => {
       return;
     }
 
-    // Generic error
+    // Generic error - LOG THE FULL INPUT for debugging
     logger.error('Desmos render failed', {
       duration,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      input: JSON.stringify(req.body, null, 2)
     });
 
     res.status(500).json({
@@ -205,7 +208,8 @@ desmosRouter.post('/simple', async (req: Request, res: Response) => {
     if (error instanceof Error && error.name === 'ZodError') {
       logger.error('Desmos simple validation failed', {
         duration,
-        error: error.message
+        error: error.message,
+        input: JSON.stringify(req.body, null, 2)
       });
 
       res.status(400).json({
@@ -221,7 +225,7 @@ desmosRouter.post('/simple', async (req: Request, res: Response) => {
 
     // Check for renderer not initialized
     if (error instanceof Error && error.message.includes('RENDERER_NOT_INITIALIZED')) {
-      logger.error('Desmos renderer not initialized', { duration });
+      logger.error('Desmos renderer not initialized (simple)', { duration, input: JSON.stringify(req.body, null, 2) });
 
       res.status(503).json({
         success: false,
@@ -233,10 +237,12 @@ desmosRouter.post('/simple', async (req: Request, res: Response) => {
       return;
     }
 
-    // Generic error
+    // Generic error - LOG THE FULL INPUT for debugging
     logger.error('Desmos simple render failed', {
       duration,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      input: JSON.stringify(req.body, null, 2)
     });
 
     res.status(500).json({

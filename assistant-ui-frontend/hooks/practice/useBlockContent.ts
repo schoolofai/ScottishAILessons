@@ -112,14 +112,12 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
     async (lessonTemplateId: string, blockId: string): Promise<void> => {
       // Skip if already loading this block (use ref for stable callback)
       if (currentBlockIdRef.current === blockId && isLoadingRef.current) {
-        console.log("[useBlockContent] Already loading block:", blockId);
         return;
       }
 
       // Check cache first - BEFORE attempted check so we can return cached content
       const cached = cacheRef.current.get(blockId);
       if (cached) {
-        console.log("[useBlockContent] Using cached content for block:", blockId);
         currentBlockIdRef.current = blockId;
         setCurrentContent(cached);
         setError(null);
@@ -129,7 +127,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
       // Skip if we've already attempted this block and it failed (prevents retry loops on error)
       // NOTE: This check is AFTER cache check so we can still return cached content
       if (attemptedBlocksRef.current.has(blockId)) {
-        console.log("[useBlockContent] Block already attempted and not cached, skipping:", blockId);
         return;
       }
 
@@ -143,7 +140,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
       setError(null);
 
       try {
-        console.log("[useBlockContent] Fetching content for block:", blockId);
         const content = await driver.getBlockContent(lessonTemplateId, blockId);
 
         // Store in cache
@@ -174,7 +170,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
       const toLoad = blockIds.filter((id) => !cacheRef.current.has(id));
 
       if (toLoad.length === 0) {
-        console.log("[useBlockContent] All upcoming blocks already cached");
         // Update upcomingContent from cache
         const upcoming = blockIds
           .map((id) => cacheRef.current.get(id))
@@ -182,8 +177,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
         setUpcomingContent(upcoming);
         return;
       }
-
-      console.log("[useBlockContent] Prefetching blocks:", toLoad);
 
       // Fire-and-forget - don't block UI
       driver
@@ -199,8 +192,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
             .map((id) => cacheRef.current.get(id))
             .filter((c): c is ParsedBlockContent => c !== undefined);
           setUpcomingContent(upcoming);
-
-          console.log("[useBlockContent] Prefetch complete:", results.size, "blocks");
         })
         .catch((e) => {
           // Best-effort - log but don't throw
@@ -215,7 +206,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
    * Used when starting a new session or switching lessons.
    */
   const clearCache = useCallback((): void => {
-    console.log("[useBlockContent] Clearing cache");
     cacheRef.current.clear();
     attemptedBlocksRef.current.clear();
     currentBlockIdRef.current = null;
@@ -238,12 +228,9 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
    */
   const loadAllBlocks = useCallback(
     async (lessonTemplateId: string): Promise<PracticeBlock[]> => {
-      console.log("[useBlockContent] Loading all blocks for lesson:", lessonTemplateId);
-
       try {
         const blocks = await driver.getBlocksForLesson(lessonTemplateId);
         setAllBlocks(blocks);
-        console.log("[useBlockContent] Loaded", blocks.length, "blocks");
         return blocks;
       } catch (e) {
         // Fast-fail: surface error, don't silently fallback
@@ -269,7 +256,6 @@ export function useBlockContent(sessionToken?: string): UseBlockContentReturn {
 
       setViewingIndex(index);
       const blockId = allBlocks[index].blockId;
-      console.log("[useBlockContent] Navigating to block:", blockId, "at index:", index);
       await setCurrentBlock(lessonTemplateId, blockId);
     },
     [allBlocks, setCurrentBlock]

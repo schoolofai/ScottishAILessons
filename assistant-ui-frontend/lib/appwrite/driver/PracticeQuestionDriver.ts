@@ -1,6 +1,7 @@
 import { Query, Storage, Client } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { ParsedBlockContent, WorkedExample } from '@/types/practice-wizard-contracts';
+import { validateGetRandomQuestionParams } from '@/lib/utils/validateQueryParams';
 
 // Storage bucket ID for practice content files (hints, solutions)
 const PRACTICE_CONTENT_BUCKET_ID = 'practice_content';
@@ -216,8 +217,6 @@ export class PracticeQuestionDriver extends BaseDriver {
     }
 
     try {
-      console.log('[PracticeQuestionDriver] Loading storage file:', fileId);
-
       // Get file download URL and fetch content
       const fileUrl = this.storage.getFileDownload(PRACTICE_CONTENT_BUCKET_ID, fileId);
 
@@ -255,8 +254,6 @@ export class PracticeQuestionDriver extends BaseDriver {
     }
 
     try {
-      console.log('[PracticeQuestionDriver] Loading image as base64:', fileId);
-
       // Get file download URL and fetch as binary
       const fileUrl = this.storage.getFileDownload(PRACTICE_CONTENT_BUCKET_ID, fileId);
 
@@ -279,7 +276,6 @@ export class PracticeQuestionDriver extends BaseDriver {
       }
       const base64 = btoa(binary);
 
-      console.log('[PracticeQuestionDriver] Image loaded, base64 length:', base64.length);
       return base64;
     } catch (error) {
       console.warn('[PracticeQuestionDriver] Error loading image:', fileId, error);
@@ -308,8 +304,6 @@ export class PracticeQuestionDriver extends BaseDriver {
       return this.parseQuestionFromDocument(doc);
     }
 
-    console.log('[PracticeQuestionDriver] Loading question data file:', fileId);
-
     const questionData = await this.loadStorageFile<QuestionDataFile>(fileId);
 
     if (!questionData) {
@@ -319,21 +313,12 @@ export class PracticeQuestionDriver extends BaseDriver {
       );
     }
 
-    console.log('[PracticeQuestionDriver] Loaded question data:', {
-      hasStem: !!questionData.stem,
-      hasOptions: !!questionData.options,
-      hasCorrectAnswer: !!questionData.correct_answer,
-      hasDiagramFileId: !!doc.diagramFileId,
-    });
-
     // Load diagram image if diagramFileId is present
     let diagramBase64: string | undefined;
     if (doc.diagramFileId) {
-      console.log('[PracticeQuestionDriver] Loading diagram image:', doc.diagramFileId);
       const base64 = await this.loadImageAsBase64(doc.diagramFileId);
       if (base64) {
         diagramBase64 = base64;
-        console.log('[PracticeQuestionDriver] Diagram loaded successfully');
       } else {
         console.warn('[PracticeQuestionDriver] Failed to load diagram image, question will display without diagram');
       }
@@ -359,7 +344,6 @@ export class PracticeQuestionDriver extends BaseDriver {
         console.warn('[PracticeQuestionDriver] Unexpected option format:', opt);
         return String(opt);
       });
-      console.log('[PracticeQuestionDriver] Normalized options:', normalizedOptions);
     }
 
     // Generate diagram metadata from diagramTool if diagram is present
@@ -494,19 +478,16 @@ export class PracticeQuestionDriver extends BaseDriver {
   private async loadQuestionHints(question: ParsedPracticeQuestion): Promise<ParsedPracticeQuestion> {
     // Skip if hints already loaded from questionDataFile
     if (question.hints && question.hints.length > 0) {
-      console.log('[PracticeQuestionDriver] Hints already loaded from data file');
       return question;
     }
 
     if (!question.hintsFileId) {
-      console.log('[PracticeQuestionDriver] No hintsFileId, skipping load');
       return question;
     }
 
     try {
       const hints = await this.loadStorageFile<string[]>(question.hintsFileId);
       if (hints && Array.isArray(hints)) {
-        console.log('[PracticeQuestionDriver] Loaded hints:', hints.length);
         return { ...question, hints };
       }
     } catch (error) {
@@ -524,8 +505,6 @@ export class PracticeQuestionDriver extends BaseDriver {
    */
   async checkQuestionsAvailable(lessonTemplateId: string): Promise<QuestionAvailability> {
     try {
-      console.log('[PracticeQuestionDriver] Checking questions for:', lessonTemplateId);
-
       const records = await this.list<PracticeQuestion>(QUESTIONS_COLLECTION_ID, [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('status', 'published'),
@@ -533,7 +512,6 @@ export class PracticeQuestionDriver extends BaseDriver {
       ]);
 
       if (records.length === 0) {
-        console.log('[PracticeQuestionDriver] No questions found');
         return {
           lessonTemplateId,
           hasQuestions: false,
@@ -562,12 +540,6 @@ export class PracticeQuestionDriver extends BaseDriver {
         blockTitle: data.blockTitle,
         count: data.count
       }));
-
-      console.log('[PracticeQuestionDriver] Found questions:', {
-        total: records.length,
-        byDifficulty,
-        blocks: byBlock.length
-      });
 
       return {
         lessonTemplateId,
@@ -598,14 +570,11 @@ export class PracticeQuestionDriver extends BaseDriver {
     difficulty: 'easy' | 'medium' | 'hard',
     excludeIds: string[] = []
   ): Promise<RandomQuestionResult> {
-    try {
-      console.log('[PracticeQuestionDriver] Getting random question:', {
-        lessonTemplateId,
-        blockId,
-        difficulty,
-        excludeCount: excludeIds.length
-      });
+    // Validate parameters before API call to prevent "Equal queries require at least one value" error
+    // This catches undefined blockId when trying to advance past the last block
+    validateGetRandomQuestionParams(lessonTemplateId, blockId, difficulty);
 
+    try {
       const records = await this.list<PracticeQuestion>(QUESTIONS_COLLECTION_ID, [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('blockId', blockId),
@@ -628,15 +597,12 @@ export class PracticeQuestionDriver extends BaseDriver {
       let available = records.filter(q => !excludeIds.includes(q.$id));
 
       if (available.length === 0) {
-        console.log('[PracticeQuestionDriver] All questions excluded, resetting pool');
         available = [...records];
         poolReset = true;
       }
 
       const randomIndex = Math.floor(Math.random() * available.length);
       const selected = available[randomIndex];
-
-      console.log('[PracticeQuestionDriver] Selected question:', selected.$id, { poolReset, poolSize });
 
       // Load full question data from storage file (stem, correct_answer, etc.)
       const parsed = await this.loadQuestionDataFile(selected);
@@ -661,16 +627,12 @@ export class PracticeQuestionDriver extends BaseDriver {
     blockId: string
   ): Promise<ParsedPracticeQuestion[]> {
     try {
-      console.log('[PracticeQuestionDriver] Getting questions for block:', { lessonTemplateId, blockId });
-
       const records = await this.list<PracticeQuestion>(QUESTIONS_COLLECTION_ID, [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('blockId', blockId),
         Query.equal('status', 'published'),
         Query.limit(100)
       ]);
-
-      console.log('[PracticeQuestionDriver] Found questions:', records.length);
 
       // Load full question data from storage files in parallel
       const loadedQuestions = await Promise.all(
@@ -692,15 +654,11 @@ export class PracticeQuestionDriver extends BaseDriver {
    */
   async getBlocksForLesson(lessonTemplateId: string): Promise<PracticeBlock[]> {
     try {
-      console.log('[PracticeQuestionDriver] Getting blocks for lesson:', lessonTemplateId);
-
       const records = await this.list<PracticeBlock>(BLOCKS_COLLECTION_ID, [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.orderAsc('blockIndex'),
         Query.limit(50)
       ]);
-
-      console.log('[PracticeQuestionDriver] Found blocks:', records.length);
 
       return records;
     } catch (error) {
@@ -717,8 +675,6 @@ export class PracticeQuestionDriver extends BaseDriver {
    */
   async getQuestionById(questionId: string): Promise<ParsedPracticeQuestion> {
     try {
-      console.log('[PracticeQuestionDriver] Getting question by ID:', questionId);
-
       const document = await this.get<PracticeQuestion>(QUESTIONS_COLLECTION_ID, questionId);
 
       // Load full question data from storage file
@@ -749,11 +705,6 @@ export class PracticeQuestionDriver extends BaseDriver {
     blockId: string
   ): Promise<ParsedBlockContent> {
     try {
-      console.log('[PracticeQuestionDriver] Getting block content:', {
-        lessonTemplateId,
-        blockId
-      });
-
       // Query practice_blocks for the block document
       const blocks = await this.list<PracticeBlock>(BLOCKS_COLLECTION_ID, [
         Query.equal('lessonTemplateId', lessonTemplateId),
@@ -787,11 +738,6 @@ export class PracticeQuestionDriver extends BaseDriver {
     lessonTemplateId: string,
     blockIds: string[]
   ): Promise<Map<string, ParsedBlockContent>> {
-    console.log('[PracticeQuestionDriver] Batch loading block content:', {
-      lessonTemplateId,
-      blockCount: blockIds.length
-    });
-
     const result = new Map<string, ParsedBlockContent>();
 
     if (blockIds.length === 0) {
@@ -818,7 +764,6 @@ export class PracticeQuestionDriver extends BaseDriver {
         result.set(content.blockId, content);
       }
 
-      console.log('[PracticeQuestionDriver] Batch loaded blocks:', result.size);
       return result;
     } catch (error) {
       // Log error but don't throw - prefetching is best-effort
@@ -839,12 +784,6 @@ export class PracticeQuestionDriver extends BaseDriver {
    * @throws Error if required file cannot be loaded (fast-fail, NO fallback)
    */
   private async parseBlockContent(block: PracticeBlock): Promise<ParsedBlockContent> {
-    console.log('[PracticeQuestionDriver] Parsing block content:', {
-      blockId: block.blockId,
-      blockDataFileId: block.blockDataFileId,
-      title: block.title
-    });
-
     // Validate blockDataFileId exists
     if (!block.blockDataFileId) {
       throw new Error(
@@ -871,14 +810,6 @@ export class PracticeQuestionDriver extends BaseDriver {
         `Block ${block.blockId} content is corrupted. Re-run practice content generation.`
       );
     }
-
-    console.log('[PracticeQuestionDriver] Loaded block data file:', {
-      blockId: block.blockId,
-      hasExplanation: !!blockData.explanation,
-      hasWorkedExample: !!blockData.worked_example,
-      keyFormulasCount: blockData.key_formulas?.length || 0,
-      misconceptionsCount: blockData.common_misconceptions?.length || 0
-    });
 
     return {
       blockId: block.blockId,

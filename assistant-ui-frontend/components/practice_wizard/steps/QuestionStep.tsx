@@ -61,38 +61,14 @@ export function QuestionStep({
     setHintsRevealed(0);
     setDrawingDataUrl(undefined);
     setDrawingSceneData(undefined);
-    console.log("[QuestionStep] Reset answer state for new question:", question.question_id);
   }, [question.question_id, question.question_type, selectCount]);
 
   const hints = question.hints || [];
   const hasHints = hints.length > 0;
   const isMultiSelect = question.question_type === "mcq" && selectCount > 1;
 
-  // Debug: Log diagram data when question changes
+  // Reset diagram error state when question changes
   useEffect(() => {
-    if (question.diagram_base64) {
-      console.log("[QuestionStep] 📊 Diagram data received:");
-      console.log("  - diagram_base64 length:", question.diagram_base64.length);
-      console.log("  - diagram_base64 type:", typeof question.diagram_base64);
-      console.log("  - First 50 chars:", question.diagram_base64.substring(0, 50));
-      console.log("  - Last 50 chars:", question.diagram_base64.substring(question.diagram_base64.length - 50));
-      console.log("  - diagram_title:", question.diagram_title);
-      console.log("  - diagram_type:", question.diagram_type);
-
-      // Check if it looks like valid PNG base64
-      if (!question.diagram_base64.startsWith("iVBORw0KGgo")) {
-        console.error("[QuestionStep] ⚠️ Base64 does not start with PNG header!");
-        console.error("[QuestionStep] This might indicate corrupted or wrong data");
-      }
-
-      // Check for whitespace or invalid characters
-      if (/\s/.test(question.diagram_base64)) {
-        console.error("[QuestionStep] ⚠️ Base64 contains whitespace characters!");
-      }
-    } else {
-      console.log("[QuestionStep] No diagram_base64 in question");
-    }
-    // Reset error state when question changes
     setDiagramError(null);
   }, [question]);
 
@@ -225,28 +201,19 @@ export function QuestionStep({
                 src={`data:image/png;base64,${question.diagram_base64}`}
                 alt={question.diagram_description || "Question diagram"}
                 className="max-w-full h-auto max-h-[400px] rounded-lg shadow-sm"
-                onError={(e) => {
-                  console.error("[QuestionStep] Image failed to load");
-                  console.error("[QuestionStep] Base64 length:", question.diagram_base64?.length);
-                  console.error("[QuestionStep] Base64 start:", question.diagram_base64?.substring(0, 50));
-                  console.error("[QuestionStep] Base64 end:", question.diagram_base64?.substring((question.diagram_base64?.length || 0) - 50));
-
-                  // Identify the issue
+                onError={() => {
+                  // Identify the issue for user-facing error display
                   let errorMsg = "Unknown error";
                   if (!question.diagram_base64) {
                     errorMsg = "No base64 data available";
                   } else if (question.diagram_base64.includes(" ") || question.diagram_base64.includes("\n")) {
                     errorMsg = "Base64 contains whitespace characters";
-                    console.error("[QuestionStep] WARNING: Base64 contains whitespace characters!");
                   } else if (!question.diagram_base64.startsWith("iVBORw0KGgo")) {
                     errorMsg = "Invalid PNG data (wrong header)";
                   } else {
                     errorMsg = "Image data may be corrupted";
                   }
                   setDiagramError(errorMsg);
-                }}
-                onLoad={() => {
-                  console.log("[QuestionStep] ✅ Diagram image loaded successfully");
                 }}
               />
             )}

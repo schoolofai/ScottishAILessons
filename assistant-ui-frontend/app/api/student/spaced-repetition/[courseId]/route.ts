@@ -49,8 +49,10 @@ export async function GET(
     });
 
     // Call spaced repetition service functions with authenticated databases instance
+    // Note: Increased limit from 5 to 50 so all overdue lessons are shown
+    // (previously was limited to 5, causing mismatch with stats showing total count)
     const [recommendations, stats, upcoming] = await Promise.all([
-      getReviewRecommendations(student.$id, courseId, databases as any, 5),
+      getReviewRecommendations(student.$id, courseId, databases as any, 50),
       getReviewStats(student.$id, courseId, databases as any),
       getUpcomingReviews(student.$id, courseId, databases as any, 14)  // Show next 2 weeks
     ]);

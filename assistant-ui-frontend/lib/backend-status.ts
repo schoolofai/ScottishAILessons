@@ -123,14 +123,8 @@ export async function checkBackendAvailability(): Promise<void> {
     );
   }
 
-  // Allow localhost in development
-  if (isLocalhost && !isProduction) {
-    console.log("ℹ️ [Backend Status] Development mode - allowing localhost backend:", apiUrl);
-  }
-
   // FAIL FAST: Perform health check
   try {
-    console.log("🔍 [Backend Status] Checking backend availability:", apiUrl);
 
     // LangGraph uses /ok endpoint for health checks
     const healthEndpoint = `${apiUrl}/ok`;
@@ -163,9 +157,6 @@ export async function checkBackendAvailability(): Promise<void> {
         }
       );
     }
-
-    // Success!
-    console.log("✅ [Backend Status] Backend is available and responding:", apiUrl);
 
   } catch (error) {
     // Re-throw BackendUnavailableError as-is
@@ -252,14 +243,8 @@ export async function checkContextChatBackendAvailability(): Promise<void> {
     );
   }
 
-  // Allow localhost in development
-  if (isLocalhost && !isProduction) {
-    console.log("ℹ️ [Backend Status] Development mode - allowing localhost context chat backend:", apiUrl);
-  }
-
   // FAIL FAST: Perform health check
   try {
-    console.log("🔍 [Backend Status] Checking context chat backend availability:", apiUrl);
 
     // LangGraph uses /ok endpoint for health checks
     const healthEndpoint = `${apiUrl}/ok`;
@@ -292,9 +277,6 @@ export async function checkContextChatBackendAvailability(): Promise<void> {
         }
       );
     }
-
-    // Success!
-    console.log("✅ [Backend Status] Context chat backend is available and responding:", apiUrl);
 
   } catch (error) {
     // Re-throw ContextChatBackendUnavailableError as-is
@@ -360,8 +342,6 @@ export async function checkAllBackendsAvailability(): Promise<void> {
 
   // Then check context chat backend
   await checkContextChatBackendAvailability();
-
-  console.log("✅ [Backend Status] All backends are available and responding");
 }
 
 /**

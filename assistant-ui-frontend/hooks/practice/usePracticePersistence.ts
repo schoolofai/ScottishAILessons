@@ -7,16 +7,17 @@
  * Separates persistence concerns from the main wizard hook.
  *
  * Architecture:
- * - MasteryV2Driver: Updates outcome-level EMA scores
- * - PracticeSessionDriver: Updates session progress
+ * - MasteryV2Driver: Updates outcome-level EMA scores (client-side - to be migrated)
+ * - Server-side API: POST/PATCH /api/practice-sessions (per CLAUDE.md server-side auth requirement)
  */
 
 import { useCallback, useRef } from "react";
 import { MasteryV2Driver } from "@/lib/appwrite/driver/MasteryV2Driver";
-import {
-  PracticeSessionDriver,
-  type PracticeSessionProgressUpdate,
-} from "@/lib/appwrite/driver/PracticeSessionDriver";
+import { type PracticeSessionProgressUpdate } from "@/lib/appwrite/driver/PracticeSessionDriver";
+import { createLogger } from "@/lib/logger";
+
+// Create namespaced logger for practice persistence
+const log = createLogger("PracticePersistence");
 
 import type {
   PracticeFeedback,
@@ -53,6 +54,8 @@ export interface SessionUpdateRequest {
   isCorrect: boolean;
   /** New mastery score from feedback */
   newMastery: number;
+  /** Current difficulty level to persist for resume */
+  currentDifficulty?: 'easy' | 'medium' | 'hard';
 }
 
 /**
@@ -96,24 +99,19 @@ function calculateNewEMA(
 
 /**
  * Hook for practice persistence operations
+ *
+ * Session updates use server-side API routes (/api/practice-sessions)
+ * per CLAUDE.md requirement for server-side Appwrite auth.
  */
 export function usePracticePersistence(sessionToken?: string) {
   const masteryDriverRef = useRef<MasteryV2Driver | null>(null);
-  const sessionDriverRef = useRef<PracticeSessionDriver | null>(null);
 
-  // Lazy initialization of drivers
+  // Lazy initialization of mastery driver (TODO: migrate to server-side API)
   const getMasteryDriver = useCallback(() => {
     if (!masteryDriverRef.current) {
       masteryDriverRef.current = new MasteryV2Driver(sessionToken);
     }
     return masteryDriverRef.current;
-  }, [sessionToken]);
-
-  const getSessionDriver = useCallback(() => {
-    if (!sessionDriverRef.current) {
-      sessionDriverRef.current = new PracticeSessionDriver(sessionToken);
-    }
-    return sessionDriverRef.current;
   }, [sessionToken]);
 
   /**
@@ -132,14 +130,14 @@ export function usePracticePersistence(sessionToken?: string) {
 
       // Skip if no outcome IDs to update
       if (!outcomeIds || outcomeIds.length === 0) {
-        console.log("[usePracticePersistence] No outcome IDs to update, skipping mastery persistence");
+        log.debug("Mastery update skipped - no outcome IDs", { studentId, courseId });
         return;
       }
 
-      console.log("[usePracticePersistence] Persisting mastery update:", {
+      log.info("Persisting mastery update", {
         studentId,
         courseId,
-        outcomeIds,
+        outcomeCount: outcomeIds.length,
         isCorrect,
         partialCredit,
       });
@@ -151,26 +149,21 @@ export function usePracticePersistence(sessionToken?: string) {
         const currentEMAs = await driver.getCourseEMAs(studentId, courseId);
         const existingEMAs = currentEMAs || {};
 
-        console.log("[usePracticePersistence] Current EMAs:", existingEMAs);
-
         // 2. Calculate new EMAs for each outcome
         const updatedEMAs: { [outcomeId: string]: number } = {};
 
         for (const outcomeId of outcomeIds) {
           const currentEMA = existingEMAs[outcomeId] || 0.3; // Default starting EMA
           const newEMA = calculateNewEMA(currentEMA, isCorrect, partialCredit);
-
           updatedEMAs[outcomeId] = newEMA;
-
-          console.log(`[usePracticePersistence] Outcome ${outcomeId}: ${currentEMA.toFixed(3)} -> ${newEMA.toFixed(3)}`);
+          log.debug("EMA calculated", { outcomeId, currentEMA, newEMA, isCorrect });
         }
 
         // 3. Batch update all outcomes
         await driver.batchUpdateEMAs(studentId, courseId, updatedEMAs);
-
-        console.log("[usePracticePersistence] ✅ Mastery update persisted successfully");
+        log.info("Mastery update persisted", { outcomeCount: outcomeIds.length });
       } catch (error) {
-        console.error("[usePracticePersistence] ❌ Failed to persist mastery:", error);
+        log.error("Failed to persist mastery", { error, studentId, courseId });
         // Don't throw - mastery persistence is non-critical for UX
         // Log the error but allow the session to continue
       }
@@ -183,8 +176,7 @@ export function usePracticePersistence(sessionToken?: string) {
    *
    * Updates:
    * - current_block_index
-   * - total_questions_attempted
-   * - total_questions_correct
+   * - blocks_progress (per-block mastery for resume support)
    * - overall_mastery
    * - last_activity_at
    *
@@ -192,44 +184,80 @@ export function usePracticePersistence(sessionToken?: string) {
    */
   const persistSessionProgress = useCallback(
     async (request: SessionUpdateRequest): Promise<void> => {
-      const { sessionId, progress, isCorrect, newMastery } = request;
+      const { sessionId, progress, isCorrect, newMastery, currentDifficulty } = request;
 
       if (!sessionId) {
-        console.log("[usePracticePersistence] No session ID, skipping session persistence");
+        // CRITICAL: This is a bug indicator - session should have been created during startSessionV2
+        log.warn("Session progress NOT persisted - sessionId is undefined", {
+          currentBlockIndex: progress.current_block_index,
+          completedBlocks: progress.completed_blocks,
+          totalBlocks: progress.total_blocks,
+          isCorrect,
+          newMastery,
+        });
         return;
       }
 
-      console.log("[usePracticePersistence] Persisting session progress:", {
+      log.info("Persisting session progress", {
         sessionId,
-        progressBlocks: progress.completed_blocks,
+        currentBlockIndex: progress.current_block_index,
         isCorrect,
         newMastery,
+        currentDifficulty,
       });
 
       try {
-        const driver = getSessionDriver();
-
-        // Build progress update
+        // Build progress update - CRITICAL: Include blocks_progress for resume support!
         const progressUpdate: PracticeSessionProgressUpdate = {
           current_block_index: progress.current_block_index,
           overall_mastery: newMastery,
           last_activity_at: new Date().toISOString(),
         };
 
+        // CRITICAL FIX: Save blocks_progress for session resume
+        // This enables restoring per-block mastery when student returns to practice
+        if (progress.blocks && progress.blocks.length > 0) {
+          // Map contract's BlockProgress to driver's expected format
+          // Add current_difficulty from the request so resume knows where student left off
+          progressUpdate.blocks_progress = progress.blocks.map((block) => ({
+            block_id: block.block_id,
+            mastery_score: block.mastery_score,
+            is_complete: block.is_complete,
+            // Include current_difficulty for the current block being practiced
+            current_difficulty: currentDifficulty || 'easy',
+            // These fields are required by driver type but we only update what we track
+            questions_attempted: { easy: 0, medium: 0, hard: 0 },
+            questions_correct: { easy: 0, medium: 0, hard: 0 },
+            started_at: null,
+            completed_at: block.is_complete ? new Date().toISOString() : null,
+          }));
+        }
+
         // Check if session should be completed
         if (progress.completed_blocks >= progress.total_blocks) {
           progressUpdate.status = "completed";
         }
 
-        await driver.updateSessionProgress(sessionId, progressUpdate);
+        // Use server-side API route instead of direct Appwrite SDK
+        // This follows CLAUDE.md requirement: "all access to appwrite should use server side auth"
+        const response = await fetch(`/api/practice-sessions/${sessionId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(progressUpdate),
+        });
 
-        console.log("[usePracticePersistence] ✅ Session progress persisted successfully");
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+
+        log.info("Session progress persisted via API", { sessionId });
       } catch (error) {
-        console.error("[usePracticePersistence] ❌ Failed to persist session:", error);
+        log.error("Failed to persist session progress via API", { error, sessionId });
         // Don't throw - session persistence is non-critical for UX
       }
     },
-    [getSessionDriver]
+    []
   );
 
   /**
@@ -247,17 +275,16 @@ export function usePracticePersistence(sessionToken?: string) {
         courseId: string;
         sessionId?: string;
         outcomeIds?: string[];
+        /** Current difficulty to persist for resume support */
+        currentDifficulty?: 'easy' | 'medium' | 'hard';
+        /** Optional progress override for V2 mode where backend doesn't send progress */
+        progress?: ProgressReport;
       }
     ): Promise<void> => {
-      const { studentId, courseId, sessionId, outcomeIds } = context;
+      const { studentId, courseId, sessionId, outcomeIds, currentDifficulty, progress } = context;
 
-      console.log("[usePracticePersistence] Persisting feedback result:", {
-        isCorrect: feedback.is_correct,
-        partialCredit: feedback.partial_credit,
-        newMastery: feedback.new_mastery_score,
-        hasOutcomeIds: !!outcomeIds?.length,
-        hasSessionId: !!sessionId,
-      });
+      // Use provided progress OR feedback.progress (V2 backend doesn't include progress in feedback)
+      const progressToSave = progress || feedback.progress;
 
       // Run both updates in parallel for better performance
       await Promise.all([
@@ -273,18 +300,27 @@ export function usePracticePersistence(sessionToken?: string) {
             })
           : Promise.resolve(),
 
-        // P2: Session persistence
-        sessionId
+        // P2: Session persistence (includes blocks_progress for resume)
+        // CRITICAL: Skip if no progress available (V2 mode may not have progress in feedback)
+        sessionId && progressToSave
           ? persistSessionProgress({
               sessionId,
-              progress: feedback.progress,
+              progress: progressToSave,
               isCorrect: feedback.is_correct,
               newMastery: feedback.new_mastery_score,
+              currentDifficulty,
             })
-          : Promise.resolve(),
+          : (() => {
+              if (sessionId && !progressToSave) {
+                log.warn("Session progress skipped - no progress data available", {
+                  sessionId,
+                  hasProgress: !!progressToSave,
+                  feedbackHasProgress: !!feedback.progress,
+                });
+              }
+              return Promise.resolve();
+            })(),
       ]);
-
-      console.log("[usePracticePersistence] ✅ All persistence complete");
     },
     [persistMasteryUpdate, persistSessionProgress]
   );

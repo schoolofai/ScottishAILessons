@@ -160,19 +160,12 @@ export function EnhancedStudentDashboard() {
           const data = await response.json();
           setMockExamAvailable(data.available);
           setMockExamId(data.examId);
-          console.log('[Dashboard] Mock exam availability:', { courseId: activeCourse, available: data.available, examId: data.examId });
         } else {
-          // Log non-200 responses for debugging
-          console.error('[Dashboard] Mock exam availability check failed:', {
-            courseId: activeCourse,
-            status: response.status,
-            statusText: response.statusText
-          });
           setMockExamAvailable(false);
           setMockExamId(null);
         }
       } catch (error) {
-        console.error('[Dashboard] Failed to check mock exam availability:', error);
+        // Silently fail - exam will show as unavailable
         setMockExamAvailable(false);
         setMockExamId(null);
       } finally {
@@ -191,10 +184,8 @@ export function EnhancedStudentDashboard() {
         if (response.ok) {
           const data = await response.json();
           setSubscriptionPrice(data);
-          console.log('[Dashboard] Subscription price prefetched:', data.formatted);
         }
       } catch (error) {
-        console.error('[Dashboard] Failed to prefetch subscription price:', error);
         // Silently fail - modal will use fallback price
       }
     };
@@ -230,7 +221,6 @@ export function EnhancedStudentDashboard() {
       // Load enrollments and courses from server API
       await loadEnrollmentsFromAPI(data.student);
     } catch (err) {
-      console.error("Student initialization error:", err);
       setError(err instanceof Error ? err.message : "Failed to initialize student");
 
       // Redirect to login if authentication failed
@@ -269,12 +259,6 @@ export function EnhancedStudentDashboard() {
       // Transform for navigation
       const transformedCourses = transformCoursesForNavigation(coursesData.active);
       setCourseData(transformedCourses);
-
-      console.log('[Dashboard] Loaded enrolled courses:', {
-        activeEnrollmentCount: enrollments.active.length,
-        archivedEnrollmentCount: enrollments.archived.length,
-        courseCount: transformedCourses.length
-      });
 
       // Check if no active enrollments
       if (enrollments.active.length === 0) {
@@ -373,14 +357,12 @@ export function EnhancedStudentDashboard() {
       const cachedRecommendations = cache.get<RecommendationsData>(cacheKey);
 
       if (cachedRecommendations) {
-        console.log('[Cache] Using cached recommendations for:', { courseId, cacheKey });
         setRecommendations(cachedRecommendations);
         setRecommendationsLoading(false);
         return;
       }
 
       // 4. Get all recommendations data via server-side API (httpOnly cookie authentication)
-      console.log('[API] Fetching recommendations data from server...');
       const recommendationsDataResponse = await fetch(`/api/student/recommendations-data/${courseId}`, {
         method: 'GET',
         credentials: 'include', // Include httpOnly cookies
@@ -398,11 +380,6 @@ export function EnhancedStudentDashboard() {
       const templatesResult = { documents: recommendationsData.lessonTemplates };
       const masteryV2Record = recommendationsData.mastery;
       const sowDocuments = recommendationsData.sow;
-
-      console.log('[API] Successfully fetched recommendations data:', {
-        hasMastery: !!masteryV2Record,
-        sowCount: sowDocuments?.length || 0
-      });
 
       // Convert MasteryV2 to legacy format for compatibility
       let masteryData = [];
@@ -424,13 +401,6 @@ export function EnhancedStudentDashboard() {
             keyType: displayRef.isComposite ? 'assessment_standard' : 'outcome'
           };
         });
-
-        console.log('[Dashboard] Parsed mastery data:', {
-          totalEntries: masteryData.length,
-          outcomeCount: masteryData.filter(m => m.keyType === 'outcome').length,
-          asCount: masteryData.filter(m => m.keyType === 'assessment_standard').length,
-          sample: masteryData.slice(0, 3)
-        });
       }
 
       // 8. Routine data removed - keeping spaced repetition separate from recommendations
@@ -445,37 +415,20 @@ export function EnhancedStudentDashboard() {
         throw error;
       }
 
-      console.log('[SOW Query] SUCCESS - Found SOWV2 documents:', sowDocuments.length);
-
-      // Phase 1: Data Collection Complete
-      console.log('[Recommendation Phase 1 - Data Collection]', {
-        student: currentStudent,
-        course: course,
-        templates: templatesResult.documents,
-        mastery: masteryV2Record,
-        sow: sowDocuments
-      });
-
       // 10. Build complete scheduling context (matching Task 7 isolation test format)
-
-      // Debug SOW data transformation
-      console.log('[SOW Debug] Raw SOWV2 document:', sowDocuments[0]);
 
       let sowEntries = [];
       if (sowDocuments.length > 0) {
         const rawEntries = sowDocuments[0].entries || '[]';
-        console.log('[SOW Debug] Raw entries field:', rawEntries);
 
         try {
           const parsedEntries = JSON.parse(rawEntries);
-          console.log('[SOW Debug] Parsed entries:', parsedEntries);
 
           sowEntries = parsedEntries.map((entry: any) => ({
             templateId: entry.lessonTemplateId,
             order: entry.order,
             plannedAt: entry.plannedAt
           }));
-          console.log('[SOW Debug] Transformed SOW entries:', sowEntries);
         } catch (error) {
           console.error('[SOW Debug] Error parsing entries:', error);
         }
@@ -508,9 +461,6 @@ export function EnhancedStudentDashboard() {
         sow: sowEntries
       };
 
-      // Phase 2: Context Building Complete
-      console.log('[Recommendation Phase 2 - Context Building]', context);
-
       // 11. Call LangGraph Course Manager using SDK
       const { Client: LangGraphClient } = await import('@langchain/langgraph-sdk');
       const langGraphClient = new LangGraphClient({
@@ -533,13 +483,6 @@ export function EnhancedStudentDashboard() {
         }
       );
 
-      // Phase 3: LangGraph SDK Call
-      console.log('[Recommendation Phase 3 - LangGraph SDK Call]', {
-        threadId: thread.thread_id,
-        runId: run.run_id,
-        input: { session_context: context, mode: "course_manager" }
-      });
-
       // Wait for completion
       const result = await langGraphClient.runs.join(thread.thread_id, run.run_id);
 
@@ -548,10 +491,6 @@ export function EnhancedStudentDashboard() {
 
       // Extract recommendation from state only - NO FALLBACKS
       const courseRecommendation = state.values?.course_recommendation;
-
-      // Detailed logging for debugging
-      console.log('[Recommendation Extraction] State values keys:', Object.keys(state.values || {}));
-      console.log('[Recommendation Extraction] Course recommendation present:', !!courseRecommendation);
 
       if (!courseRecommendation) {
         const errorDetails = {
@@ -574,12 +513,6 @@ export function EnhancedStudentDashboard() {
         );
       }
 
-      // Phase 4: Response Extraction Complete
-      console.log('[Recommendation Phase 4 - Response Extraction]', {
-        state: state.values,
-        courseRecommendation: courseRecommendation
-      });
-
       // Transform LangGraph response to match RecommendationSection expected format
       const transformedRecommendations = {
         available: true,
@@ -600,14 +533,8 @@ export function EnhancedStudentDashboard() {
         }
       };
 
-      // Phase 5: Data Transformation Complete
-      console.log('[Recommendation Phase 5 - Data Transformation]', {
-        transformedRecommendations: transformedRecommendations
-      });
-
       // Cache the recommendations (5 minute TTL) - reuse cacheKey from earlier
       cache.set(cacheKey, transformedRecommendations, 5 * 60 * 1000);
-      console.log('[Cache] Cached recommendations for:', { courseId, cacheKey });
 
       setRecommendations(transformedRecommendations);
     } catch (err) {
@@ -628,15 +555,12 @@ export function EnhancedStudentDashboard() {
   // TODO: Convert to server-side API call (currently disabled after removing dual session)
   const loadSpacedRepetition = async (courseId: string, studentData?: any) => {
     if (!studentData) {
-      console.log('[loadSpacedRepetition] No student data available');
       return;
     }
 
     try {
       setSpacedRepetitionLoading(true);
       setSpacedRepetitionError(null);
-
-      console.log('[Spaced Repetition] Fetching data from server API...');
 
       // Fetch spaced repetition data via server-side API (httpOnly cookie authentication)
       const spacedRepResponse = await fetch(`/api/student/spaced-repetition/${courseId}`, {
@@ -652,12 +576,6 @@ export function EnhancedStudentDashboard() {
       }
 
       const { data: spacedRepData } = await spacedRepResponse.json();
-
-      console.log('[Spaced Repetition] Successfully fetched data:', {
-        hasRecommendations: !!spacedRepData.recommendations,
-        hasStats: !!spacedRepData.stats,
-        hasUpcoming: !!spacedRepData.upcoming
-      });
 
       // Set the spaced repetition data
       setSpacedRepetitionData(spacedRepData);
@@ -679,7 +597,6 @@ export function EnhancedStudentDashboard() {
 
       // Temporarily disabled - requires server-side API endpoint
       // The dashboard gracefully handles missing progress data
-      console.log('[Progress] Progress loading temporarily disabled (requires API migration)');
       setCourseProgress(null);
     } catch (err) {
       console.error('[Progress] Failed to load course progress:', err);
@@ -820,7 +737,6 @@ export function EnhancedStudentDashboard() {
       // Invalidate cache before retrying to force fresh data
       const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
       cache.invalidate(cacheKey);
-      console.log('[Cache] Invalidated cache for retry:', { cacheKey });
 
       loadRecommendations(activeCourse, student);
     }
@@ -829,7 +745,6 @@ export function EnhancedStudentDashboard() {
   // Handle spaced repetition retry
   const handleSpacedRepetitionRetry = useCallback(() => {
     if (activeCourse && student) {
-      console.log('[Retry] Retrying spaced repetition load for:', { activeCourse, studentId: student.$id });
       loadSpacedRepetition(activeCourse, student);
     }
   }, [activeCourse, student]);
@@ -852,7 +767,6 @@ export function EnhancedStudentDashboard() {
       return;
     }
 
-    console.log('[Dashboard] Starting mock exam:', { examId: mockExamId, courseId: activeCourse });
     router.push(`/exam/${mockExamId}`);
   }, [mockExamId, hasAccess, activeCourse, router]);
 

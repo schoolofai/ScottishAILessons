@@ -54,13 +54,6 @@ export function useServerAuth() {
       refreshInterval: 0,
       dedupingInterval: 2000, // Dedupe requests within 2 seconds
       shouldRetryOnError: false,
-      onSuccess: (data) => {
-        if (data.success) {
-          console.log('[useServerAuth] User authenticated:', data.user?.$id);
-        } else {
-          console.log('[useServerAuth] User not authenticated');
-        }
-      },
       onError: (err) => {
         console.error('[useServerAuth] Auth check failed:', err);
       }

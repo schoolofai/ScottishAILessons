@@ -91,9 +91,18 @@ imagenRouter.post('/', async (req: Request, res: Response) => {
     });
 
   } catch (error) {
+    // Log error with input metadata (exclude full prompt for privacy/size)
+    const inputMeta = {
+      promptLength: req.body?.prompt?.text?.length || 0,
+      style: req.body?.prompt?.style?.type || 'none',
+      options: req.body?.options || {}
+    };
+
     logger.error('Imagen render failed', {
       error: error instanceof Error ? error.message : String(error),
-      duration: Date.now() - startTime
+      stack: error instanceof Error ? error.stack : undefined,
+      duration: Date.now() - startTime,
+      inputMeta
     });
 
     handleRenderError(error, res, 'imagen');

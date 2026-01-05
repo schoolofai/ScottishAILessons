@@ -15,6 +15,7 @@ import {
   type PracticeSessionContext,
   type QuestionAvailability,
 } from "@/hooks/practice/useLangGraphWizard";
+import { extractResumePosition } from "@/lib/utils/extractResumePosition";
 import { useBlockContent } from "@/hooks/practice/useBlockContent";
 import { WizardProgressBar } from "./WizardProgressBar";
 import { WizardSidePanel } from "./WizardSidePanel";
@@ -99,43 +100,40 @@ export function WizardPracticeContainer({
   // StrictMode remounts components in dev mode, but refs persist across mount/unmount cycles
   useEffect(() => {
     if (hasStartedRef.current) {
-      console.log("[WizardPracticeContainer] Session already started, skipping duplicate start");
       return;
     }
     hasStartedRef.current = true;
 
     if (useV2Mode && questionAvailability?.hasQuestions) {
       // V2 mode: Use pre-generated offline questions (faster)
-      const firstBlock = questionAvailability.byBlock[0];
-      if (!firstBlock) {
-        console.error("[WizardPracticeContainer] V2 mode enabled but no blocks available");
-        wizard.startSession(practiceContext).catch((error) => {
-          console.error("[WizardPracticeContainer] Failed to start V1 session:", error);
-        });
-        return;
-      }
+      // ═══════════════════════════════════════════════════════════════
+      // RESUME LOGIC: Extract starting position from stored session
+      // Uses extractResumePosition utility (TDD-validated)
+      // ═══════════════════════════════════════════════════════════════
+      const resumePosition = extractResumePosition(
+        practiceContext.stored_session as Parameters<typeof extractResumePosition>[0],
+        questionAvailability
+      );
 
-      console.log("[WizardPracticeContainer] Starting V2 session with offline questions", {
-        lessonTemplateId: practiceContext.lesson_template_id,
-        blockId: firstBlock.blockId,
-        availableQuestions: questionAvailability.totalCount
-      });
+      // Extract blocks_progress from stored session for progress restoration
+      // Type assertion needed because PracticeSessionContext doesn't fully type stored_session
+      const storedBlocksProgress = (practiceContext.stored_session as { blocks_progress?: Array<{ block_id: string; mastery_score?: number; is_complete?: boolean }> })?.blocks_progress;
 
       wizard.startSessionV2(
         practiceContext.lesson_template_id,
-        firstBlock.blockId,
-        "easy", // Start with easy difficulty
+        resumePosition.blockId,      // Use resume position instead of always first block
+        resumePosition.difficulty,   // Use resume difficulty instead of always "easy"
         practiceContext.student_id,
         undefined, // sessionToken - not available in practiceContext
         undefined, // courseId - could extract from lesson_snapshot if needed
         practiceContext.session_id, // sessionId for resume support
-        questionAvailability // CRITICAL: Pass all blocks for multi-block progression!
+        questionAvailability, // CRITICAL: Pass all blocks for multi-block progression!
+        storedBlocksProgress  // Pass stored blocks progress for resume (TDD-validated)
       ).catch((error) => {
         console.error("[WizardPracticeContainer] Failed to start V2 session:", error);
       });
     } else {
       // V1 mode: Real-time question generation (legacy)
-      console.log("[WizardPracticeContainer] Starting V1 session (real-time generation)");
       wizard.startSession(practiceContext).catch((error) => {
         console.error("[WizardPracticeContainer] Failed to start V1 session:", error);
       });
@@ -147,10 +145,6 @@ export function WizardPracticeContainer({
   // NOTE: Only include setCurrentBlock (stable callback) in deps, NOT the entire hook return
   useEffect(() => {
     if (useV2Mode && wizard.currentQuestion?.block_id) {
-      console.log("[WizardPracticeContainer] Loading block content for reference panel", {
-        blockId: wizard.currentQuestion.block_id,
-        lessonTemplateId: practiceContext.lesson_template_id
-      });
       setCurrentBlock(
         practiceContext.lesson_template_id,
         wizard.currentQuestion.block_id
@@ -170,7 +164,6 @@ export function WizardPracticeContainer({
         .map(b => b.block_id);
 
       if (upcomingIds.length > 0) {
-        console.log("[WizardPracticeContainer] Prefetching upcoming blocks", { upcomingIds });
         prefetchUpcoming(practiceContext.lesson_template_id, upcomingIds);
       }
     }
@@ -180,9 +173,6 @@ export function WizardPracticeContainer({
   // NOTE: Only include navLoadAllBlocks (stable callback) in deps
   useEffect(() => {
     if (useV2Mode && practiceContext.lesson_template_id) {
-      console.log("[WizardPracticeContainer] Loading all blocks for navigation", {
-        lessonTemplateId: practiceContext.lesson_template_id
-      });
       navLoadAllBlocks(practiceContext.lesson_template_id).catch((error) => {
         console.error("[WizardPracticeContainer] Failed to load blocks list:", error);
       });
@@ -198,10 +188,6 @@ export function WizardPracticeContainer({
         b => b.blockId === wizard.currentQuestion?.block_id
       );
       if (idx >= 0) {
-        console.log("[WizardPracticeContainer] Syncing viewing index to current question block", {
-          blockId: wizard.currentQuestion.block_id,
-          index: idx
-        });
         navSetViewingIndex(idx);
       }
     }
@@ -230,14 +216,25 @@ export function WizardPracticeContainer({
   );
 
   // Handle continue from feedback - V2 mode fetches next offline question with adaptive difficulty
+  // BUG FIX: Guard against fetching more questions when session is complete
+  // Race condition: User clicks "Continue" before React re-renders with stage="complete"
   const handleContinueFromFeedback = useCallback(async () => {
+    // Guard: Don't fetch more questions if session is already complete
+    if (wizard.stage === "complete") {
+      console.log("[handleContinueFromFeedback] Session already complete, skipping question fetch");
+      return;
+    }
+
+    // Guard: Block just completed AND no more blocks → session is complete
+    // This catches the race condition where blockJustCompleted is true but stage hasn't updated yet
+    if (wizard.blockJustCompleted && !wizard.pendingNextBlock) {
+      console.log("[handleContinueFromFeedback] Block just completed with no more blocks, skipping question fetch");
+      return;
+    }
+
     if (useV2Mode && wizard.isV2Mode) {
       // V2: Calculate adaptive difficulty and fetch next pre-generated question
       const nextDifficulty = wizard.getNextAdaptiveDifficulty();
-      console.log("[WizardPracticeContainer] V2 mode: Fetching next offline question", {
-        nextDifficulty,
-        currentDifficulty: wizard.currentDifficulty,
-      });
       await wizard.nextQuestionV2(nextDifficulty);
     } else {
       // V1: Let backend generate next question
@@ -388,8 +385,6 @@ export function WizardPracticeContainer({
           blockProgress={wizard.progress?.blocks}
           currentBlockId={wizard.currentQuestion?.block_id}
           onBlockSelect={(blockId) => {
-            // Load content for the selected block
-            console.log("[WizardPracticeContainer] Block selected in reference panel:", blockId);
             setCurrentBlock(practiceContext.lesson_template_id, blockId);
           }}
           // Navigation props (Phase 6)
@@ -399,7 +394,6 @@ export function WizardPracticeContainer({
           canGoForward={navCanGoForward}
           onNavigateBack={() => {
             if (navCanGoBack && navViewingIndex > 0) {
-              console.log("[WizardPracticeContainer] Navigating to previous block");
               navNavigateToBlock(practiceContext.lesson_template_id, navViewingIndex - 1).catch((error) => {
                 console.error("[WizardPracticeContainer] Failed to navigate back:", error);
               });
@@ -407,7 +401,6 @@ export function WizardPracticeContainer({
           }}
           onNavigateForward={() => {
             if (navCanGoForward && navViewingIndex < navAllBlocks.length - 1) {
-              console.log("[WizardPracticeContainer] Navigating to next block");
               navNavigateToBlock(practiceContext.lesson_template_id, navViewingIndex + 1).catch((error) => {
                 console.error("[WizardPracticeContainer] Failed to navigate forward:", error);
               });

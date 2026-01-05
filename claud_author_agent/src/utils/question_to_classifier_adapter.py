@@ -11,6 +11,7 @@ The adapter:
 
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Dict, Any, List
@@ -333,7 +334,23 @@ async def process_question_diagrams(
 
         from ..agents.diagram_author_agent import DiagramAuthorAgent
 
-        author = DiagramAuthorAgent(workspace_path=workspace_path)
+        # Read API config from environment (loaded via dotenv in CLI)
+        rendering_api_base = os.environ.get(
+            "DIAGRAM_SCREENSHOT_URL", "http://localhost:3001"
+        )
+        rendering_api_key = os.environ.get(
+            "DIAGRAM_SCREENSHOT_API_KEY", "dev-api-key-change-in-production"
+        )
+
+        logger.info(f"DiagramAuthorAgent API config:")
+        logger.info(f"  Base URL: {rendering_api_base}")
+        logger.info(f"  API Key: {'***' + rendering_api_key[-4:] if rendering_api_key else 'NOT SET'}")
+
+        author = DiagramAuthorAgent(
+            workspace_path=workspace_path,
+            rendering_api_base=rendering_api_base,
+            rendering_api_key=rendering_api_key
+        )
         author_result = await author.execute()
 
         # Step 5: Upload diagrams to Appwrite Storage
@@ -341,7 +358,8 @@ async def process_question_diagrams(
             logger.info("Uploading diagrams to Appwrite Storage...")
             await upload_diagrams_to_storage(
                 workspace_path=workspace_path,
-                mcp_config_path=mcp_config_path
+                mcp_config_path=mcp_config_path,
+                lesson_template_id=lesson_template_id
             )
 
         # Step 6: Apply manifest with file IDs to questions
@@ -399,6 +417,7 @@ def _apply_diagram_manifest(
 async def upload_diagrams_to_storage(
     workspace_path: Path,
     mcp_config_path: str,
+    lesson_template_id: str,
     bucket_id: str = "practice_content"
 ) -> Dict[str, str]:
     """Upload generated diagram images to Appwrite Storage.
@@ -409,6 +428,7 @@ async def upload_diagrams_to_storage(
     Args:
         workspace_path: Path to workspace with diagrams/
         mcp_config_path: Path to MCP config for Appwrite credentials
+        lesson_template_id: Lesson template ID for unique file ID generation
         bucket_id: Storage bucket ID
 
     Returns:
@@ -470,8 +490,8 @@ async def upload_diagrams_to_storage(
             logger.warning(f"Diagram image not found for {question_id}: {image_path}")
             continue
 
-        # Generate deterministic file ID
-        file_id = hashlib.md5(f"diagram:{question_id}".encode()).hexdigest()[:36]
+        # Generate deterministic file ID (includes lesson_template_id to avoid cross-lesson collisions)
+        file_id = hashlib.md5(f"diagram:{lesson_template_id}:{question_id}".encode()).hexdigest()[:36]
 
         try:
             # Create InputFile from path

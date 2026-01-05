@@ -76,7 +76,9 @@ plotlyRouter.post('/', async (req: Request, res: Response) => {
   } catch (error) {
     logger.error('Plotly render failed', {
       error: error instanceof Error ? error.message : String(error),
-      duration: Date.now() - startTime
+      stack: error instanceof Error ? error.stack : undefined,
+      duration: Date.now() - startTime,
+      input: JSON.stringify(req.body, null, 2)
     });
 
     handleError(error, res);

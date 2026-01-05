@@ -116,7 +116,8 @@ export const Thread: FC = () => {
       }}
     >
       {/* Handler for scroll and glow on stream complete */}
-      <StreamCompleteHandler />
+      {/* TEMPORARILY DISABLED - investigating message disappearing bug */}
+      {/* <StreamCompleteHandler /> */}
 
       {/* aui-thread-viewport */}
       <ThreadPrimitive.Viewport className="relative flex min-w-0 flex-1 min-h-0 flex-col gap-6 overflow-y-auto px-[var(--thread-padding-x)] py-4">

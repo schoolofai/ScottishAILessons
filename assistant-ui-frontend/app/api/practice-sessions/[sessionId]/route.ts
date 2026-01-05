@@ -140,21 +140,43 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Parse update data
     const updateData = await request.json();
 
-    console.log("[API] Updating practice session:", {
-      session_id: sessionId,
-      document_id: session.$id,
-      updateFields: Object.keys(updateData),
-    });
+    // Appwrite requires complex fields to be stored as JSON strings
+    // Handle stringification server-side so clients can send normal objects
+    const documentData: Record<string, unknown> = {
+      ...updateData,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Stringify complex fields if present and not already strings
+    if (updateData.blocks_progress !== undefined) {
+      documentData.blocks_progress = typeof updateData.blocks_progress === 'string'
+        ? updateData.blocks_progress
+        : JSON.stringify(updateData.blocks_progress || []);
+    }
+    if (updateData.current_question !== undefined) {
+      documentData.current_question = updateData.current_question === null
+        ? null
+        : (typeof updateData.current_question === 'string'
+            ? updateData.current_question
+            : JSON.stringify(updateData.current_question));
+    }
+    if (updateData.source_metadata !== undefined) {
+      documentData.source_metadata = typeof updateData.source_metadata === 'string'
+        ? updateData.source_metadata
+        : JSON.stringify(updateData.source_metadata || {});
+    }
+    if (updateData.blocks !== undefined) {
+      documentData.blocks = typeof updateData.blocks === 'string'
+        ? updateData.blocks
+        : JSON.stringify(updateData.blocks || []);
+    }
 
     // Update the document
     const updated = await adminDb.updateDocument(
       DATABASE_ID,
       COLLECTION_ID,
       session.$id,
-      {
-        ...updateData,
-        updated_at: new Date().toISOString(),
-      }
+      documentData
     );
 
     console.log("[API] Practice session updated:", updated.$id);

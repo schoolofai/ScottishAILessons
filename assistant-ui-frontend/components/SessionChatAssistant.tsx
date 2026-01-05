@@ -41,7 +41,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [error, setError] = useState<string | null>(null);
 
   // Subscription access check (T044)
-  const { hasAccess, status } = useSubscription();
+  const { hasAccess, status, isLoading: isLoadingSubscription } = useSubscription();
 
   // Backend availability state - FAIL FAST (NO FALLBACK)
   // Checks BOTH main backend AND context chat backend
@@ -79,6 +79,12 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   // Check ALL backends availability FIRST - FAIL FAST (NO FALLBACK)
   // This checks BOTH main backend (teaching) AND context chat backend (AI Tutor)
   useEffect(() => {
+    // Don't check until subscription loading is complete
+    if (isLoadingSubscription) {
+      console.log('🔍 [Backend Boundary] Waiting for subscription status to load...');
+      return;
+    }
+
     console.log('🔍 [Backend Boundary] Checking ALL backends availability (main + context chat)...');
 
     checkAllBackendsStatus()
@@ -95,7 +101,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         console.log('✅ [Backend Boundary] ALL backends are available and responding');
 
-        // T045: Check subscription access AFTER backend check
+        // T045: Check subscription access AFTER backend check (and after subscription data loaded)
         if (!hasAccess) {
           console.error('❌ [Subscription] User does not have active subscription');
           setError('Subscription required to access AI tutor. Please subscribe to continue.');
@@ -116,7 +122,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
             : new BackendUnavailableError('Unexpected error checking backends'),
         });
       });
-  }, [hasAccess]); // Re-check when subscription status changes
+  }, [hasAccess, isLoadingSubscription]); // Re-check when subscription status changes or finishes loading
 
   useEffect(() => {
     console.log('🔄 SessionChatAssistant - useEffect triggered:', {

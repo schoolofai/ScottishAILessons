@@ -44,6 +44,7 @@ class PracticeQuestionGeneratorAgent:
 
     Generates questions for each block at each difficulty level.
     Questions are validated with Pydantic after generation.
+    Course outcomes are used to constrain questions to curriculum scope.
     """
 
     def __init__(
@@ -51,7 +52,11 @@ class PracticeQuestionGeneratorAgent:
         workspace_path: Path,
         model: str = 'claude-sonnet-4-5',
         max_turns: int = 20,
-        questions_per_difficulty: Dict[str, int] = None
+        questions_per_difficulty: Dict[str, int] = None,
+        # Course context for curriculum scope constraints
+        course_subject: str = "mathematics",
+        course_level: str = "national-3",
+        course_outcomes: List[Dict[str, Any]] = None
     ):
         """Initialize Practice Question Generator Agent.
 
@@ -60,11 +65,19 @@ class PracticeQuestionGeneratorAgent:
             model: Claude model to use
             max_turns: Maximum conversation turns per block/difficulty
             questions_per_difficulty: Dict of difficulty -> count
+            course_subject: Subject (e.g., "mathematics", "application-of-mathematics")
+            course_level: Level (e.g., "national-3", "national-5", "higher")
+            course_outcomes: List of course outcome documents from Appwrite
         """
         self.workspace_path = workspace_path
         self.model = model
         self.max_turns = max_turns
         self.questions_per_difficulty = questions_per_difficulty or DEFAULT_QUESTIONS_PER_DIFFICULTY
+
+        # Course context for curriculum scope
+        self.course_subject = course_subject
+        self.course_level = course_level
+        self.course_outcomes = course_outcomes or []
 
         # Load prompt from file
         prompts_dir = Path(__file__).parent.parent / "prompts"
@@ -269,6 +282,9 @@ class PracticeQuestionGeneratorAgent:
 ### Learning Outcomes
 {json.dumps(block.outcome_refs, indent=2)}
 
+### Curriculum Scope Constraints (CRITICAL)
+{self._get_curriculum_constraints()}
+
 ---
 
 ## Generation Task
@@ -343,6 +359,68 @@ Write the complete JSON to `{output_path}` now.
         }
         return guidelines.get(difficulty, guidelines["medium"])
 
+    def _get_curriculum_constraints(self) -> str:
+        """Build curriculum scope constraints from course outcomes (GENERIC).
+
+        Returns formatted string for inclusion in prompt that instructs the agent
+        to stay within the course outcomes scope.
+        """
+        level_display = self.course_level.replace("-", " ").title()
+        subject_display = self.course_subject.replace("-", " ").title()
+
+        # Build allowed topics/skills from outcomes
+        outcomes_text = self._format_outcomes_for_prompt()
+
+        return f"""**Course Level:** {level_display}
+**Subject:** {subject_display}
+
+**CRITICAL SCOPE CONSTRAINT:**
+Questions MUST stay within the course outcomes listed below.
+These outcomes define the COMPLETE scope of this course - do not exceed them.
+
+**Course Outcomes (Allowed Topics/Skills):**
+{outcomes_text}
+
+**Rules:**
+- ONLY use skills and concepts explicitly covered in the outcomes above
+- If a mathematical technique is not in the outcomes, DO NOT use it
+- Questions should be answerable by a student who has only learned the above outcomes
+- When in doubt, use simpler techniques that are clearly within scope
+"""
+
+    def _format_outcomes_for_prompt(self) -> str:
+        """Format course outcomes for inclusion in prompt.
+
+        Parses outcome documents and formats them as a readable list
+        including outcome titles and assessment standards.
+        """
+        if not self.course_outcomes:
+            return "No course outcomes provided - use block content as scope guide."
+
+        lines = []
+        for outcome in self.course_outcomes:
+            outcome_id = outcome.get("outcomeId", "")
+            outcome_title = outcome.get("outcomeTitle", "")
+            unit_title = outcome.get("unitTitle", "")
+
+            # Format: [Unit] OutcomeId: Title
+            if unit_title:
+                lines.append(f"- [{unit_title}] {outcome_id}: {outcome_title}")
+            else:
+                lines.append(f"- {outcome_id}: {outcome_title}")
+
+            # Include assessment standards if available (specific skills)
+            standards_json = outcome.get("assessmentStandards", "[]")
+            try:
+                standards = json.loads(standards_json) if isinstance(standards_json, str) else standards_json
+                for std in standards:
+                    if std.get("desc"):
+                        lines.append(f"    • {std.get('code', '')}: {std['desc']}")
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return "\n".join(lines)
+
     def _parse_questions(
         self,
         raw_json: Dict[str, Any],
@@ -392,7 +470,11 @@ async def run_question_generation(
     lesson_template_id: str,
     blocks: List[ExtractedBlock],
     questions_per_difficulty: Dict[str, int] = None,
-    execution_id: str = None
+    execution_id: str = None,
+    # Course context for curriculum scope constraints
+    course_subject: str = "mathematics",
+    course_level: str = "national-3",
+    course_outcomes: List[Dict[str, Any]] = None
 ) -> QuestionGenerationResult:
     """Run question generation agent and return result.
 
@@ -402,6 +484,9 @@ async def run_question_generation(
         blocks: List of extracted blocks
         questions_per_difficulty: Optional custom counts
         execution_id: Optional execution ID
+        course_subject: Subject (e.g., "mathematics")
+        course_level: Level (e.g., "national-3")
+        course_outcomes: List of course outcome documents
 
     Returns:
         Validated QuestionGenerationResult
@@ -411,7 +496,10 @@ async def run_question_generation(
     """
     agent = PracticeQuestionGeneratorAgent(
         workspace_path=workspace_path,
-        questions_per_difficulty=questions_per_difficulty
+        questions_per_difficulty=questions_per_difficulty,
+        course_subject=course_subject,
+        course_level=course_level,
+        course_outcomes=course_outcomes
     )
 
     result = await agent.execute(

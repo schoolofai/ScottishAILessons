@@ -60,7 +60,9 @@ renderRouter.post('/', async (req: Request, res: Response) => {
 
     logger.error('Render failed', {
       error: error instanceof Error ? error.message : String(error),
-      duration
+      stack: error instanceof Error ? error.stack : undefined,
+      duration,
+      input: JSON.stringify(req.body, null, 2)
     });
 
     handleError(error, res);
