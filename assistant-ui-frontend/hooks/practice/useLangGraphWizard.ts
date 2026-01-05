@@ -45,6 +45,10 @@ import type { BlockProgress } from "@/lib/utils/extractResumePosition";
 // was calculated as average of all blocks instead of current block's mastery)
 import { calculateResumeProgress } from "@/lib/utils/calculateResumeProgress";
 
+// Import TDD-validated last block detection (fixes bug where isLastBlock returned false
+// when completed_blocks count was stale, causing nextBlockId to be undefined)
+import { isLastBlock as isLastBlockUtil } from "@/lib/utils/lastBlockDetection";
+
 // Import contract types - these match the backend EXACTLY
 import type {
   PracticeQuestion,
@@ -417,6 +421,34 @@ export function useLangGraphWizard() {
   // CRITICAL: Using ref instead of state.shownQuestionIds prevents repeated questions
   const shownQuestionIdsRef = useRef<string[]>([]);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PER-DIFFICULTY QUESTION TRACKING (Fixes question duplication bug)
+  //
+  // BUG FIX: Previously used single shownQuestionIdsRef across all difficulties.
+  // When switching from medium back to hard, the hard question IDs weren't
+  // excluded because they were mixed with medium IDs that don't match.
+  //
+  // NEW APPROACH: Track correct/incorrect separately per difficulty:
+  // - correct: Questions answered correctly - never show again this session
+  // - incorrect: Questions answered incorrectly - retry pool when main exhausts
+  //
+  // When pool exhausts:
+  // 1. First try showing incorrect questions (student needs practice)
+  // 2. If all questions correct but mastery not met, auto-downgrade difficulty
+  // ═══════════════════════════════════════════════════════════════════════════
+  type QuestionTrackingByDifficulty = {
+    [K in DifficultyLevel]: {
+      correct: string[];    // Never show again this session
+      incorrect: string[];  // Retry pool - show when main pool exhausts
+    };
+  };
+
+  const questionTrackingRef = useRef<QuestionTrackingByDifficulty>({
+    easy: { correct: [], incorrect: [] },
+    medium: { correct: [], incorrect: [] },
+    hard: { correct: [], incorrect: [] },
+  });
+
   // Ref to track consecutive correct answers for adaptive difficulty (V2 mode)
   // After ADAPTIVE_THRESHOLD consecutive correct answers, upgrade difficulty
   const consecutiveCorrectRef = useRef<number>(0);
@@ -494,11 +526,31 @@ export function useLangGraphWizard() {
         hardQuestionsAttempted: hardQuestionsAttemptedRef.current,
       });
 
+      // ═══════════════════════════════════════════════════════════════
+      // MASTERY RESET TRACKING: Log explicitly when mastery resets
+      // This is EXPECTED behavior for multi-block progression
+      // ═══════════════════════════════════════════════════════════════
+      console.log("🔴 MASTERY RESET [blockJustCompleted]: Resetting mastery for next block", {
+        previousMastery: cumulativeMasteryRef.current,
+        previousHardAttempted: hardQuestionsAttemptedRef.current,
+        reason: "Block completed - starting new block with fresh mastery",
+        isExpectedBehavior: true,
+      });
+
       // Reset block-specific refs for next block
       cumulativeMasteryRef.current = 0;
       hardQuestionsAttemptedRef.current = 0;
       consecutiveCorrectRef.current = 0;
       consecutiveIncorrectRef.current = 0;
+
+      // Reset per-difficulty question tracking for the new block
+      // Each block starts fresh - no carryover of correct/incorrect tracking
+      questionTrackingRef.current = {
+        easy: { correct: [], incorrect: [] },
+        medium: { correct: [], incorrect: [] },
+        hard: { correct: [], incorrect: [] },
+      };
+      debugLog.question("🔄 Per-difficulty tracking reset for new block");
 
       // Clear deduplication caches for fresh state
       processedToolCallIdsRef.current.clear();
@@ -725,6 +777,44 @@ export function useLangGraphWizard() {
           }
 
           // ═══════════════════════════════════════════════════════════════
+          // PER-DIFFICULTY QUESTION TRACKING (Fixes question duplication bug)
+          // Track which questions were answered correctly vs incorrectly
+          // per difficulty level for intelligent retry and pool management
+          // ═══════════════════════════════════════════════════════════════
+          if (prev.isV2Mode && prev.currentQuestion && v2ContextRef.current?.difficulty) {
+            const questionId = prev.currentQuestion.question_id;
+            const difficulty = v2ContextRef.current.difficulty;
+            const tracking = questionTrackingRef.current[difficulty];
+
+            if (feedback.is_correct) {
+              // Move from incorrect to correct (if it was a retry)
+              // Or add to correct if first attempt
+              tracking.incorrect = tracking.incorrect.filter(id => id !== questionId);
+              if (!tracking.correct.includes(questionId)) {
+                tracking.correct.push(questionId);
+              }
+              debugLog.question("📊 Question tracked as CORRECT", {
+                questionId,
+                difficulty,
+                correctCount: tracking.correct.length,
+                incorrectCount: tracking.incorrect.length,
+              });
+            } else {
+              // Add to incorrect pool (for retry when main pool exhausts)
+              // Only if not already in correct (shouldn't happen, but defensive)
+              if (!tracking.correct.includes(questionId) && !tracking.incorrect.includes(questionId)) {
+                tracking.incorrect.push(questionId);
+              }
+              debugLog.question("📊 Question tracked as INCORRECT (retry eligible)", {
+                questionId,
+                difficulty,
+                correctCount: tracking.correct.length,
+                incorrectCount: tracking.incorrect.length,
+              });
+            }
+          }
+
+          // ═══════════════════════════════════════════════════════════════
           // BUG FIX: V2 Frontend Block Completion (backend is stateless)
           // V2 backend only sends mastery_delta - we must track cumulative
           // Block completion: mastery >= 70% AND hard_attempted >= 2
@@ -904,10 +994,15 @@ export function useLangGraphWizard() {
 
               // ═══════════════════════════════════════════════════════════════
               // MULTI-BLOCK FIX: Check if more blocks remain before celebration
+              // BUG FIX: Use TDD-validated isLastBlockUtil that considers BOTH:
+              // 1. Count-based: newCompletedBlocks >= totalBlocks
+              // 2. Index-based: safeBlockIndex >= totalBlocks - 1
+              // This fixes the bug where isLastBlock was false but nextBlockId was undefined
+              // when completed_blocks count was stale (due to already-complete block)
               // ═══════════════════════════════════════════════════════════════
               const newCompletedBlocks = updates.progress.completed_blocks;
               const totalBlocks = allBlockIds.length;
-              const isLastBlock = newCompletedBlocks >= totalBlocks;
+              const isLastBlock = isLastBlockUtil(newCompletedBlocks, totalBlocks, safeBlockIndex);
 
               debugLog.progression("Multi-block progression check", {
                 completedBlocks: newCompletedBlocks,
@@ -1373,6 +1468,17 @@ export function useLangGraphWizard() {
    * Reset the wizard state for a new session.
    */
   const reset = useCallback(() => {
+    // ═══════════════════════════════════════════════════════════════
+    // MASTERY RESET TRACKING: Log explicitly when mastery resets
+    // This is EXPECTED behavior for starting a fresh session
+    // ═══════════════════════════════════════════════════════════════
+    console.log("🔴 MASTERY RESET [full reset]: Starting fresh session", {
+      previousMastery: cumulativeMasteryRef.current,
+      previousHardAttempted: hardQuestionsAttemptedRef.current,
+      reason: "User started new session - full reset",
+      isExpectedBehavior: true,
+    });
+
     threadIdRef.current = null;
     v2ContextRef.current = null;
     shownQuestionIdsRef.current = []; // Clear shown questions ref
@@ -1858,7 +1964,7 @@ export function useLangGraphWizard() {
 
       try {
         // Update context if changed
-        const difficulty = newDifficulty || context.difficulty;
+        let difficulty = newDifficulty || context.difficulty;
         const blockId = newBlockId || context.blockId;
 
         if (newDifficulty && newDifficulty !== context.difficulty) {
@@ -1869,91 +1975,226 @@ export function useLangGraphWizard() {
           v2ContextRef.current.blockId = newBlockId;
         }
 
-        // Fetch next question (excluding shown ones)
-        // CRITICAL: Use ref instead of state to avoid stale closure issues
-        debugLog.question("Fetching next question", {
+        // ═══════════════════════════════════════════════════════════════════════
+        // INTELLIGENT QUESTION FETCHING WITH PER-DIFFICULTY TRACKING
+        //
+        // Strategy:
+        // 1. First try: exclude ALL seen questions (correct + incorrect)
+        // 2. If pool exhausted and incorrect exists: retry incorrect questions
+        // 3. If all questions correct: auto-downgrade to easier difficulty
+        //
+        // This prevents:
+        // - Showing correctly answered questions again (confusing UX)
+        // - Infinite loops when pool is small
+        // - Cross-difficulty ID collision when switching difficulties
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const tracking = questionTrackingRef.current[difficulty];
+        const excludeAll = [...tracking.correct, ...tracking.incorrect];
+
+        debugLog.question("Fetching next question with per-difficulty tracking", {
           difficulty,
           blockId,
-          excludeCount: shownQuestionIdsRef.current.length,
-          shownIds: shownQuestionIdsRef.current,
+          correctCount: tracking.correct.length,
+          incorrectCount: tracking.incorrect.length,
+          excludeAllCount: excludeAll.length,
         });
-        const result = await driver.getRandomQuestion(
+
+        // First attempt: exclude all seen questions (fresh questions only)
+        let result = await driver.getRandomQuestion(
           context.lessonTemplateId,
           blockId,
           difficulty,
-          shownQuestionIdsRef.current  // Use ref, not state (fixes repeated questions bug)
+          excludeAll
         );
 
-        const question = result.question;
-        debugLog.question(`Fetched question: ${question.question_id}`, {
-          poolSize: result.poolSize,
-          poolReset: result.poolReset,
-          difficulty,
-        });
+        let question = result.question;
+        let isRetryQuestion = false;
 
-        // CRITICAL: Handle pool reset intelligently based on difficulty
-        // When pool exhausts at hard difficulty with a small pool (e.g., 3 questions),
-        // we need to prevent frustrating infinite loops of the same questions
+        // Handle pool exhaustion with intelligent retry/downgrade
         if (result.poolReset) {
-          const hardCorrectForBlock = hardQuestionsCorrectPerBlockRef.current.get(blockId) || 0;
-          debugLog.question("⚠️ Pool exhausted and reset", {
+          debugLog.question("⚠️ Fresh pool exhausted", {
             difficulty,
-            hardCorrectForBlock,
-            requiredHard: HARD_QUESTIONS_REQUIRED,
             poolSize: result.poolSize,
+            incorrectPoolSize: tracking.incorrect.length,
+            correctPoolSize: tracking.correct.length,
           });
 
-          if (difficulty === 'hard') {
-            // At hard difficulty with pool reset
-            if (hardCorrectForBlock >= HARD_QUESTIONS_REQUIRED) {
-              // User has met hard question criteria - allow this last question then
-              // the next continue should advance the block (handled by completion criteria)
-              debugLog.question("Hard pool exhausted but user met criteria, allowing final question", { hardCorrectForBlock });
-              shownQuestionIdsRef.current = [question.question_id];
-            } else {
-              // User hasn't met hard criteria and pool is exhausted
-              // AUTO-DOWNGRADE to medium to avoid frustrating infinite hard repeats
-              debugLog.difficulty("⬇️ AUTO-DOWNGRADE: Hard pool exhausted → medium", { hardCorrectForBlock, requiredHard: HARD_QUESTIONS_REQUIRED });
+          if (tracking.incorrect.length > 0) {
+            // ═══════════════════════════════════════════════════════════════
+            // RETRY MODE: Show incorrectly answered questions
+            // Student needs more practice on these - pedagogically sound!
+            // ═══════════════════════════════════════════════════════════════
+            debugLog.question("🔄 Entering RETRY MODE - showing incorrect questions", {
+              incorrectIds: tracking.incorrect,
+            });
 
-              // Update context to medium
-              if (v2ContextRef.current) {
-                v2ContextRef.current.difficulty = 'medium';
-              }
-              setCurrentDifficulty('medium');
+            // Fetch again, only excluding correct answers
+            const retryResult = await driver.getRandomQuestion(
+              context.lessonTemplateId,
+              blockId,
+              difficulty,
+              tracking.correct  // Only exclude correct, allow incorrect
+            );
 
-              // Clear shown tracking for fresh medium pool
-              shownQuestionIdsRef.current = [];
+            question = retryResult.question;
+            isRetryQuestion = true;
 
-              // Recursively fetch from medium pool instead
-              // This will give user more practice before returning to hard
-              const mediumResult = await driver.getRandomQuestion(
+            // Remove from incorrect pool - they get one retry chance
+            // If they get it wrong again, it goes back to incorrect pool via feedback tracking
+            tracking.incorrect = tracking.incorrect.filter(id => id !== question.question_id);
+
+            debugLog.question("📚 Retry question selected", {
+              questionId: question.question_id,
+              remainingIncorrect: tracking.incorrect.length,
+            });
+
+          } else {
+            // ═══════════════════════════════════════════════════════════════
+            // ALL QUESTIONS CORRECT: Auto-downgrade to build more mastery
+            // This happens when pool is small and student aced all questions
+            // but still needs more cumulative mastery
+            // ═══════════════════════════════════════════════════════════════
+            debugLog.difficulty("🎯 All questions at this difficulty CORRECT - checking downgrade", {
+              difficulty,
+              allCorrectCount: tracking.correct.length,
+            });
+
+            // Try to downgrade to easier difficulty
+            const downgradeMap: Record<DifficultyLevel, DifficultyLevel | null> = {
+              hard: 'medium',
+              medium: 'easy',
+              easy: null  // Can't go lower
+            };
+
+            const lowerDifficulty = downgradeMap[difficulty];
+
+            if (lowerDifficulty) {
+              debugLog.difficulty(`⬇️ AUTO-DOWNGRADE: ${difficulty} → ${lowerDifficulty} (all correct, need more mastery)`, {
+                fromDifficulty: difficulty,
+                toDifficulty: lowerDifficulty,
+                currentMastery: cumulativeMasteryRef.current,
+                hardAttempted: hardQuestionsAttemptedRef.current,
+              });
+
+              // ═══════════════════════════════════════════════════════════════
+              // MASTERY PRESERVATION: Verify mastery is NOT reset during auto-downgrade
+              // Auto-downgrade only changes difficulty, NOT mastery
+              // ═══════════════════════════════════════════════════════════════
+              console.log("🟢 AUTO-DOWNGRADE (mastery PRESERVED): Changing difficulty only", {
+                fromDifficulty: difficulty,
+                toDifficulty: lowerDifficulty,
+                masteryBeforeDowngrade: cumulativeMasteryRef.current,
+                hardAttemptedBeforeDowngrade: hardQuestionsAttemptedRef.current,
+                note: "Mastery should NOT change during auto-downgrade",
+              });
+
+              // Update difficulty
+              difficulty = lowerDifficulty;
+              v2ContextRef.current.difficulty = lowerDifficulty;
+              setCurrentDifficulty(lowerDifficulty);
+
+              // Get tracking for new difficulty
+              const lowerTracking = questionTrackingRef.current[lowerDifficulty];
+              const lowerExcludeAll = [...lowerTracking.correct, ...lowerTracking.incorrect];
+
+              // Fetch from lower difficulty pool
+              const lowerResult = await driver.getRandomQuestion(
                 context.lessonTemplateId,
                 blockId,
-                'medium',
-                [] // Fresh pool for medium
+                lowerDifficulty,
+                lowerExcludeAll
               );
 
-              // Use the medium question instead
-              const mediumQuestion = mediumResult.question;
-              debugLog.question(`Downgraded to medium question: ${mediumQuestion.question_id}`, { poolSize: mediumResult.poolSize });
+              question = lowerResult.question;
 
-              // Track the medium question
-              shownQuestionIdsRef.current = [mediumQuestion.question_id];
+              debugLog.question(`Downgraded to ${lowerDifficulty} question: ${question.question_id}`, {
+                poolSize: lowerResult.poolSize,
+                poolReset: lowerResult.poolReset,
+              });
 
-              // Continue with medium question (update question variable for rest of flow)
-              // Note: We reassign to use medium question in the rest of this function
-              Object.assign(question, mediumQuestion);
+              // If lower difficulty also exhausted, handle recursively
+              if (lowerResult.poolReset) {
+                if (lowerTracking.incorrect.length > 0) {
+                  // Retry incorrect questions at lower difficulty
+                  const lowerRetryResult = await driver.getRandomQuestion(
+                    context.lessonTemplateId,
+                    blockId,
+                    lowerDifficulty,
+                    lowerTracking.correct
+                  );
+                  question = lowerRetryResult.question;
+                  lowerTracking.incorrect = lowerTracking.incorrect.filter(id => id !== question.question_id);
+                  isRetryQuestion = true;
+                } else if (lowerDifficulty !== 'easy') {
+                  // Lower difficulty also exhausted with all correct - downgrade again
+                  // This handles hard → medium (exhausted) → easy
+                  const nextLowerDifficulty = lowerDifficulty === 'medium' ? 'easy' : null;
+                  if (nextLowerDifficulty) {
+                    debugLog.difficulty(`⬇️ RECURSIVE DOWNGRADE: ${lowerDifficulty} → ${nextLowerDifficulty}`, {
+                      reason: "lower difficulty also exhausted with all correct",
+                      currentMastery: cumulativeMasteryRef.current,
+                    });
+
+                    difficulty = nextLowerDifficulty;
+                    v2ContextRef.current.difficulty = nextLowerDifficulty;
+                    setCurrentDifficulty(nextLowerDifficulty);
+
+                    const lowestTracking = questionTrackingRef.current[nextLowerDifficulty];
+                    const lowestExcludeAll = [...lowestTracking.correct, ...lowestTracking.incorrect];
+
+                    const lowestResult = await driver.getRandomQuestion(
+                      context.lessonTemplateId,
+                      blockId,
+                      nextLowerDifficulty,
+                      lowestExcludeAll
+                    );
+                    question = lowestResult.question;
+
+                    debugLog.question(`Downgraded to ${nextLowerDifficulty} question: ${question.question_id}`, {
+                      poolSize: lowestResult.poolSize,
+                      poolReset: lowestResult.poolReset,
+                    });
+
+                    // If easy also exhausted, try retry or allow reset
+                    if (lowestResult.poolReset && lowestTracking.incorrect.length > 0) {
+                      const lowestRetryResult = await driver.getRandomQuestion(
+                        context.lessonTemplateId,
+                        blockId,
+                        nextLowerDifficulty,
+                        lowestTracking.correct
+                      );
+                      question = lowestRetryResult.question;
+                      lowestTracking.incorrect = lowestTracking.incorrect.filter(id => id !== question.question_id);
+                      isRetryQuestion = true;
+                    }
+                  }
+                }
+                // else: already at easy with all correct, allow pool reset (use lowerResult.question)
+              }
+            } else {
+              // Already at easy, all questions correct - allow pool reset
+              // This is a rare edge case where student mastered everything at easy
+              debugLog.question("At EASY with all correct - allowing pool reset", {
+                easyCorrectCount: tracking.correct.length,
+                currentMastery: cumulativeMasteryRef.current,
+              });
+              // The question variable already has the reset result
             }
-          } else {
-            // Non-hard difficulty pool reset - normal behavior
-            debugLog.question("Pool reset at non-hard difficulty, clearing tracking", { difficulty });
-            shownQuestionIdsRef.current = [question.question_id];
           }
-        } else {
-          // Normal case: add to tracking
+        }
+
+        // Update legacy shownQuestionIdsRef for backward compatibility
+        if (!shownQuestionIdsRef.current.includes(question.question_id)) {
           shownQuestionIdsRef.current = [...shownQuestionIdsRef.current, question.question_id];
         }
-        debugLog.question("Shown questions updated", { shownIds: shownQuestionIdsRef.current, count: shownQuestionIdsRef.current.length });
+
+        debugLog.question("Question fetch complete", {
+          questionId: question.question_id,
+          difficulty,
+          isRetryQuestion,
+          shownCount: shownQuestionIdsRef.current.length,
+        });
 
         // Update outcome IDs for mastery persistence (Gap P0)
         if (v2ContextRef.current) {
@@ -2046,6 +2287,18 @@ export function useLangGraphWizard() {
 
     // Clear shown question IDs for fresh block (questions are per-block)
     shownQuestionIdsRef.current = [];
+
+    // ═══════════════════════════════════════════════════════════════
+    // MASTERY RESET TRACKING: Log explicitly when mastery resets
+    // This is EXPECTED behavior for multi-block progression
+    // ═══════════════════════════════════════════════════════════════
+    console.log("🔴 MASTERY RESET [pendingNextBlock]: Resetting UI mastery for next block", {
+      previousMastery: cumulativeMasteryRef.current,
+      newBlockIndex: blockIndex,
+      newBlockId: blockId,
+      reason: "Moving to next block - UI mastery display reset",
+      isExpectedBehavior: true,
+    });
 
     // Clear the pending flag before async call
     setState((prev) => ({
