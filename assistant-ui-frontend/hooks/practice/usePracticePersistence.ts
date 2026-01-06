@@ -208,9 +208,12 @@ export function usePracticePersistence(sessionToken?: string) {
 
       try {
         // Build progress update - CRITICAL: Include blocks_progress for resume support!
+        // BUG FIX: Use progress.overall_mastery (session-level 0-1) instead of newMastery
+        // newMastery is feedback.new_mastery_score which is BLOCK-level mastery (0-100)
+        // The progress object already has the correct overall_mastery for the session
         const progressUpdate: PracticeSessionProgressUpdate = {
           current_block_index: progress.current_block_index,
-          overall_mastery: newMastery,
+          overall_mastery: progress.overall_mastery,
           last_activity_at: new Date().toISOString(),
         };
 
