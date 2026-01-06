@@ -8,7 +8,7 @@
  */
 
 import React, { useEffect, useCallback, useState, useRef } from "react";
-import { X, Zap, Flame, Loader2, AlertCircle, Menu, BookOpen } from "lucide-react";
+import { X, Zap, Flame, Loader2, AlertCircle, Menu, BookOpen, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useLangGraphWizard,
@@ -24,6 +24,7 @@ import { ConceptStep } from "./steps/ConceptStep";
 import { QuestionStep } from "./steps/QuestionStep";
 import { FeedbackStep } from "./steps/FeedbackStep";
 import { WizardCelebration } from "./celebration/WizardCelebration";
+import { ResetConfirmationModal } from "./ResetConfirmationModal";
 import "@/styles/wizard-fonts.css";
 
 interface WizardPracticeContainerProps {
@@ -34,6 +35,8 @@ interface WizardPracticeContainerProps {
   useV2Mode?: boolean;
   /** Question availability info for gray-out logic */
   questionAvailability?: QuestionAvailability | null;
+  /** Handler for resetting the entire session */
+  onResetSession?: () => Promise<void>;
 }
 
 // Reference panel resize constraints (Phase 7)
@@ -46,6 +49,7 @@ export function WizardPracticeContainer({
   onExit,
   useV2Mode = false,
   questionAvailability,
+  onResetSession,
 }: WizardPracticeContainerProps) {
   const wizard = useLangGraphWizard();
 
@@ -56,6 +60,9 @@ export function WizardPracticeContainer({
   const [retryCount, setRetryCount] = useState(0);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isReferencePanelOpen, setIsReferencePanelOpen] = useState(true);
+  // Reset session modal state
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Panel width state for drag-to-resize (Phase 7)
   const [referencePanelWidth, setReferencePanelWidth] = useState(DEFAULT_PANEL_WIDTH);
@@ -242,6 +249,23 @@ export function WizardPracticeContainer({
     }
   }, [wizard, useV2Mode]);
 
+  // Handle reset confirmation
+  const handleConfirmReset = useCallback(async () => {
+    if (!onResetSession) return;
+
+    setIsResetting(true);
+    try {
+      await onResetSession();
+      // Parent will handle the state reset and reload
+    } catch (error) {
+      console.error("[WizardPracticeContainer] Reset failed:", error);
+      // Keep modal open on error so user can try again or cancel
+    } finally {
+      setIsResetting(false);
+      setShowResetModal(false);
+    }
+  }, [onResetSession]);
+
   // Render current step
   const renderStep = () => {
     switch (wizard.stage) {
@@ -291,12 +315,13 @@ export function WizardPracticeContainer({
         if (!wizard.currentFeedback) return null;
         // Pass backend data directly - NO transformation needed!
         // FeedbackStep uses PracticeFeedback interface from contract
-        // BUG FIX: Use wizard.cumulativeMastery (newly exposed) NOT wizard.currentQuestion?.mastery_score
-        // (PracticeQuestion doesn't have mastery_score field - it was always reading undefined!)
+        // BUG FIX: Use wizard.previousMastery (pre-update value) NOT wizard.cumulativeMastery
+        // FeedbackStep computes: previousMastery + delta = newMastery
+        // Using cumulativeMastery would double-count the delta!
         return (
           <FeedbackStep
             feedbackData={wizard.currentFeedback}
-            previousMastery={wizard.cumulativeMastery ?? 0}
+            previousMastery={wizard.previousMastery ?? 0}
             currentStreak={wizard.currentStreak}
             onContinue={handleContinueFromFeedback}
             isLoading={wizard.isStreaming}
@@ -490,6 +515,18 @@ export function WizardPracticeContainer({
                 <BookOpen className="w-4 h-4" />
               </button>
             )}
+
+            {/* Reset button - always visible except on complete screen */}
+            {onResetSession && wizard.stage !== "complete" && (
+              <button
+                onClick={() => setShowResetModal(true)}
+                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                aria-label="Reset progress"
+                title="Reset practice session"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -524,6 +561,14 @@ export function WizardPracticeContainer({
         {wizard.stage === "feedback" && "Feedback received"}
         {wizard.stage === "complete" && "Practice session complete"}
       </div>
+
+      {/* Reset confirmation modal */}
+      <ResetConfirmationModal
+        open={showResetModal}
+        onOpenChange={setShowResetModal}
+        onConfirm={handleConfirmReset}
+        isResetting={isResetting}
+      />
     </div>
   );
 }

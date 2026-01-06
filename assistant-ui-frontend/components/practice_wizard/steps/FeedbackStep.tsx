@@ -77,11 +77,11 @@ export function FeedbackStep({
   } else if (extendedFeedback.mastery_delta !== undefined && extendedFeedback.mastery_delta !== null) {
     // V2 format: Compute new mastery from previousMastery + delta
     rawMasteryScore = previousMastery + extendedFeedback.mastery_delta;
-    console.log("[FeedbackStep] Using V2 mastery_delta:", {
-      previousMastery,
-      delta: extendedFeedback.mastery_delta,
-      computed: rawMasteryScore
-    });
+    // console.log("[FeedbackStep] Using V2 mastery_delta:", {
+    //   previousMastery,
+    //   delta: extendedFeedback.mastery_delta,
+    //   computed: rawMasteryScore
+    // });
   } else {
     // Fallback: Keep previous mastery (no change)
     rawMasteryScore = previousMastery;

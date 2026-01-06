@@ -143,6 +143,9 @@ export interface WizardState {
   // V2 Mastery Tracking - EXPOSED for UI (fixes bug: mastery not updating)
   // cumulativeMasteryRef tracks internally, this exposes to components
   cumulativeMastery: number;
+  // FeedbackStep needs pre-update mastery to avoid double-counting delta
+  // This is the mastery BEFORE the current answer was processed
+  previousMastery: number;
   // V2 Block Progress - hard questions attempted count for UI display
   hardQuestionsAttempted: number;
   // V2 Block Completion Flag - triggers useEffect to reset refs
@@ -390,6 +393,7 @@ export function useLangGraphWizard() {
     lastProcessedToolCallId: null,
     // V2 Mastery Tracking - exposed for UI
     cumulativeMastery: 0,
+    previousMastery: 0,
     hardQuestionsAttempted: 0,
     blockJustCompleted: false,
     // V2 Multi-block progression
@@ -823,22 +827,31 @@ export function useLangGraphWizard() {
           // Track cumulative mastery (V2 backend sends deltas, not absolute values)
           const rawFeedbackArgs = feedback as { mastery_delta?: number };
           const masteryDelta = rawFeedbackArgs.mastery_delta ?? 0;
+
+          // ═══════════════════════════════════════════════════════════════
+          // BUG FIX: Capture previousMastery BEFORE updating cumulativeMasteryRef
+          // FeedbackStep needs the pre-update value to avoid double-counting delta
+          // (FeedbackStep computes: previousMastery + delta = newMastery)
+          // ═══════════════════════════════════════════════════════════════
+          const previousMasteryValue = cumulativeMasteryRef.current;
+
           if (masteryDelta !== 0) {
             cumulativeMasteryRef.current = Math.max(0, Math.min(1, cumulativeMasteryRef.current + masteryDelta));
             debugLog.mastery("Cumulative mastery updated", {
               delta: masteryDelta,
-              previousCumulative: cumulativeMasteryRef.current - masteryDelta,
+              previousCumulative: previousMasteryValue,
               newCumulative: cumulativeMasteryRef.current,
               threshold: MASTERY_THRESHOLD,
             });
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // BUG FIX: Expose cumulative mastery to state for UI consumption
-          // Previously: cumulativeMasteryRef.current was tracked but never exposed
-          // Now: Also update state.cumulativeMastery so UI can read it
+          // BUG FIX: Expose both mastery values to state for UI consumption
+          // cumulativeMastery: The NEW value (for header display)
+          // previousMastery: The PRE-UPDATE value (for FeedbackStep progress bar)
           // ═══════════════════════════════════════════════════════════════
           updates.cumulativeMastery = cumulativeMasteryRef.current;
+          updates.previousMastery = previousMasteryValue;
 
           // Track hard questions ATTEMPTED (not just correct) - ANY hard question counts
           // This is critical: block completion requires 2 hard ATTEMPTED, not 2 hard CORRECT
@@ -1511,6 +1524,7 @@ export function useLangGraphWizard() {
       lastProcessedToolCallId: null,
       // V2 Mastery Tracking - exposed for UI
       cumulativeMastery: 0,
+      previousMastery: 0,
       hardQuestionsAttempted: 0,
       blockJustCompleted: false,
       // V2 Multi-block progression
@@ -1709,8 +1723,11 @@ export function useLangGraphWizard() {
       if (storedBlocksProgress && storedBlocksProgress.length > 0) {
         const currentBlockProgress = storedBlocksProgress.find(bp => bp.block_id === blockId);
         if (currentBlockProgress?.mastery_score !== undefined) {
-          // mastery_score is stored as percentage (0-100), convert to decimal (0-1) for internal use
-          initialMastery = currentBlockProgress.mastery_score / 100;
+          // BUG FIX: mastery_score is stored as DECIMAL (0-1), NOT percentage (0-100)
+          // The previous code divided by 100 which caused 75% mastery to become 0.75%
+          // Example: stored 0.75 / 100 = 0.0075 (WRONG!)
+          // Correct: stored 0.75 = 0.75 (no conversion needed)
+          initialMastery = currentBlockProgress.mastery_score;
           debugLog.mastery("Restored cumulative mastery from stored session", {
             blockId,
             storedMastery: currentBlockProgress.mastery_score,

@@ -15,6 +15,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2, AlertCircle, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WizardPracticeContainer } from "@/components/practice_wizard/WizardPracticeContainer";
+import { ResumePromptModal } from "@/components/practice_wizard/ResumePromptModal";
 import { useAppwrite } from "@/lib/appwrite/hooks/useAppwrite";
 import { LessonDriver } from "@/lib/appwrite/driver/LessonDriver";
 import { PracticeQuestionDriver, type QuestionAvailability } from "@/lib/appwrite/driver/PracticeQuestionDriver";
@@ -43,6 +44,35 @@ export default function PracticeWizardPage() {
   // V2 offline questions state
   const [questionAvailability, setQuestionAvailability] = useState<QuestionAvailability | null>(null);
   const [useV2Mode, setUseV2Mode] = useState(false);
+  // Completed session state - show summary view instead of restarting
+  const [completedSession, setCompletedSession] = useState<{
+    overall_mastery: number;
+    completed_blocks: number;
+    total_blocks: number;
+    completed_at?: string;
+    session_id?: string; // Track for deletion on "Practice Again"
+  } | null>(null);
+  // Force fresh start flag - skip completed session check
+  const [forceFreshStart, setForceFreshStart] = useState(false);
+  // Reset counter - increments to force useEffect re-trigger even when forceFreshStart is already true
+  const [resetCounter, setResetCounter] = useState(0);
+  // Resume prompt state - show modal for active/paused sessions
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [isStartingFresh, setIsStartingFresh] = useState(false);
+  const [pendingSession, setPendingSession] = useState<{
+    session_id: string;
+    current_block_index: number;
+    total_blocks: number;
+    overall_mastery: number;
+    current_difficulty: string;
+    blocks_progress: Array<{
+      block_id: string;
+      current_difficulty: string;
+      mastery_score: number;
+      is_complete: boolean;
+    }>;
+    raw_session: Record<string, unknown>; // Full session for resume
+  } | null>(null);
 
   // Check backend availability
   useEffect(() => {
@@ -128,45 +158,118 @@ export default function PracticeWizardPage() {
           setUseV2Mode(false);
         }
 
-        // 3. Check for existing resumable session (active or paused)
+        // 3. Check for existing sessions (active, paused, OR completed)
+        // BUG FIX: Previously only queried active,paused - completed sessions were ignored,
+        // causing users to restart instead of seeing completion summary
         let existingSession = null;
+        let isCompletedSession = false;
         try {
-          // Query for sessions that can be resumed: both 'active' and 'paused' status
+          // Query for ALL sessions including completed
           const sessionResponse = await fetch(
-            `/api/practice-sessions?status=active,paused&source_id=${lessonId}&source_type=lesson_template&limit=1`
+            `/api/practice-sessions?status=active,paused,completed&source_id=${lessonId}&source_type=lesson_template&limit=1`
           );
 
           if (sessionResponse.ok) {
             const data = await sessionResponse.json();
             if (data.sessions?.length > 0) {
               const sessionDoc = data.sessions[0];
-              existingSession = {
-                ...sessionDoc,
-                source_metadata:
-                  typeof sessionDoc.source_metadata === "string"
-                    ? JSON.parse(sessionDoc.source_metadata)
-                    : sessionDoc.source_metadata,
-                blocks:
-                  typeof sessionDoc.blocks === "string"
-                    ? JSON.parse(sessionDoc.blocks)
-                    : sessionDoc.blocks,
-                blocks_progress:
-                  typeof sessionDoc.blocks_progress === "string"
-                    ? JSON.parse(sessionDoc.blocks_progress)
-                    : sessionDoc.blocks_progress,
-                current_question: sessionDoc.current_question
-                  ? typeof sessionDoc.current_question === "string"
-                    ? JSON.parse(sessionDoc.current_question)
-                    : sessionDoc.current_question
-                  : null,
-              };
+
+              // Check if session is completed - show summary view instead of restarting
+              // UNLESS forceFreshStart is true (user clicked "Practice Again")
+              if (sessionDoc.status === 'completed' && !forceFreshStart) {
+                isCompletedSession = true;
+
+                // Parse blocks_progress to get completion stats
+                const blocksProgress = typeof sessionDoc.blocks_progress === "string"
+                  ? JSON.parse(sessionDoc.blocks_progress)
+                  : sessionDoc.blocks_progress || [];
+
+                setCompletedSession({
+                  overall_mastery: sessionDoc.overall_mastery || 0,
+                  completed_blocks: blocksProgress.filter((b: { is_complete?: boolean }) => b.is_complete).length,
+                  total_blocks: sessionDoc.total_blocks || blocksProgress.length,
+                  completed_at: sessionDoc.updated_at,
+                  session_id: sessionDoc.session_id, // Track for potential deletion
+                });
+
+                console.log("[PracticeWizardPage] Completed session found - showing summary", {
+                  session_id: sessionDoc.session_id,
+                  overall_mastery: sessionDoc.overall_mastery,
+                  total_blocks: sessionDoc.total_blocks,
+                });
+              } else if (!forceFreshStart) {
+                // Active/paused session found - show resume prompt
+                const blocksProgress = typeof sessionDoc.blocks_progress === "string"
+                  ? JSON.parse(sessionDoc.blocks_progress)
+                  : sessionDoc.blocks_progress || [];
+
+                // Get current block's difficulty
+                const currentBlockProgress = blocksProgress[sessionDoc.current_block_index];
+                const currentDifficulty = currentBlockProgress?.current_difficulty || 'easy';
+
+                // Build pending session data for resume prompt
+                // FIX: Use current block's mastery_score, not top-level overall_mastery
+                // The per-block mastery_score is updated in real-time during practice,
+                // while sessionDoc.overall_mastery may not be updated correctly
+                setPendingSession({
+                  session_id: sessionDoc.session_id,
+                  current_block_index: sessionDoc.current_block_index || 0,
+                  total_blocks: sessionDoc.total_blocks || blocksProgress.length,
+                  overall_mastery: currentBlockProgress?.mastery_score || 0,
+                  current_difficulty: currentDifficulty,
+                  blocks_progress: blocksProgress,
+                  raw_session: {
+                    ...sessionDoc,
+                    source_metadata:
+                      typeof sessionDoc.source_metadata === "string"
+                        ? JSON.parse(sessionDoc.source_metadata)
+                        : sessionDoc.source_metadata,
+                    blocks:
+                      typeof sessionDoc.blocks === "string"
+                        ? JSON.parse(sessionDoc.blocks)
+                        : sessionDoc.blocks,
+                    blocks_progress: blocksProgress,
+                    current_question: sessionDoc.current_question
+                      ? typeof sessionDoc.current_question === "string"
+                        ? JSON.parse(sessionDoc.current_question)
+                        : sessionDoc.current_question
+                      : null,
+                  },
+                });
+
+                console.log("[PracticeWizardPage] Resumable session found - showing prompt", {
+                  session_id: sessionDoc.session_id,
+                  status: sessionDoc.status,
+                  current_block_index: sessionDoc.current_block_index,
+                  current_difficulty: currentDifficulty,
+                  // Log both mastery sources for debugging
+                  session_overall_mastery: sessionDoc.overall_mastery,
+                  block_mastery_score: currentBlockProgress?.mastery_score,
+                  mastery_shown_in_modal: currentBlockProgress?.mastery_score || 0,
+                });
+
+                // Show the resume prompt modal
+                setShowResumePrompt(true);
+                setLoading(false);
+                return;
+              } else {
+                // forceFreshStart is true - skip this session and start fresh
+                console.log("[PracticeWizardPage] Force fresh start - ignoring existing session");
+              }
             }
           }
-        } catch {
+        } catch (sessionError) {
+          console.warn("[PracticeWizardPage] Error fetching session:", sessionError);
           // Continue without existing session
         }
 
-        // 4. Build practice context
+        // If session is completed, don't build practice context - show summary instead
+        if (isCompletedSession) {
+          setLoading(false);
+          return;
+        }
+
+        // 4. Build practice context (fresh start - no stored session)
         const decompressedCards = decompressCards(lessonTemplate.cards);
 
         const context: PracticeSessionContext = {
@@ -178,7 +281,6 @@ export default function PracticeWizardPage() {
             lessonTemplateId: lessonTemplate.$id,
             cards: decompressedCards,
           },
-          ...(existingSession && { stored_session: existingSession }),
         };
 
         setPracticeContext(context);
@@ -191,12 +293,162 @@ export default function PracticeWizardPage() {
     };
 
     loadData();
-  }, [lessonId, backendAvailable, createDriver]);
+  }, [lessonId, backendAvailable, createDriver, forceFreshStart, resetCounter]);
 
   // Handle exit
   const handleExit = useCallback(() => {
     router.back();
   }, [router]);
+
+  // Handle resume from pending session
+  const handleResumeSession = useCallback(async () => {
+    if (!pendingSession || !studentId) return;
+
+    setShowResumePrompt(false);
+    setLoading(true);
+
+    try {
+      // Get lesson template again to build context
+      const lessonDriver = createDriver(LessonDriver);
+      const lessonTemplate = await lessonDriver.getLessonTemplate(lessonId);
+
+      if (!lessonTemplate) {
+        throw new Error("Lesson not found");
+      }
+
+      const decompressedCards = decompressCards(lessonTemplate.cards);
+
+      // Build context with stored session for resume
+      const context: PracticeSessionContext = {
+        student_id: studentId,
+        lesson_template_id: lessonId,
+        source_type: "lesson_template",
+        lesson_snapshot: {
+          ...lessonTemplate,
+          lessonTemplateId: lessonTemplate.$id,
+          cards: decompressedCards,
+        },
+        stored_session: pendingSession.raw_session,
+      };
+
+      console.log("[PracticeWizardPage] Resuming session", {
+        session_id: pendingSession.session_id,
+        block_index: pendingSession.current_block_index,
+      });
+
+      setPendingSession(null);
+      setPracticeContext(context);
+    } catch (err) {
+      console.error("[PracticeWizardPage] Resume error:", err);
+      setError(err instanceof Error ? err.message : "Failed to resume practice");
+    } finally {
+      setLoading(false);
+    }
+  }, [pendingSession, studentId, lessonId, createDriver]);
+
+  // Handle start fresh from pending session (delete session + clear mastery)
+  const handleStartFresh = useCallback(async () => {
+    if (!pendingSession) return;
+
+    setIsStartingFresh(true);
+
+    try {
+      // 1. Delete the existing session
+      const deleteResponse = await fetch(
+        `/api/practice-sessions/${pendingSession.session_id}`,
+        { method: 'DELETE' }
+      );
+
+      if (!deleteResponse.ok) {
+        throw new Error("Failed to delete existing session");
+      }
+
+      console.log("[PracticeWizardPage] Deleted session for fresh start");
+
+      // 2. Clear mastery for this lesson's outcomes
+      const masteryResponse = await fetch('/api/mastery/reset-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson_template_id: lessonId }),
+      });
+
+      if (masteryResponse.ok) {
+        const masteryData = await masteryResponse.json();
+        console.log("[PracticeWizardPage] Mastery reset:", masteryData);
+      } else {
+        console.warn("[PracticeWizardPage] Mastery reset failed - continuing anyway");
+      }
+
+      // 3. Reset state and trigger fresh load
+      setShowResumePrompt(false);
+      setPendingSession(null);
+      setForceFreshStart(true);
+      setLoading(true);
+    } catch (err) {
+      console.error("[PracticeWizardPage] Start fresh error:", err);
+      setError(err instanceof Error ? err.message : "Failed to start fresh");
+    } finally {
+      setIsStartingFresh(false);
+    }
+  }, [pendingSession, lessonId]);
+
+  // Handle full reset from WizardPracticeContainer
+  const handleResetSession = useCallback(async () => {
+    if (!practiceContext) return;
+
+    try {
+      // 1. Query for any active session for this lesson and delete it
+      // NOTE: Can't rely on practiceContext.stored_session?.session_id because
+      // fresh sessions (not resumed) don't have stored_session populated
+      const sessionResponse = await fetch(
+        `/api/practice-sessions?status=active,paused&source_id=${lessonId}&source_type=lesson_template&limit=1`
+      );
+
+      if (sessionResponse.ok) {
+        const data = await sessionResponse.json();
+        if (data.sessions?.length > 0) {
+          const sessionToDelete = data.sessions[0];
+          console.log("[PracticeWizardPage] Found session to delete:", sessionToDelete.session_id);
+
+          const deleteResponse = await fetch(
+            `/api/practice-sessions/${sessionToDelete.session_id}`,
+            { method: 'DELETE' }
+          );
+
+          if (!deleteResponse.ok) {
+            throw new Error("Failed to delete session");
+          }
+
+          console.log("[PracticeWizardPage] Deleted session for reset");
+        } else {
+          console.log("[PracticeWizardPage] No active session found to delete");
+        }
+      }
+
+      // 2. Clear mastery for this lesson
+      const masteryResponse = await fetch('/api/mastery/reset-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lesson_template_id: lessonId }),
+      });
+
+      if (masteryResponse.ok) {
+        const masteryData = await masteryResponse.json();
+        console.log("[PracticeWizardPage] Mastery reset:", masteryData);
+      }
+
+      // 3. Reset state and trigger fresh load
+      // BUG FIX: Use resetCounter to force useEffect re-trigger
+      // Setting forceFreshStart to true when it's already true doesn't trigger useEffect
+      setPracticeContext(null);
+      setForceFreshStart(true);
+      setResetCounter(c => c + 1); // Always triggers useEffect
+      setLoading(true);
+    } catch (err) {
+      console.error("[PracticeWizardPage] Reset session error:", err);
+      throw err; // Re-throw to let WizardPracticeContainer handle it
+    }
+  }, [practiceContext, lessonId]);
 
   // Loading state - playful design
   if (loading || isLoadingSubscription) {
@@ -215,6 +467,118 @@ export default function PracticeWizardPage() {
           </div>
           <Loader2 className="w-6 h-6 text-emerald-500 animate-spin" />
         </div>
+      </div>
+    );
+  }
+
+  // Completed session summary - show instead of restarting
+  if (completedSession) {
+    const masteryPercent = Math.round(completedSession.overall_mastery * 100);
+    const completedDate = completedSession.completed_at
+      ? new Date(completedSession.completed_at).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : null;
+
+    return (
+      <div className="wizard-page min-h-dvh flex items-center justify-center bg-gradient-to-br from-emerald-50 via-cyan-50 to-violet-50">
+        <div className="max-w-lg p-8 text-center animate-fade-in">
+          {/* Success icon with celebration */}
+          <div className="relative w-24 h-24 mx-auto mb-6">
+            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-200">
+              <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <Sparkles className="absolute -top-2 -right-2 w-8 h-8 text-amber-400" />
+          </div>
+
+          <h2 className="text-3xl font-bold text-gray-800 mb-2">
+            Practice Complete! 🎉
+          </h2>
+          <p className="text-gray-600 mb-6">
+            {lessonTitle}
+          </p>
+
+          {/* Stats */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 mb-8 shadow-sm">
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="text-center">
+                <div className="text-4xl font-bold text-emerald-600">{masteryPercent}%</div>
+                <div className="text-sm text-gray-500">Overall Mastery</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold text-cyan-600">
+                  {completedSession.completed_blocks}/{completedSession.total_blocks}
+                </div>
+                <div className="text-sm text-gray-500">Blocks Completed</div>
+              </div>
+            </div>
+            {completedDate && (
+              <p className="text-xs text-gray-400 mt-4">Completed on {completedDate}</p>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => router.back()}
+              variant="outline"
+              className="gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Lesson
+            </Button>
+            <Button
+              onClick={async () => {
+                // Delete the completed session to allow a fresh start
+                // This prevents the old session from being found again
+                if (completedSession.session_id) {
+                  try {
+                    await fetch(`/api/practice-sessions/${completedSession.session_id}`, {
+                      method: 'DELETE',
+                    });
+                    console.log("[PracticeWizardPage] Deleted completed session for fresh start");
+                  } catch (deleteError) {
+                    console.warn("[PracticeWizardPage] Failed to delete completed session:", deleteError);
+                  }
+                }
+
+                // Reset state and trigger re-fetch
+                setCompletedSession(null);
+                setForceFreshStart(true);
+                setLoading(true);
+              }}
+              className="gap-2 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white border-0"
+            >
+              <Sparkles className="w-4 h-4" />
+              Practice Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Resume prompt state - show modal for active/paused sessions
+  if (showResumePrompt && pendingSession) {
+    return (
+      <div className="wizard-page min-h-dvh flex items-center justify-center bg-gradient-to-br from-emerald-50 via-cyan-50 to-violet-50">
+        <ResumePromptModal
+          open={showResumePrompt}
+          onOpenChange={setShowResumePrompt}
+          sessionData={{
+            current_block_index: pendingSession.current_block_index,
+            total_blocks: pendingSession.total_blocks,
+            overall_mastery: pendingSession.overall_mastery,
+            current_difficulty: pendingSession.current_difficulty,
+          }}
+          onResume={handleResumeSession}
+          onStartFresh={handleStartFresh}
+          isStartingFresh={isStartingFresh}
+        />
       </div>
     );
   }
@@ -253,6 +617,7 @@ export default function PracticeWizardPage() {
       onExit={handleExit}
       useV2Mode={useV2Mode}
       questionAvailability={questionAvailability}
+      onResetSession={handleResetSession}
     />
   );
 }
