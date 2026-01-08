@@ -154,6 +154,10 @@ export interface WizardState {
   // V2 Multi-block progression - pending next block to fetch
   // When set, useEffect will trigger nextQuestionV2 for the new block
   pendingNextBlock: { blockIndex: number; blockId: string } | null;
+  // Per-block question tracking (resets when block changes)
+  // These are separate from session-wide questionsAnswered/questionsCorrect
+  currentBlockQuestionsAnswered: number;
+  currentBlockQuestionsCorrect: number;
 }
 
 /**
@@ -398,6 +402,9 @@ export function useLangGraphWizard() {
     blockJustCompleted: false,
     // V2 Multi-block progression
     pendingNextBlock: null,
+    // Per-block question tracking
+    currentBlockQuestionsAnswered: 0,
+    currentBlockQuestionsCorrect: 0,
   });
 
   const clientRef = useRef<Client | null>(null);
@@ -493,6 +500,28 @@ export function useLangGraphWizard() {
   // Block completion requires: mastery >= 70% AND hard_attempted >= 2
   const hardQuestionsAttemptedRef = useRef<number>(0);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Per-difficulty question COUNT tracking (for persistence)
+  // These track how many questions were attempted/correct at each difficulty level
+  // Used by persistFeedbackResult to save actual counts instead of zeros
+  // ═══════════════════════════════════════════════════════════════════════════
+  const questionsAttemptedByDifficultyRef = useRef<{ easy: number; medium: number; hard: number }>({
+    easy: 0, medium: 0, hard: 0
+  });
+  const questionsCorrectByDifficultyRef = useRef<{ easy: number; medium: number; hard: number }>({
+    easy: 0, medium: 0, hard: 0
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Completed block counts storage (fixes "Questions 0/0" bug)
+  // Stores final question counts for each completed block BEFORE refs are reset
+  // Key: block_id, Value: { attempted, correct }
+  // ═══════════════════════════════════════════════════════════════════════════
+  const completedBlockCountsRef = useRef<Map<string, {
+    attempted: { easy: number; medium: number; hard: number };
+    correct: { easy: number; medium: number; hard: number };
+  }>>(new Map());
+
   // Store blocks_progress from stored session for resume functionality
   // Used during progress initialization to restore mastery from previous session
   const storedBlocksProgressRef = useRef<BlockProgress[] | null>(null);
@@ -546,6 +575,10 @@ export function useLangGraphWizard() {
       hardQuestionsAttemptedRef.current = 0;
       consecutiveCorrectRef.current = 0;
       consecutiveIncorrectRef.current = 0;
+
+      // Reset per-difficulty COUNT tracking for new block (for persistence)
+      questionsAttemptedByDifficultyRef.current = { easy: 0, medium: 0, hard: 0 };
+      questionsCorrectByDifficultyRef.current = { easy: 0, medium: 0, hard: 0 };
 
       // Reset per-difficulty question tracking for the new block
       // Each block starts fresh - no carryover of correct/incorrect tracking
@@ -738,10 +771,13 @@ export function useLangGraphWizard() {
             blockId: v2ContextRef.current?.blockId,
           });
           updates.currentFeedback = feedback;
-          // Update gamification stats
+          // Update gamification stats (session-wide)
           updates.questionsAnswered = prev.questionsAnswered + 1;
+          // Update per-block stats (resets when block changes)
+          updates.currentBlockQuestionsAnswered = prev.currentBlockQuestionsAnswered + 1;
           if (feedback.is_correct) {
             updates.questionsCorrect = prev.questionsCorrect + 1;
+            updates.currentBlockQuestionsCorrect = prev.currentBlockQuestionsCorrect + 1;
             updates.currentStreak = prev.currentStreak + 1;
             // Award XP for correct answers (backend doesn't track XP)
             // Base: 10 XP, bonus for streaks
@@ -816,6 +852,20 @@ export function useLangGraphWizard() {
                 incorrectCount: tracking.incorrect.length,
               });
             }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Per-difficulty COUNT tracking (for session persistence)
+            // This tracks COUNTS for saving to Appwrite, separate from ID tracking
+            // ═══════════════════════════════════════════════════════════════
+            questionsAttemptedByDifficultyRef.current[difficulty] += 1;
+            if (feedback.is_correct) {
+              questionsCorrectByDifficultyRef.current[difficulty] += 1;
+            }
+            debugLog.question("📊 Per-difficulty COUNTS updated for persistence", {
+              difficulty,
+              attempted: questionsAttemptedByDifficultyRef.current,
+              correct: questionsCorrectByDifficultyRef.current,
+            });
           }
 
           // ═══════════════════════════════════════════════════════════════
@@ -1075,6 +1125,23 @@ export function useLangGraphWizard() {
               }
 
               // ═══════════════════════════════════════════════════════════════
+              // BUG FIX: Save completed block counts BEFORE resetting refs
+              // This preserves question counts for display on session resume
+              // ═══════════════════════════════════════════════════════════════
+              const completingBlockId = v2ContextRef.current?.blockId;
+              if (completingBlockId) {
+                completedBlockCountsRef.current.set(completingBlockId, {
+                  attempted: { ...questionsAttemptedByDifficultyRef.current },
+                  correct: { ...questionsCorrectByDifficultyRef.current },
+                });
+                debugLog.state("💾 Saved completed block counts", {
+                  blockId: completingBlockId,
+                  attempted: questionsAttemptedByDifficultyRef.current,
+                  correct: questionsCorrectByDifficultyRef.current,
+                });
+              }
+
+              // ═══════════════════════════════════════════════════════════════
               // BUG FIX: DO NOT reset refs or clear cache inside setState callback!
               // React StrictMode runs callbacks twice for purity checking.
               // If we reset refs here, the second run would see cumulativeMasteryRef.current = 0
@@ -1143,6 +1210,13 @@ export function useLangGraphWizard() {
               // CRITICAL FIX: Pass frontend-constructed progress for V2 mode
               // V2 backend is stateless, so feedback.progress is undefined
               progress: updates.progress,
+              // BUG FIX: Pass per-difficulty question counts for proper persistence
+              // Without these, completed blocks show "Questions 0/0" on resume
+              questionsAttempted: { ...questionsAttemptedByDifficultyRef.current },
+              questionsCorrect: { ...questionsCorrectByDifficultyRef.current },
+              // BUG FIX: Pass saved counts for completed blocks
+              // These are preserved before refs are reset on block completion
+              completedBlockCounts: Object.fromEntries(completedBlockCountsRef.current),
             }).catch((err) => {
               log.error("Persistence error (non-fatal)", { error: err });
             });
@@ -1529,6 +1603,9 @@ export function useLangGraphWizard() {
       blockJustCompleted: false,
       // V2 Multi-block progression
       pendingNextBlock: null,
+      // Per-block question tracking
+      currentBlockQuestionsAnswered: 0,
+      currentBlockQuestionsCorrect: 0,
     });
   }, []);
 
@@ -2323,6 +2400,9 @@ export function useLangGraphWizard() {
       pendingNextBlock: null,
       cumulativeMastery: 0, // Reset UI mastery display
       hardQuestionsAttempted: 0, // Reset UI hard counter
+      // Reset per-block question tracking for new block
+      currentBlockQuestionsAnswered: 0,
+      currentBlockQuestionsCorrect: 0,
     }));
 
     // Trigger next question fetch for new block (async, fire-and-forget pattern)
@@ -2354,6 +2434,9 @@ export function useLangGraphWizard() {
     // V2 adaptive difficulty
     getNextAdaptiveDifficulty,
     currentDifficulty,
+    // Completed block counts (for UI display - fixes "Questions 0/0" bug)
+    // This Map preserves question counts BEFORE refs are reset on block completion
+    completedBlockCounts: Object.fromEntries(completedBlockCountsRef.current),
   };
 }
 

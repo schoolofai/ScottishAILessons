@@ -43,6 +43,15 @@ export interface MasteryUpdateRequest {
 }
 
 /**
+ * Per-difficulty question counts for persistence
+ */
+export interface DifficultyCounters {
+  easy: number;
+  medium: number;
+  hard: number;
+}
+
+/**
  * Session update request
  */
 export interface SessionUpdateRequest {
@@ -56,6 +65,15 @@ export interface SessionUpdateRequest {
   newMastery: number;
   /** Current difficulty level to persist for resume */
   currentDifficulty?: 'easy' | 'medium' | 'hard';
+  /** Per-difficulty question counts for current block (fixes "0/0" bug) */
+  questionsAttempted?: DifficultyCounters;
+  /** Per-difficulty correct counts for current block (fixes "0/0" bug) */
+  questionsCorrect?: DifficultyCounters;
+  /** Saved counts for completed blocks (key: block_id) - preserves counts after ref reset */
+  completedBlockCounts?: Record<string, {
+    attempted: DifficultyCounters;
+    correct: DifficultyCounters;
+  }>;
 }
 
 /**
@@ -184,7 +202,16 @@ export function usePracticePersistence(sessionToken?: string) {
    */
   const persistSessionProgress = useCallback(
     async (request: SessionUpdateRequest): Promise<void> => {
-      const { sessionId, progress, isCorrect, newMastery, currentDifficulty } = request;
+      const {
+        sessionId,
+        progress,
+        isCorrect,
+        newMastery,
+        currentDifficulty,
+        questionsAttempted,
+        questionsCorrect,
+        completedBlockCounts,
+      } = request;
 
       if (!sessionId) {
         // CRITICAL: This is a bug indicator - session should have been created during startSessionV2
@@ -204,6 +231,8 @@ export function usePracticePersistence(sessionToken?: string) {
         isCorrect,
         newMastery,
         currentDifficulty,
+        questionsAttempted, // Log for debugging
+        questionsCorrect,
       });
 
       try {
@@ -220,20 +249,57 @@ export function usePracticePersistence(sessionToken?: string) {
         // CRITICAL FIX: Save blocks_progress for session resume
         // This enables restoring per-block mastery when student returns to practice
         if (progress.blocks && progress.blocks.length > 0) {
+          const currentBlockIndex = progress.current_block_index;
+
           // Map contract's BlockProgress to driver's expected format
-          // Add current_difficulty from the request so resume knows where student left off
-          progressUpdate.blocks_progress = progress.blocks.map((block) => ({
-            block_id: block.block_id,
-            mastery_score: block.mastery_score,
-            is_complete: block.is_complete,
-            // Include current_difficulty for the current block being practiced
-            current_difficulty: currentDifficulty || 'easy',
-            // These fields are required by driver type but we only update what we track
-            questions_attempted: { easy: 0, medium: 0, hard: 0 },
-            questions_correct: { easy: 0, medium: 0, hard: 0 },
-            started_at: null,
-            completed_at: block.is_complete ? new Date().toISOString() : null,
-          }));
+          // BUG FIX: Use actual question counts for blocks (fixes "Questions 0/0" on resume)
+          // - Current block: use live ref counts
+          // - Completed blocks: use saved counts from completedBlockCounts
+          // - Future/locked blocks: zeros
+          progressUpdate.blocks_progress = progress.blocks.map((block, index) => {
+            const isCurrentBlock = index === currentBlockIndex;
+
+            // Check if we have saved counts for this completed block
+            const savedCounts = completedBlockCounts?.[block.block_id];
+
+            // Determine which counts to use:
+            // 1. Current block being practiced → live refs
+            // 2. Completed block with saved counts → saved counts
+            // 3. Future/locked block → zeros
+            let blockQuestionsAttempted: DifficultyCounters;
+            let blockQuestionsCorrect: DifficultyCounters;
+
+            if (isCurrentBlock && questionsAttempted) {
+              // Current block: use live ref counts
+              blockQuestionsAttempted = questionsAttempted;
+              blockQuestionsCorrect = questionsCorrect || { easy: 0, medium: 0, hard: 0 };
+            } else if (block.is_complete && savedCounts) {
+              // Completed block: use saved counts from BEFORE refs were reset
+              blockQuestionsAttempted = savedCounts.attempted;
+              blockQuestionsCorrect = savedCounts.correct;
+              log.debug("Using saved counts for completed block", {
+                blockId: block.block_id,
+                attempted: savedCounts.attempted,
+                correct: savedCounts.correct,
+              });
+            } else {
+              // Future/locked block: zeros
+              blockQuestionsAttempted = { easy: 0, medium: 0, hard: 0 };
+              blockQuestionsCorrect = { easy: 0, medium: 0, hard: 0 };
+            }
+
+            return {
+              block_id: block.block_id,
+              mastery_score: block.mastery_score,
+              is_complete: block.is_complete,
+              // Include current_difficulty for the current block being practiced
+              current_difficulty: isCurrentBlock ? (currentDifficulty || 'easy') : 'easy',
+              questions_attempted: blockQuestionsAttempted,
+              questions_correct: blockQuestionsCorrect,
+              started_at: null,
+              completed_at: block.is_complete ? new Date().toISOString() : null,
+            };
+          });
         }
 
         // Check if session should be completed
@@ -282,9 +348,28 @@ export function usePracticePersistence(sessionToken?: string) {
         currentDifficulty?: 'easy' | 'medium' | 'hard';
         /** Optional progress override for V2 mode where backend doesn't send progress */
         progress?: ProgressReport;
+        /** Per-difficulty question counts for current block (fixes "0/0" bug) */
+        questionsAttempted?: DifficultyCounters;
+        /** Per-difficulty correct counts for current block (fixes "0/0" bug) */
+        questionsCorrect?: DifficultyCounters;
+        /** Saved counts for completed blocks (key: block_id) */
+        completedBlockCounts?: Record<string, {
+          attempted: DifficultyCounters;
+          correct: DifficultyCounters;
+        }>;
       }
     ): Promise<void> => {
-      const { studentId, courseId, sessionId, outcomeIds, currentDifficulty, progress } = context;
+      const {
+        studentId,
+        courseId,
+        sessionId,
+        outcomeIds,
+        currentDifficulty,
+        progress,
+        questionsAttempted,
+        questionsCorrect,
+        completedBlockCounts,
+      } = context;
 
       // Use provided progress OR feedback.progress (V2 backend doesn't include progress in feedback)
       const progressToSave = progress || feedback.progress;
@@ -312,6 +397,8 @@ export function usePracticePersistence(sessionToken?: string) {
               isCorrect: feedback.is_correct,
               newMastery: feedback.new_mastery_score,
               currentDifficulty,
+              questionsAttempted, // BUG FIX: Pass counts for proper persistence
+              questionsCorrect,
             })
           : (() => {
               if (sessionId && !progressToSave) {

@@ -7,8 +7,8 @@
  * and provides the gamified header with progress and stats.
  */
 
-import React, { useEffect, useCallback, useState, useRef } from "react";
-import { X, Zap, Flame, Loader2, AlertCircle, Menu, BookOpen, RotateCcw } from "lucide-react";
+import React, { useEffect, useCallback, useState, useRef, useMemo } from "react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   useLangGraphWizard,
@@ -17,8 +17,7 @@ import {
 } from "@/hooks/practice/useLangGraphWizard";
 import { extractResumePosition } from "@/lib/utils/extractResumePosition";
 import { useBlockContent } from "@/hooks/practice/useBlockContent";
-import { WizardProgressBar } from "./WizardProgressBar";
-import { WizardSidePanel } from "./WizardSidePanel";
+import { ProgressHeader, JourneyTimeline, type CompletedBlockDetails } from "./progress";
 import { BlockReferencePanel } from "./BlockReferencePanel";
 import { ConceptStep } from "./steps/ConceptStep";
 import { QuestionStep } from "./steps/QuestionStep";
@@ -58,7 +57,6 @@ export function WizardPracticeContainer({
   const hasStartedRef = useRef(false);
   // Retry counter to force effect re-run when user clicks "Try Again"
   const [retryCount, setRetryCount] = useState(0);
-  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [isReferencePanelOpen, setIsReferencePanelOpen] = useState(true);
   // Reset session modal state
   const [showResetModal, setShowResetModal] = useState(false);
@@ -101,6 +99,186 @@ export function WizardPracticeContainer({
     canGoBack: navCanGoBack,
     canGoForward: navCanGoForward,
   } = useBlockContent();
+
+  // Create a map of block_id -> title for the JourneyTimeline
+  const blockTitles = useMemo(() => {
+    const titles: Record<string, string> = {};
+    for (const block of navAllBlocks) {
+      titles[block.blockId] = block.title;
+    }
+    return titles;
+  }, [navAllBlocks]);
+
+  // Type for detailed block progress from stored session
+  interface StoredBlockProgress {
+    block_id: string;
+    mastery_score?: number;
+    is_complete?: boolean;
+    current_difficulty?: "easy" | "medium" | "hard";
+    questions_attempted?: { easy: number; medium: number; hard: number };
+    questions_correct?: { easy: number; medium: number; hard: number };
+  }
+
+  // Track previously completed block IDs to detect new completions
+  // (used to avoid duplicate processing)
+  const previouslyCompletedRef = useRef<Set<string>>(new Set());
+
+  // Track blocks that complete during THIS session with their stats
+  // This captures stats in real-time so collapsible shows full data even for fresh sessions
+  const [sessionCompletedBlocks, setSessionCompletedBlocks] = useState<
+    Record<string, CompletedBlockDetails>
+  >({});
+
+  // Initialize previouslyCompletedRef with blocks already complete from stored session
+  // This prevents re-capturing them as "newly completed" during the session
+  useEffect(() => {
+    const storedBlocks = (practiceContext.stored_session as {
+      blocks_progress?: StoredBlockProgress[];
+    })?.blocks_progress;
+
+    if (storedBlocks) {
+      for (const block of storedBlocks) {
+        if (block.is_complete) {
+          previouslyCompletedRef.current.add(block.block_id);
+        }
+      }
+    }
+  }, [practiceContext.stored_session]);
+
+  // Capture the completion stats BEFORE the wizard resets them for the next block
+  // We need to track the stats at the moment of completion
+  const lastBlockStatsRef = useRef<{
+    blockId: string;
+    mastery: number;
+    questionsAnswered: number;
+    questionsCorrect: number;
+    hardQuestionsAttempted: number;
+    difficulty: "easy" | "medium" | "hard";
+  } | null>(null);
+
+  // Continuously track current block stats so we have them when completion triggers
+  useEffect(() => {
+    const currentBlockId = wizard.currentQuestion?.block_id;
+    if (currentBlockId) {
+      lastBlockStatsRef.current = {
+        blockId: currentBlockId,
+        mastery: wizard.cumulativeMastery,
+        questionsAnswered: wizard.currentBlockQuestionsAnswered,
+        questionsCorrect: wizard.currentBlockQuestionsCorrect,
+        hardQuestionsAttempted: wizard.hardQuestionsAttempted,
+        difficulty: wizard.currentDifficulty,
+      };
+    }
+  }, [
+    wizard.currentQuestion?.block_id,
+    wizard.cumulativeMastery,
+    wizard.currentBlockQuestionsAnswered,
+    wizard.currentBlockQuestionsCorrect,
+    wizard.hardQuestionsAttempted,
+    wizard.currentDifficulty,
+  ]);
+
+  // Track blocks that complete during the session and capture their stats
+  useEffect(() => {
+    if (!wizard.progress?.blocks) return;
+
+    const currentBlockId = wizard.currentQuestion?.block_id;
+
+    for (const block of wizard.progress.blocks) {
+      if (
+        block.is_complete &&
+        !previouslyCompletedRef.current.has(block.block_id) &&
+        currentBlockId !== block.block_id // Don't capture current block (still in progress)
+      ) {
+        // This block just completed - mark it so we don't process it again
+        previouslyCompletedRef.current.add(block.block_id);
+
+        // Capture completion stats from lastBlockStatsRef if it matches
+        // Note: After block completes, wizard moves to next block, so we use cached stats
+        if (lastBlockStatsRef.current?.blockId === block.block_id) {
+          const stats = lastBlockStatsRef.current;
+          setSessionCompletedBlocks((prev) => ({
+            ...prev,
+            [block.block_id]: {
+              mastery: stats.mastery,
+              totalQuestionsAnswered: stats.questionsAnswered,
+              totalQuestionsCorrect: stats.questionsCorrect,
+              hardQuestionsAttempted: stats.hardQuestionsAttempted,
+              finalDifficulty: stats.difficulty,
+            },
+          }));
+        } else {
+          // Fallback: Use block's mastery from progress if we missed the stats capture
+          // This can happen if the block completes but we didn't track stats (edge case)
+          setSessionCompletedBlocks((prev) => ({
+            ...prev,
+            [block.block_id]: {
+              mastery: block.mastery_score ?? 0,
+              // We don't have question counts, MasteryBreakdown will show 0s
+              // This is better than showing nothing (fallback)
+              totalQuestionsAnswered: 0,
+              totalQuestionsCorrect: 0,
+              hardQuestionsAttempted: 2, // Block complete means ≥2 hard attempted
+              finalDifficulty: undefined,
+            },
+          }));
+        }
+      }
+    }
+  }, [wizard.progress?.blocks, wizard.currentQuestion?.block_id]);
+
+  // Merge completed block details from THREE sources (priority order):
+  // 1. wizard.completedBlockCounts: Per-difficulty counts captured BEFORE ref reset (most accurate)
+  // 2. sessionCompletedBlocks: Totals captured during session (legacy fallback)
+  // 3. stored_session: Per-difficulty breakdown from persistence (for resumed sessions)
+  const completedBlocksDetails = useMemo(() => {
+    const details: Record<string, CompletedBlockDetails> = {};
+
+    // First, populate from stored_session (for resumed sessions)
+    const storedBlocks = (practiceContext.stored_session as {
+      blocks_progress?: StoredBlockProgress[];
+    })?.blocks_progress;
+
+    if (storedBlocks) {
+      for (const block of storedBlocks) {
+        // Only include completed blocks with actual question data
+        if (block.is_complete && block.questions_attempted && block.questions_correct) {
+          details[block.block_id] = {
+            mastery: block.mastery_score ?? 0,
+            questionsAttempted: block.questions_attempted,
+            questionsCorrect: block.questions_correct,
+            finalDifficulty: block.current_difficulty,
+          };
+        }
+      }
+    }
+
+    // Then, merge/override with session-captured data (legacy mechanism)
+    for (const [blockId, sessionData] of Object.entries(sessionCompletedBlocks)) {
+      details[blockId] = sessionData;
+    }
+
+    // Finally, merge/override with wizard's completedBlockCounts (most accurate source)
+    // This data is captured BEFORE refs are reset, ensuring accurate counts
+    if (wizard.completedBlockCounts) {
+      for (const [blockId, counts] of Object.entries(wizard.completedBlockCounts)) {
+        // Find the block's mastery from progress
+        const blockMastery = wizard.progress?.blocks?.find(b => b.block_id === blockId)?.mastery_score ?? 0;
+        details[blockId] = {
+          mastery: blockMastery,
+          questionsAttempted: counts.attempted,
+          questionsCorrect: counts.correct,
+          // Calculate totals from per-difficulty
+          totalQuestionsAnswered: counts.attempted.easy + counts.attempted.medium + counts.attempted.hard,
+          totalQuestionsCorrect: counts.correct.easy + counts.correct.medium + counts.correct.hard,
+          hardQuestionsAttempted: counts.attempted.hard,
+          finalDifficulty: "hard", // Block completed means reached hard
+        };
+      }
+    }
+
+    return details;
+  }, [practiceContext.stored_session, sessionCompletedBlocks, wizard.completedBlockCounts, wizard.progress?.blocks]);
 
   // Start session on mount - V2 mode uses pre-generated questions, V1 uses real-time generation
   // CRITICAL: Using useRef for hasStarted to prevent React StrictMode double-start bug
@@ -390,14 +568,6 @@ export function WizardPracticeContainer({
 
   return (
     <div className="wizard-page min-h-dvh flex flex-col bg-gradient-to-br from-slate-50 via-cyan-50/30 to-emerald-50/30">
-      {/* Side Panel (Left) */}
-      <WizardSidePanel
-        isOpen={isSidePanelOpen}
-        onToggle={() => setIsSidePanelOpen(!isSidePanelOpen)}
-        progress={wizard.progress}
-        currentBlock={wizard.currentBlock}
-      />
-
       {/* Block Reference Panel (Right) - V2 mode only */}
       {useV2Mode && (
         <BlockReferencePanel
@@ -439,120 +609,51 @@ export function WizardPracticeContainer({
         />
       )}
 
-      {/* Compact Header - Single Line (adjusts with panel - Phase 7) */}
-      <header
-        className="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-gray-200/50 transition-all duration-300"
-        style={{
-          // Adjust padding-right when reference panel is open to align with main content
-          paddingRight: useV2Mode && isReferencePanelOpen ? referencePanelWidth : 0,
-        }}
-      >
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-          {/* Left: Menu, Exit & Title */}
-          <div className="flex items-center gap-2 min-w-0">
-            {/* Menu toggle for side panel */}
-            <button
-              onClick={() => setIsSidePanelOpen(!isSidePanelOpen)}
-              className="p-2 -ml-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Toggle navigation"
-            >
-              <Menu className="w-5 h-5 text-gray-500" />
-            </button>
+      {/* NEW: Enhanced Progress Header */}
+      <ProgressHeader
+        progress={wizard.progress}
+        currentBlock={wizard.currentBlock}
+        currentQuestion={wizard.currentQuestion}
+        totalXP={wizard.totalXP}
+        currentStreak={wizard.currentStreak}
+        lessonTitle={lessonTitle}
+        onExit={onExit}
+        onToggleReference={() => setIsReferencePanelOpen(!isReferencePanelOpen)}
+        isReferencePanelOpen={isReferencePanelOpen}
+        onReset={onResetSession ? () => setShowResetModal(true) : undefined}
+        useV2Mode={useV2Mode && wizard.stage !== "complete"}
+      />
 
-            {/* Exit button */}
-            <button
-              onClick={onExit}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Exit practice"
-            >
-              <X className="w-5 h-5 text-gray-500" />
-            </button>
-
-            {/* Title - truncated */}
-            <h1 className="text-sm font-semibold text-gray-800 truncate max-w-[180px] sm:max-w-xs">
-              {lessonTitle}
-            </h1>
-          </div>
-
-          {/* Center: Progress (inline) */}
-          {wizard.progress && wizard.stage !== "complete" && (
-            <div className="hidden sm:flex items-center">
-              <WizardProgressBar
-                progress={wizard.progress}
-                currentStage={wizard.stage}
-              />
-            </div>
-          )}
-
-          {/* Right: Stats + Reference toggle */}
-          <div className="flex items-center gap-2">
-            {/* Streak */}
-            {wizard.currentStreak > 0 && (
-              <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-600 rounded-full text-xs font-semibold">
-                <Flame className="w-3.5 h-3.5" />
-                <span>{wizard.currentStreak}</span>
-              </div>
-            )}
-
-            {/* XP */}
-            <div className="flex items-center gap-1 px-2 py-1 bg-violet-50 text-violet-600 rounded-full text-xs font-semibold">
-              <Zap className="w-3.5 h-3.5" />
-              <span>{wizard.totalXP}</span>
-            </div>
-
-            {/* Reference panel toggle - V2 mode only */}
-            {useV2Mode && wizard.stage !== "complete" && (
-              <button
-                onClick={() => setIsReferencePanelOpen(!isReferencePanelOpen)}
-                className={`p-2 rounded-lg transition-colors ${
-                  isReferencePanelOpen
-                    ? "bg-cyan-100 text-cyan-600"
-                    : "hover:bg-cyan-50 text-gray-400 hover:text-cyan-600"
-                }`}
-                aria-label="Toggle reference panel"
-                title="View block explanation and examples"
-              >
-                <BookOpen className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Reset button - always visible except on complete screen */}
-            {onResetSession && wizard.stage !== "complete" && (
-              <button
-                onClick={() => setShowResetModal(true)}
-                className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                aria-label="Reset progress"
-                title="Reset practice session"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile progress - below header on small screens */}
+      {/* NEW: Flex layout with Journey Timeline */}
+      <div className="flex-1 flex">
+        {/* Journey Timeline - always visible on desktop (except on complete) */}
         {wizard.progress && wizard.stage !== "complete" && (
-          <div className="sm:hidden px-4 pb-2">
-            <WizardProgressBar
-              progress={wizard.progress}
-              currentStage={wizard.stage}
-            />
-          </div>
+          <JourneyTimeline
+            progress={wizard.progress}
+            currentBlock={wizard.currentBlock}
+            cumulativeMastery={wizard.cumulativeMastery}
+            hardQuestionsAttempted={wizard.hardQuestionsAttempted}
+            questionsAnswered={wizard.currentBlockQuestionsAnswered}
+            questionsCorrect={wizard.currentBlockQuestionsCorrect}
+            currentDifficulty={wizard.currentDifficulty}
+            blockTitles={blockTitles}
+            completedBlocksDetails={completedBlocksDetails}
+          />
         )}
-      </header>
 
-      {/* Main Content - Adjusts when reference panel is open (Phase 7) */}
-      <main
-        className="flex-1 flex flex-col transition-all duration-300"
-        style={{
-          // Add padding-right when reference panel is open to avoid overlap
-          paddingRight: useV2Mode && isReferencePanelOpen ? referencePanelWidth : 0,
-        }}
-      >
-        <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
-          {renderStep()}
-        </div>
-      </main>
+        {/* Main Content - Adjusts for reference panel */}
+        <main
+          className="flex-1 flex flex-col transition-all duration-300"
+          style={{
+            // Add padding-right when reference panel is open to avoid overlap
+            paddingRight: useV2Mode && isReferencePanelOpen ? referencePanelWidth : 0,
+          }}
+        >
+          <div className="flex-1 max-w-3xl mx-auto w-full px-4 py-6">
+            {renderStep()}
+          </div>
+        </main>
+      </div>
 
       {/* Accessibility: Announce stage changes */}
       <div className="sr-only" role="status" aria-live="polite">
