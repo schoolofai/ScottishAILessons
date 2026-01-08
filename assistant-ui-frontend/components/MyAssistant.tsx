@@ -107,17 +107,9 @@ export function MyAssistant({
     onSwitchToThread: async (threadId) => {
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
-      
-      // 🚨 INTERRUPT DEBUG: Log interrupt data clearly
+
       const interrupts = state.tasks?.[0]?.interrupts;
-      console.log('🚨 INTERRUPT DEBUG - onSwitchToThread:', {
-        threadId,
-        hasInterrupts: !!interrupts,
-        interruptCount: interrupts ? interrupts.length : 0,
-        interruptData: interrupts
-      });
-      
-      return { 
+      return {
         messages: state.values.messages,
         interrupts: interrupts
       };
@@ -129,18 +121,10 @@ export function MyAssistant({
   // Note: React StrictMode runs effects twice synchronously, so we must set the guard
   // BEFORE the async call to prevent both runs from starting parallel loads.
   useEffect(() => {
-    console.log('🔄 MyAssistant - useEffect triggered:', {
-      hasInitialThreadId: !!initialThreadId,
-      currentThreadId: threadIdRef.current,
-      hasAlreadyLoaded: hasLoadedThreadRef.current,
-      willLoadThread: !!(initialThreadId && threadIdRef.current === initialThreadId && !hasLoadedThreadRef.current)
-    });
-
     // Skip if we've already started loading this thread
     // CRITICAL: This check must happen SYNCHRONOUSLY before any async operations
     // to prevent React StrictMode's double-execution from causing parallel loads
     if (hasLoadedThreadRef.current) {
-      console.log('⏭️ MyAssistant - Skipping thread reload (already loaded/loading, preventing message loss)');
       return;
     }
 
@@ -149,17 +133,8 @@ export function MyAssistant({
       // This prevents React StrictMode's second effect run from starting another load
       hasLoadedThreadRef.current = true;
 
-      console.log('📥 MyAssistant - Loading existing thread state:', initialThreadId);
-
       getThreadState(initialThreadId)
         .then(state => {
-          console.log('✅ MyAssistant - Thread state loaded:', {
-            threadId: initialThreadId,
-            messageCount: state.values?.messages?.length || 0,
-            hasInterrupts: !!(state.tasks?.[0]?.interrupts),
-            interruptCount: state.tasks?.[0]?.interrupts?.length || 0
-          });
-
           // Use runtime's switchToThread to properly load the messages
           runtime.switchToThread(initialThreadId);
         })
@@ -168,8 +143,6 @@ export function MyAssistant({
           // Reset the guard on error so retry is possible
           hasLoadedThreadRef.current = false;
         });
-    } else {
-      console.log('⏭️ MyAssistant - Skipping thread load (no initial thread or thread mismatch)');
     }
   }, [initialThreadId, langGraphRuntime]);
 

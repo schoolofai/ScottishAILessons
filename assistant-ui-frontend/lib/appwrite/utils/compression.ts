@@ -75,24 +75,20 @@ export function decompressCards(data: string | any[] | null | undefined): any[] 
 
     // 1. Check if data has TypeScript compression prefix
     if (data.startsWith(COMPRESSION_PREFIX)) {
-      console.debug('[compression] Detected TypeScript format (with gzip: prefix)');
       return decompressGzipBase64(data);
     }
 
     // 2. Try raw base64-gzip (Python format from lesson_upserter.py)
     // Look for base64-like pattern: starts with alphanumeric and all chars are base64-valid
     if (isLikelyBase64(data)) {
-      console.debug('[compression] Attempting raw base64-gzip decompression (Python format)');
       try {
         return decompressRawGzipBase64(data);
-      } catch (gzipError) {
-        console.debug('[compression] Raw gzip decompression failed, trying JSON parsing:', gzipError);
+      } catch {
         // If gzip fails, fall through to JSON parsing
       }
     }
 
     // 3. Fallback: Try parsing as uncompressed JSON (backward compatibility)
-    console.debug('[compression] Attempting JSON parsing (uncompressed format)');
     return parseUncompressed(data);
 
   } catch (error) {
@@ -149,7 +145,6 @@ function decompressRawGzipBase64(data: string): any[] {
       throw new Error('Decompressed data is not an array');
     }
 
-    console.debug('[compression] Successfully decompressed raw base64-gzip data');
     return cards;
 
   } catch (error) {
@@ -171,14 +166,12 @@ function isLikelyBase64(data: string): boolean {
   const matches = base64Regex.test(data);
 
   if (!matches) {
-    console.debug('[compression] String does not match base64 pattern');
     return false;
   }
 
   // Additional check: if this looks like JSON, it's probably not compressed
   const trimmed = data.trim();
   if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('"')) {
-    console.debug('[compression] String looks like JSON, not compressed');
     return false;
   }
 
@@ -311,23 +304,19 @@ export function decompressJSON<T = any>(data: string | any | null | undefined): 
 
     // 1. Check if data has TypeScript compression prefix
     if (data.startsWith(COMPRESSION_PREFIX)) {
-      console.debug('[compression] Detected TypeScript format (with gzip: prefix)');
       return decompressGzipBase64JSON<T>(data);
     }
 
     // 2. Try raw base64-gzip (Python format)
     if (isLikelyBase64(data)) {
-      console.debug('[compression] Attempting raw base64-gzip decompression (Python format)');
       try {
         return decompressRawGzipBase64JSON<T>(data);
-      } catch (gzipError) {
-        console.debug('[compression] Raw gzip decompression failed, trying JSON parsing:', gzipError);
+      } catch {
         // If gzip fails, fall through to JSON parsing
       }
     }
 
     // 3. Fallback: Try parsing as uncompressed JSON (backward compatibility)
-    console.debug('[compression] Attempting JSON parsing (uncompressed format)');
     return JSON.parse(data);
 
   } catch (error) {
@@ -376,7 +365,6 @@ function decompressRawGzipBase64JSON<T>(data: string): T {
     // Parse JSON
     const parsed = JSON.parse(decompressed);
 
-    console.debug('[compression] Successfully decompressed raw base64-gzip JSON data');
     return parsed;
 
   } catch (error) {

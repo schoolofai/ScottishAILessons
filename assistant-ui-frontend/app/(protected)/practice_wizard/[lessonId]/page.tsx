@@ -191,12 +191,6 @@ export default function PracticeWizardPage() {
                   completed_at: sessionDoc.updated_at,
                   session_id: sessionDoc.session_id, // Track for potential deletion
                 });
-
-                console.log("[PracticeWizardPage] Completed session found - showing summary", {
-                  session_id: sessionDoc.session_id,
-                  overall_mastery: sessionDoc.overall_mastery,
-                  total_blocks: sessionDoc.total_blocks,
-                });
               } else if (!forceFreshStart) {
                 // Active/paused session found - show resume prompt
                 const blocksProgress = typeof sessionDoc.blocks_progress === "string"
@@ -237,24 +231,12 @@ export default function PracticeWizardPage() {
                   },
                 });
 
-                console.log("[PracticeWizardPage] Resumable session found - showing prompt", {
-                  session_id: sessionDoc.session_id,
-                  status: sessionDoc.status,
-                  current_block_index: sessionDoc.current_block_index,
-                  current_difficulty: currentDifficulty,
-                  // Log both mastery sources for debugging
-                  session_overall_mastery: sessionDoc.overall_mastery,
-                  block_mastery_score: currentBlockProgress?.mastery_score,
-                  mastery_shown_in_modal: currentBlockProgress?.mastery_score || 0,
-                });
-
                 // Show the resume prompt modal
                 setShowResumePrompt(true);
                 setLoading(false);
                 return;
               } else {
                 // forceFreshStart is true - skip this session and start fresh
-                console.log("[PracticeWizardPage] Force fresh start - ignoring existing session");
               }
             }
           }
@@ -331,11 +313,6 @@ export default function PracticeWizardPage() {
         stored_session: pendingSession.raw_session,
       };
 
-      console.log("[PracticeWizardPage] Resuming session", {
-        session_id: pendingSession.session_id,
-        block_index: pendingSession.current_block_index,
-      });
-
       setPendingSession(null);
       setPracticeContext(context);
     } catch (err) {
@@ -363,8 +340,6 @@ export default function PracticeWizardPage() {
         throw new Error("Failed to delete existing session");
       }
 
-      console.log("[PracticeWizardPage] Deleted session for fresh start");
-
       // 2. Clear mastery for this lesson's outcomes
       const masteryResponse = await fetch('/api/mastery/reset-lesson', {
         method: 'POST',
@@ -372,10 +347,7 @@ export default function PracticeWizardPage() {
         body: JSON.stringify({ lesson_template_id: lessonId }),
       });
 
-      if (masteryResponse.ok) {
-        const masteryData = await masteryResponse.json();
-        console.log("[PracticeWizardPage] Mastery reset:", masteryData);
-      } else {
+      if (!masteryResponse.ok) {
         console.warn("[PracticeWizardPage] Mastery reset failed - continuing anyway");
       }
 
@@ -408,7 +380,6 @@ export default function PracticeWizardPage() {
         const data = await sessionResponse.json();
         if (data.sessions?.length > 0) {
           const sessionToDelete = data.sessions[0];
-          console.log("[PracticeWizardPage] Found session to delete:", sessionToDelete.session_id);
 
           const deleteResponse = await fetch(
             `/api/practice-sessions/${sessionToDelete.session_id}`,
@@ -418,24 +389,15 @@ export default function PracticeWizardPage() {
           if (!deleteResponse.ok) {
             throw new Error("Failed to delete session");
           }
-
-          console.log("[PracticeWizardPage] Deleted session for reset");
-        } else {
-          console.log("[PracticeWizardPage] No active session found to delete");
         }
       }
 
       // 2. Clear mastery for this lesson
-      const masteryResponse = await fetch('/api/mastery/reset-lesson', {
+      await fetch('/api/mastery/reset-lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lesson_template_id: lessonId }),
       });
-
-      if (masteryResponse.ok) {
-        const masteryData = await masteryResponse.json();
-        console.log("[PracticeWizardPage] Mastery reset:", masteryData);
-      }
 
       // 3. Reset state and trigger fresh load
       // BUG FIX: Use resetCounter to force useEffect re-trigger
@@ -540,7 +502,6 @@ export default function PracticeWizardPage() {
                     await fetch(`/api/practice-sessions/${completedSession.session_id}`, {
                       method: 'DELETE',
                     });
-                    console.log("[PracticeWizardPage] Deleted completed session for fresh start");
                   } catch (deleteError) {
                     console.warn("[PracticeWizardPage] Failed to delete completed session:", deleteError);
                   }

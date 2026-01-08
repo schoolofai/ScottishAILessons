@@ -35,11 +35,9 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
   // Track component mount/unmount state
   useEffect(() => {
     isMountedRef.current = true;
-    console.log('✅ DrawingModal mounted');
 
     return () => {
       isMountedRef.current = false;
-      console.log('🔄 DrawingModal unmounting');
     };
   }, []);
 
@@ -47,15 +45,9 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
   useEffect(() => {
     if (!open) return;
 
-    console.log('🚪 ═══════════════════════════════════════════════════');
-    console.log('🚪 DRAWING MODAL OPENED');
-    console.log('🚪 ═══════════════════════════════════════════════════');
-
-    // CRITICAL FIX: Clear Excalidraw localStorage on modal open
-    // This prevents zoom/scroll pollution from previous sessions
+    // Clear Excalidraw localStorage on modal open to prevent viewport pollution
     if (typeof window !== 'undefined') {
       try {
-        // Clear all Excalidraw-related localStorage keys
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
@@ -67,64 +59,27 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
         keysToRemove.forEach(key => {
           localStorage.removeItem(key);
         });
-
-        if (keysToRemove.length > 0) {
-          console.log(`🧹 Cleared ${keysToRemove.length} Excalidraw localStorage keys to prevent viewport pollution`);
-          console.log('🧹 Removed keys:', keysToRemove);
-        } else {
-          console.log('🧹 No Excalidraw localStorage keys found to clear');
-        }
       } catch (error) {
-        console.warn('⚠️ Failed to clear Excalidraw localStorage:', error);
+        console.warn('[DrawingModal] Failed to clear Excalidraw localStorage:', error);
       }
     }
 
-    if (initialSceneData) {
-      console.log('🎨 MODAL - Rendering with initial scene data:', {
-        hasInitialSceneData: !!initialSceneData,
-        elements: initialSceneData?.elements?.length || 0,
-        hasAppState: !!initialSceneData?.appState,
-        hasFiles: !!initialSceneData?.files
-      });
-
-      // Log element positions in the scene data for debugging
-      if (initialSceneData?.elements && initialSceneData.elements.length > 0) {
-        console.log('🎯 MODAL - Scene data element positions (first 3):');
-        initialSceneData.elements.slice(0, 3).forEach((el: any, idx: number) => {
-          console.log(`  Element ${idx}: type=${el.type}, x=${el.x}, y=${el.y}, width=${el.width}, height=${el.height}`);
-        });
-      }
-
-      console.log('✅ MODAL - Elements passed directly via initialElements prop (single-phase initialization)');
-    } else {
-      console.log('ℹ️ Modal opened without initial scene data (new drawing)');
-    }
-
-    console.log('🚪 ═══════════════════════════════════════════════════');
-
-    // CRITICAL FIX: Force Excalidraw to refresh canvas position after modal layout completes
-    // This fixes the 10px cursor offset bug for BOTH new drawings and editing existing ones
-    // The offset can appear on subsequent modal opens even without scene data due to cached DOM layout
+    // Force Excalidraw to refresh canvas position after modal layout completes
+    // This fixes cursor offset bugs for both new and existing drawings
     const refreshTimer = setTimeout(() => {
-      // Only refresh if component is still mounted - prevents React setState warning
       if (isMountedRef.current && canvasRef.current) {
         try {
-          // Call our refreshCanvas method to recalculate canvas coordinates
           canvasRef.current.refreshCanvas();
-          console.log('🔄 CRITICAL FIX: Forced canvas position refresh after modal layout');
         } catch (error) {
-          console.warn('⚠️ Failed to refresh canvas position:', error);
+          console.warn('[DrawingModal] Failed to refresh canvas position:', error);
         }
-      } else if (!isMountedRef.current) {
-        console.log('⏭️ Skipping refresh - component unmounted before timeout');
       }
-    }, 250); // Increased delay to ensure Excalidraw completes internal initialization
+    }, 250);
 
     return () => clearTimeout(refreshTimer);
   }, [open, initialSceneData]);
 
   const handleQuickInsert = (itemId: string) => {
-    console.log(`🚀 Quick insert requested: ${itemId}`);
     canvasRef.current?.insertLibraryItem(itemId);
   };
 
@@ -178,19 +133,13 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
       // Export scene data (for editing)
       const sceneData = canvasRef.current?.exportSceneData();
 
-      console.log('📊 Drawing exported:', {
-        base64Length: base64.length,
-        estimatedSize: `${Math.round(base64.length / 1024)}KB`,
-        sceneElements: sceneData?.elements?.length || 0
-      });
-
       // Call parent's insert handler with both PNG and scene data
       onInsert(base64, sceneData);
 
       // Close modal
       onClose();
     } catch (error) {
-      console.error('❌ Failed to insert drawing:', error);
+      console.error('[DrawingModal] Failed to insert drawing:', error);
       alert("Failed to insert drawing. Please try again.");
     } finally {
       setIsInserting(false);
@@ -205,9 +154,8 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
       }
 
       await canvasRef.current?.downloadAsPng();
-      console.log('✅ PNG export initiated');
     } catch (error) {
-      console.error('❌ Failed to export PNG:', error);
+      console.error('[DrawingModal] Failed to export PNG:', error);
       alert("Failed to export PNG. Please try again.");
     }
   };
@@ -220,9 +168,8 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
       }
 
       await canvasRef.current?.downloadAsExcalidraw();
-      console.log('✅ Excalidraw file save initiated');
     } catch (error) {
-      console.error('❌ Failed to save file:', error);
+      console.error('[DrawingModal] Failed to save file:', error);
       alert("Failed to save drawing file. Please try again.");
     }
   };
@@ -230,14 +177,12 @@ export function DrawingModal({ open, onClose, onInsert, stem, initialSceneData }
   const handleLoadFromFile = async () => {
     try {
       await canvasRef.current?.loadFromFile();
-      console.log('✅ Drawing loaded from file successfully');
     } catch (error: any) {
       // Don't show alert for user cancellation
       if (error.message === 'File picker cancelled' || error.message === 'No file selected') {
-        console.log('ℹ️ User cancelled file selection');
         return;
       }
-      console.error('❌ Failed to load file:', error);
+      console.error('[DrawingModal] Failed to load file:', error);
       alert(`Failed to load drawing file: ${error.message}`);
     }
   };

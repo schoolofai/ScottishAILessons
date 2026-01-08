@@ -88,67 +88,26 @@ export class DiagramDriver extends BaseDriver {
     cardId: string,
     diagramContext: 'lesson' | 'cfu'
   ): Promise<LessonDiagram | null> {
-    console.log('📐 DiagramDriver.getDiagramForCardByContext - Entry');
-    console.log('📐 DiagramDriver - Parameters:', { lessonTemplateId, cardId, diagramContext });
-
     if (!lessonTemplateId || !cardId) {
-      console.error('📐 DiagramDriver - ERROR: Missing required parameters');
       throw new Error('lessonTemplateId and cardId are required');
     }
 
     try {
-      console.log('📐 DiagramDriver - Building query with:');
-      console.log('  - lessonTemplateId:', lessonTemplateId);
-      console.log('  - cardId:', cardId);
-      console.log('  - diagram_context:', diagramContext);
-
       const diagrams = await this.list<LessonDiagram>('lesson_diagrams', [
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('cardId', cardId),
-        Query.equal('diagram_context', diagramContext),  // Filter by context
-        Query.limit(1) // Only need first match
+        Query.equal('diagram_context', diagramContext),
+        Query.limit(1)
       ]);
 
-      console.log('📐 DiagramDriver - Query returned:', diagrams.length, 'diagrams');
-      if (diagrams.length > 0) {
-        console.log('📐 DiagramDriver - First diagram:', diagrams[0]);
-      } else {
-        console.log('📐 DiagramDriver - No diagrams found with cardId="lesson", checking all diagrams for this lesson...');
-
-        // Debug: List ALL diagrams for this lesson to see what cardIds exist
-        try {
-          const allDiagrams = await this.list<LessonDiagram>('lesson_diagrams', [
-            Query.equal('lessonTemplateId', lessonTemplateId),
-            Query.limit(100)
-          ]);
-          console.log('📐 DiagramDriver - All diagrams for this lesson:', allDiagrams.length);
-          allDiagrams.forEach((d, idx) => {
-            console.log(`📐 DiagramDriver - Diagram ${idx + 1}:`, {
-              cardId: d.cardId,
-              diagram_context: d.diagram_context,
-              diagram_type: d.diagram_type,
-              title: d.title,
-              image_file_id: d.image_file_id
-            });
-          });
-        } catch (debugError) {
-          console.error('📐 DiagramDriver - Error listing all diagrams:', debugError);
-        }
-      }
-
-      // Return first diagram or null if no diagrams found
       return diagrams.length > 0 ? diagrams[0] : null;
 
     } catch (error) {
-      console.error('📐 DiagramDriver - Caught error:', error);
-      console.error('📐 DiagramDriver - Error code:', error.code);
-      console.error('📐 DiagramDriver - Error message:', error.message);
-
       // Silent fail if diagram not found - this is expected for cards without diagrams
       if (error.code === 404) {
-        console.log('📐 DiagramDriver - 404 error, returning null');
         return null;
       }
+      console.error('📐 DiagramDriver - Error fetching diagram:', error);
       throw this.handleError(error, `get ${diagramContext} diagram for card ${cardId} in lesson ${lessonTemplateId}`);
     }
   }
@@ -286,11 +245,7 @@ export class DiagramDriver extends BaseDriver {
     cardId: string,
     diagramContext: 'lesson' | 'cfu'
   ): Promise<LessonDiagram[]> {
-    console.log('📐 DiagramDriver.getAllDiagramsForCardByContext - Entry');
-    console.log('📐 DiagramDriver - Parameters:', { lessonTemplateId, cardId, diagramContext });
-
     if (!lessonTemplateId || !cardId) {
-      console.error('📐 DiagramDriver - ERROR: Missing required parameters');
       throw new Error('lessonTemplateId and cardId are required');
     }
 
@@ -299,21 +254,18 @@ export class DiagramDriver extends BaseDriver {
         Query.equal('lessonTemplateId', lessonTemplateId),
         Query.equal('cardId', cardId),
         Query.equal('diagram_context', diagramContext),
-        Query.orderAsc('diagram_index'),  // Sort by index
-        Query.limit(100)  // Support up to 100 diagrams (more than enough)
+        Query.orderAsc('diagram_index'),
+        Query.limit(100)
       ]);
 
-      console.log(`📐 DiagramDriver - Found ${diagrams.length} ${diagramContext} diagrams`);
       return diagrams;
 
     } catch (error) {
-      console.error('📐 DiagramDriver - Caught error:', error);
-
       // Silent fail if diagram not found - this is expected for cards without diagrams
       if (error.code === 404) {
-        console.log('📐 DiagramDriver - 404 error, returning empty array');
         return [];
       }
+      console.error('📐 DiagramDriver - Error fetching diagrams:', error);
       throw this.handleError(error, `get all ${diagramContext} diagrams for card ${cardId} in lesson ${lessonTemplateId}`);
     }
   }
@@ -410,15 +362,12 @@ export class DiagramDriver extends BaseDriver {
       // 1. Generate deterministic file ID (matches backend naming convention)
       const fileId = generateDiagramFileId(lessonTemplateId, cardId, diagramContext);
 
-      console.log(`📤 DiagramDriver.uploadDiagram - Uploading file with ID: ${fileId}`);
-
       // 2. Convert base64 to Blob
       const blob = base64ToBlob(imageBase64);
 
       // 3. Check if file already exists and delete it first
       try {
         await this.storage.deleteFile(this.STORAGE_BUCKET_ID, fileId);
-        console.log(`📤 DiagramDriver.uploadDiagram - Deleted existing file: ${fileId}`);
       } catch (deleteError: any) {
         // File doesn't exist, which is fine
         if (deleteError?.code !== 404) {
@@ -432,8 +381,6 @@ export class DiagramDriver extends BaseDriver {
         fileId,
         blob
       );
-
-      console.log(`📤 DiagramDriver.uploadDiagram - File uploaded successfully: ${uploadedFile.$id}`);
 
       // 5. Check if diagram document already exists
       const existingDiagram = await this.getDiagramForCardByContext(
@@ -457,8 +404,6 @@ export class DiagramDriver extends BaseDriver {
             execution_id: `manual_${Date.now()}`
           }
         );
-
-        console.log(`📤 DiagramDriver.uploadDiagram - Updated existing diagram: ${existingDiagram.$id}`);
         return updatedDiagram;
       } else {
         // Create new diagram document
@@ -480,8 +425,6 @@ export class DiagramDriver extends BaseDriver {
             failure_reason: null
           }
         );
-
-        console.log(`📤 DiagramDriver.uploadDiagram - Created new diagram: ${newDiagram.$id}`);
         return newDiagram;
       }
 
@@ -523,12 +466,9 @@ export class DiagramDriver extends BaseDriver {
         throw new Error(`No ${diagramContext} diagram found for card ${cardId}`);
       }
 
-      console.log(`🗑️ DiagramDriver.deleteDiagram - Deleting diagram: ${diagram.$id}`);
-
       // 2. Delete from storage bucket
       try {
         await this.storage.deleteFile(this.STORAGE_BUCKET_ID, diagram.image_file_id);
-        console.log(`🗑️ DiagramDriver.deleteDiagram - Deleted storage file: ${diagram.image_file_id}`);
       } catch (storageError: any) {
         // Log warning but continue - file might already be deleted
         if (storageError?.code !== 404) {
@@ -538,7 +478,6 @@ export class DiagramDriver extends BaseDriver {
 
       // 3. Delete database document
       await this.delete('lesson_diagrams', diagram.$id);
-      console.log(`🗑️ DiagramDriver.deleteDiagram - Deleted database document: ${diagram.$id}`);
 
     } catch (error: any) {
       console.error('🗑️ DiagramDriver.deleteDiagram - Error:', error);

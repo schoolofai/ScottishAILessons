@@ -25,19 +25,8 @@ export async function enrichOutcomeRefs(
   driver: CourseOutcomesDriver
 ): Promise<CourseOutcome[]> {
   try {
-    // 🔍 DEBUG: Log function entry with detailed input analysis
-    console.log('🔍 [enrichOutcomeRefs DEBUG] Function called with:', {
-      outcomeRefsType: typeof outcomeRefs,
-      outcomeRefsIsArray: Array.isArray(outcomeRefs),
-      outcomeRefsLength: outcomeRefs?.length,
-      outcomeRefsRaw: outcomeRefs,
-      outcomeRefsStringified: JSON.stringify(outcomeRefs),
-      courseId: courseId
-    });
-
     // Validate inputs
     if (!outcomeRefs || outcomeRefs.length === 0) {
-      console.log('[enrichOutcomeRefs] No outcomeRefs provided');
       return [];
     }
 
@@ -46,56 +35,16 @@ export async function enrichOutcomeRefs(
       return [];
     }
 
-    console.log('[enrichOutcomeRefs] Starting enrichment:', {
-      outcomeRefsCount: outcomeRefs.length,
-      outcomeRefs: outcomeRefs,
-      courseId: courseId
-    });
-
-    // 🔍 DEBUG: Log before extraction
-    console.log('🔍 [enrichOutcomeRefs DEBUG] Before extractOutcomeIds:', {
-      inputArray: outcomeRefs,
-      inputArrayStringified: JSON.stringify(outcomeRefs)
-    });
-
     // Extract only outcomeIds (codes without decimal points)
     const outcomeIds = driver.extractOutcomeIds(outcomeRefs);
 
-    // 🔍 DEBUG: Log extraction result
-    console.log('🔍 [enrichOutcomeRefs DEBUG] After extractOutcomeIds:', {
-      extractedIds: outcomeIds,
-      extractedCount: outcomeIds.length,
-      originalCount: outcomeRefs.length,
-      filteredOut: outcomeRefs.filter(ref => !outcomeIds.includes(ref))
-    });
-
     if (outcomeIds.length === 0) {
-      console.log('[enrichOutcomeRefs] No outcomeIds found in outcomeRefs (all were assessment standards)');
-      // 🔍 DEBUG: Log why all were filtered out
-      console.log('🔍 [enrichOutcomeRefs DEBUG] All outcomeRefs filtered out:', {
-        originalRefs: outcomeRefs,
-        reasonLikelyDecimalCheck: 'All refs contain "." (assessment standards)'
-      });
+      // All refs were assessment standards (with decimals), no outcomeIds to enrich
       return [];
     }
 
-    console.log('[enrichOutcomeRefs] Extracted outcomeIds:', outcomeIds);
-
     // Fetch full CourseOutcome objects from Appwrite
     const enrichedOutcomes = await driver.getOutcomesByIds(courseId, outcomeIds);
-
-    console.log(`[enrichOutcomeRefs] Successfully enriched ${enrichedOutcomes.length}/${outcomeIds.length} outcomes`);
-
-    // Log summary for debugging
-    if (enrichedOutcomes.length > 0) {
-      console.log('[enrichOutcomeRefs] Enriched outcomes summary:',
-        enrichedOutcomes.map(o => ({
-          outcomeId: o.outcomeId,
-          title: o.outcomeTitle.substring(0, 50) + '...',
-          unitCode: o.unitCode
-        }))
-      );
-    }
 
     return enrichedOutcomes;
 

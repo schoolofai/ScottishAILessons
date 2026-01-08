@@ -81,11 +81,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   useEffect(() => {
     // Don't check until subscription loading is complete
     if (isLoadingSubscription) {
-      console.log('🔍 [Backend Boundary] Waiting for subscription status to load...');
       return;
     }
-
-    console.log('🔍 [Backend Boundary] Checking ALL backends availability (main + context chat)...');
 
     checkAllBackendsStatus()
       .then((result) => {
@@ -99,8 +96,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           return;
         }
 
-        console.log('✅ [Backend Boundary] ALL backends are available and responding');
-
         // T045: Check subscription access AFTER backend check (and after subscription data loaded)
         if (!hasAccess) {
           console.error('❌ [Subscription] User does not have active subscription');
@@ -109,7 +104,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           return;
         }
 
-        console.log('✅ [Subscription] User has access');
         setBackendStatus({ available: true, checked: true });
       })
       .catch((err) => {
@@ -125,15 +119,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   }, [hasAccess, isLoadingSubscription]); // Re-check when subscription status changes or finishes loading
 
   useEffect(() => {
-    console.log('🔄 SessionChatAssistant - useEffect triggered:', {
-      sessionId,
-      timestamp: new Date().toISOString()
-    });
-
     const loadSessionContext = async () => {
       try {
-        console.log('📥 SessionChatAssistant - Starting to load session context for:', sessionId);
-
         // Fetch session data from server-side API using httpOnly cookie auth
         const response = await fetch(`/api/sessions/${sessionId}`, {
           method: 'GET',
@@ -156,28 +143,14 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         // Still need CourseDriver for course metadata - will migrate later
         const courseDriver = createDriver(CourseDriver);
 
-        console.log('📦 SessionChatAssistant - Session data loaded:', {
-          sessionId: session.$id,
-          hasThreadId: !!threadId,
-          threadId,
-          hasContextChatThreadId: !!contextChatThread
-        });
-
-        // Use threadId from session if available
-        // This supports thread continuity from EnhancedDashboard
+        // Use threadId from session if available for thread continuity
         if (threadId) {
-          console.log('✅ SessionChatAssistant - Using threadId from session for continuity:', threadId);
           setExistingThreadId(threadId);
-        } else {
-          console.log('ℹ️ SessionChatAssistant - No existing thread ID found, new thread will be created');
         }
 
         // Load context chat thread ID if available
         if (contextChatThread) {
-          console.log('SessionChatAssistant - Found existing context chat thread ID:', contextChatThread);
           setContextChatThreadId(contextChatThread);
-        } else {
-          console.log('SessionChatAssistant - No existing context chat thread ID found, will create new one if needed');
         }
 
         // Extract courseId from lesson_snapshot and fetch course metadata
@@ -186,9 +159,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
 
         if (courseId) {
           try {
-            console.log('SessionChatAssistant - Fetching course metadata for courseId:', courseId);
             courseCurriculumMetadata = await courseDriver.getCourseCurriculumMetadata(courseId);
-            console.log('SessionChatAssistant - Course metadata fetched:', courseCurriculumMetadata);
           } catch (courseError) {
             console.error('SessionChatAssistant - Failed to fetch course metadata:', courseError);
             // Continue without course metadata - backend will use fallback values
@@ -200,27 +171,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         // Enrich outcomes if outcomeRefs available
         let enrichedOutcomes = [];
 
-        // 🔍 DEBUG: Log outcomeRefs before enrichment attempt
-        console.log('🔍 [SessionChatAssistant DEBUG] Before enrichment:', {
-          hasCourseId: !!courseId,
-          courseId: courseId,
-          outcomeRefsExists: !!parsedSnapshot.outcomeRefs,
-          outcomeRefsLength: parsedSnapshot.outcomeRefs?.length,
-          outcomeRefsType: typeof parsedSnapshot.outcomeRefs,
-          outcomeRefsValue: JSON.stringify(parsedSnapshot.outcomeRefs),
-          outcomeRefsArray: Array.isArray(parsedSnapshot.outcomeRefs) ? parsedSnapshot.outcomeRefs : 'NOT_ARRAY'
-        });
-
         if (courseId && parsedSnapshot.outcomeRefs?.length > 0) {
           try {
-            console.log('SessionChatAssistant - Enriching outcomes for:', parsedSnapshot.outcomeRefs);
-
-            // 🔍 DEBUG: Log input to enrichOutcomeRefs
-            console.log('🔍 [SessionChatAssistant DEBUG] Calling enrichOutcomeRefs with:', {
-              outcomeRefsInput: parsedSnapshot.outcomeRefs,
-              courseIdInput: courseId
-            });
-
             const outcomeDriver = createDriver(CourseOutcomesDriver);
             enrichedOutcomes = await enrichOutcomeRefs(
               parsedSnapshot.outcomeRefs,
@@ -228,15 +180,7 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
               outcomeDriver
             );
 
-            // 🔍 DEBUG: Log enrichment output
-            console.log('🔍 [SessionChatAssistant DEBUG] enrichOutcomeRefs returned:', {
-              enrichedCount: enrichedOutcomes.length,
-              enrichedOutcomeSample: enrichedOutcomes.slice(0, 2)
-            });
-
-            console.log('SessionChatAssistant - Enriched outcomes count:', enrichedOutcomes.length);
-
-            // ✅ VALIDATION: Fail-fast if enrichment unexpectedly returns empty
+            // VALIDATION: Fail-fast if enrichment unexpectedly returns empty
             // Check if there were actual outcomeIds to enrich (not just assessment standards)
             const outcomeIds = outcomeDriver.extractOutcomeIds(parsedSnapshot.outcomeRefs);
 
@@ -252,56 +196,37 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
                 errorMessage: errorMsg
               });
 
-              // ✅ FAIL-FAST: Throw error to prevent session start
+              // FAIL-FAST: Throw error to prevent session start
               throw new Error(errorMsg);
-            } else if (outcomeIds.length === 0) {
-              console.log('SessionChatAssistant - No outcome IDs to enrich (only assessment standards) - this is expected');
-            } else {
-              console.log(`SessionChatAssistant - Successfully enriched ${enrichedOutcomes.length} outcomes from ${outcomeIds.length} outcome IDs`);
             }
           } catch (outcomeError) {
             console.error('SessionChatAssistant - Failed to enrich outcomes:', outcomeError);
-            // ✅ FAIL-FAST: Re-throw to prevent session start with corrupted data
+            // FAIL-FAST: Re-throw to prevent session start with corrupted data
             throw new Error(
               outcomeError instanceof Error
                 ? outcomeError.message
                 : 'Lesson data incomplete - mastery tracking unavailable. Please contact support.'
             );
           }
-        } else {
-          console.log('SessionChatAssistant - Skipping outcome enrichment (no courseId or outcomeRefs)');
         }
 
         // Check for ALL diagrams (both lesson and CFU contexts) for first card
         // Note: Diagrams are stored with actual cardIds (e.g., "card_001", "card_002")
-        // We fetch all diagrams for the first card to show before the greeting
         // Supports multiple diagrams per context via diagram_index
         let lessonDiagrams: any[] = [];
         let cfuDiagrams: any[] = [];
         const lessonTemplateId = parsedSnapshot.lessonTemplateId;
-        const firstCardId = parsedSnapshot.cards?.[0]?.id;  // Cards use 'id' property, not 'cardId'
-
-        console.log('📐 DIAGRAM FETCH DEBUG - Starting multi-diagram check');
-        console.log('📐 DIAGRAM FETCH DEBUG - lessonTemplateId:', lessonTemplateId);
-        console.log('📐 DIAGRAM FETCH DEBUG - firstCardId:', firstCardId);
+        const firstCardId = parsedSnapshot.cards?.[0]?.id;
 
         if (lessonTemplateId && firstCardId) {
           try {
-            console.log('📐 DIAGRAM FETCH DEBUG - Creating DiagramDriver');
             const diagramDriver = createDriver(DiagramDriver);
-
-            console.log('📐 DIAGRAM FETCH DEBUG - Calling getAllDiagramsForCard for first card');
 
             // Fetch ALL diagrams for first card (both lesson and CFU contexts)
             const allDiagrams = await diagramDriver.getAllDiagramsForCard(
               lessonTemplateId,
               firstCardId
             );
-
-            console.log('📐 DIAGRAM FETCH DEBUG - getAllDiagramsForCard returned:', {
-              lessonCount: allDiagrams.lesson.length,
-              cfuCount: allDiagrams.cfu.length
-            });
 
             // Map lesson diagrams to simplified format for backend
             if (allDiagrams.lesson.length > 0) {
@@ -312,9 +237,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
                 title: diagram.title || `Lesson Diagram ${index + 1}`,
                 cardId: firstCardId
               }));
-              console.log(`📐 DIAGRAM FETCH SUCCESS - Found ${lessonDiagrams.length} lesson diagrams`);
-            } else {
-              console.log('📐 DIAGRAM FETCH RESULT - No lesson diagrams found for first card');
             }
 
             // Map CFU diagrams to simplified format for backend
@@ -326,16 +248,11 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
                 title: diagram.title || `CFU Diagram ${index + 1}`,
                 cardId: firstCardId
               }));
-              console.log(`📐 DIAGRAM FETCH SUCCESS - Found ${cfuDiagrams.length} CFU diagrams`);
-            } else {
-              console.log('📐 DIAGRAM FETCH RESULT - No CFU diagrams found for first card');
             }
           } catch (diagramError) {
             console.error('📐 DIAGRAM FETCH ERROR - Failed to fetch diagrams:', diagramError);
             // Continue without diagrams - they're optional
           }
-        } else {
-          console.log('📐 DIAGRAM FETCH SKIP - Missing lessonTemplateId or firstCardId');
         }
 
         const context: SessionContext = {
@@ -349,28 +266,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
           cfu_diagrams: cfuDiagrams, // Add CFU diagrams array (supports multiple)
         };
 
-        console.log('✅ SessionChatAssistant - Session context built successfully:', {
-          session_id: context.session_id,
-          student_id: context.student_id,
-          hasLessonSnapshot: !!context.lesson_snapshot,
-          lessonTitle: context.lesson_snapshot?.title,
-          courseSubject: context.course_subject,
-          courseLevel: context.course_level,
-          enrichedOutcomesCount: enrichedOutcomes.length,
-          lessonDiagramsCount: lessonDiagrams.length,
-          cfuDiagramsCount: cfuDiagrams.length
-        });
-
-        console.log('📊 SessionChatAssistant - Thread info:', {
-          existingThreadId: session.threadId,
-          hasExistingConversation: sessionData.hasExistingConversation,
-          lastMessageAt: sessionData.lastMessageAt
-        });
-
-        console.log('🎯 SessionChatAssistant - Setting session context state');
         setSessionContext(context);
         setSessionStatus(session.status); // Set status for navigation prevention
-        console.log('✅ SessionChatAssistant - Session context state updated, status:', session.status);
       } catch (err) {
         console.error("Failed to load session context:", err);
         setError(err instanceof Error ? err.message : "Failed to load session");
@@ -448,7 +345,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   // Handle session status change from child components (e.g., LessonCompletionSummaryTool)
   // IMPORTANT: Must be BEFORE early returns to maintain consistent hook order
   const handleSessionStatusChange = useCallback((status: 'created' | 'active' | 'completed' | 'failed') => {
-    console.log('🔄 Session status changed to:', status);
     setSessionStatus(status);
   }, []);
 
@@ -484,7 +380,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
       const sessionDriver = createDriver(SessionDriver);
       await sessionDriver.updateSessionThreadId(sessionId, newThreadId);
       threadIdRef.current = newThreadId;
-      console.log('SessionChatAssistant - Thread ID persisted to session:', newThreadId);
     } catch (error) {
       console.error('SessionChatAssistant - Failed to persist thread ID:', error);
     }
@@ -498,7 +393,6 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
       const sessionDriver = createDriver(SessionDriver);
       await sessionDriver.updateContextChatThreadId(sessionId, newContextThreadId);
       setContextChatThreadId(newContextThreadId);
-      console.log('SessionChatAssistant - Context chat thread ID persisted to session:', newContextThreadId);
     } catch (error) {
       console.error('SessionChatAssistant - Failed to persist context chat thread ID:', error);
     }

@@ -33,11 +33,8 @@ export class CourseOutcomesDriver extends BaseDriver {
         .map(id => id.trim());
 
       if (validIds.length === 0) {
-        console.log('[CourseOutcomesDriver] No valid outcomeIds provided');
         return [];
       }
-
-      console.log(`[CourseOutcomesDriver] Fetching outcomes for course ${courseId}:`, validIds);
 
       // Query course_outcomes collection
       // Matches both courseId and outcomeId from the list
@@ -45,8 +42,6 @@ export class CourseOutcomesDriver extends BaseDriver {
         Query.equal('courseId', courseId),
         Query.equal('outcomeId', validIds)
       ]);
-
-      console.log(`[CourseOutcomesDriver] Found ${outcomes.length}/${validIds.length} outcomes`);
 
       if (outcomes.length < validIds.length) {
         const foundIds = outcomes.map(o => o.outcomeId);
@@ -76,45 +71,15 @@ export class CourseOutcomesDriver extends BaseDriver {
    * // Returns: ["O1", "O2"]
    */
   extractOutcomeIds(outcomeRefs: string[]): string[] {
-    // 🔍 DEBUG: Log extraction entry
-    console.log('🔍 [CourseOutcomesDriver DEBUG] extractOutcomeIds called with:', {
-      inputType: typeof outcomeRefs,
-      inputIsArray: Array.isArray(outcomeRefs),
-      inputLength: outcomeRefs?.length,
-      inputRaw: outcomeRefs,
-      inputStringified: JSON.stringify(outcomeRefs)
-    });
-
-    // 🔍 DEBUG: Log each ref and its filter result
-    const outcomeIds = outcomeRefs.filter(ref => {
-      const isValid = ref && typeof ref === 'string' && !ref.includes('.');
-
-      // 🔍 DEBUG: Log individual filtering decision
-      console.log('🔍 [CourseOutcomesDriver DEBUG] Filtering ref:', {
-        ref: ref,
-        refType: typeof ref,
-        isString: typeof ref === 'string',
-        hasDot: typeof ref === 'string' ? ref.includes('.') : 'N/A',
-        passedFilter: isValid
-      });
-
-      return isValid;
-    });
+    // Filter: outcomeIds have no decimal point (e.g., "O1"),
+    // assessment standards have decimals (e.g., "AS1.1")
+    const outcomeIds = outcomeRefs.filter(ref =>
+      ref && typeof ref === 'string' && !ref.includes('.')
+    );
 
     // Deduplicate in case outcomeRefs contains duplicate entries
     // e.g., ["2", "2", "2.1"] → ["2"]
     const uniqueOutcomeIds = [...new Set(outcomeIds)];
-
-    console.log(`[CourseOutcomesDriver] Extracted ${uniqueOutcomeIds.length} unique outcomeIds from ${outcomeRefs.length} refs`);
-
-    // 🔍 DEBUG: Log extraction summary
-    console.log('🔍 [CourseOutcomesDriver DEBUG] Extraction complete:', {
-      originalRefs: outcomeRefs,
-      filteredOutcomeIds: outcomeIds,
-      uniqueOutcomeIds: uniqueOutcomeIds,
-      removedDuplicates: outcomeIds.length - uniqueOutcomeIds.length,
-      filteredOutRefs: outcomeRefs.filter(ref => !uniqueOutcomeIds.includes(ref))
-    });
 
     if (outcomeIds.length !== uniqueOutcomeIds.length) {
       console.warn(`[CourseOutcomesDriver] Removed ${outcomeIds.length - uniqueOutcomeIds.length} duplicate outcomeIds`);

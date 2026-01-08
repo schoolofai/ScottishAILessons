@@ -136,32 +136,50 @@ export class PracticeWizardPage {
     this.page = page;
     this.config = config;
 
-    // Main container
-    this.container = page.locator('[data-testid="practice-wizard-container"], .wizard-page, [class*="WizardPractice"]');
+    // Main container - the wizard page wrapper
+    this.container = page.locator('main').first();
 
-    // Question elements - using multiple selectors for flexibility
-    this.questionStem = page.locator('[data-testid="question-stem"], .question-stem, [class*="questionStem"]');
-    this.questionDifficulty = page.locator('[data-testid="difficulty-badge"], [class*="difficulty"]');
+    // Question elements - wizard-card contains the question stem with MathRenderer
+    // The question stem is in a div.wizard-card p-6 with text content
+    this.questionStem = page.locator('.wizard-card').first();
+    this.questionDifficulty = page.locator('span.capitalize:has-text("easy"), span.capitalize:has-text("medium"), span.capitalize:has-text("hard")');
 
-    // Answer inputs
-    this.numericInput = page.locator('input[type="number"], input[inputmode="numeric"], [data-testid="numeric-input"]');
-    this.textInput = page.locator('input[type="text"]:not([type="number"]), textarea, [data-testid="text-input"]');
-    this.mcqOptions = page.locator('[data-testid="mcq-option"], [role="radio"], input[type="radio"], [class*="option-button"]');
+    // Answer inputs - based on actual component structure
+    // Numeric/text inputs in the main question area
+    this.numericInput = page.locator('main input[type="number"], main input[inputmode="numeric"], main input[type="text"]');
+    // Text input: regular inputs, textareas, or rich text editors (contenteditable)
+    // Rich text editors often use ProseMirror or have contenteditable=true
+    // Also look for elements with role="textbox"
+    this.textInput = page.locator(
+      'main textarea, ' +
+      'main input:not([type="hidden"]), ' +
+      'main [contenteditable="true"], ' +
+      'main [role="textbox"], ' +
+      'main .ProseMirror, ' +
+      'main .tiptap'
+    );
+    // MCQ options - buttons that look like answer options
+    // MCQ answer buttons have both rounded-2xl AND border-2 classes
+    // They also DON'T have the :has-text("Submit") since that's the submit button
+    this.mcqOptions = page.locator('main button.rounded-2xl.border-2');
 
-    // Action buttons
-    this.submitButton = page.locator('button:has-text("Submit"), button:has-text("Check"), [data-testid="submit-button"]');
-    this.continueButton = page.locator('button:has-text("Continue"), button:has-text("Next"), [data-testid="continue-button"]');
-    this.hintButton = page.locator('button:has-text("Hint"), [data-testid="hint-button"]');
+    // Action buttons - exact text from components
+    this.submitButton = page.locator('button:has-text("Submit Answer")');
+    // Continue button text varies: "Continue", "Continue to Next Block", "Complete Lesson"
+    this.continueButton = page.locator('button:has-text("Continue")');
+    this.hintButton = page.locator('button:has-text("Need a hint")');
 
-    // Feedback elements
-    this.feedbackContainer = page.locator('[data-testid="feedback"], [class*="feedback"], [class*="Feedback"]');
-    this.correctIndicator = page.locator('[class*="correct"], text=Correct, text=Well done, [data-correct="true"]');
-    this.incorrectIndicator = page.locator('[class*="incorrect"], text=Incorrect, text=Not quite, [data-correct="false"]');
+    // Feedback elements - FeedbackStep component
+    // Correct shows "Excellent!" in a green gradient banner
+    // Incorrect shows "Keep Going!" in an amber/orange gradient banner
+    this.feedbackContainer = page.locator('h2:has-text("Excellent!"), h2:has-text("Keep Going!")');
+    this.correctIndicator = page.locator('h2:has-text("Excellent!")');
+    this.incorrectIndicator = page.locator('h2:has-text("Keep Going!")');
 
-    // Progress elements
-    this.masteryBreakdown = page.locator('[data-testid="mastery-breakdown"], [class*="MasteryBreakdown"]');
-    this.blockProgress = page.locator('[data-testid="block-progress"], [class*="BlockProgress"]');
-    this.sessionProgress = page.locator('[data-testid="session-progress"], [class*="SessionProgress"]');
+    // Progress elements - from MasteryBreakdown and side panel
+    this.masteryBreakdown = page.locator('aside, [class*="side"]').first();
+    this.blockProgress = page.locator('text=/Questions \\d+\\/\\d+/');
+    this.sessionProgress = page.locator('text=/Overall Progress/');
 
     // Side panel
     this.sidePanel = page.locator('[data-testid="side-panel"], [class*="side-panel"], aside');
@@ -356,18 +374,14 @@ export class PracticeWizardPage {
 
   /**
    * Wait for question to fully load
+   * Waits for the Submit Answer button as the most reliable indicator
    */
   async waitForQuestionToLoad(): Promise<void> {
-    // Wait for either numeric input, text input, or MCQ options
-    await Promise.race([
-      this.numericInput.waitFor({ state: 'visible', timeout: this.config.defaultTimeout }),
-      this.textInput.waitFor({ state: 'visible', timeout: this.config.defaultTimeout }),
-      this.mcqOptions.first().waitFor({ state: 'visible', timeout: this.config.defaultTimeout }),
-    ]).catch(() => {
-      // If none visible, wait for question stem at minimum
-    });
+    // The most reliable indicator is the Submit Answer button
+    // It's always present when a question is loaded
+    await this.submitButton.waitFor({ state: 'visible', timeout: this.config.defaultTimeout });
 
-    await expect(this.questionStem).toBeVisible({ timeout: this.config.defaultTimeout });
+    // Also wait a moment for any animations
     await this.delay();
   }
 
@@ -377,14 +391,20 @@ export class PracticeWizardPage {
   async getQuestionState(): Promise<QuestionState> {
     const questionText = await this.questionStem.textContent() || '';
 
-    // Determine question type
+    // Determine question type by checking available inputs
+    // Order matters: MCQ is checked by counting buttons in the specific MCQ container
     let questionType: 'numeric' | 'mcq' | 'text' | 'unknown' = 'unknown';
-    if (await this.numericInput.isVisible().catch(() => false)) {
-      questionType = 'numeric';
-    } else if (await this.mcqOptions.count() > 0) {
+
+    // Check for MCQ options first (buttons in main .space-y-3 container)
+    const mcqCount = await this.mcqOptions.count().catch(() => 0);
+    if (mcqCount >= 2) {
+      // MCQ questions have at least 2 options
       questionType = 'mcq';
     } else if (await this.textInput.isVisible().catch(() => false)) {
+      // Text/numeric input (includes input[type="text"])
       questionType = 'text';
+    } else if (await this.numericInput.isVisible().catch(() => false)) {
+      questionType = 'numeric';
     }
 
     // Get difficulty if visible
@@ -405,31 +425,93 @@ export class PracticeWizardPage {
 
   /**
    * Submit an answer (auto-detects input type)
+   *
+   * For MCQ questions:
+   * - 'A', 'B', 'C', 'D' - selects by label
+   * - 'index:0', 'index:1', etc. - selects by explicit index
+   * - Any other text - finds option containing that text
+   *
+   * For text/numeric questions:
+   * - Enters the answer in the input field
    */
   async submitAnswer(answer: string): Promise<void> {
-    const state = await this.getQuestionState();
-
-    if (state.questionType === 'numeric') {
-      await this.numericInput.fill(answer);
-    } else if (state.questionType === 'mcq') {
-      // For MCQ, find option by text or index
-      const optionIndex = parseInt(answer);
-      if (!isNaN(optionIndex)) {
-        await this.mcqOptions.nth(optionIndex).click();
-      } else {
-        // Try to find by text
-        await this.page.locator(`text=${answer}`).click();
-      }
-    } else {
-      // Fallback to text input
-      await this.textInput.fill(answer);
+    // Check for text/numeric input FIRST - this is more reliable
+    // The textInput locator looks for inputs in the main question area
+    const hasTextInput = await this.textInput.first().isVisible().catch(() => false);
+    if (hasTextInput) {
+      await this.textInput.first().fill(answer);
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
     }
 
-    await this.delay();
+    // Check for MCQ options (buttons in main .space-y-3 container)
+    // Only use this if there are actual MCQ option buttons (at least 2)
+    const mcqCount = await this.mcqOptions.count().catch(() => 0);
+    if (mcqCount >= 2) {
+      await this.selectMCQOption(answer);
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
+    }
 
-    // Click submit
-    await this.submitButton.click();
-    await this.delay();
+    // Last resort: try numeric input
+    const hasNumericInput = await this.numericInput.isVisible().catch(() => false);
+    if (hasNumericInput) {
+      await this.numericInput.fill(answer);
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
+    }
+
+    throw new Error(`No supported input type found. MCQ count: ${mcqCount}, TextInput visible: ${hasTextInput}`);
+  }
+
+  /**
+   * Select MCQ option by various methods:
+   * - 'A', 'B', 'C', 'D' - by label
+   * - 'index:N' - by explicit index
+   * - Other text - by option content
+   */
+  private async selectMCQOption(answer: string): Promise<void> {
+    // Wait for at least one MCQ option to be visible before proceeding
+    await this.mcqOptions.first().waitFor({ state: 'visible', timeout: this.config.defaultTimeout });
+
+    // Explicit index selection: 'index:0', 'index:1', etc.
+    if (answer.startsWith('index:')) {
+      const idx = parseInt(answer.replace('index:', ''));
+      await this.mcqOptions.nth(idx).click();
+      return;
+    }
+
+    // Selection by label: A, B, C, D
+    const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const labelIndex = labels.indexOf(answer.toUpperCase());
+    if (labelIndex >= 0) {
+      await this.mcqOptions.nth(labelIndex).click();
+      return;
+    }
+
+    // Selection by text content - find button containing the answer text
+    const optionWithText = this.page.locator('.space-y-3 button').filter({ hasText: answer });
+    const count = await optionWithText.count();
+
+    if (count > 0) {
+      await optionWithText.first().click();
+      return;
+    }
+
+    // Last resort: try exact text match anywhere
+    const textLocator = this.page.locator(`text="${answer}"`);
+    if (await textLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await textLocator.click();
+      return;
+    }
+
+    throw new Error(`MCQ option not found for answer: "${answer}". Available options count: ${await this.mcqOptions.count()}`);
   }
 
   /**
@@ -445,36 +527,57 @@ export class PracticeWizardPage {
 
   /**
    * Submit an intentionally wrong answer
+   * For text/numeric: enters obviously wrong values
+   * For MCQ: selects the last option (often wrong in pedagogical design)
    */
   async submitWrongAnswer(): Promise<void> {
-    const state = await this.getQuestionState();
-
-    if (state.questionType === 'numeric') {
-      // Submit obviously wrong numeric answer
-      await this.numericInput.fill('99999');
-    } else if (state.questionType === 'mcq') {
-      // Select last option (often wrong in pedagogical design)
-      const count = await this.mcqOptions.count();
-      if (count > 0) {
-        await this.mcqOptions.nth(count - 1).click();
-      }
-    } else {
-      await this.textInput.fill('wrong answer');
+    // Check for text input first (same pattern as submitAnswer)
+    const hasTextInput = await this.textInput.first().isVisible().catch(() => false);
+    if (hasTextInput) {
+      // Enter obviously wrong answer for text/numeric questions
+      await this.textInput.first().fill('99999-WRONG');
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
     }
 
-    await this.delay();
-    await this.submitButton.click();
-    await this.delay();
+    // Check for MCQ options
+    const mcqCount = await this.mcqOptions.count().catch(() => 0);
+    if (mcqCount >= 2) {
+      // Select last option (often wrong in pedagogical design)
+      await this.mcqOptions.nth(mcqCount - 1).click();
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
+    }
+
+    // Last resort: numeric input with obviously wrong value
+    const hasNumericInput = await this.numericInput.isVisible().catch(() => false);
+    if (hasNumericInput) {
+      await this.numericInput.fill('99999');
+      await this.delay();
+      await this.submitButton.click();
+      await this.delay();
+      return;
+    }
+
+    throw new Error('No supported input type found for wrong answer submission');
   }
 
   /**
    * Wait for feedback to appear after submission
+   * Uses longer timeout since backend AI generates feedback
    */
   async waitForFeedback(): Promise<FeedbackState> {
+    // Longer timeout for AI-generated feedback (30 seconds)
+    const feedbackTimeout = 30000;
+
     // Wait for either correct or incorrect indicator
     await Promise.race([
-      this.correctIndicator.waitFor({ state: 'visible', timeout: this.config.defaultTimeout }),
-      this.incorrectIndicator.waitFor({ state: 'visible', timeout: this.config.defaultTimeout }),
+      this.correctIndicator.waitFor({ state: 'visible', timeout: feedbackTimeout }),
+      this.incorrectIndicator.waitFor({ state: 'visible', timeout: feedbackTimeout }),
     ]).catch(() => {
       // Fallback: wait for any feedback container
     });
@@ -527,21 +630,34 @@ export class PracticeWizardPage {
 
   /**
    * Get current block progress from UI
+   * Note: All locator operations are wrapped with timeouts to prevent hanging
    */
   async getBlockProgress(): Promise<BlockProgressState> {
     // Look for progress indicators in mastery breakdown
     let questionsAnswered = 0;
     let questionsCorrect = 0;
     let mastery = 0;
+    let completedBlockCount = 0;
+    let totalBlocks = 0;
+
+    // Use short timeout for optional UI elements
+    const shortTimeout = 2000;
 
     try {
-      // Parse "Questions X/Y" pattern
-      const questionsText = await this.page.locator('text=/Questions \\d+\\/\\d+/').textContent();
-      if (questionsText) {
-        const match = questionsText.match(/Questions (\d+)\/(\d+)/);
-        if (match) {
-          questionsCorrect = parseInt(match[1]);
-          questionsAnswered = parseInt(match[2]);
+      // The UI shows "Questions" label separately from "X/Y" numbers
+      // Look for tabular-nums span containing pattern like "1/3" or "0/0"
+      // Pattern: number/number optionally followed by percentage
+      const questionsLocator = this.page.locator('.tabular-nums:has-text("/")').first();
+      const questionsVisible = await questionsLocator.isVisible({ timeout: shortTimeout }).catch(() => false);
+      if (questionsVisible) {
+        const questionsText = await questionsLocator.textContent({ timeout: shortTimeout });
+        if (questionsText) {
+          // Match patterns like "1/3", "1/3 (33%)", etc.
+          const match = questionsText.match(/(\d+)\/(\d+)/);
+          if (match) {
+            questionsCorrect = parseInt(match[1]);
+            questionsAnswered = parseInt(match[2]);
+          }
         }
       }
     } catch {
@@ -549,25 +665,42 @@ export class PracticeWizardPage {
     }
 
     try {
-      // Parse mastery percentage
-      const masteryText = await this.masteryBreakdown.locator('text=/\\d+%/').first().textContent();
-      if (masteryText) {
-        const match = masteryText.match(/(\d+)%/);
-        if (match) mastery = parseInt(match[1]);
+      // Parse mastery percentage with timeout
+      const masteryLocator = this.masteryBreakdown.locator('text=/\\d+%/').first();
+      const masteryVisible = await masteryLocator.isVisible({ timeout: shortTimeout }).catch(() => false);
+      if (masteryVisible) {
+        const masteryText = await masteryLocator.textContent({ timeout: shortTimeout });
+        if (masteryText) {
+          const match = masteryText.match(/(\d+)%/);
+          if (match) mastery = parseInt(match[1]);
+        }
       }
     } catch {
       // Mastery not visible
     }
 
-    // Count completed blocks
-    const completedBlockCount = await this.completedBlocks.filter({ has: this.page.locator('[class*="complete"], .text-emerald') }).count();
+    try {
+      // Count completed blocks with timeout - use simpler approach
+      totalBlocks = await this.completedBlocks.count().catch(() => 0);
+      if (totalBlocks > 0) {
+        completedBlockCount = await this.completedBlocks
+          .filter({ has: this.page.locator('[class*="complete"], .text-emerald') })
+          .count()
+          .catch(() => 0);
+      }
+    } catch {
+      // Block counting failed
+    }
 
     // Determine if current block is complete (look for completion modal or indicator)
-    const isBlockComplete = await this.page.locator('text=Block Complete, text=Mastery Achieved').isVisible().catch(() => false);
+    const isBlockComplete = await this.page
+      .locator('text=Block Complete, text=Mastery Achieved')
+      .isVisible({ timeout: shortTimeout })
+      .catch(() => false);
 
     return {
       currentBlock: completedBlockCount + 1,
-      totalBlocks: await this.completedBlocks.count(),
+      totalBlocks,
       questionsAnswered,
       questionsCorrect,
       mastery,

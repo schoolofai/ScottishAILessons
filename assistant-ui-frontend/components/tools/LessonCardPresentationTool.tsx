@@ -156,16 +156,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       ?? cachedInterruptRef.current
       ?? (interactionId ? getCachedInterrupt(interactionId) : null);
 
-    // Debug logging for tracking interrupt state
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔍 LessonCardTool interrupt state:`, {
-        hasRawInterrupt: rawInterrupt !== null,
-        hasRefCache: cachedInterruptRef.current !== null,
-        hasModuleCache: interactionId ? getCachedInterrupt(interactionId) !== null : false,
-        finalInterrupt: interrupt !== null,
-        interactionId
-      });
-    }
+    // Debug logging removed - was firing 20+ times per lesson load
+    // Use React DevTools to inspect interrupt state if needed
 
     // Get current card context for updating with real-time card data
     const { currentCard, setCurrentCard } = useCurrentCard();
@@ -250,14 +242,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       );
     };
 
-    // Component mount tracking (removed noisy logs)
-    // Use React DevTools to debug component lifecycle
+    // Component mount tracking - errors only
     useEffect(() => {
-      if (!interrupt) {
-        // Only log when there's a potential issue
-        console.warn('⚠️ LessonCardTool - NO INTERRUPT - Component will not render');
-      }
-
       if (interrupt && !args?.card_data) {
         console.error('❌ LessonCardTool - Has interrupt but missing card_data in args');
       }
@@ -271,12 +257,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         return;
       }
 
-      console.log('🎯 LessonCardTool - Updating CurrentCardContext with:', {
-        card_index: args.card_index,
-        card_id: args.card_data.id,
-        lesson_title: args.lesson_context?.lesson_title
-      });
-
       setCurrentCard({
         card_data: args.card_data,
         card_index: args.card_index,
@@ -287,7 +267,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
       // Cleanup: Mark as completed when component unmounts
       return () => {
-        console.log('🎯 LessonCardTool - Component unmounting, marking card as completed');
         setCurrentCard(prev => prev ? {
           ...prev,
           interaction_state: "completed"
@@ -305,34 +284,22 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
 
       const cardId = args.card_data?.id;
 
-      console.log('📊 CFU DiagramFetch - Attempting to fetch diagrams:', {
-        lessonTemplateId,
-        cardId,
-        hasLessonTemplateId: !!lessonTemplateId,
-        hasCardId: !!cardId
-      });
-
       // Only fetch if we have both required IDs
       if (!lessonTemplateId || !cardId) {
-        console.warn('⚠️ CFU DiagramFetch - Missing required IDs, skipping diagram fetch');
         return;
       }
 
       const fetchDiagrams = async () => {
         setDiagramLoading(true);
         try {
-          console.log('🔍 CFU DiagramFetch - Querying Appwrite for ALL CFU diagrams...');
           // Initialize driver without session token (Storage bucket must have public read permissions)
           const driver = new DiagramDriver();
           const diagrams = await driver.getAllDiagramsForCardByContext(lessonTemplateId, cardId, 'cfu');
 
           if (diagrams.length > 0) {
-            console.log(`✅ CFU DiagramFetch - Found ${diagrams.length} CFU diagram(s)`);
-
             // Transform to format expected by carousel and ImageZoomModal
             const formattedDiagrams = diagrams.map((diagram, index) => {
               const previewUrl = driver.getStoragePreviewUrl(diagram.image_file_id);
-              console.log(`  Added CFU diagram ${index}: ${diagram.image_file_id}`);
               return {
                 url: previewUrl,
                 title: `CFU Diagram ${index + 1}`,
@@ -343,7 +310,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
             setCfuDiagrams(formattedDiagrams);
             setCurrentCfuDiagramIndex(0); // Reset to first diagram
           } else {
-            console.log('ℹ️ CFU DiagramFetch - No diagrams exist for this card (expected for cards without diagrams)');
             setCfuDiagrams([]);
           }
         } catch (error) {
@@ -370,14 +336,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       if (!isRetry || !previousAttempt) {
         return;
       }
-
-      // Log retry restoration
-      console.log('🔄 Retry - restoring previous attempt:', {
-        cardId,
-        attemptNumber: args.attempt_number,
-        hasSceneData: !!previousAttempt.drawing_scene_data,
-        elements: previousAttempt.drawing_scene_data?.elements?.length || 0
-      });
 
       // Prepopulate text/MCQ response
       if (previousAttempt.response) {
@@ -520,15 +478,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         () => `<p><em>[Drawing ${imageNum++} submitted]</em></p>`
       );
 
-      console.log('🎨 IMAGE EXTRACTION - Multi-image support:', {
-        imageCount: images.length,
-        totalSizeBytes,
-        totalSizeMB: totalSizeMB.toFixed(2),
-        validationErrors: validationErrors.length,
-        cleanedHtmlLength: cleanedHtml.length,
-        imageSizes: images.map((img, i) => `Image ${i + 1}: ${Math.round((img.length * 0.75) / 1024)}KB`)
-      });
-
       return { cleanedHtml, images, imageCount: images.length, totalSizeBytes, validationErrors };
     };
 
@@ -607,23 +556,12 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           setIsUploadingDrawing(true);
           setUploadError(null);
 
-          console.log('🎨 STORAGE UPLOAD - Uploading drawings to Appwrite Storage:', {
-            image_count: allImages.length,
-            session_id: args.session_id,
-            card_id: card_data.id
-          });
-
           const storageDriver = createDriver(StudentDrawingStorageDriver);
           fileIds = await storageDriver.batchUploadDrawings(
             args.session_id,
             card_data.id,
             allImages
           );
-
-          console.log('✅ STORAGE UPLOAD - Successfully uploaded drawings:', {
-            file_ids: fileIds,
-            count: fileIds.length
-          });
 
         } catch (uploadError: any) {
           console.error('❌ STORAGE UPLOAD - Failed to upload drawings:', uploadError);
@@ -635,10 +573,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
         } finally {
           setIsUploadingDrawing(false);
         }
-      } else if (hasDrawing && !args.session_id) {
-        console.warn('⚠️ STORAGE UPLOAD - session_id not provided, falling back to base64');
-        // Fallback to legacy base64 approach if session_id not provided
       }
+      // If hasDrawing but no session_id, fallback to legacy base64 approach
 
       // Step 6: Prepare drawing field for backend
       // NEW: Send file IDs if uploaded to storage
@@ -673,13 +609,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
       };
 
       // Store attempt data for retry prepopulation
-      if (attemptData.drawing_scene_data) {
-        console.log('💾 Attempt stored with editable scene data:', {
-          cardId: args.card_data.id,
-          elements: attemptData.drawing_scene_data.elements?.length || 0
-        });
-      }
-
       storeAttempt(args.card_data.id, attemptData);
 
       // Send command with EXTRACTED data (clean HTML + file IDs or base64 fallback)
@@ -885,42 +814,24 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 >
                   🎨 Add Diagram to Explain Answer (Optional)
                 </Button>
-                {(() => {
-                  if (!studentDrawing) {
-                    return null;
-                  }
-
-                  return (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                      {(() => {
-                        const isStoragePreview = studentDrawing.startsWith('storage_preview:');
-                        console.log('🎨 RENDER [MCQ] - Inner conditional:', { isStoragePreview });
-
-                        if (isStoragePreview) {
-                          const imageUrl = studentDrawing.replace('storage_preview:', '');
-                          console.log('📷 RENDER [MCQ] - Rendering storage preview with URL:', imageUrl);
-
-                          return (
-                            <div className="space-y-2">
-                              <div>📷 Previous drawing from last attempt (for reference):</div>
-                              <img
-                                src={imageUrl}
-                                alt="Previous drawing"
-                                className="max-w-full h-auto max-h-32 rounded border border-green-300"
-                                onLoad={() => console.log('✅ RENDER [MCQ] - Image loaded successfully:', imageUrl)}
-                                onError={(e) => console.error('❌ RENDER [MCQ] - Image failed to load:', imageUrl, e)}
-                              />
-                              <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
-                            </div>
-                          );
-                        } else {
-                          console.log('✏️ RENDER [MCQ] - Rendering diagram attached message');
-                          return <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>;
-                        }
-                      })()}
-                    </div>
-                  );
-                })()}
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    {studentDrawing.startsWith('storage_preview:') ? (
+                      <div className="space-y-2">
+                        <div>📷 Previous drawing from last attempt (for reference):</div>
+                        <img
+                          src={studentDrawing.replace('storage_preview:', '')}
+                          alt="Previous drawing"
+                          className="max-w-full h-auto max-h-32 rounded border border-green-300"
+                          onError={(e) => console.error('❌ MCQ diagram failed to load')}
+                        />
+                        <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
+                      </div>
+                    ) : (
+                      <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -956,42 +867,24 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 >
                   🎨 Add Diagram / Working (Optional)
                 </Button>
-                {(() => {
-                  if (!studentDrawing) {
-                    return null;
-                  }
-
-                  return (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                      {(() => {
-                        const isStoragePreview = studentDrawing.startsWith('storage_preview:');
-                        console.log('🎨 RENDER [NUMERIC] - Inner conditional:', { isStoragePreview });
-
-                        if (isStoragePreview) {
-                          const imageUrl = studentDrawing.replace('storage_preview:', '');
-                          console.log('📷 RENDER [NUMERIC] - Rendering storage preview with URL:', imageUrl);
-
-                          return (
-                            <div className="space-y-2">
-                              <div>📷 Previous drawing from last attempt (for reference):</div>
-                              <img
-                                src={imageUrl}
-                                alt="Previous drawing"
-                                className="max-w-full h-auto max-h-32 rounded border border-green-300"
-                                onLoad={() => console.log('✅ RENDER [NUMERIC] - Image loaded successfully:', imageUrl)}
-                                onError={(e) => console.error('❌ RENDER [NUMERIC] - Image failed to load:', imageUrl, e)}
-                              />
-                              <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
-                            </div>
-                          );
-                        } else {
-                          console.log('✏️ RENDER [NUMERIC] - Rendering diagram attached message');
-                          return <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>;
-                        }
-                      })()}
-                    </div>
-                  );
-                })()}
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    {studentDrawing.startsWith('storage_preview:') ? (
+                      <div className="space-y-2">
+                        <div>📷 Previous drawing from last attempt (for reference):</div>
+                        <img
+                          src={studentDrawing.replace('storage_preview:', '')}
+                          alt="Previous drawing"
+                          className="max-w-full h-auto max-h-32 rounded border border-green-300"
+                          onError={(e) => console.error('❌ Numeric diagram failed to load')}
+                        />
+                        <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
+                      </div>
+                    ) : (
+                      <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1036,7 +929,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                         // Restore previous answer HTML (includes any diagrams with scene data)
                         if (currentCard.previous_answer) {
                           setStudentAnswer(currentCard.previous_answer);
-                          console.log('📥 Restored previous answer to editor');
                         }
                       }}
                       className="w-full bg-yellow-100 hover:bg-yellow-200 border-yellow-400 text-yellow-900"
@@ -1118,51 +1010,24 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
                 >
                   🎨 Add Diagram (Optional)
                 </Button>
-                {(() => {
-                  console.log('🎨 RENDER [SHORT_TEXT] - Drawing block evaluating:', {
-                    hasStudentDrawing: !!studentDrawing,
-                    studentDrawingValue: studentDrawing,
-                    isStoragePreview: studentDrawing?.startsWith('storage_preview:')
-                  });
-
-                  if (!studentDrawing) {
-                    console.log('⚠️ RENDER [SHORT_TEXT] - No studentDrawing, skipping render');
-                    return null;
-                  }
-
-                  console.log('✅ RENDER [SHORT_TEXT] - Rendering drawing display block');
-
-                  return (
-                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
-                      {(() => {
-                        const isStoragePreview = studentDrawing.startsWith('storage_preview:');
-                        console.log('🎨 RENDER [SHORT_TEXT] - Inner conditional:', { isStoragePreview });
-
-                        if (isStoragePreview) {
-                          const imageUrl = studentDrawing.replace('storage_preview:', '');
-                          console.log('📷 RENDER [SHORT_TEXT] - Rendering storage preview with URL:', imageUrl);
-
-                          return (
-                            <div className="space-y-2">
-                              <div>📷 Previous drawing from last attempt (for reference):</div>
-                              <img
-                                src={imageUrl}
-                                alt="Previous drawing"
-                                className="max-w-full h-auto max-h-32 rounded border border-green-300"
-                                onLoad={() => console.log('✅ RENDER [SHORT_TEXT] - Image loaded successfully:', imageUrl)}
-                                onError={(e) => console.error('❌ RENDER [SHORT_TEXT] - Image failed to load:', imageUrl, e)}
-                              />
-                              <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
-                            </div>
-                          );
-                        } else {
-                          console.log('✏️ RENDER [SHORT_TEXT] - Rendering diagram attached message');
-                          return <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>;
-                        }
-                      })()}
-                    </div>
-                  );
-                })()}
+                {studentDrawing && (
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                    {studentDrawing.startsWith('storage_preview:') ? (
+                      <div className="space-y-2">
+                        <div>📷 Previous drawing from last attempt (for reference):</div>
+                        <img
+                          src={studentDrawing.replace('storage_preview:', '')}
+                          alt="Previous drawing"
+                          className="max-w-full h-auto max-h-32 rounded border border-green-300"
+                          onError={(e) => console.error('❌ Short text diagram failed to load')}
+                        />
+                        <div className="text-xs text-green-600">Click "Add Diagram" to create a new drawing based on this</div>
+                      </div>
+                    ) : (
+                      <>✓ Diagram attached{studentDrawingText && `: "${studentDrawingText.substring(0, 50)}..."`}</>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -1247,19 +1112,6 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
           open={showDrawModal}
           onClose={() => setShowDrawModal(false)}
           onInsert={(base64, sceneData) => {
-            // ═══════════════════════════════════════════════════════════════
-            // 🎨 DRAWING INSERTED - Critical Event #1
-            // ═══════════════════════════════════════════════════════════════
-            console.group('%c🎨 DRAWING INSERTED', 'color: #10B981; font-weight: bold; font-size: 14px;');
-            console.log('%c✅ Base64:', 'color: #059669;', base64 ? `${(base64.length / 1024).toFixed(1)}KB` : '❌ MISSING');
-            console.log('%c✅ Scene Data:', 'color: #059669;', sceneData ? 'CAPTURED' : '❌ MISSING');
-            if (sceneData) {
-              console.log('%c   └─ Elements:', 'color: #6B7280;', sceneData.elements?.length || 0);
-              console.log('%c   └─ Files:', 'color: #6B7280;', Object.keys(sceneData.files || {}).length);
-            }
-            console.groupEnd();
-            // ═══════════════════════════════════════════════════════════════
-
             setStudentDrawing(base64);
             setStudentDrawingSceneData(sceneData);
             setShowDrawModal(false);

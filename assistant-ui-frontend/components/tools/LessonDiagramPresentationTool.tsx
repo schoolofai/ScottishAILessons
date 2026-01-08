@@ -55,16 +55,7 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
 
     useEffect(() => {
       const fetchDiagrams = async () => {
-        console.log('📐 LessonDiagramPresentationTool - useEffect triggered with args:', {
-          lessonTemplateId,
-          cardId,
-          diagramFileId,
-          lessonDiagramsCount: lessonDiagrams.length,
-          cfuDiagramsCount: cfuDiagrams.length
-        });
-
         if (!lessonTemplateId || !cardId) {
-          console.log('📐 LessonDiagramPresentationTool - Missing required params, skipping');
           setLoading(false);
           return;
         }
@@ -76,8 +67,6 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
 
           // Priority 1: Use provided diagram arrays (multi-diagram support)
           if (lessonDiagrams.length > 0 || cfuDiagrams.length > 0) {
-            console.log('📐 LessonDiagramPresentationTool - Using provided diagram arrays');
-
             // Add lesson diagrams
             lessonDiagrams.forEach((diagram, index) => {
               const previewUrl = driver.getStoragePreviewUrl(diagram.image_file_id);
@@ -86,7 +75,6 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
                 title: diagram.title || `Lesson Diagram ${index + 1}`,
                 type: diagram.diagram_type
               });
-              console.log(`  Added lesson diagram ${index}: ${diagram.image_file_id}`);
             });
 
             // Add CFU diagrams
@@ -97,12 +85,10 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
                 title: diagram.title || `CFU Diagram ${index + 1}`,
                 type: diagram.diagram_type
               });
-              console.log(`  Added CFU diagram ${index}: ${diagram.image_file_id}`);
             });
           }
           // Priority 2: Legacy single diagram support (backward compatibility)
           else if (diagramFileId) {
-            console.log('📐 LessonDiagramPresentationTool - Using legacy single diagram (fileId):', diagramFileId);
             const previewUrl = driver.getStoragePreviewUrl(diagramFileId);
             diagrams.push({
               url: previewUrl,
@@ -112,7 +98,6 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
           }
           // Priority 3: Fetch all diagrams for this card (on-demand fallback)
           else {
-            console.log('📐 LessonDiagramPresentationTool - Fetching all diagrams for card on-demand');
             const result = await driver.getAllDiagramsForCard(lessonTemplateId, cardId);
 
             // Add fetched lesson diagrams
@@ -123,7 +108,6 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
                 title: diagram.title || `Lesson Diagram ${index + 1}`,
                 type: diagram.diagram_type
               });
-              console.log(`  Fetched lesson diagram ${index}: ${diagram.image_file_id}`);
             });
 
             // Add fetched CFU diagrams
@@ -134,15 +118,11 @@ export const LessonDiagramPresentationTool = makeAssistantToolUI<
                 title: diagram.title || `CFU Diagram ${index + 1}`,
                 type: diagram.diagram_type
               });
-              console.log(`  Fetched CFU diagram ${index}: ${diagram.image_file_id}`);
             });
           }
 
           if (diagrams.length > 0) {
-            console.log(`📐 LessonDiagramPresentationTool - Loaded ${diagrams.length} diagram(s)`);
             setAllDiagrams(diagrams);
-          } else {
-            console.log('📐 LessonDiagramPresentationTool - No diagrams found');
           }
         } catch (err) {
           console.error('📐 LessonDiagramPresentationTool - Error:', err);

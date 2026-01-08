@@ -65,30 +65,20 @@ import type {
 } from "@/types/practice-wizard-contracts";
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Debug Logging Utility for Manual Testing
-// Filter in browser console with: [PRACTICE-V2]
+// Debug Logging Utility - DISABLED for production
+// To re-enable verbose debug logging, replace no-op functions with:
+// (message: string, data?: unknown) => log.debug(message, data ? { data } : {})
 // ═══════════════════════════════════════════════════════════════════════════
-const DEBUG_PREFIX = "[PRACTICE-V2]";
+/* eslint-disable @typescript-eslint/no-unused-vars */
 const debugLog = {
-  mastery: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} 📊 MASTERY: ${message}`, data ?? "");
-  },
-  difficulty: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} 🎯 DIFFICULTY: ${message}`, data ?? "");
-  },
-  block: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} 📦 BLOCK: ${message}`, data ?? "");
-  },
-  progression: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} ➡️ PROGRESSION: ${message}`, data ?? "");
-  },
-  question: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} ❓ QUESTION: ${message}`, data ?? "");
-  },
-  state: (message: string, data?: unknown) => {
-    console.log(`${DEBUG_PREFIX} 🔄 STATE: ${message}`, data ?? "");
-  },
+  mastery: (_message: string, _data?: unknown) => {},
+  difficulty: (_message: string, _data?: unknown) => {},
+  block: (_message: string, _data?: unknown) => {},
+  progression: (_message: string, _data?: unknown) => {},
+  question: (_message: string, _data?: unknown) => {},
+  state: (_message: string, _data?: unknown) => {},
 };
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 // Re-export contract types for consumers of this hook
 export type {
@@ -289,8 +279,6 @@ const waitForThreadCompletion = async (
 
   while (Date.now() - startTime < maxWaitMs) {
     const state = await pollThreadState(client, threadId);
-
-    console.log(`[waitForThreadCompletion] Thread ${threadId} status: ${state.status}`);
 
     if (state.status !== "busy") {
       return state;
@@ -559,18 +547,7 @@ export function useLangGraphWizard() {
         hardQuestionsAttempted: hardQuestionsAttemptedRef.current,
       });
 
-      // ═══════════════════════════════════════════════════════════════
-      // MASTERY RESET TRACKING: Log explicitly when mastery resets
-      // This is EXPECTED behavior for multi-block progression
-      // ═══════════════════════════════════════════════════════════════
-      console.log("🔴 MASTERY RESET [blockJustCompleted]: Resetting mastery for next block", {
-        previousMastery: cumulativeMasteryRef.current,
-        previousHardAttempted: hardQuestionsAttemptedRef.current,
-        reason: "Block completed - starting new block with fresh mastery",
-        isExpectedBehavior: true,
-      });
-
-      // Reset block-specific refs for next block
+      // Reset block-specific refs for next block (expected for multi-block progression)
       cumulativeMasteryRef.current = 0;
       hardQuestionsAttemptedRef.current = 0;
       consecutiveCorrectRef.current = 0;
@@ -1272,8 +1249,6 @@ export function useLangGraphWizard() {
         // Start the graph with retry logic for timeouts
         for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
           try {
-            console.log(`[useLangGraphWizard] startSession attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
-
             // Only send input on first attempt
             // Subsequent attempts just reconnect to the running stream
             const streamOptions = attempt === 1
@@ -1313,8 +1288,6 @@ export function useLangGraphWizard() {
             }
 
             if (attempt < MAX_RETRY_ATTEMPTS) {
-              console.log("[useLangGraphWizard] Timeout detected, polling thread state...");
-
               try {
                 const threadState = await waitForThreadCompletion(
                   client,
@@ -1322,25 +1295,13 @@ export function useLangGraphWizard() {
                   POLL_MAX_WAIT_MS
                 );
 
-                console.log(`[useLangGraphWizard] Thread state after polling: ${threadState.status}`);
-
                 if (threadState.status === "error") {
                   console.error("[useLangGraphWizard] Thread has error:", threadState.error);
                   lastError = new Error(`Backend error: ${threadState.error}`);
                   break;
                 }
 
-                if (threadState.status === "interrupted") {
-                  console.log("[useLangGraphWizard] Thread reached interrupt, reconnecting...");
-                  continue;
-                }
-
-                if (threadState.status === "busy") {
-                  console.log("[useLangGraphWizard] Thread still busy, will retry...");
-                  continue;
-                }
-
-                console.log("[useLangGraphWizard] Thread is idle, attempting reconnect...");
+                // Continue to reconnect for interrupted, busy, or idle states
                 continue;
               } catch (pollError) {
                 console.error("[useLangGraphWizard] Failed to poll thread state:", pollError);
@@ -1390,8 +1351,6 @@ export function useLangGraphWizard() {
 
       for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
         try {
-          console.log(`[useLangGraphWizard] resume attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
-
           // Only send resume command on first attempt
           // Subsequent attempts just reconnect to the running stream
           const streamOptions = attempt === 1
@@ -1432,8 +1391,6 @@ export function useLangGraphWizard() {
           }
 
           if (attempt < MAX_RETRY_ATTEMPTS) {
-            console.log("[useLangGraphWizard] Timeout detected, polling thread state...");
-
             try {
               // Poll thread state to check if backend is still processing
               const threadState = await waitForThreadCompletion(
@@ -1442,8 +1399,6 @@ export function useLangGraphWizard() {
                 POLL_MAX_WAIT_MS
               );
 
-              console.log(`[useLangGraphWizard] Thread state after polling: ${threadState.status}`);
-
               if (threadState.status === "error") {
                 // Thread has errored - don't retry
                 console.error("[useLangGraphWizard] Thread has error:", threadState.error);
@@ -1451,20 +1406,7 @@ export function useLangGraphWizard() {
                 break;
               }
 
-              if (threadState.status === "interrupted") {
-                // Thread reached interrupt - success! Reconnect to get the tool call
-                console.log("[useLangGraphWizard] Thread reached interrupt, reconnecting...");
-                continue; // Retry to get the interrupt data
-              }
-
-              if (threadState.status === "busy") {
-                // Thread still busy - wait and retry
-                console.log("[useLangGraphWizard] Thread still busy, will retry...");
-                continue;
-              }
-
-              // Thread is idle - may have completed normally
-              console.log("[useLangGraphWizard] Thread is idle, attempting reconnect...");
+              // Continue to reconnect for interrupted, busy, or idle states
               continue;
             } catch (pollError) {
               console.error("[useLangGraphWizard] Failed to poll thread state:", pollError);
@@ -1555,17 +1497,7 @@ export function useLangGraphWizard() {
    * Reset the wizard state for a new session.
    */
   const reset = useCallback(() => {
-    // ═══════════════════════════════════════════════════════════════
-    // MASTERY RESET TRACKING: Log explicitly when mastery resets
-    // This is EXPECTED behavior for starting a fresh session
-    // ═══════════════════════════════════════════════════════════════
-    console.log("🔴 MASTERY RESET [full reset]: Starting fresh session", {
-      previousMastery: cumulativeMasteryRef.current,
-      previousHardAttempted: hardQuestionsAttemptedRef.current,
-      reason: "User started new session - full reset",
-      isExpectedBehavior: true,
-    });
-
+    // Reset all refs for fresh session (expected behavior)
     threadIdRef.current = null;
     v2ContextRef.current = null;
     shownQuestionIdsRef.current = []; // Clear shown questions ref
@@ -2171,18 +2103,7 @@ export function useLangGraphWizard() {
                 hardAttempted: hardQuestionsAttemptedRef.current,
               });
 
-              // ═══════════════════════════════════════════════════════════════
-              // MASTERY PRESERVATION: Verify mastery is NOT reset during auto-downgrade
               // Auto-downgrade only changes difficulty, NOT mastery
-              // ═══════════════════════════════════════════════════════════════
-              console.log("🟢 AUTO-DOWNGRADE (mastery PRESERVED): Changing difficulty only", {
-                fromDifficulty: difficulty,
-                toDifficulty: lowerDifficulty,
-                masteryBeforeDowngrade: cumulativeMasteryRef.current,
-                hardAttemptedBeforeDowngrade: hardQuestionsAttemptedRef.current,
-                note: "Mastery should NOT change during auto-downgrade",
-              });
-
               // Update difficulty
               difficulty = lowerDifficulty;
               v2ContextRef.current.difficulty = lowerDifficulty;
@@ -2382,19 +2303,7 @@ export function useLangGraphWizard() {
     // Clear shown question IDs for fresh block (questions are per-block)
     shownQuestionIdsRef.current = [];
 
-    // ═══════════════════════════════════════════════════════════════
-    // MASTERY RESET TRACKING: Log explicitly when mastery resets
-    // This is EXPECTED behavior for multi-block progression
-    // ═══════════════════════════════════════════════════════════════
-    console.log("🔴 MASTERY RESET [pendingNextBlock]: Resetting UI mastery for next block", {
-      previousMastery: cumulativeMasteryRef.current,
-      newBlockIndex: blockIndex,
-      newBlockId: blockId,
-      reason: "Moving to next block - UI mastery display reset",
-      isExpectedBehavior: true,
-    });
-
-    // Clear the pending flag before async call
+    // Clear the pending flag and reset UI mastery for new block
     setState((prev) => ({
       ...prev,
       pendingNextBlock: null,
