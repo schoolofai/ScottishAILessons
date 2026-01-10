@@ -75,10 +75,10 @@ Examples:
   python -m src.batch_diagram_generator --courseId course_c84874 --order 5
 
 Note:
-  - Validates all lessons BEFORE starting generation (fast-fail)
+  - Structure validates ALL lessons BEFORE starting (fast-fail, no LLM cost)
   - Skips lessons with existing diagrams (use --force to regenerate)
-  - Dry-run mode is fast (skips eligibility analysis for preview)
-  - Execution mode runs full eligibility analysis and generates immediately
+  - Dry-run mode shows structure validation only (fast, free)
+  - Execution mode runs eligibility analysis PER LESSON, then generates
   - Creates per-lesson logs in logs/batch_runs/{batch_id}/
   - Writes batch summary to logs/batch_runs/{batch_id}/batch_summary.json
         """
@@ -164,15 +164,16 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
     from .utils.batch_diagram_utils import (
         fetch_lesson_orders_from_sow,
         check_existing_diagrams_batch,
-        build_execution_plan,
-        display_dry_run_preview,
-        display_estimates,
         write_batch_summary,
-        display_final_report
+        display_final_report,
+        display_structure_errors,
+        display_dry_run_summary
     )
-    from .utils.diagram_validator import validate_lessons_batch
+    from .utils.diagram_validator import validate_structure_batch
+    from .utils.diagram_extractor import fetch_lesson_template
     from .utils.diagram_cleanup import delete_existing_diagrams_for_lesson
     from .diagram_author_claude_client import DiagramAuthorClaudeAgent
+    from .eligibility_analyzer_agent import EligibilityAnalyzerAgent
     from .tools.diagram_screenshot_tool import check_diagram_service_health
 
     print(f"\n{BLUE}{'=' * 80}{RESET}")
@@ -215,27 +216,28 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
         )
         print(f"{GREEN}✅ Found {len(lesson_orders)} lessons in SOW{RESET}\n")
 
-        # Step 2: Validate all lessons (fast-fail)
-        # Skip eligibility analysis in dry-run mode for speed
-        print(f"{BLUE}Step 2: Validating all lessons...{RESET}")
-        if args.dry_run:
-            print(f"{YELLOW}(Dry-run: Skipping eligibility analysis for speed - will validate structure only){RESET}")
+        # Step 2: Structure validation for ALL lessons (fast, free - no LLM)
+        # This catches malformed lessons early before any expensive operations
+        print(f"{BLUE}Step 2: Validating lesson structure (fast, no LLM)...{RESET}")
 
-        validation_results = await validate_lessons_batch(
+        structure_results = await validate_structure_batch(
             course_id=args.courseId,
             lesson_orders=lesson_orders,
-            mcp_config_path=args.mcp_config,
-            skip_eligibility=args.dry_run  # Skip Claude agent in dry-run mode
+            mcp_config_path=args.mcp_config
         )
 
-        valid_count = sum(1 for v in validation_results.values() if v["valid"])
+        valid_count = sum(1 for v in structure_results.values() if v["valid"])
         invalid_count = len(lesson_orders) - valid_count
+        total_cards = sum(v.get("total_cards", 0) for v in structure_results.values() if v["valid"])
 
-        if args.dry_run:
-            total_cards = sum(v.get("total_cards", 0) for v in validation_results.values() if v["valid"])
-            print(f"{GREEN}✅ Validation complete: {valid_count} valid, {invalid_count} invalid ({total_cards} total cards){RESET}\n")
-        else:
-            print(f"{GREEN}✅ Validation complete: {valid_count} valid, {invalid_count} invalid{RESET}\n")
+        print(f"{GREEN}✅ Structure validation complete: {valid_count} valid, {invalid_count} invalid ({total_cards} total cards){RESET}\n")
+
+        # Fail-fast: Stop if any lessons have structure errors
+        if invalid_count > 0:
+            display_structure_errors(structure_results)
+            print(f"{RED}❌ Cannot proceed: {invalid_count} lessons have structure errors{RESET}")
+            print(f"{YELLOW}Fix the errors above and re-run the batch generator.{RESET}\n")
+            return 1
 
         # Step 3: Check existing diagrams
         print(f"{BLUE}Step 3: Checking existing diagrams...{RESET}")
@@ -248,55 +250,61 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
         existing_count = sum(1 for diagrams in existing_diagrams.values() if diagrams)
         print(f"{GREEN}✅ Found existing diagrams for {existing_count} lessons{RESET}\n")
 
-        # Step 4: Build execution plan
-        print(f"{BLUE}Step 4: Building execution plan...{RESET}")
-        execution_plan = build_execution_plan(
-            lesson_orders=lesson_orders,
-            validation_results=validation_results,
-            existing_diagrams=existing_diagrams,
-            force=args.force
-        )
-        print(f"{GREEN}✅ Execution plan ready{RESET}\n")
+        # Step 4: Build list of lessons to process
+        # Determine which lessons need processing based on existing diagrams
+        lessons_to_process = []
+        lessons_to_skip = []
 
-        # Step 5: Display dry-run preview
-        display_dry_run_preview(execution_plan)
-        display_estimates(execution_plan)
+        for order in lesson_orders:
+            existing = existing_diagrams.get(order, [])
+            if existing and not args.force:
+                lessons_to_skip.append((order, len(existing)))
+            else:
+                lessons_to_process.append((order, len(existing) if existing else 0))
 
+        print(f"{GREEN}✅ {len(lessons_to_process)} lessons to process, {len(lessons_to_skip)} to skip{RESET}\n")
+
+        # Step 5: Display dry-run summary (structure validation only)
         if args.dry_run:
+            display_dry_run_summary(structure_results, existing_diagrams, args.force)
             print(f"{YELLOW}Dry-run mode: No changes made{RESET}\n")
             return 0
 
-        # Step 6: Execute batch generation
+        # Step 6: Execute per-lesson processing (eligibility + generation)
         print(f"\n{BLUE}{'=' * 80}{RESET}")
-        print(f"{BLUE}Starting batch execution...{RESET}")
+        print(f"{BLUE}Starting batch execution (per-lesson eligibility + generation)...{RESET}")
         print(f"{BLUE}{'=' * 80}{RESET}\n")
 
         # Create log directory
         log_dir.mkdir(parents=True, exist_ok=True)
 
         results = []
+        processed_count = 0
+        total_to_process = len(lessons_to_process)
 
-        for lesson_plan in execution_plan:
-            order = lesson_plan["order"]
+        # Record skipped lessons
+        for order, existing_count in lessons_to_skip:
+            results.append({
+                "order": order,
+                "status": "SKIPPED",
+                "reason": f"Already has {existing_count} diagrams (use --force to regenerate)",
+                "diagrams_generated": 0,
+                "diagrams_failed": 0,
+                "cost_usd": 0,
+                "execution_time_seconds": 0
+            })
+            print(f"{YELLOW}⏭️  Lesson {order}: SKIPPED - Already has {existing_count} diagrams{RESET}")
 
-            if lesson_plan["action"] == "SKIP":
-                results.append({
-                    "order": order,
-                    "status": "SKIPPED",
-                    "reason": lesson_plan["reason"],
-                    "diagrams_generated": 0,
-                    "diagrams_failed": 0,
-                    "cost_usd": 0,
-                    "execution_time_seconds": 0
-                })
-                print(f"{YELLOW}⏭️  Lesson {order}: SKIPPED - {lesson_plan['reason']}{RESET}")
-                continue
+        # Process each lesson: eligibility analysis → diagram generation
+        for order, existing_count in lessons_to_process:
+            processed_count += 1
+            print(f"\n{BLUE}{'=' * 60}{RESET}")
+            print(f"{BLUE}Processing lesson {order} ({processed_count}/{total_to_process})...{RESET}")
+            print(f"{BLUE}{'=' * 60}{RESET}")
 
-            print(f"\n{BLUE}🚀 Processing lesson {order}...{RESET}")
-
-            # Delete existing if --force
-            if args.force and lesson_plan["action"] == "OVERWRITE":
-                print(f"{YELLOW}Deleting {lesson_plan['existing_count']} existing diagrams...{RESET}")
+            # Delete existing if --force and has existing diagrams
+            if args.force and existing_count > 0:
+                print(f"{YELLOW}Deleting {existing_count} existing diagrams...{RESET}")
                 await delete_existing_diagrams_for_lesson(
                     course_id=args.courseId,
                     order=order,
@@ -311,14 +319,45 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
             logger.addHandler(file_handler)
 
             try:
-                # REUSE EXISTING DiagramAuthorClaudeAgent (DRY compliance)
+                # Step 6a: Eligibility analysis for THIS lesson (LLM call)
+                print(f"{BLUE}  Running eligibility analysis...{RESET}")
+                template = await fetch_lesson_template(
+                    course_id=args.courseId,
+                    order=order,
+                    mcp_config_path=args.mcp_config
+                )
+
+                eligibility_agent = EligibilityAnalyzerAgent()
+                eligible_cards = await eligibility_agent.analyze(template)
+
+                if not eligible_cards:
+                    print(f"{YELLOW}  → No cards need diagrams, skipping generation{RESET}")
+                    results.append({
+                        "order": order,
+                        "status": "SKIPPED",
+                        "reason": "No cards need diagrams (eligibility analysis)",
+                        "diagrams_generated": 0,
+                        "diagrams_failed": 0,
+                        "cost_usd": 0,
+                        "execution_time_seconds": 0
+                    })
+                    continue
+
+                print(f"{GREEN}  ✅ {len(eligible_cards)} cards need diagrams{RESET}")
+
+                # Step 6b: Generate diagrams for eligible cards
+                print(f"{BLUE}  Generating diagrams...{RESET}")
                 agent = DiagramAuthorClaudeAgent(
                     mcp_config_path=args.mcp_config,
                     persist_workspace=True,
                     log_level=args.log_level
                 )
 
-                result = await agent.execute(courseId=args.courseId, order=order)
+                result = await agent.execute(
+                    courseId=args.courseId,
+                    order=order,
+                    eligible_cards=eligible_cards  # Pass pre-computed cards to skip duplicate eligibility analysis
+                )
 
                 results.append({
                     "order": order,

@@ -38,6 +38,104 @@ class ValidationResult:
         self.eligible_cards_count = eligible_cards_count
 
 
+async def validate_structure_batch(
+    course_id: str,
+    lesson_orders: List[int],
+    mcp_config_path: str
+) -> Dict[int, Dict[str, Any]]:
+    """Validate ONLY structure (Pydantic schema) for all lessons.
+
+    Fast, free (no LLM calls). Use this for fail-fast validation before
+    processing lessons individually with eligibility analysis.
+
+    Args:
+        course_id: Course identifier
+        lesson_orders: List of lesson order numbers to validate
+        mcp_config_path: Path to MCP config file
+
+    Returns:
+        Dictionary mapping order → validation result:
+        {
+            order: {
+                "valid": bool,
+                "errors": List[str],
+                "warnings": List[str],
+                "lesson_title": str,
+                "total_cards": int
+            }
+        }
+
+    Example:
+        >>> results = await validate_structure_batch("course_c84775", [1, 2, 3], ".mcp.json")
+        >>> results[1]["valid"]
+        True
+        >>> results[1]["total_cards"]
+        5
+    """
+    from .diagram_extractor import fetch_lesson_template
+
+    results = {}
+
+    for order in lesson_orders:
+        try:
+            # Fetch lesson template
+            logger.info(f"Validating lesson order {order} (structure only)...")
+
+            template = await fetch_lesson_template(
+                course_id=course_id,
+                order=order,
+                mcp_config_path=mcp_config_path
+            )
+
+            if not template:
+                results[order] = {
+                    "valid": False,
+                    "errors": [f"Lesson not found: courseId={course_id}, order={order}"],
+                    "warnings": [],
+                    "lesson_title": "NOT FOUND",
+                    "total_cards": 0
+                }
+                logger.error(f"❌ Lesson order {order}: Not found in database")
+                continue
+
+            # Validate lesson template structure (Pydantic - fast, no LLM)
+            validation_result = validate_lesson_template_structure(template)
+
+            if not validation_result.is_valid:
+                results[order] = {
+                    "valid": False,
+                    "errors": validation_result.errors,
+                    "warnings": validation_result.warnings,
+                    "lesson_title": template.get("title", template.get("label", "Unknown")),
+                    "total_cards": 0
+                }
+                logger.error(f"❌ Lesson order {order}: Structure validation failed with {len(validation_result.errors)} errors")
+                continue
+
+            # Structure is valid - count cards
+            total_cards = len(template.get("cards", []))
+            results[order] = {
+                "valid": True,
+                "errors": [],
+                "warnings": validation_result.warnings,
+                "lesson_title": template.get("title", template.get("label", "Unknown")),
+                "total_cards": total_cards
+            }
+            logger.info(f"✅ Lesson order {order}: Structure valid ({total_cards} cards)")
+
+        except Exception as e:
+            logger.error(f"❌ Lesson order {order}: Structure validation failed with exception: {e}")
+            results[order] = {
+                "valid": False,
+                "errors": [str(e)],
+                "warnings": [],
+                "lesson_title": "ERROR",
+                "total_cards": 0
+            }
+
+    return results
+
+
 async def validate_lessons_batch(
     course_id: str,
     lesson_orders: List[int],

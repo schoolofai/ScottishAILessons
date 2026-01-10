@@ -208,6 +208,186 @@ def build_execution_plan(
     return plan
 
 
+def display_structure_errors(
+    structure_results: Dict[int, Dict[str, Any]]
+) -> None:
+    """Display structure validation errors in a formatted way.
+
+    Args:
+        structure_results: Results from validate_structure_batch()
+
+    Example:
+        >>> display_structure_errors(results)
+        ================================================================================
+        STRUCTURE VALIDATION FAILED
+        ================================================================================
+
+        Lesson 3: "Introduction to Algebra"
+          - cards.0.cfu.type: Invalid value (got: multiple_select)
+          - ...
+    """
+    print("\n" + "=" * 80)
+    print("\033[91mSTRUCTURE VALIDATION FAILED\033[0m")
+    print("=" * 80 + "\n")
+
+    failed_count = sum(1 for r in structure_results.values() if not r["valid"])
+    total_count = len(structure_results)
+
+    print(f"Failed: {failed_count}/{total_count} lessons\n")
+
+    for order in sorted(structure_results.keys()):
+        result = structure_results[order]
+        if not result["valid"]:
+            title = result.get("lesson_title", "Unknown")
+            print(f"\033[91m❌ Lesson {order}: \"{title}\"\033[0m")
+
+            for error in result.get("errors", [])[:5]:  # Show first 5 errors
+                print(f"   - {error}")
+
+            if len(result.get("errors", [])) > 5:
+                remaining = len(result["errors"]) - 5
+                print(f"   ... and {remaining} more errors")
+            print()
+
+    print("=" * 80)
+    print("\n\033[93mFix the structure errors above before running batch diagram generation.\033[0m\n")
+
+
+def display_dry_run_summary(
+    structure_results: Dict[int, Dict[str, Any]],
+    existing_diagrams: Dict[int, List[tuple]],
+    force: bool
+) -> None:
+    """Display simple dry-run summary for structure-validated lessons.
+
+    This is the new simpler preview that shows:
+    - Which lessons passed structure validation
+    - Which already have diagrams (will be skipped unless --force)
+    - Which will be processed
+
+    No eligibility analysis is shown (that happens during execution).
+
+    Args:
+        structure_results: Results from validate_structure_batch()
+        existing_diagrams: Results from check_existing_diagrams_batch()
+        force: Whether --force flag was passed
+
+    Example:
+        >>> display_dry_run_summary(structure_results, existing_diagrams, False)
+        ================================================================================
+        DRY-RUN SUMMARY (Structure Validation Only)
+        ================================================================================
+
+        Total lessons: 10
+        Structure valid: 10
+        Already have diagrams: 3 (will skip)
+        To process: 7
+
+        Lessons that will be processed:
+          - Lesson 1: "Introduction to Surds" (5 cards)
+          - Lesson 2: "Simplifying Surds" (4 cards)
+          ...
+
+        ⚠️  Note: Eligibility analysis will run during execution
+    """
+    print("\n" + "=" * 80)
+    print("DRY-RUN SUMMARY (Structure Validation Only)")
+    print("=" * 80 + "\n")
+
+    # Calculate stats
+    total = len(structure_results)
+    valid_count = sum(1 for r in structure_results.values() if r["valid"])
+    invalid_count = total - valid_count
+
+    # Categorize lessons
+    to_process = []
+    to_skip_existing = []
+    to_overwrite = []
+
+    for order in sorted(structure_results.keys()):
+        result = structure_results[order]
+        if not result["valid"]:
+            continue  # Skip invalid
+
+        existing = existing_diagrams.get(order, [])
+        if existing and not force:
+            to_skip_existing.append((order, result, len(existing)))
+        elif existing and force:
+            to_overwrite.append((order, result, len(existing)))
+        else:
+            to_process.append((order, result))
+
+    # Print summary stats
+    print(f"Total lessons: {total}")
+    print(f"  \033[92m✅ Structure valid: {valid_count}\033[0m")
+    if invalid_count > 0:
+        print(f"  \033[91m❌ Structure invalid: {invalid_count}\033[0m")
+    print(f"  \033[90m⏭️  Already have diagrams: {len(to_skip_existing)} (will skip)\033[0m")
+    if force and to_overwrite:
+        print(f"  \033[93m🔄 Will overwrite: {len(to_overwrite)}\033[0m")
+    print(f"  \033[94m🆕 To process: {len(to_process)}\033[0m")
+    print()
+
+    # Show lessons to process
+    if to_process:
+        print("Lessons that will be processed:")
+        for order, result in to_process:
+            title = result.get("lesson_title", "Unknown")
+            cards = result.get("total_cards", 0)
+            print(f"  \033[94m→ Lesson {order}: \"{title}\" ({cards} cards)\033[0m")
+        print()
+
+    # Show lessons to overwrite (if --force)
+    if to_overwrite:
+        print("Lessons with diagrams to overwrite (--force):")
+        for order, result, existing_count in to_overwrite:
+            title = result.get("lesson_title", "Unknown")
+            print(f"  \033[93m🔄 Lesson {order}: \"{title}\" ({existing_count} existing diagrams)\033[0m")
+        print()
+
+    # Show skipped lessons
+    if to_skip_existing:
+        print("Lessons skipped (already have diagrams):")
+        for order, result, existing_count in to_skip_existing:
+            title = result.get("lesson_title", "Unknown")
+            print(f"  \033[90m⏭️  Lesson {order}: \"{title}\" ({existing_count} diagrams)\033[0m")
+        print()
+
+    # Show invalid lessons (if any)
+    if invalid_count > 0:
+        print("\033[91mLessons with structure errors (will not be processed):\033[0m")
+        for order in sorted(structure_results.keys()):
+            result = structure_results[order]
+            if not result["valid"]:
+                title = result.get("lesson_title", "Unknown")
+                error_count = len(result.get("errors", []))
+                print(f"  \033[91m❌ Lesson {order}: \"{title}\" ({error_count} errors)\033[0m")
+        print()
+
+    # Note about eligibility
+    print("\033[93m⚠️  Note: Eligibility analysis will run during execution\033[0m")
+    print("\033[93m   (determines which cards actually need diagrams)\033[0m")
+    print()
+
+    # Estimates
+    lessons_to_execute = len(to_process) + len(to_overwrite)
+    if lessons_to_execute > 0:
+        avg_time_per_lesson = 5  # minutes
+        avg_cost_per_lesson = 0.50  # USD
+        total_time = lessons_to_execute * avg_time_per_lesson
+        total_cost = lessons_to_execute * avg_cost_per_lesson
+
+        print("ESTIMATES:")
+        print(f"  Lessons to process: {lessons_to_execute}")
+        print(f"  Time: ~{total_time} minutes (~{total_time/60:.1f} hours)")
+        print(f"  Cost: ~${total_cost:.2f}")
+    else:
+        print("ESTIMATES:")
+        print("  No lessons to process (all skipped or invalid)")
+
+    print("\n" + "=" * 80 + "\n")
+
+
 def display_dry_run_preview(execution_plan: List[Dict[str, Any]]) -> None:
     """Display ASCII table preview of execution plan.
 

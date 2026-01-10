@@ -1,0 +1,9 @@
+# Runtime generated directories
+checkpoints/
+reports/
+logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

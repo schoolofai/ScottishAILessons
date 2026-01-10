@@ -180,7 +180,8 @@ class DiagramAuthorClaudeAgent:
         self,
         courseId: str,
         order: int,
-        card_order: Optional[int] = None
+        card_order: Optional[int] = None,
+        eligible_cards: Optional[List[Dict[str, Any]]] = None
     ) -> Dict[str, Any]:
         """Execute the complete diagram generation pipeline.
 
@@ -189,6 +190,9 @@ class DiagramAuthorClaudeAgent:
             order: Lesson order number in SOW (required)
             card_order: Optional card position in lesson (1-indexed). When provided, generates diagrams
                        for ONLY this card. When omitted, generates diagrams for ALL cards.
+            eligible_cards: Optional pre-computed eligible cards from EligibilityAnalyzerAgent.
+                           When provided, skips internal eligibility analysis (avoids duplicate LLM calls).
+                           Used by batch_diagram_generator to pass pre-computed results.
 
         Returns:
             Dictionary containing:
@@ -312,10 +316,13 @@ class DiagramAuthorClaudeAgent:
                     logger.info(f"📁 JSXGraph templates available at {template_result['path']}")
 
                 # Filter eligible cards (Claude Agent SDK-based semantic analysis - FR-014, FR-015, FR-016)
-                logger.info("Pre-processing: Filtering eligible cards via Claude Agent SDK eligibility analyzer...")
-
-                eligibility_agent = EligibilityAnalyzerAgent()
-                eligible_cards = await eligibility_agent.analyze(lesson_template)
+                # Skip internal analysis if pre-computed eligible_cards provided (batch mode optimization)
+                if eligible_cards is not None:
+                    logger.info(f"Pre-processing: Using {len(eligible_cards)} pre-computed eligible cards (skipping eligibility analysis)")
+                else:
+                    logger.info("Pre-processing: Filtering eligible cards via Claude Agent SDK eligibility analyzer...")
+                    eligibility_agent = EligibilityAnalyzerAgent()
+                    eligible_cards = await eligibility_agent.analyze(lesson_template)
 
                 # ═══════════════════════════════════════════════════════════════
                 # Eligibility Analysis Logging
@@ -667,9 +674,10 @@ class DiagramAuthorClaudeAgent:
                             "diagram_type": diagram["diagram_type"],
                             "diagram_context": diagram.get("diagram_context"),
                             "diagram_description": diagram.get("diagram_description", ""),
-                            "visual_critique_score": diagram["visual_critique_score"],
-                            "critique_iterations": diagram["critique_iterations"],
-                            "critique_feedback": diagram["critique_feedback"],
+                            # Optional critique fields - may not be present if critique was skipped
+                            "visual_critique_score": diagram.get("visual_critique_score", 0.0),
+                            "critique_iterations": diagram.get("critique_iterations", 0),
+                            "critique_feedback": diagram.get("critique_feedback", ""),
                             "execution_id": self.execution_id
                         })
 

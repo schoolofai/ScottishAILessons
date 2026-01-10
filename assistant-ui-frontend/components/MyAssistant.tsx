@@ -71,29 +71,75 @@ export function MyAssistant({
   // causing messages to disappear as the thread reloads.
   const hasLoadedThreadRef = useRef<boolean>(false);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIAGNOSTIC: Streaming state tracking to debug message disappearing issue
+  // These refs track when streaming is active to identify race conditions
+  // ═══════════════════════════════════════════════════════════════════════════
+  const isStreamingRef = useRef<boolean>(false);
+  const lastStreamEndTimeRef = useRef<number>(0);
+  const streamStartTimeRef = useRef<number>(0);
+  const streamMessageCountRef = useRef<number>(0);
+
   // Use replay runtime if in replay mode, otherwise use LangGraph runtime
   const langGraphRuntime = useLangGraphRuntime({
     threadId: threadIdRef.current,
     stream: async (messages, { command }) => {
+      // ═══════════════════════════════════════════════════════════════════════
+      // DIAGNOSTIC: Mark streaming start
+      // ═══════════════════════════════════════════════════════════════════════
+      isStreamingRef.current = true;
+      streamStartTimeRef.current = Date.now();
+      streamMessageCountRef.current = 0;
+      console.log('🚀 STREAM START', {
+        timestamp: new Date().toISOString(),
+        threadId: threadIdRef.current,
+        hasCommand: !!command,
+        messageCount: messages?.length || 0
+      });
+
       // Let runtime handle thread creation if needed
       if (!threadIdRef.current) {
         const { thread_id } = await createThread();
         threadIdRef.current = thread_id;
-        
+
         // Notify parent component about thread creation for persistence
         if (onThreadCreated) {
           onThreadCreated(thread_id);
         }
       }
       const threadId = threadIdRef.current;
-      
-      
-      return sendMessage({
+
+      const rawGenerator = sendMessage({
         threadId,
         messages,
         command,
         sessionContext, // Pass session context to chat API
       });
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // DIAGNOSTIC: Wrap generator to track streaming completion
+      // ═══════════════════════════════════════════════════════════════════════
+      async function* trackedGenerator() {
+        try {
+          for await (const event of await rawGenerator) {
+            streamMessageCountRef.current++;
+            yield event;
+          }
+        } finally {
+          // Mark streaming end when generator completes (success or error)
+          isStreamingRef.current = false;
+          lastStreamEndTimeRef.current = Date.now();
+          const duration = lastStreamEndTimeRef.current - streamStartTimeRef.current;
+          console.log('🏁 STREAM END', {
+            timestamp: new Date().toISOString(),
+            threadId,
+            durationMs: duration,
+            eventCount: streamMessageCountRef.current
+          });
+        }
+      }
+
+      return trackedGenerator();
     },
     onSwitchToNewThread: async () => {
       const { thread_id } = await createThread();
@@ -105,10 +151,40 @@ export function MyAssistant({
       }
     },
     onSwitchToThread: async (threadId) => {
+      // ═══════════════════════════════════════════════════════════════════════
+      // DIAGNOSTIC: Log when onSwitchToThread is called and streaming state
+      // ═══════════════════════════════════════════════════════════════════════
+      const now = Date.now();
+      const timeSinceStreamEnd = now - lastStreamEndTimeRef.current;
+      const timeSinceStreamStart = now - streamStartTimeRef.current;
+
+      console.log('🔄 onSwitchToThread CALLED', {
+        timestamp: new Date().toISOString(),
+        threadId,
+        isCurrentlyStreaming: isStreamingRef.current,
+        timeSinceStreamEndMs: lastStreamEndTimeRef.current > 0 ? timeSinceStreamEnd : 'never streamed',
+        timeSinceStreamStartMs: streamStartTimeRef.current > 0 ? timeSinceStreamStart : 'never started',
+        streamEventsReceived: streamMessageCountRef.current
+      });
+
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
 
       const interrupts = state.tasks?.[0]?.interrupts;
+
+      // DIAGNOSTIC: Log what we're returning
+      console.log('🔄 onSwitchToThread RETURNING', {
+        timestamp: new Date().toISOString(),
+        threadId,
+        messageCount: state.values.messages?.length || 0,
+        firstMessagePreview: state.values.messages?.[0]?.content?.toString()?.substring(0, 80) || 'none',
+        lastMessagePreview: state.values.messages?.slice(-1)[0]?.content?.toString()?.substring(0, 80) || 'none',
+        hasInterrupts: !!interrupts?.length,
+        interruptCount: interrupts?.length || 0,
+        isCurrentlyStreaming: isStreamingRef.current,
+        timeSinceStreamEndMs: lastStreamEndTimeRef.current > 0 ? (Date.now() - lastStreamEndTimeRef.current) : 'N/A'
+      });
+
       return {
         messages: state.values.messages,
         interrupts: interrupts
@@ -121,10 +197,24 @@ export function MyAssistant({
   // Note: React StrictMode runs effects twice synchronously, so we must set the guard
   // BEFORE the async call to prevent both runs from starting parallel loads.
   useEffect(() => {
+    // ═══════════════════════════════════════════════════════════════════════
+    // DIAGNOSTIC: Log useEffect trigger to identify what's causing re-runs
+    // ═══════════════════════════════════════════════════════════════════════
+    console.log('📌 useEffect TRIGGERED', {
+      timestamp: new Date().toISOString(),
+      initialThreadId,
+      hasLoadedThread: hasLoadedThreadRef.current,
+      isCurrentlyStreaming: isStreamingRef.current,
+      timeSinceStreamEnd: lastStreamEndTimeRef.current > 0
+        ? `${Date.now() - lastStreamEndTimeRef.current}ms ago`
+        : 'never'
+    });
+
     // Skip if we've already started loading this thread
     // CRITICAL: This check must happen SYNCHRONOUSLY before any async operations
     // to prevent React StrictMode's double-execution from causing parallel loads
     if (hasLoadedThreadRef.current) {
+      console.log('📌 useEffect SKIPPED (already loaded)');
       return;
     }
 
@@ -132,6 +222,11 @@ export function MyAssistant({
       // CRITICAL: Set guard IMMEDIATELY (synchronously) before async call
       // This prevents React StrictMode's second effect run from starting another load
       hasLoadedThreadRef.current = true;
+
+      console.log('📌 useEffect EXECUTING switchToThread', {
+        threadId: initialThreadId,
+        isCurrentlyStreaming: isStreamingRef.current
+      });
 
       getThreadState(initialThreadId)
         .then(state => {

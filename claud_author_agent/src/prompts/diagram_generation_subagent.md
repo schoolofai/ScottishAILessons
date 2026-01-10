@@ -11,10 +11,13 @@ Analyze the content. If it describes multiple distinct visual elements (e.g., th
 ## Input
 
 You receive card data with:
-- `cardId`: Card identifier (e.g., "card_001")
+- `lessonTemplateId`: Lesson template identifier (e.g., "6905ebbd003ad4b2f853") - **REQUIRED in output**
+- `cardId`: Card identifier (e.g., "card_001") - **REQUIRED in output**
 - `diagram_context`: **"lesson"** or **"cfu"**
 - Card content with `explainer` and `cfu` fields
 - **`research_context`**: (CRITICAL) JSXGraph implementation guidance from the researcher subagent
+
+**IMPORTANT**: You MUST include `lessonTemplateId` and `cardId` in every diagram output entry.
 
 ## CRITICAL: Using Research Context
 
@@ -105,23 +108,31 @@ END FOR
 
 ### Step 3: Return Results
 
-Return one entry per diagram generated:
+Return one entry per diagram generated. **Every entry MUST include `lessonTemplateId` and `cardId`**:
 
 ```json
 {
   "diagrams": [
     {
+      "lessonTemplateId": "6905ebbd003ad4b2f853",
+      "cardId": "card_001",
+      "diagram_index": 0,
       "diagram_context": "cfu",
+      "diagram_type": "measurement",
       "diagram_description": "Ruler showing measurement range 0-15cm",
       "image_path": "/path/to/diagram.png",
-      "jsxgraph_json": "...",
+      "jsxgraph_json": "{...}",
       "status": "ready_for_critique"
     },
     {
+      "lessonTemplateId": "6905ebbd003ad4b2f853",
+      "cardId": "card_001",
+      "diagram_index": 1,
       "diagram_context": "cfu",
+      "diagram_type": "measurement",
       "diagram_description": "Thermometer showing temperature scale",
       "image_path": "/path/to/diagram2.png",
-      "jsxgraph_json": "...",
+      "jsxgraph_json": "{...}",
       "status": "ready_for_critique"
     }
   ]
@@ -389,12 +400,15 @@ END FOR
 
 ## Output Format
 
-Always return `diagrams` as an array:
+Always return `diagrams` as an array. **CRITICAL**: Every diagram entry MUST include `lessonTemplateId` and `cardId`:
 
 ```json
 {
   "diagrams": [
     {
+      "lessonTemplateId": "6905ebbd003ad4b2f853",
+      "cardId": "card_001",
+      "diagram_index": 0,
       "jsxgraph_json": "{...}",
       "image_path": "/path/to/diagram.png",
       "diagram_type": "geometry",
@@ -406,6 +420,21 @@ Always return `diagrams` as an array:
   ]
 }
 ```
+
+### Required Fields Reference
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `lessonTemplateId` | string | **REQUIRED** - From input | `"6905ebbd003ad4b2f853"` |
+| `cardId` | string | **REQUIRED** - From input | `"card_001"` |
+| `diagram_index` | integer | 0-based index for multiple diagrams per card | `0`, `1`, `2` |
+| `jsxgraph_json` | string | Valid JSXGraph JSON (validated) | `"{\"board\":...}"` |
+| `image_path` | string | Path returned by render_diagram tool | `"/path/to/diagram.png"` |
+| `diagram_type` | string | Type of diagram | `"geometry"`, `"coordinate_graph"`, `"pie_chart"` |
+| `diagram_context` | string | Context from input | `"lesson"` or `"cfu"` |
+| `diagram_description` | string | Brief description | `"Right triangle showing Pythagoras"` |
+| `status` | string | Processing status | `"ready_for_critique"` |
+| `render_attempts` | integer | Number of render attempts | `1` |
 
 ---
 
