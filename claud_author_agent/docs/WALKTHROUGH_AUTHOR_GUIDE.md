@@ -277,7 +277,7 @@ python -m src.batch_walkthrough_generator --retry-failed batch_YYYYMMDD_HHMMSS
 | model_version | string | Version of author agent |
 | generation_metadata | string | Token usage, cost, timestamp |
 
-### Walkthrough Content Schema (Uncompressed)
+### Walkthrough Content Schema (Uncompressed) - V2
 
 ```json
 {
@@ -293,21 +293,79 @@ python -m src.batch_walkthrough_generator --retry-failed batch_YYYYMMDD_HHMMSS
       "working": "13/6 × 9/8",
       "working_latex": "\\frac{13}{6} \\times \\frac{9}{8}",
       "marks_earned": 1,
-      "examiner_notes": "Must show conversion to improper fraction"
+      "examiner_notes": "Must show conversion to improper fraction",
+      "concept_explanation": "When we divide by a fraction, we're asking 'how many times does this fraction fit?' Multiplying by the reciprocal gives us the same answer because division and multiplication are inverse operations.",
+      "peer_tip": "So basically, dividing by 8/9 is the same as multiplying by 9/8. Just remember: KEEP the first fraction, FLIP the second, then multiply!",
+      "student_warning": "Make sure you show converting 2 1/6 to an improper fraction (13/6) - if you just write the final answer, you'll lose this mark even if it's correct."
     }
   ],
   "common_errors": [
     {
       "error_type": "calculation",
       "description": "Forgetting to convert mixed number to improper fraction",
+      "learning_gap": "Students often skip the conversion step because they try to divide mixed numbers directly, not realizing that fraction operations require consistent form.",
       "why_marks_lost": "•1 lost for incorrect strategy",
-      "prevention_tip": "Always convert mixed numbers first"
+      "prevention_tip": "Always convert mixed numbers first",
+      "related_topics": ["mixed-numbers", "improper-fractions", "fraction-conversion"]
     }
   ],
   "examiner_summary": "Correct answer without working scores 0/2.",
-  "diagram_refs": []
+  "diagram_refs": [],
+  "prerequisite_links": [
+    {
+      "topic_tag": "fractions",
+      "reminder_text": "Review your notes on fractions before attempting this question.",
+      "lesson_refs": [],
+      "course_fallback": "/courses/C847-75"
+    }
+  ]
 }
 ```
+
+### V2 Schema Fields Reference
+
+The V2 schema adds pedagogical fields for student-friendly learning experiences:
+
+#### Step-Level V2 Fields
+
+| Field | Type | Required | Min Length | Description |
+|-------|------|----------|------------|-------------|
+| `concept_explanation` | string | Yes | 50 chars | Explains WHY the mathematical step works |
+| `peer_tip` | string | Yes | 20 chars | Casual, student-friendly advice ("So basically...") |
+| `student_warning` | string | No | - | Exam-specific warning from transformed examiner notes |
+
+#### Common Error V2 Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `learning_gap` | string | Yes | Underlying misconception that causes this error |
+| `related_topics` | string[] | Yes | Topic tags for further review |
+
+#### Prerequisite Links (Root Level)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prerequisite_links` | array | Links to lessons for prerequisite topics |
+| `prerequisite_links[].topic_tag` | string | Topic identifier |
+| `prerequisite_links[].reminder_text` | string | Brief reminder for students |
+| `prerequisite_links[].lesson_refs` | string[] | Lesson template IDs (empty if not linked) |
+| `prerequisite_links[].course_fallback` | string | Fallback course path |
+
+### Frontend Integration Notes
+
+When rendering walkthroughs in the frontend:
+
+1. **Decompress content**: Use `gzip + base64` decode to get JSON
+2. **Render steps** with:
+   - `working_latex` in KaTeX for math display
+   - `concept_explanation` in expandable "Why?" section
+   - `peer_tip` as highlighted callout box
+   - `student_warning` as alert/warning banner
+3. **Render common errors** with:
+   - `description` as main error text
+   - `learning_gap` in "Understanding the mistake" accordion
+   - `related_topics` as clickable review links
+4. **Render prerequisite links** as "Review these topics" section with links to lessons
 
 ---
 
@@ -415,18 +473,22 @@ workspace/batch_{batch_id}/
 Document IDs follow a deterministic pattern for idempotent upserts:
 
 ```
-{paper_id}-q{question_number}
+{paper_id}_q{question_number}
 ```
 
+**Note**: Appwrite document IDs only allow: `a-z`, `A-Z`, `0-9`, and underscore (`_`). Hyphens are NOT allowed.
+
 **Examples**:
-- `mathematics-n5-2023-X847-75-01-q1` (Question 1)
-- `mathematics-n5-2023-X847-75-01-q4a` (Question 4a)
-- `mathematics-nah-2023-X847-77-11-q5bi` (Question 5b(i) - parentheses removed)
+- `mathematics_n5_2023_X847_75_01_q1` (Question 1)
+- `mathematics_n5_2023_X847_75_01_q4a` (Question 4a)
+- `mathematics_nah_2023_X847_77_11_q5bi` (Question 5b(i) - parentheses removed)
 
 **Normalization Rules**:
+- Paper ID hyphens replaced with underscores
 - Question number converted to lowercase
+- Leading "Q" or "q" prefix stripped (to avoid double-q)
 - Parentheses `(` and `)` removed
-- Example: `5b(i)` → `q5bi`
+- Example: `Q5b(i)` → `q5bi`
 
 ---
 
