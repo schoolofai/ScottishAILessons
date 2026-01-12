@@ -1,8 +1,112 @@
-"""Models package for diagram author.
+"""Models package for author agents.
 
-Contains dataclasses for structured data throughout the pipeline.
+Contains dataclasses and Pydantic models for structured data throughout the pipeline.
 """
 
 from .diagram_spec import DiagramSpec, DiagramSpecList
+from .walkthrough_models import (
+    # Core walkthrough models
+    WalkthroughStep,
+    CommonError,
+    QuestionWalkthrough,
+    WalkthroughDocument,
+    ErrorType,
+    WalkthroughStatus,
+    GenericMark,
+    IllustrativeMark,
+    EmbeddedSolution,
+    SourceQuestion,
+    # Execution metadata models
+    ExecutionManifest,
+    ExecutionLog,
+    ExecutionStage,
+    ExecutionTotals,
+    FinalResult,
+    InputContext,
+    QuestionContext,
+    SourceExtraction,
+    AgentConfig,
+    BatchContext,
+    CommandContext,
+    OutputMetrics,
+    QualityMetrics,
+    ExecutionMetrics,
+    StageTokens,
+    StageResult,
+    ExecutionStatus,
+    StageStatus,
+    # Batch metadata models
+    BatchManifest,
+    BatchProgress,
+    BatchCounts,
+    CurrentProcessing,
+    LastCompleted,
+    FailedQuestions,
+    FailedQuestion,
+    BatchFilter,
+    BatchScope,
+    BatchConfig,
+    BatchStatus,
+    # File constants
+    EXECUTION_MANIFEST_FILE,
+    EXECUTION_LOG_FILE,
+    FINAL_RESULT_FILE,
+    BATCH_MANIFEST_FILE,
+    BATCH_PROGRESS_FILE,
+    FAILED_QUESTIONS_FILE,
+)
 
-__all__ = ["DiagramSpec", "DiagramSpecList"]
+__all__ = [
+    # Diagram models
+    "DiagramSpec",
+    "DiagramSpecList",
+    # Core walkthrough models
+    "WalkthroughStep",
+    "CommonError",
+    "QuestionWalkthrough",
+    "WalkthroughDocument",
+    "ErrorType",
+    "WalkthroughStatus",
+    "GenericMark",
+    "IllustrativeMark",
+    "EmbeddedSolution",
+    "SourceQuestion",
+    # Execution metadata models
+    "ExecutionManifest",
+    "ExecutionLog",
+    "ExecutionStage",
+    "ExecutionTotals",
+    "FinalResult",
+    "InputContext",
+    "QuestionContext",
+    "SourceExtraction",
+    "AgentConfig",
+    "BatchContext",
+    "CommandContext",
+    "OutputMetrics",
+    "QualityMetrics",
+    "ExecutionMetrics",
+    "StageTokens",
+    "StageResult",
+    "ExecutionStatus",
+    "StageStatus",
+    # Batch metadata models
+    "BatchManifest",
+    "BatchProgress",
+    "BatchCounts",
+    "CurrentProcessing",
+    "LastCompleted",
+    "FailedQuestions",
+    "FailedQuestion",
+    "BatchFilter",
+    "BatchScope",
+    "BatchConfig",
+    "BatchStatus",
+    # File constants
+    "EXECUTION_MANIFEST_FILE",
+    "EXECUTION_LOG_FILE",
+    "FINAL_RESULT_FILE",
+    "BATCH_MANIFEST_FILE",
+    "BATCH_PROGRESS_FILE",
+    "FAILED_QUESTIONS_FILE",
+]

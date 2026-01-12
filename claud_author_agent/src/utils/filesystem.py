@@ -21,14 +21,24 @@ class IsolatedFilesystem:
     Creates a context-specific workspace structure that persists across agent executions
     and can optionally be preserved after completion for debugging.
 
+    Supports nested workspaces for batch processing where individual question workspaces
+    live under a parent batch directory.
+
     Attributes:
         execution_id: Unique identifier for this execution
         persist: Whether to preserve workspace after completion
-        workspace_type: Type of workspace (sow_author, migration, diagram, lesson_author)
+        workspace_type: Type of workspace (sow_author, migration, diagram, lesson_author, walkthrough_author)
+        parent_dir: Optional parent directory for nested workspaces (e.g., batch folder)
         root: Path to the workspace root directory
     """
 
-    def __init__(self, execution_id: str, persist: bool = True, workspace_type: str = "sow_author"):
+    def __init__(
+        self,
+        execution_id: str,
+        persist: bool = True,
+        workspace_type: str = "sow_author",
+        parent_dir: Optional[Path] = None
+    ):
         """Initialize isolated filesystem.
 
         Args:
@@ -39,10 +49,15 @@ class IsolatedFilesystem:
                 - "migration": Lesson migration workspace
                 - "diagram": Diagram generation workspace
                 - "lesson_author": Lesson authoring workspace
+                - "walkthrough_author": Walkthrough authoring workspace
+            parent_dir: Optional parent directory path. If provided, workspace is created
+                as a subdirectory of parent_dir (for nested batch workspaces).
+                If None, workspace is created in default location.
         """
         self.execution_id = execution_id
         self.persist = persist
         self.workspace_type = workspace_type
+        self.parent_dir = Path(parent_dir) if parent_dir else None
         self.root: Optional[Path] = None
 
     def __enter__(self) -> "IsolatedFilesystem":
@@ -322,6 +337,51 @@ Total: 13 questions × N blocks
 The `/workspace/` path is mapped to: `{self.root}`
 """
 
+        elif self.workspace_type == "walkthrough_author":
+            batch_info = ""
+            if self.parent_dir:
+                batch_info = f"""
+## Batch Context
+This workspace is NESTED under batch directory: `{self.parent_dir}`
+All question workspaces for this batch live under the same parent folder.
+"""
+            return f"""# Walkthrough Author Workspace - Execution {self.execution_id}
+
+## Purpose
+Generate examiner-aligned step-by-step walkthrough for SQA past paper question.
+{batch_info}
+## Workspace Structure
+
+### Metadata Files (for observability/debug/resume)
+- `execution_manifest.json` - Full execution context written at START
+- `execution_log.json` - Step-by-step progress updated during pipeline
+- `final_result.json` - Final outcome with metrics written at END
+
+### Input Files (Pre-populated by Python extraction)
+- `walkthrough_source.json` - Question + marking scheme data
+- `paper_context.json` - General marking principles and formulae
+
+### Output Files (Created by Subagents)
+- `walkthrough_template.json` - Generated walkthrough (populated by agents)
+- `walkthrough_critic_result.json` - Validation results from critic
+
+## Walkthrough Authoring Pipeline
+
+1. **Pre-processing (Python)** → Extract question, create manifest, write source files
+2. **Walkthrough Author Subagent** → Generate step-by-step walkthrough
+3. **Common Errors Subagent** → Add realistic common errors
+4. **Walkthrough Critic Subagent** → Validate alignment and quality
+5. **Post-processing (Python)** → Write final_result, upsert to Appwrite
+
+## Key Files for Debugging
+
+- `execution_manifest.json` - Contains paper_id, question_number, CLI args
+- `execution_log.json` - Shows which stage failed and when
+- `final_result.json` - Success/failure status and metrics
+
+The `/workspace/` path is mapped to: `{self.root}`
+"""
+
         else:
             # Generic fallback for unknown workspace types
             return f"""# Agent Workspace - Execution {self.execution_id}
@@ -339,24 +399,31 @@ The `/workspace/` path is mapped to: `{self.root}`
     def setup(self) -> Path:
         """Create workspace directory and initialize context-specific README.
 
+        If parent_dir was provided during initialization, the workspace is created
+        as a nested subdirectory under that parent (for batch processing).
+        Otherwise, workspace is created in the default location.
+
         Returns:
             Path to the workspace root directory
 
         Raises:
             OSError: If directory creation fails
         """
-        # Get project root (claud_author_agent/)
-        project_root = Path(__file__).parent.parent.parent
-        workspace_base = project_root / "workspace"
+        if self.parent_dir:
+            # NESTED: Create workspace under parent directory (batch mode)
+            # Ensure parent exists
+            self.parent_dir.mkdir(parents=True, exist_ok=True)
+            self.root = self.parent_dir / self.execution_id
+            logger.info(f"Creating nested workspace under batch: {self.parent_dir}")
+        else:
+            # STANDALONE: Create in default location
+            project_root = Path(__file__).parent.parent.parent
+            workspace_base = project_root / "workspace"
+            workspace_base.mkdir(parents=True, exist_ok=True)
+            self.root = workspace_base / self.execution_id
 
-        # Create workspace base directory if it doesn't exist
-        workspace_base.mkdir(parents=True, exist_ok=True)
-
-        # Create execution-specific subfolder
-        self.root = workspace_base / self.execution_id
         self.root.mkdir(parents=True, exist_ok=True)
-
-        logger.info(f"Created workspace: {self.root} (type: {self.workspace_type})")
+        logger.info(f"Created workspace: {self.root} (type: {self.workspace_type}, nested: {self.parent_dir is not None})")
 
         # Write context-specific README to document workspace structure
         readme_path = self.root / "README.md"

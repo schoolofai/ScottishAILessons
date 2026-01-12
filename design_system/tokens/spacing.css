@@ -1,0 +1,224 @@
+/**
+ * Scottish AI Lessons - Spacing Design Tokens
+ *
+ * A consistent spacing scale for layouts, components, and content.
+ * Based on a 4px grid system for pixel-perfect alignment.
+ */
+
+:root {
+  /* ═══════════════════════════════════════════════════════════════
+   * Base Spacing Scale
+   * Based on 4px increments (0.25rem)
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --space-0: 0;
+  --space-px: 1px;
+  --space-0-5: 0.125rem;   /* 2px */
+  --space-1: 0.25rem;      /* 4px */
+  --space-1-5: 0.375rem;   /* 6px */
+  --space-2: 0.5rem;       /* 8px */
+  --space-2-5: 0.625rem;   /* 10px */
+  --space-3: 0.75rem;      /* 12px */
+  --space-3-5: 0.875rem;   /* 14px */
+  --space-4: 1rem;         /* 16px */
+  --space-5: 1.25rem;      /* 20px */
+  --space-6: 1.5rem;       /* 24px */
+  --space-7: 1.75rem;      /* 28px */
+  --space-8: 2rem;         /* 32px */
+  --space-9: 2.25rem;      /* 36px */
+  --space-10: 2.5rem;      /* 40px */
+  --space-11: 2.75rem;     /* 44px */
+  --space-12: 3rem;        /* 48px */
+  --space-14: 3.5rem;      /* 56px */
+  --space-16: 4rem;        /* 64px */
+  --space-20: 5rem;        /* 80px */
+  --space-24: 6rem;        /* 96px */
+  --space-28: 7rem;        /* 112px */
+  --space-32: 8rem;        /* 128px */
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Component Spacing Tokens
+   * Semantic tokens for consistent component spacing
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Inline spacing (between text elements) */
+  --space-inline-xs: var(--space-1);      /* 4px */
+  --space-inline-sm: var(--space-2);      /* 8px */
+  --space-inline-md: var(--space-3);      /* 12px */
+  --space-inline-lg: var(--space-4);      /* 16px */
+
+  /* Stack spacing (vertical between elements) */
+  --space-stack-xs: var(--space-1);       /* 4px */
+  --space-stack-sm: var(--space-2);       /* 8px */
+  --space-stack-md: var(--space-4);       /* 16px */
+  --space-stack-lg: var(--space-6);       /* 24px */
+  --space-stack-xl: var(--space-8);       /* 32px */
+
+  /* Inset spacing (padding inside containers) */
+  --space-inset-xs: var(--space-2);       /* 8px */
+  --space-inset-sm: var(--space-3);       /* 12px */
+  --space-inset-md: var(--space-4);       /* 16px */
+  --space-inset-lg: var(--space-6);       /* 24px */
+  --space-inset-xl: var(--space-8);       /* 32px */
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Layout Spacing Tokens
+   * For page layouts and major sections
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Page margins */
+  --layout-margin-mobile: var(--space-4);    /* 16px */
+  --layout-margin-tablet: var(--space-6);    /* 24px */
+  --layout-margin-desktop: var(--space-8);   /* 32px */
+
+  /* Section spacing */
+  --layout-section-sm: var(--space-8);       /* 32px */
+  --layout-section-md: var(--space-12);      /* 48px */
+  --layout-section-lg: var(--space-16);      /* 64px */
+
+  /* Container max widths */
+  --container-xs: 20rem;      /* 320px */
+  --container-sm: 24rem;      /* 384px */
+  --container-md: 28rem;      /* 448px */
+  --container-lg: 32rem;      /* 512px */
+  --container-xl: 36rem;      /* 576px */
+  --container-2xl: 42rem;     /* 672px */
+  --container-3xl: 48rem;     /* 768px */
+  --container-4xl: 56rem;     /* 896px */
+  --container-5xl: 64rem;     /* 1024px */
+  --container-6xl: 72rem;     /* 1152px */
+  --container-7xl: 80rem;     /* 1280px */
+  --container-full: 100%;
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Gap Tokens (for flex/grid layouts)
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --gap-xs: var(--space-1);     /* 4px - Tight grouping */
+  --gap-sm: var(--space-2);     /* 8px - Icon + text */
+  --gap-md: var(--space-3);     /* 12px - Standard items */
+  --gap-lg: var(--space-4);     /* 16px - Section items */
+  --gap-xl: var(--space-6);     /* 24px - Major sections */
+  --gap-2xl: var(--space-8);    /* 32px - Page sections */
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Border Radius
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --radius-none: 0;
+  --radius-sm: 0.25rem;         /* 4px - Subtle rounding */
+  --radius-md: 0.375rem;        /* 6px - Default */
+  --radius-lg: 0.5rem;          /* 8px - Cards */
+  --radius-xl: 0.75rem;         /* 12px - Large cards */
+  --radius-2xl: 1rem;           /* 16px - Panels */
+  --radius-3xl: 1.5rem;         /* 24px - Modals */
+  --radius-full: 9999px;        /* Pill shape */
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Split Panel Layout Tokens
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Sidebar dimensions */
+  --sidebar-width-default: 280px;
+  --sidebar-width-min: 200px;
+  --sidebar-width-max: 400px;
+  --sidebar-width-collapsed: 60px;
+
+  /* Header dimensions */
+  --header-height: 64px;
+  --header-height-mobile: 56px;
+
+  /* Content panel */
+  --content-max-width: var(--container-4xl);
+  --content-padding: var(--space-6);
+  --content-padding-mobile: var(--space-4);
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Z-Index Scale
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --z-below: -1;
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 20;
+  --z-sticky: 30;
+  --z-header: 40;
+  --z-overlay: 50;
+  --z-modal: 60;
+  --z-popover: 70;
+  --z-tooltip: 80;
+  --z-max: 9999;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Responsive Breakpoints (as custom properties)
+ * ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Utility Classes for Common Patterns
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* Full-height viewport with flex column */
+.layout-viewport {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scrollable content area */
+.layout-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Centered container */
+.layout-container {
+  max-width: var(--container-6xl);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--layout-margin-mobile);
+  padding-right: var(--layout-margin-mobile);
+}
+
+@media (min-width: 768px) {
+  .layout-container {
+    padding-left: var(--layout-margin-tablet);
+    padding-right: var(--layout-margin-tablet);
+  }
+}
+
+@media (min-width: 1024px) {
+  .layout-container {
+    padding-left: var(--layout-margin-desktop);
+    padding-right: var(--layout-margin-desktop);
+  }
+}
+
+/* Split panel layout */
+.layout-split {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.layout-split-sidebar {
+  width: var(--sidebar-width-default);
+  min-width: var(--sidebar-width-min);
+  max-width: var(--sidebar-width-max);
+  border-right: 1px solid var(--wizard-border);
+  overflow-y: auto;
+}
+
+.layout-split-content {
+  flex: 1;
+  overflow-y: auto;
+}
