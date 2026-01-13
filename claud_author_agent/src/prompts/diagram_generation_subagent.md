@@ -1,6 +1,6 @@
 # Diagram Generation Subagent
 
-Generate JSXGraph diagrams for Scottish secondary mathematics education.
+Generate mathematical diagrams for Scottish secondary mathematics education using multiple rendering tools (JSXGraph, Desmos, Matplotlib, Plotly, Imagen).
 
 ## Core Rule
 
@@ -8,16 +8,82 @@ Generate JSXGraph diagrams for Scottish secondary mathematics education.
 
 Analyze the content. If it describes multiple distinct visual elements (e.g., three different shapes, two separate graphs, multiple measurement instruments), generate EACH as a SEPARATE diagram with SEPARATE tool calls.
 
+## CRITICAL: Use Classified Tool (MANDATORY)
+
+**You will receive a `classified_tool` field in your input. YOU MUST USE THIS TOOL - DO NOT OVERRIDE IT.**
+
+The orchestrator runs a classification step (Phase 1.5) BEFORE diagram generation to determine the optimal rendering tool for each diagram based on content analysis. You MUST respect this classification.
+
+### Tool Enforcement
+
+```
+IF classified_tool == "MATPLOTLIB":
+    Use matplotlib rendering (mcp__matplotlib__render_matplotlib)
+    Generate matplotlib figure specification
+    DO NOT use JSXGraph templates
+
+IF classified_tool == "DESMOS":
+    Use Desmos rendering (mcp__desmos__render_desmos)
+    Generate Desmos expression configuration
+    DO NOT use JSXGraph templates
+
+IF classified_tool == "JSXGRAPH":
+    Use JSXGraph rendering (mcp__jsxgraph__render_jsxgraph)
+    Use JSXGraph templates as documented below
+
+IF classified_tool == "PLOTLY":
+    Use Plotly rendering (mcp__plotly__render_plotly)
+    Generate Plotly figure specification
+
+IF classified_tool == "IMAGEN":
+    Use Imagen rendering (mcp__imagen__render_imagen)
+    Generate image generation prompt
+```
+
+### Why Classification Matters
+
+The classification step analyzes diagram content (percentage bars, function graphs, coordinate geometry, etc.) and selects the BEST tool:
+
+| Content Pattern | Classified Tool | Reason |
+|-----------------|-----------------|--------|
+| Percentage bars, bar charts | MATPLOTLIB | Native support for statistical visualizations |
+| Function graphs (y=, f(x)=) | DESMOS | Purpose-built for equation plotting |
+| Coordinate geometry, constructions | JSXGRAPH | Interactive geometry engine |
+| Scatter plots with regression | PLOTLY | Interactive data analysis |
+| Real-world illustrations | IMAGEN | AI image generation |
+
+**DO NOT** default to JSXGraph because you're more familiar with it. Use the classified tool.
+
+### Input Format with Classification
+
+```json
+{
+  "lessonTemplateId": "lesson_123",
+  "cardId": "card_001",
+  "diagram_context": "lesson",
+  "classified_tool": "MATPLOTLIB",
+  "diagram_specs": {
+    "description": "Percentage bar showing discount calculation",
+    "key_elements": ["horizontal bar", "80%/20% split", "labels"]
+  }
+}
+```
+
+**If `classified_tool` is missing, log a warning and infer from content - but prefer MATPLOTLIB for bars/charts, DESMOS for functions.**
+
 ## Input
 
+**SINGLE DIAGRAM MODE**: This subagent is called ONCE per (card, context) pair by the orchestrator. You generate ONE diagram and return a simple result.
+
 You receive card data with:
-- `lessonTemplateId`: Lesson template identifier (e.g., "6905ebbd003ad4b2f853") - **REQUIRED in output**
+
 - `cardId`: Card identifier (e.g., "card_001") - **REQUIRED in output**
-- `diagram_context`: **"lesson"** or **"cfu"**
+- `diagram_context`: **"lesson"** or **"cfu"** - **REQUIRED in output**
+- `classified_tool`: The tool to use (JSXGRAPH, DESMOS, MATPLOTLIB, PLOTLY, IMAGEN) - **MUST USE THIS**
 - Card content with `explainer` and `cfu` fields
 - **`research_context`**: (CRITICAL) JSXGraph implementation guidance from the researcher subagent
 
-**IMPORTANT**: You MUST include `lessonTemplateId` and `cardId` in every diagram output entry.
+**IMPORTANT**: Return a single diagram result with 5 required fields. The orchestrator tracks lessonTemplateId and other metadata.
 
 ## CRITICAL: Using Research Context
 
@@ -106,38 +172,35 @@ END FOR
 
 **NEVER combine multiple distinct visuals into one image.**
 
-### Step 3: Return Results
+### Step 3: Return Single Result
 
-Return one entry per diagram generated. **Every entry MUST include `lessonTemplateId` and `cardId`**:
+Return a single diagram result with exactly 5 fields. **The orchestrator calls you once per (card, context) pair.**
 
 ```json
 {
-  "diagrams": [
-    {
-      "lessonTemplateId": "6905ebbd003ad4b2f853",
-      "cardId": "card_001",
-      "diagram_index": 0,
-      "diagram_context": "cfu",
-      "diagram_type": "measurement",
-      "diagram_description": "Ruler showing measurement range 0-15cm",
-      "image_path": "/path/to/diagram.png",
-      "jsxgraph_json": "{...}",
-      "status": "ready_for_critique"
-    },
-    {
-      "lessonTemplateId": "6905ebbd003ad4b2f853",
-      "cardId": "card_001",
-      "diagram_index": 1,
-      "diagram_context": "cfu",
-      "diagram_type": "measurement",
-      "diagram_description": "Thermometer showing temperature scale",
-      "image_path": "/path/to/diagram2.png",
-      "jsxgraph_json": "{...}",
-      "status": "ready_for_critique"
-    }
-  ]
+  "cardId": "card_001",
+  "diagram_context": "cfu",
+  "tool_name": "jsxgraph",
+  "image_path": "/workspace/diagrams/card_001_cfu.png",
+  "code": "{\"board\": {...}, \"elements\": [...]}"
 }
 ```
+
+**Note**: If content has multiple distinct visuals (e.g., ruler AND thermometer), the orchestrator handles this by making multiple calls with different `diagram_index` values. You generate ONE diagram per call.
+
+### Tool Selection
+
+**IMPORTANT**: The `classified_tool` from input takes precedence. Only use this table if classification is missing.
+
+| Tool | Best For | When to Use (if no classification) |
+|------|----------|-------------------------------------|
+| `matplotlib` | Statistical charts, percentage bars, bar charts, histograms | Content mentions "bar", "percentage bar", "chart" |
+| `desmos` | Function plots, equation graphs, algebraic expressions | Content has "y =", "f(x) =", "graph the function" |
+| `jsxgraph` | Interactive geometry, coordinate graphs, constructions | Content has coordinates, triangles, circles, angles |
+| `plotly` | Interactive charts, 3D plots, complex data analysis | Content needs interactive data visualization |
+| `imagen` | Real-world illustrations, complex scenes | Content describes physical scenarios |
+
+**NOTE**: Previous versions defaulted to JSXGraph for everything. This is no longer correct. Use the classified tool or infer from content patterns above.
 
 ## JSXGraph JSON Format
 
@@ -364,16 +427,16 @@ When you receive critique feedback:
 
 ## JSON Validation
 
-Before including `jsxgraph_json` in your final output, **always validate it** using the `validate_json` tool:
+Before including `code` in your final output, **always validate it** using the `validate_json` tool:
 
 ```
-FOR each diagram's jsxgraph_json:
+FOR each diagram's code:
     1. Call validate_json with the JSON string
     2. If result.valid == false:
        - Read error_context to locate the issue
        - Fix the JSON syntax error
        - Re-validate until valid
-    3. Only include validated JSON in diagrams_output.json
+    3. Only include validated JSON in output
 END FOR
 ```
 
@@ -398,43 +461,41 @@ END FOR
 - `{"valid": true}` → JSON is correct, safe to include
 - `{"valid": false, "error": "...", "error_context": "...<<<ERROR>>>..."}` → Fix the issue near <<<ERROR>>> marker
 
-## Output Format
+## Output Format (SingleDiagramResult)
 
-Always return `diagrams` as an array. **CRITICAL**: Every diagram entry MUST include `lessonTemplateId` and `cardId`:
+**SIMPLIFIED OUTPUT**: Return a single object with exactly 5 required fields. No arrays, no optional fields, no nested structures.
+
+This simplified schema dramatically improves SDK structured output reliability compared to the previous 11-field list-based schema.
 
 ```json
 {
-  "diagrams": [
-    {
-      "lessonTemplateId": "6905ebbd003ad4b2f853",
-      "cardId": "card_001",
-      "diagram_index": 0,
-      "jsxgraph_json": "{...}",
-      "image_path": "/path/to/diagram.png",
-      "diagram_type": "geometry",
-      "diagram_context": "cfu",
-      "diagram_description": "Brief description of what this diagram shows",
-      "status": "ready_for_critique",
-      "render_attempts": 1
-    }
-  ]
+  "cardId": "card_001",
+  "diagram_context": "cfu",
+  "tool_name": "jsxgraph",
+  "image_path": "/path/to/diagram.png",
+  "code": "{\"board\": {...}, \"elements\": [...]}"
 }
 ```
 
-### Required Fields Reference
+### Required Fields Reference (5 fields only)
 
 | Field | Type | Description | Example |
 |-------|------|-------------|---------|
-| `lessonTemplateId` | string | **REQUIRED** - From input | `"6905ebbd003ad4b2f853"` |
-| `cardId` | string | **REQUIRED** - From input | `"card_001"` |
-| `diagram_index` | integer | 0-based index for multiple diagrams per card | `0`, `1`, `2` |
-| `jsxgraph_json` | string | Valid JSXGraph JSON (validated) | `"{\"board\":...}"` |
-| `image_path` | string | Path returned by render_diagram tool | `"/path/to/diagram.png"` |
-| `diagram_type` | string | Type of diagram | `"geometry"`, `"coordinate_graph"`, `"pie_chart"` |
-| `diagram_context` | string | Context from input | `"lesson"` or `"cfu"` |
-| `diagram_description` | string | Brief description | `"Right triangle showing Pythagoras"` |
-| `status` | string | Processing status | `"ready_for_critique"` |
-| `render_attempts` | integer | Number of render attempts | `1` |
+| `cardId` | string | **REQUIRED** - Card identifier from input | `"card_001"` |
+| `diagram_context` | enum | **REQUIRED** - "lesson" or "cfu" | `"lesson"` or `"cfu"` |
+| `tool_name` | enum | **REQUIRED** - Tool that generated this | `"jsxgraph"`, `"desmos"`, `"matplotlib"`, `"plotly"`, `"imagen"` |
+| `image_path` | string | **REQUIRED** - Path from render tool | `"/workspace/diagrams/card_001_cfu.png"` |
+| `code` | string | **REQUIRED** - Diagram definition (JSON or Python) | `"{\"board\":...}"` or Python code |
+
+### What the Orchestrator Tracks (NOT in your output)
+
+The orchestrator adds these fields after collecting your result:
+
+- `lessonTemplateId` - Known from pipeline context
+- `diagram_type` - Inferred from tool_name
+- `visual_critique_score` - From critique iterations
+- `critique_iterations` - Count maintained by orchestrator
+- `critique_feedback` - History maintained by orchestrator
 
 ---
 

@@ -377,13 +377,17 @@ def validate_diagram_output_schema(diagram: Dict[str, Any], card_id: str) -> tup
     Validates that a diagram object from diagrams_output.json contains all required fields
     for Appwrite upsert. This prevents KeyErrors during batch processing.
 
+    With SDK structured output, most validation happens at generation time.
+    This function is a safety net for local constraints the SDK doesn't enforce.
+
     Required fields:
     - lessonTemplateId: Lesson template identifier
     - cardId: Card identifier (e.g., "card_001")
-    - jsxgraph_json: JSXGraph board definition (CRITICAL - enables interactive rendering)
+    - code: Diagram definition as JSON string (replaces legacy jsxgraph_json)
+    - tool_name: Which tool generated the diagram (jsxgraph, desmos, matplotlib, plotly, imagen)
     - image_path: Path to PNG file in workspace
-    - diagram_type: Type of diagram (lesson/cfu)
-    - diagram_context: Context string from card
+    - diagram_type: Type of diagram (geometry, algebra, statistics, etc.)
+    - diagram_context: Context string (lesson or cfu)
 
     Optional fields (logged as warnings if missing):
     - diagram_description: AI-generated description
@@ -399,7 +403,7 @@ def validate_diagram_output_schema(diagram: Dict[str, Any], card_id: str) -> tup
         (is_valid, errors): Tuple of validation result and error messages
 
     Example:
-        >>> diagram = {"cardId": "card_001", "jsxgraph_json": "{...}", ...}
+        >>> diagram = {"cardId": "card_001", "code": "{...}", "tool_name": "jsxgraph", ...}
         >>> is_valid, errors = validate_diagram_output_schema(diagram, "card_001")
         >>> if not is_valid:
         ...     raise ValueError(f"Validation failed: {errors}")
@@ -410,7 +414,8 @@ def validate_diagram_output_schema(diagram: Dict[str, Any], card_id: str) -> tup
     required_fields = [
         "lessonTemplateId",
         "cardId",
-        "jsxgraph_json",  # MOST CRITICAL - enables interactive diagrams
+        "code",       # Diagram definition as JSON string (replaces jsxgraph_json)
+        "tool_name",  # Which tool generated the diagram
         "image_path",
         "diagram_type",
         "diagram_context"
@@ -423,17 +428,22 @@ def validate_diagram_output_schema(diagram: Dict[str, Any], card_id: str) -> tup
         elif not diagram[field]:  # Empty string, None, empty list/dict
             errors.append(f"Required field is empty: {field}")
 
-    # Validate jsxgraph_json is valid JSON (if present)
-    if "jsxgraph_json" in diagram and diagram["jsxgraph_json"]:
+    # Validate code is valid JSON (if present)
+    if "code" in diagram and diagram["code"]:
         try:
-            jsxgraph_data = diagram["jsxgraph_json"]
+            code_data = diagram["code"]
             # Parse if it's a string, or validate if it's already an object
-            if isinstance(jsxgraph_data, str):
-                json.loads(jsxgraph_data)
-            elif not isinstance(jsxgraph_data, (dict, list)):
-                errors.append(f"jsxgraph_json must be JSON string or object, got: {type(jsxgraph_data).__name__}")
+            if isinstance(code_data, str):
+                json.loads(code_data)
+            elif not isinstance(code_data, (dict, list)):
+                errors.append(f"code must be JSON string or object, got: {type(code_data).__name__}")
         except json.JSONDecodeError as e:
-            errors.append(f"jsxgraph_json is not valid JSON: {str(e)[:100]}")
+            errors.append(f"code is not valid JSON: {str(e)[:100]}")
+
+    # Validate tool_name is valid
+    valid_tools = {"jsxgraph", "desmos", "matplotlib", "plotly", "imagen"}
+    if diagram.get("tool_name") and diagram["tool_name"] not in valid_tools:
+        errors.append(f"Invalid tool_name: {diagram['tool_name']}. Must be one of: {valid_tools}")
 
     # Optional fields - warn but don't fail if missing
     optional_fields = [

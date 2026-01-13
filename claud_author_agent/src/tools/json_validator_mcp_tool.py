@@ -59,7 +59,7 @@ def _get_error_context(json_string: str, position: int, context_chars: int = 40)
     {
         "json_string": {
             "type": "string",
-            "description": "The JSON string to validate",
+            "description": "The JSON string to validate (can also accept a dict which will be converted)",
             "required": True
         }
     }
@@ -68,7 +68,7 @@ def validate_json(json_string: str) -> Dict[str, Any]:
     """Validate a JSON string and return detailed error information.
 
     Args:
-        json_string: The JSON string to validate
+        json_string: The JSON string to validate (also accepts dict which will be converted)
 
     Returns:
         MCP-formatted response with validation result:
@@ -76,6 +76,13 @@ def validate_json(json_string: str) -> Dict[str, Any]:
         - Invalid: {"valid": false, "error": "...", "error_position": N, "error_context": "..."}
     """
     try:
+        # Handle dict input by converting to string first
+        if isinstance(json_string, dict):
+            # If it's already a dict, it's valid JSON structure
+            # Convert to string for consistent validation
+            json_string = json.dumps(json_string)
+            logger.debug("Converted dict input to JSON string for validation")
+
         # Handle empty or None input
         if not json_string:
             result = {

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Batch Diagram Generator CLI - Generate diagrams for all lessons in a course.
+"""Batch Diagram Generator CLI - Generate diagrams for lessons in a course.
 
-Supports two modes:
-1. Single lesson mode: --courseId + --order (delegates to existing diagram_author_cli)
-2. Batch mode: --courseId only (processes all lessons in course)
+Supports three modes:
+1. Single lesson mode: --order 5 (delegates to existing diagram_author_cli)
+2. Cherry-pick mode: --order 1,2,3,4 or --order 1-5 (processes selected lessons)
+3. All lessons mode: no --order flag (processes all lessons in course)
 
 Key features:
 - Dry-run preview with estimates
@@ -20,8 +21,14 @@ Usage:
     # Generate diagrams for all lessons (executes immediately)
     python -m src.batch_diagram_generator --courseId course_c84874
 
-    # Force regenerate all diagrams (deletes and recreates)
-    python -m src.batch_diagram_generator --courseId course_c84874 --force
+    # Cherry-pick specific lessons (comma-separated)
+    python -m src.batch_diagram_generator --courseId course_c84874 --order 1,2,3,4
+
+    # Cherry-pick with range syntax
+    python -m src.batch_diagram_generator --courseId course_c84874 --order 1-5,8,10
+
+    # Force regenerate for specific lessons
+    python -m src.batch_diagram_generator --courseId course_c84874 --order 1,2,3 --force
 
     # Single lesson mode (delegates to existing CLI)
     python -m src.batch_diagram_generator --courseId course_c84874 --order 5
@@ -33,7 +40,7 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 
 from dotenv import load_dotenv
 
@@ -48,6 +55,51 @@ RED = '\033[91m'
 YELLOW = '\033[93m'
 BLUE = '\033[94m'
 RESET = '\033[0m'
+
+
+def parse_order_string(order_str: str) -> List[int]:
+    """Parse order string into list of integers.
+
+    Supports:
+    - Single: "5" → [5]
+    - Comma-separated: "1,2,3,4" → [1, 2, 3, 4]
+    - Range: "1-5" → [1, 2, 3, 4, 5]
+    - Mixed: "1,3,5-7" → [1, 3, 5, 6, 7]
+
+    Args:
+        order_str: String containing order specification
+
+    Returns:
+        Sorted list of unique order integers
+
+    Raises:
+        ValueError: If format is invalid or orders < 1
+    """
+    orders = set()
+    for part in order_str.split(','):
+        part = part.strip()
+        if '-' in part:
+            # Range: "1-5"
+            try:
+                start, end = part.split('-')
+                start, end = int(start.strip()), int(end.strip())
+            except ValueError as e:
+                raise ValueError(f"Invalid range format '{part}': {e}") from e
+            if start < 1 or end < 1:
+                raise ValueError(f"Order values must be >= 1, got range {start}-{end}")
+            if start > end:
+                raise ValueError(f"Invalid range: start ({start}) > end ({end})")
+            orders.update(range(start, end + 1))
+        else:
+            # Single: "5"
+            try:
+                order = int(part)
+            except ValueError as e:
+                raise ValueError(f"Invalid order value '{part}': {e}") from e
+            if order < 1:
+                raise ValueError(f"Order values must be >= 1, got {order}")
+            orders.add(order)
+    return sorted(orders)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -68,14 +120,20 @@ Examples:
   # Generate diagrams for all lessons (executes immediately)
   python -m src.batch_diagram_generator --courseId course_c84874
 
-  # Force regenerate all diagrams (deletes and recreates immediately)
-  python -m src.batch_diagram_generator --courseId course_c84874 --force
+  # Cherry-pick specific lessons (comma-separated)
+  python -m src.batch_diagram_generator --courseId course_c84874 --order 1,2,3,4
+
+  # Cherry-pick with range syntax
+  python -m src.batch_diagram_generator --courseId course_c84874 --order 1-5,8,10
+
+  # Force regenerate for specific lessons
+  python -m src.batch_diagram_generator --courseId course_c84874 --order 1,2,3 --force
 
   # Single lesson mode (delegates to existing diagram_author_cli)
   python -m src.batch_diagram_generator --courseId course_c84874 --order 5
 
 Note:
-  - Structure validates ALL lessons BEFORE starting (fast-fail, no LLM cost)
+  - Structure validates ALL selected lessons BEFORE starting (fast-fail, no LLM cost)
   - Skips lessons with existing diagrams (use --force to regenerate)
   - Dry-run mode shows structure validation only (fast, free)
   - Execution mode runs eligibility analysis PER LESSON, then generates
@@ -95,8 +153,8 @@ Note:
     # Optional arguments
     parser.add_argument(
         '--order',
-        type=int,
-        help="Single lesson order (if provided, delegates to diagram_author_cli)"
+        type=str,
+        help="Lesson order(s): single (5), comma-separated (1,2,3,4), or range (1-5)"
     )
 
     parser.add_argument(
@@ -151,11 +209,16 @@ async def run_single_lesson_mode(args: argparse.Namespace) -> int:
     return await diagram_author_main()
 
 
-async def run_batch_mode(args: argparse.Namespace) -> int:
-    """Execute batch diagram generation for all lessons.
+async def run_batch_mode(
+    args: argparse.Namespace,
+    selected_orders: Optional[List[int]] = None
+) -> int:
+    """Execute batch diagram generation for lessons.
 
     Args:
         args: Parsed command-line arguments
+        selected_orders: Optional list of specific lesson orders to process.
+                        If None, processes all lessons in the course.
 
     Returns:
         Exit code (0 = success, 1 = failure)
@@ -210,11 +273,26 @@ async def run_batch_mode(args: argparse.Namespace) -> int:
     try:
         # Step 1: Fetch lesson orders from SOW
         print(f"{BLUE}Step 1: Fetching lesson orders from SOW...{RESET}")
-        lesson_orders = await fetch_lesson_orders_from_sow(
+        all_lesson_orders = await fetch_lesson_orders_from_sow(
             course_id=args.courseId,
             mcp_config_path=args.mcp_config
         )
-        print(f"{GREEN}✅ Found {len(lesson_orders)} lessons in SOW{RESET}\n")
+        print(f"{GREEN}✅ Found {len(all_lesson_orders)} lessons in SOW{RESET}")
+
+        # Filter to selected orders if specified (cherry-pick mode)
+        if selected_orders:
+            available = set(all_lesson_orders)
+            requested = set(selected_orders)
+            invalid = requested - available
+            if invalid:
+                print(f"{RED}❌ Invalid order(s) not found in SOW: {sorted(invalid)}{RESET}")
+                print(f"{YELLOW}Available orders: {sorted(available)}{RESET}\n")
+                return 1
+            lesson_orders = [o for o in all_lesson_orders if o in requested]
+            print(f"{GREEN}✅ Filtered to {len(lesson_orders)} selected lessons: {lesson_orders}{RESET}\n")
+        else:
+            lesson_orders = all_lesson_orders
+            print()  # Add newline after SOW message
 
         # Step 2: Structure validation for ALL lessons (fast, free - no LLM)
         # This catches malformed lessons early before any expensive operations
@@ -432,12 +510,24 @@ async def main() -> int:
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
 
-        # Determine mode
+        # Determine mode based on --order argument
         if args.order:
-            # Single lesson mode: delegate to existing diagram_author_cli
-            return await run_single_lesson_mode(args)
+            # Parse the order string to determine single vs cherry-pick mode
+            try:
+                orders = parse_order_string(args.order)
+            except ValueError as e:
+                print(f"{RED}❌ Invalid --order format: {e}{RESET}\n")
+                return 1
+
+            if len(orders) == 1:
+                # Single lesson mode: delegate to existing diagram_author_cli
+                args.order = orders[0]  # Convert back to int for compatibility
+                return await run_single_lesson_mode(args)
+            else:
+                # Cherry-pick mode: process selected lessons
+                return await run_batch_mode(args, selected_orders=orders)
         else:
-            # Batch mode: process all lessons
+            # All lessons mode: process all lessons in course
             return await run_batch_mode(args)
 
     except KeyboardInterrupt:

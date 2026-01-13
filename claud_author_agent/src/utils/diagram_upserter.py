@@ -5,22 +5,26 @@ Provides functions for:
 2. Batch upsert for multiple diagrams
 3. Fast-fail error handling (no silent failures)
 
-Supports multiple rendering backends:
-- jsxgraph: Traditional JSXGraph JSON code + DiagramScreenshot rendering
-- gemini_nano: Direct PNG generation via Gemini Nano Banana Pro
+Supports multiple rendering tools:
+- jsxgraph: JSXGraph JSON code + DiagramScreenshot rendering
+- desmos: Desmos graph definitions
+- matplotlib: Python Matplotlib plots
+- plotly: Interactive Plotly charts
+- imagen: AI-generated images
 
 Collection Schema (default.lesson_diagrams):
     - lessonTemplateId (string, required): Foreign key to lesson_templates
     - cardId (string, required): Card identifier (e.g., "card_001")
-    - jsxgraph_json (string, optional): Serialized JSXGraph JSON (empty for gemini_nano)
-    - image_base64 (string, required): Base64-encoded PNG image
-    - diagram_type (string, required): geometry|algebra|statistics|mixed
+    - code (string, optional): Diagram definition as JSON string (replaces legacy jsxgraph_json)
+    - tool_name (string, required): Which tool generated the diagram (jsxgraph|desmos|matplotlib|plotly|imagen)
+    - jsxgraph_json (string, optional): Legacy field - populated with code value for backward compatibility
+    - image_file_id (string, required): Storage reference to PNG image
+    - diagram_type (string, required): geometry|algebra|statistics|mixed|science|geography|history
     - visual_critique_score (double, required): Final accepted score (0.0-1.0)
     - critique_iterations (integer, required): Number of refinement iterations (1-10)
     - critique_feedback (string, required): Serialized critique history (JSON)
     - execution_id (string, required): Unique generation execution ID
-    - rendering_backend (string, optional): "jsxgraph" or "gemini_nano" (default: jsxgraph)
-    - Unique index: (lessonTemplateId, cardId, diagram_context)
+    - Unique index: (lessonTemplateId, cardId, diagram_context, diagram_index)
 
 Usage:
     from diagram_upserter import upsert_lesson_diagram, batch_upsert_diagrams
@@ -29,7 +33,8 @@ Usage:
     diagram_doc = await upsert_lesson_diagram(
         lesson_template_id="lesson_template_001",
         card_id="card_002",
-        jsxgraph_json='{"board": {...}, "elements": [...]}',
+        code='{"board": {...}, "elements": [...]}',
+        tool_name="jsxgraph",
         image_base64="iVBORw0KGgoAAAANS...",
         diagram_type="geometry",
         visual_critique_score=0.87,
@@ -122,7 +127,8 @@ def normalize_diagram_type(diagram_type: str) -> str:
 async def upsert_lesson_diagram(
     lesson_template_id: str,
     card_id: str,
-    jsxgraph_json: Optional[str],
+    code: Optional[str],
+    tool_name: str,
     image_base64: str,
     diagram_type: str,
     visual_critique_score: float,
@@ -132,7 +138,6 @@ async def upsert_lesson_diagram(
     diagram_context: Optional[str] = None,
     diagram_description: Optional[str] = None,
     diagram_index: int = 0,
-    rendering_backend: str = "jsxgraph",
     mcp_config_path: str = ".mcp.json"
 ) -> Dict[str, Any]:
     """Upsert lesson diagram to Appwrite lesson_diagrams collection.
@@ -144,9 +149,10 @@ async def upsert_lesson_diagram(
     Args:
         lesson_template_id: Foreign key to lesson_templates
         card_id: Card identifier (e.g., "card_001", "card_002")
-        jsxgraph_json: Serialized JSXGraph JSON string (optional, empty for gemini_nano backend)
+        code: Diagram definition as JSON string (replaces legacy jsxgraph_json)
+        tool_name: Which tool generated the diagram (jsxgraph|desmos|matplotlib|plotly|imagen)
         image_base64: Base64-encoded PNG image
-        diagram_type: Diagram category (geometry|algebra|statistics|mixed)
+        diagram_type: Diagram category (geometry|algebra|statistics|mixed|science|geography|history)
         visual_critique_score: Final accepted score (0.0-1.0)
         critique_iterations: Number of refinement iterations (1-10)
         critique_feedback: List of VisualCritique dictionaries
@@ -154,7 +160,6 @@ async def upsert_lesson_diagram(
         diagram_context: Diagram usage context ("lesson" for explainer, "cfu" for assessment) - optional for backward compatibility
         diagram_description: Optional 1-2 sentence description for downstream LLMs
         diagram_index: Diagram index for multi-diagram cards (0-indexed, default 0 for backward compatibility)
-        rendering_backend: Rendering backend used ("jsxgraph" or "gemini_nano", default: jsxgraph)
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -174,14 +179,27 @@ async def upsert_lesson_diagram(
         raise ValueError("lessonTemplateId is required")
     if not card_id:
         raise ValueError("cardId is required")
-    # jsxgraph_json can be None/empty if JSON validation failed but image was generated
-    # This allows diagrams to be uploaded with static PNG even without interactive JSON
-    if not jsxgraph_json:
+    if not tool_name:
+        raise ValueError("tool_name is required")
+
+    # Validate tool_name enum
+    valid_tools = {"jsxgraph", "desmos", "matplotlib", "plotly", "imagen"}
+    if tool_name not in valid_tools:
+        raise ValueError(
+            f"Invalid tool_name '{tool_name}'. "
+            f"Must be one of: {', '.join(sorted(valid_tools))}"
+        )
+    logger.info(f"Tool name: {tool_name}")
+
+    # code can be None/empty if validation failed but image was generated
+    # This allows diagrams to be uploaded with static PNG even without interactive code
+    if not code:
         logger.warning(
-            f"⚠️ jsxgraph_json is empty/null for cardId={card_id} - "
+            f"⚠️ code is empty/null for cardId={card_id} - "
             f"diagram will be uploaded without interactive rendering capability"
         )
-        jsxgraph_json = ""  # Use empty string for Appwrite (null not allowed in string field)
+        code = ""  # Use empty string for Appwrite (null not allowed in string field)
+
     if not image_base64:
         raise ValueError("image_base64 is required")
     if not diagram_type:
@@ -191,7 +209,7 @@ async def upsert_lesson_diagram(
     diagram_type = normalize_diagram_type(diagram_type)
 
     # Validate diagram_type enum (should always pass after normalization)
-    valid_types = ["geometry", "algebra", "statistics", "mixed"]
+    valid_types = ["geometry", "algebra", "statistics", "mixed", "science", "geography", "history"]
     if diagram_type not in valid_types:
         raise ValueError(
             f"Invalid diagram_type '{diagram_type}'. "
@@ -207,15 +225,6 @@ async def upsert_lesson_diagram(
                 f"Must be one of: {', '.join(valid_contexts)} (or None for backward compatibility)"
             )
         logger.info(f"Diagram context: {diagram_context}")
-
-    # Validate rendering_backend
-    valid_backends = ["jsxgraph", "gemini_nano"]
-    if rendering_backend not in valid_backends:
-        raise ValueError(
-            f"Invalid rendering_backend '{rendering_backend}'. "
-            f"Must be one of: {', '.join(valid_backends)}"
-        )
-    logger.info(f"Rendering backend: {rendering_backend}")
 
     # Upload image to Appwrite Storage and get file ID
     logger.info("Uploading image to Appwrite Storage...")
@@ -282,14 +291,15 @@ async def upsert_lesson_diagram(
 
             # Prepare update data
             update_data = {
-                "jsxgraph_json": jsxgraph_json,
+                "code": code,  # Diagram definition as JSON string
+                "tool_name": tool_name,  # Which tool generated the diagram
+                "jsxgraph_json": code,  # Backward compatibility: copy code to legacy field
                 "image_file_id": image_file_id,  # Storage reference instead of base64
                 "diagram_type": diagram_type,
                 "visual_critique_score": visual_critique_score,
                 "critique_iterations": critique_iterations,
                 "critique_feedback": critique_feedback_json,
                 "execution_id": execution_id,
-                "rendering_backend": rendering_backend,  # Track which backend generated the image
                 "failure_reason": None  # Clear any previous failure reason on success
                 # lessonTemplateId, cardId, and diagram_index are immutable (not updated)
             }
@@ -333,14 +343,15 @@ async def upsert_lesson_diagram(
                 "lessonTemplateId": lesson_template_id,
                 "cardId": card_id,
                 "diagram_index": diagram_index,  # Add diagram_index for multi-diagram support
-                "jsxgraph_json": jsxgraph_json,
+                "code": code,  # Diagram definition as JSON string
+                "tool_name": tool_name,  # Which tool generated the diagram
+                "jsxgraph_json": code,  # Backward compatibility: copy code to legacy field
                 "image_file_id": image_file_id,  # Storage reference instead of base64
                 "diagram_type": diagram_type,
                 "visual_critique_score": visual_critique_score,
                 "critique_iterations": critique_iterations,
                 "critique_feedback": critique_feedback_json,
                 "execution_id": execution_id,
-                "rendering_backend": rendering_backend,  # Track which backend generated the image
                 "failure_reason": None  # No failure on successful creation
             }
 
@@ -392,7 +403,8 @@ async def batch_upsert_diagrams(
         diagrams_data: List of diagram data dictionaries with fields:
             - lesson_template_id (str)
             - card_id (str)
-            - jsxgraph_json (str)
+            - code (str): Diagram definition as JSON string
+            - tool_name (str): Which tool generated diagram (jsxgraph|desmos|matplotlib|plotly|imagen)
             - image_base64 (str)
             - diagram_type (str)
             - visual_critique_score (float)
@@ -402,7 +414,6 @@ async def batch_upsert_diagrams(
             - diagram_context (str, optional): "lesson" or "cfu" - context for diagram usage
             - diagram_description (str, optional): Brief description for downstream LLMs
             - diagram_index (int, optional): Diagram index for multi-diagram cards (default 0)
-            - rendering_backend (str, optional): "jsxgraph" or "gemini_nano" (default: jsxgraph)
         mcp_config_path: Path to MCP configuration file
 
     Returns:
@@ -440,7 +451,8 @@ async def batch_upsert_diagrams(
             doc = await upsert_lesson_diagram(
                 lesson_template_id=lesson_template_id,
                 card_id=card_id,
-                jsxgraph_json=diagram_data.get("jsxgraph_json"),  # Optional for gemini_nano
+                code=diagram_data.get("code"),  # Diagram definition as JSON string
+                tool_name=diagram_data["tool_name"],  # Required: which tool generated the diagram
                 image_base64=diagram_data["image_base64"],
                 diagram_type=diagram_data["diagram_type"],
                 visual_critique_score=diagram_data["visual_critique_score"],
@@ -450,7 +462,6 @@ async def batch_upsert_diagrams(
                 diagram_context=diagram_data.get("diagram_context"),  # Optional - may not be present
                 diagram_description=diagram_data.get("diagram_description"),  # Optional - brief description for LLMs
                 diagram_index=diagram_index,  # Pass diagram_index for multi-diagram support
-                rendering_backend=diagram_data.get("rendering_backend", "jsxgraph"),  # Default to jsxgraph
                 mcp_config_path=mcp_config_path
             )
 

@@ -126,6 +126,13 @@ Note:
         help="Path to MCP configuration file (default: .mcp.json)"
     )
 
+    # Force regeneration (deletes existing diagrams first)
+    parser.add_argument(
+        '--force',
+        action='store_true',
+        help="Force regenerate existing diagrams (deletes and recreates)"
+    )
+
     # US4 future: JSON file input (placeholder for US4)
     parser.add_argument(
         '--input',
@@ -279,6 +286,26 @@ async def main() -> int:
             return 1
 
         print(f"{GREEN}✅ DiagramScreenshot service is healthy at {health['url']}{RESET}\n")
+
+        # Handle --force flag: delete existing diagrams before regenerating
+        if args.force:
+            from .utils.diagram_cleanup import delete_existing_diagrams_for_lesson
+
+            print(f"{YELLOW}Force mode enabled: Deleting existing diagrams for lesson order {args.order}...{RESET}")
+            try:
+                delete_result = await delete_existing_diagrams_for_lesson(
+                    course_id=args.courseId,
+                    order=args.order,
+                    mcp_config_path=args.mcp_config
+                )
+                deleted_count = delete_result.get("deleted_count", 0)
+                if deleted_count > 0:
+                    print(f"{GREEN}✅ Deleted {deleted_count} existing diagram(s){RESET}\n")
+                else:
+                    print(f"{BLUE}No existing diagrams found to delete{RESET}\n")
+            except Exception as e:
+                print(f"{RED}❌ Failed to delete existing diagrams: {e}{RESET}")
+                print(f"{YELLOW}Continuing with generation anyway...{RESET}\n")
 
         # Initialize DiagramAuthorClaudeAgent
         print(f"{BLUE}Initializing Diagram Author Agent...{RESET}")

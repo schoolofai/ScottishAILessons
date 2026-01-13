@@ -81,7 +81,8 @@ async def delete_existing_diagrams_for_lesson(
         mcp_config_path=mcp_config_path
     )
 
-    diagram_docs = diagrams.get("documents", [])
+    # list_appwrite_documents returns a list directly, not a dict with "documents" key
+    diagram_docs = diagrams if isinstance(diagrams, list) else diagrams.get("documents", [])
 
     if len(diagram_docs) == 0:
         logger.info(f"No existing diagrams found for lesson order {order}")
