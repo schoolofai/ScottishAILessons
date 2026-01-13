@@ -13,7 +13,7 @@ import { getReviewRecommendations, getReviewStats, getUpcomingReviews } from "@/
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText, ClipboardList } from "lucide-react";
 import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import { CourseCard } from "../courses/CourseCard";
 import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
@@ -107,6 +107,12 @@ export function EnhancedStudentDashboard() {
   const [mockExamId, setMockExamId] = useState<string | null>(null);
   const [mockExamLoading, setMockExamLoading] = useState(false);
 
+  // Past papers availability state
+  const [pastPapersAvailable, setPastPapersAvailable] = useState<boolean>(false);
+  const [pastPapersSubject, setPastPapersSubject] = useState<string | null>(null);
+  const [pastPapersLevel, setPastPapersLevel] = useState<string | null>(null);
+  const [pastPapersLoading, setPastPapersLoading] = useState(false);
+
   useEffect(() => {
     initializeStudent();
   }, []);
@@ -174,6 +180,45 @@ export function EnhancedStudentDashboard() {
     };
 
     checkMockExamAvailability();
+  }, [activeCourse, student]);
+
+  // Check past papers availability when active course changes
+  useEffect(() => {
+    if (!activeCourse || !student) {
+      setPastPapersAvailable(false);
+      setPastPapersSubject(null);
+      setPastPapersLevel(null);
+      return;
+    }
+
+    const checkPastPapersAvailability = async () => {
+      try {
+        setPastPapersLoading(true);
+        const response = await fetch(`/api/past-papers/availability/${activeCourse}`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setPastPapersAvailable(data.available);
+          setPastPapersSubject(data.subjectSlug || null);
+          setPastPapersLevel(data.levelSlug || null);
+        } else {
+          setPastPapersAvailable(false);
+          setPastPapersSubject(null);
+          setPastPapersLevel(null);
+        }
+      } catch (error) {
+        // Silently fail - past papers will show as unavailable
+        setPastPapersAvailable(false);
+        setPastPapersSubject(null);
+        setPastPapersLevel(null);
+      } finally {
+        setPastPapersLoading(false);
+      }
+    };
+
+    checkPastPapersAvailability();
   }, [activeCourse, student]);
 
   // Prefetch subscription price for instant paywall modal display
@@ -872,6 +917,23 @@ export function EnhancedStudentDashboard() {
                   <FileText className="h-4 w-4" />
                 )}
                 Take Mock Exam
+              </Button>
+            )}
+            {/* Past Papers Button - shown only when past papers are available for active course */}
+            {pastPapersAvailable && pastPapersSubject && pastPapersLevel && (
+              <Button
+                variant="default"
+                onClick={() => router.push(`/past-papers/${encodeURIComponent(pastPapersSubject)}/${encodeURIComponent(pastPapersLevel)}`)}
+                disabled={pastPapersLoading}
+                className="gap-2 w-full sm:w-auto bg-purple-600 hover:bg-purple-700"
+                data-testid="browse-past-papers-button"
+              >
+                {pastPapersLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ClipboardList className="h-4 w-4" />
+                )}
+                Past Papers
               </Button>
             )}
             <Button

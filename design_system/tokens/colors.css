@@ -1,0 +1,191 @@
+/**
+ * Scottish AI Lessons - Color Design Tokens
+ *
+ * A gamified color palette inspired by Duolingo's learning interface,
+ * optimized for educational content and SQA level identification.
+ */
+
+:root {
+  /* ═══════════════════════════════════════════════════════════════
+   * Primary Palette - Gamified Learning
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Success / Primary Actions */
+  --wizard-green: #58CC02;
+  --wizard-green-light: #7ED321;
+  --wizard-green-dark: #46A302;
+  --wizard-green-bg: #E8F5E1;
+
+  /* Current / Active State */
+  --wizard-blue: #1CB0F6;
+  --wizard-blue-light: #4FC3F7;
+  --wizard-blue-dark: #0D8ECF;
+  --wizard-blue-bg: #E3F4FC;
+
+  /* Rewards / Achievements */
+  --wizard-gold: #FFC800;
+  --wizard-gold-light: #FFD84D;
+  --wizard-gold-dark: #E6B400;
+  --wizard-gold-bg: #FFF8E1;
+
+  /* Errors / Incorrect */
+  --wizard-red: #FF4B4B;
+  --wizard-red-light: #FF7373;
+  --wizard-red-dark: #E63939;
+  --wizard-red-bg: #FFE8E8;
+
+  /* ═══════════════════════════════════════════════════════════════
+   * SQA Level-based Color Coding
+   * Consistent identification across the platform
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* National 3 - Green (Foundational) */
+  --level-n3: #22C55E;
+  --level-n3-light: #4ADE80;
+  --level-n3-dark: #16A34A;
+  --level-n3-bg: #DCFCE7;
+
+  /* National 4 - Blue (Developing) */
+  --level-n4: #3B82F6;
+  --level-n4-light: #60A5FA;
+  --level-n4-dark: #2563EB;
+  --level-n4-bg: #DBEAFE;
+
+  /* National 5 - Purple (Standard) */
+  --level-n5: #8B5CF6;
+  --level-n5-light: #A78BFA;
+  --level-n5-dark: #7C3AED;
+  --level-n5-bg: #EDE9FE;
+
+  /* Higher - Orange (Advanced) */
+  --level-higher: #F97316;
+  --level-higher-light: #FB923C;
+  --level-higher-dark: #EA580C;
+  --level-higher-bg: #FFEDD5;
+
+  /* Advanced Higher - Red (Expert) */
+  --level-adv-higher: #EF4444;
+  --level-adv-higher-light: #F87171;
+  --level-adv-higher-dark: #DC2626;
+  --level-adv-higher-bg: #FEE2E2;
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Neutral Palette
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Text Colors */
+  --wizard-text: #3C3C3C;
+  --wizard-text-secondary: #555555;
+  --wizard-text-light: #777777;
+  --wizard-text-muted: #999999;
+  --wizard-text-disabled: #CCCCCC;
+
+  /* Background Colors */
+  --wizard-bg: #F8FAFC;
+  --wizard-bg-secondary: #F1F5F9;
+  --wizard-bg-tertiary: #E2E8F0;
+  --wizard-bg-white: #FFFFFF;
+
+  /* Border Colors */
+  --wizard-border: #E5E5E5;
+  --wizard-border-light: #F0F0F0;
+  --wizard-border-dark: #D0D0D0;
+  --wizard-border-focus: var(--wizard-blue);
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Semantic Colors
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Info */
+  --color-info: var(--wizard-blue);
+  --color-info-bg: var(--wizard-blue-bg);
+
+  /* Success */
+  --color-success: var(--wizard-green);
+  --color-success-bg: var(--wizard-green-bg);
+
+  /* Warning */
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FEF3C7;
+
+  /* Error */
+  --color-error: var(--wizard-red);
+  --color-error-bg: var(--wizard-red-bg);
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Gradient Backgrounds
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Main page background */
+  --bg-gradient-main: linear-gradient(
+    to bottom right,
+    #F8FAFC,
+    #ECFDF5,
+    #F0FDFA
+  );
+
+  /* Success state gradient */
+  --bg-gradient-success: linear-gradient(
+    to right,
+    #10B981,
+    #06B6D4
+  );
+
+  /* Info/Primary gradient */
+  --bg-gradient-info: linear-gradient(
+    to right,
+    #3B82F6,
+    #8B5CF6
+  );
+
+  /* Error state gradient */
+  --bg-gradient-error: linear-gradient(
+    to right,
+    #EF4444,
+    #F97316
+  );
+
+  /* Gold/reward gradient */
+  --bg-gradient-gold: linear-gradient(
+    to right,
+    #F59E0B,
+    #FFC800
+  );
+
+  /* Completed/celebration gradient */
+  --bg-gradient-celebration: linear-gradient(
+    to bottom right,
+    #ECFDF5,
+    #E0F2FE,
+    #EDE9FE
+  );
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Shadow Colors (with opacity)
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* Colored shadows for buttons */
+  --shadow-green: 0 4px 0 var(--wizard-green-dark), 0 4px 12px rgba(88, 204, 2, 0.2);
+  --shadow-blue: 0 4px 0 var(--wizard-blue-dark), 0 4px 12px rgba(28, 176, 246, 0.2);
+  --shadow-gold: 0 4px 0 var(--wizard-gold-dark), 0 4px 12px rgba(255, 200, 0, 0.2);
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Overlay Colors
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --overlay-light: rgba(255, 255, 255, 0.8);
+  --overlay-dark: rgba(0, 0, 0, 0.5);
+  --overlay-blur: rgba(248, 250, 252, 0.8);
+}
+
+/* Dark mode overrides (future) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Dark mode tokens would go here */
+  }
+}

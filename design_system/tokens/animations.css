@@ -1,0 +1,355 @@
+/**
+ * Scottish AI Lessons - Animation Design Tokens
+ *
+ * Smooth, purposeful animations for delightful interactions.
+ * Inspired by Duolingo's playful micro-interactions.
+ */
+
+:root {
+  /* ═══════════════════════════════════════════════════════════════
+   * Timing Functions (Easing)
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Custom easing for playful effects */
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Duration Scale
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --duration-slower: 700ms;
+  --duration-slowest: 1000ms;
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Transition Presets
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-normal: var(--duration-normal) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-out);
+
+  /* Specific property transitions */
+  --transition-colors: color var(--duration-fast) var(--ease-out),
+                       background-color var(--duration-fast) var(--ease-out),
+                       border-color var(--duration-fast) var(--ease-out);
+  --transition-opacity: opacity var(--duration-normal) var(--ease-out);
+  --transition-transform: transform var(--duration-normal) var(--ease-out);
+  --transition-all: all var(--duration-normal) var(--ease-out);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Keyframe Animations
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* Fade in with subtle upward movement */
+@keyframes wizard-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade out with subtle downward movement */
+@keyframes wizard-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Slide in from right (for panels) */
+@keyframes wizard-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide in from left (for sidebars) */
+@keyframes wizard-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide up (for bottom sheets) */
+@keyframes wizard-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Pop effect (for rewards, celebrations) */
+@keyframes wizard-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  70% {
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Gentle pulse (for loading, attention) */
+@keyframes wizard-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.02);
+  }
+}
+
+/* Shake effect (for errors) */
+@keyframes wizard-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-4px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(4px);
+  }
+}
+
+/* Glow effect (for highlights) */
+@keyframes wizard-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--wizard-blue),
+                0 0 10px var(--wizard-blue),
+                0 0 15px transparent;
+  }
+  50% {
+    box-shadow: 0 0 10px var(--wizard-blue),
+                0 0 20px var(--wizard-blue),
+                0 0 30px var(--wizard-blue-light);
+  }
+}
+
+/* Bounce (for achievements) */
+@keyframes wizard-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Spin (for loading) */
+@keyframes wizard-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Confetti falling */
+@keyframes wizard-confetti {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotate(720deg);
+  }
+}
+
+/* XP float up */
+@keyframes wizard-xp-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(1.2);
+  }
+}
+
+/* Progress bar fill */
+@keyframes wizard-progress-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: var(--progress-value, 100%);
+  }
+}
+
+/* Skeleton loading shimmer */
+@keyframes wizard-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Animation Utility Classes
+ * ═══════════════════════════════════════════════════════════════ */
+
+.animate-fade-in {
+  animation: wizard-fade-in var(--duration-normal) var(--ease-out) forwards;
+}
+
+.animate-fade-out {
+  animation: wizard-fade-out var(--duration-normal) var(--ease-out) forwards;
+}
+
+.animate-slide-left {
+  animation: wizard-slide-left var(--duration-slow) var(--ease-out) forwards;
+}
+
+.animate-slide-right {
+  animation: wizard-slide-right var(--duration-slow) var(--ease-out) forwards;
+}
+
+.animate-slide-up {
+  animation: wizard-slide-up var(--duration-slow) var(--ease-out) forwards;
+}
+
+.animate-pop {
+  animation: wizard-pop var(--duration-slow) var(--ease-spring) forwards;
+}
+
+.animate-pulse {
+  animation: wizard-pulse 2s var(--ease-in-out) infinite;
+}
+
+.animate-shake {
+  animation: wizard-shake var(--duration-slow) var(--ease-out);
+}
+
+.animate-glow {
+  animation: wizard-glow 2s var(--ease-in-out) infinite;
+}
+
+.animate-bounce {
+  animation: wizard-bounce 1s var(--ease-bounce) infinite;
+}
+
+.animate-spin {
+  animation: wizard-spin 1s var(--ease-linear) infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--wizard-bg-secondary) 0%,
+    var(--wizard-bg-tertiary) 50%,
+    var(--wizard-bg-secondary) 100%
+  );
+  background-size: 200% 100%;
+  animation: wizard-shimmer 1.5s var(--ease-linear) infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Stagger Delays (for list animations)
+ * ═══════════════════════════════════════════════════════════════ */
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+.stagger-9 { animation-delay: 0.45s; }
+.stagger-10 { animation-delay: 0.5s; }
+
+/* ═══════════════════════════════════════════════════════════════
+ * Hover & Interaction States
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* Card hover lift */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Button press effect */
+.press-effect {
+  transition: transform var(--transition-fast);
+}
+
+.press-effect:active {
+  transform: scale(0.98);
+}
+
+/* 3D button effect (like practice-wizard) */
+.btn-3d {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.btn-3d:hover {
+  transform: translateY(-2px);
+}
+
+.btn-3d:active {
+  transform: translateY(2px);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+ * Reduced Motion Support
+ * ═══════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
