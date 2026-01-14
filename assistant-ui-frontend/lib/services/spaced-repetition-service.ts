@@ -54,7 +54,75 @@ export interface UpcomingReview {
 }
 
 // ============================================================================
-// Main Service Functions
+// Shared Data Types for Optimized Queries
+// ============================================================================
+
+interface SharedCourseData {
+  lessonTemplates: any[];
+  allSessions: any[];
+  completedSessions: any[];
+  masteryData: any;
+  emaByOutcome: Record<string, number>;
+}
+
+// ============================================================================
+// OPTIMIZED: Fetch all shared data in PARALLEL (Performance Optimization)
+// This replaces multiple redundant queries with a single batch fetch
+// ============================================================================
+
+async function fetchSharedCourseData(
+  studentId: string,
+  courseId: string,
+  databases: Databases
+): Promise<SharedCourseData> {
+  console.log('[SpacedRepetition] Fetching shared course data in PARALLEL');
+
+  const masteryDriver = new MasteryV2Driver(databases);
+
+  // Execute ALL queries in PARALLEL - this is the key optimization
+  // Previously these were sequential calls scattered across 3 functions
+  const [
+    lessonTemplatesResult,
+    allSessionsResult,
+    completedSessionsResult,
+    masteryData
+  ] = await Promise.all([
+    // Query 1: Get all published lesson templates for this course
+    databases.listDocuments('default', 'lesson_templates', [
+      Query.equal('courseId', courseId),
+      Query.equal('status', 'published'),
+      Query.limit(500)
+    ]),
+    // Query 2: Get ALL sessions for debugging/analysis
+    databases.listDocuments('default', 'sessions', [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId),
+      Query.limit(100)
+    ]),
+    // Query 3: Get completed sessions
+    databases.listDocuments('default', 'sessions', [
+      Query.equal('studentId', studentId),
+      Query.equal('courseId', courseId),
+      Query.equal('status', 'completed'),
+      Query.limit(100)
+    ]),
+    // Query 4: Get mastery data
+    masteryDriver.getMasteryV2(studentId, courseId)
+  ]);
+
+  console.log(`[SpacedRepetition] Shared data fetched: ${lessonTemplatesResult.documents.length} templates, ${completedSessionsResult.documents.length} completed sessions`);
+
+  return {
+    lessonTemplates: lessonTemplatesResult.documents,
+    allSessions: allSessionsResult.documents,
+    completedSessions: completedSessionsResult.documents,
+    masteryData,
+    emaByOutcome: masteryData?.emaByOutcome || {}
+  };
+}
+
+// ============================================================================
+// Main Service Functions (Optimized to share data)
 // ============================================================================
 
 /**
@@ -76,10 +144,12 @@ export async function getReviewRecommendations(
 
   try {
     const routineDriver = new RoutineDriver(databases);
-    const masteryDriver = new MasteryV2Driver(databases);
 
-    // 1. Get all overdue outcomes
-    const overdueOutcomes = await routineDriver.getOverdueOutcomes(studentId, courseId);
+    // OPTIMIZED: Fetch routine data AND shared data in PARALLEL
+    const [overdueOutcomes, sharedData] = await Promise.all([
+      routineDriver.getOverdueOutcomes(studentId, courseId),
+      fetchSharedCourseData(studentId, courseId, databases)
+    ]);
 
     if (overdueOutcomes.length === 0) {
       console.log('[SpacedRepetition] No overdue outcomes found');
@@ -88,30 +158,25 @@ export async function getReviewRecommendations(
 
     console.log(`[SpacedRepetition] Found ${overdueOutcomes.length} overdue outcomes`);
 
-    // 2. Build outcomeId → documentId mapping (needed for mastery lookup)
+    // Build outcomeId → documentId mapping (needed for mastery lookup)
     const outcomeIds = overdueOutcomes.map(o => o.outcomeId);
     const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
 
-    // 3. Get mastery data (keys are now document IDs, not string refs)
-    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcome || {};
+    const { emaByOutcome } = sharedData;
 
     console.log(`🔍 [SpacedRepetition] MasteryV2 data retrieved:`, {
-      hasMasteryData: !!masteryData,
+      hasMasteryData: !!sharedData.masteryData,
       emaKeys: Object.keys(emaByOutcome),
       emaCount: Object.keys(emaByOutcome).length,
       sampleEMAs: Object.entries(emaByOutcome).slice(0, 3)
     });
 
-    // 4. Enrich overdue outcomes with mastery and timing info
+    // Enrich overdue outcomes with mastery and timing info
     const enrichedOutcomes = overdueOutcomes.map(outcome => {
-      // Map outcomeId → documentId for mastery lookup
       const documentId = outcomeMapping.get(outcome.outcomeId);
       const foundInMastery = documentId ? (documentId in emaByOutcome) : false;
-      const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3; // Default if not tracked
+      const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3;
       const daysOverdue = calculateDaysOverdue(outcome.dueAt);
-
-      console.log(`🔍 [SpacedRepetition EMA Lookup] outcomeId="${outcome.outcomeId}", documentId="${documentId}", found=${foundInMastery}, ema=${currentEMA}, usingDefault=${!foundInMastery}`);
 
       return {
         outcomeId: outcome.outcomeId,
@@ -124,17 +189,15 @@ export async function getReviewRecommendations(
 
     console.log('[SpacedRepetition] Enriched outcomes:', enrichedOutcomes.length);
 
-    // 4. Find lessons that teach these outcomes
-    const lessonRecommendations = await findLessonsForOutcomes(
+    // Find lessons that teach these outcomes (using pre-fetched shared data)
+    const lessonRecommendations = findLessonsForOutcomesWithData(
       enrichedOutcomes,
-      courseId,
-      studentId,
-      databases
+      sharedData
     );
 
     console.log(`[SpacedRepetition] Found ${lessonRecommendations.length} candidate lessons`);
 
-    // 5. Calculate priorities and sort
+    // Calculate priorities and sort
     const rankedRecommendations = lessonRecommendations
       .map(rec => calculatePriority(rec))
       .sort((a, b) => b.priority - a.priority)
@@ -152,6 +215,7 @@ export async function getReviewRecommendations(
 
 /**
  * Get summary statistics for student's review status
+ * OPTIMIZED: Uses shared data instead of calling getReviewRecommendations internally
  */
 export async function getReviewStats(
   studentId: string,
@@ -160,16 +224,18 @@ export async function getReviewStats(
 ): Promise<ReviewStats> {
   try {
     const routineDriver = new RoutineDriver(databases);
-    const masteryDriver = new MasteryV2Driver(databases);
 
-    const overdueOutcomes = await routineDriver.getOverdueOutcomes(studentId, courseId);
+    // OPTIMIZED: Fetch ALL data in PARALLEL
+    const [overdueOutcomes, sharedData] = await Promise.all([
+      routineDriver.getOverdueOutcomes(studentId, courseId),
+      fetchSharedCourseData(studentId, courseId, databases)
+    ]);
 
     // Build outcomeId → documentId mapping
     const outcomeIds = overdueOutcomes.map(o => o.outcomeId);
     const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
 
-    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcome || {};
+    const { emaByOutcome } = sharedData;
 
     // Count critical outcomes (EMA < 0.4)
     const criticalCount = overdueOutcomes.filter(outcome => {
@@ -178,14 +244,31 @@ export async function getReviewStats(
       return ema < 0.4;
     }).length;
 
-    // Get recommendations to estimate review time
-    const recommendations = await getReviewRecommendations(studentId, courseId, databases, 10);
-    const estimatedReviewTime = recommendations.reduce((sum, rec) => sum + rec.estimatedMinutes, 0);
+    // OPTIMIZED: Build recommendations directly from shared data (no recursive call!)
+    const enrichedOutcomes = overdueOutcomes.map(outcome => {
+      const documentId = outcomeMapping.get(outcome.outcomeId);
+      const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3;
+      return {
+        outcomeId: outcome.outcomeId,
+        dueAt: outcome.dueAt,
+        daysOverdue: calculateDaysOverdue(outcome.dueAt),
+        currentEMA,
+        masteryLevel: getMasteryLevel(currentEMA)
+      };
+    });
+
+    const recommendations = findLessonsForOutcomesWithData(enrichedOutcomes, sharedData);
+    const rankedRecommendations = recommendations
+      .map(rec => calculatePriority(rec))
+      .sort((a, b) => b.priority - a.priority)
+      .slice(0, 10);
+
+    const estimatedReviewTime = rankedRecommendations.reduce((sum, rec) => sum + rec.estimatedMinutes, 0);
 
     return {
       totalOverdueOutcomes: overdueOutcomes.length,
       criticalCount,
-      recommendedLessons: recommendations.length,
+      recommendedLessons: rankedRecommendations.length,
       estimatedReviewTime
     };
 
@@ -197,6 +280,7 @@ export async function getReviewStats(
 
 /**
  * Get upcoming reviews scheduled within the next N days
+ * OPTIMIZED: Uses shared data fetched in parallel
  *
  * @param studentId - Student document ID
  * @param courseId - Course ID
@@ -214,10 +298,12 @@ export async function getUpcomingReviews(
 
   try {
     const routineDriver = new RoutineDriver(databases);
-    const masteryDriver = new MasteryV2Driver(databases);
 
-    // 1. Get upcoming outcomes (not overdue, within time window)
-    const upcomingOutcomes = await routineDriver.getUpcomingOutcomes(studentId, courseId, daysAhead);
+    // OPTIMIZED: Fetch routine data AND shared data in PARALLEL
+    const [upcomingOutcomes, sharedData] = await Promise.all([
+      routineDriver.getUpcomingOutcomes(studentId, courseId, daysAhead),
+      fetchSharedCourseData(studentId, courseId, databases)
+    ]);
 
     if (upcomingOutcomes.length === 0) {
       console.log('[SpacedRepetition] No upcoming outcomes found');
@@ -226,19 +312,16 @@ export async function getUpcomingReviews(
 
     console.log(`[SpacedRepetition] Found ${upcomingOutcomes.length} upcoming outcomes`);
 
-    // 2. Build outcomeId → documentId mapping
+    // Build outcomeId → documentId mapping
     const outcomeIds = upcomingOutcomes.map(o => o.outcomeId);
     const outcomeMapping = await buildOutcomeIdMapping(outcomeIds, courseId, databases);
 
-    // 3. Get mastery data (keys are now document IDs, not string refs)
-    const masteryData = await masteryDriver.getMasteryV2(studentId, courseId);
-    const emaByOutcome = masteryData?.emaByOutcome || {};
+    const { emaByOutcome } = sharedData;
 
-    // 4. Enrich upcoming outcomes with mastery info
+    // Enrich upcoming outcomes with mastery info
     const enrichedOutcomes = upcomingOutcomes.map(outcome => {
       const documentId = outcomeMapping.get(outcome.outcomeId);
       const currentEMA = documentId ? (emaByOutcome[documentId] || 0.3) : 0.3;
-      const daysUntilDue = calculateDaysUntil(outcome.dueAt);
 
       return {
         outcomeId: outcome.outcomeId,
@@ -249,27 +332,13 @@ export async function getUpcomingReviews(
       };
     });
 
-    // 4. Find lessons that teach these outcomes (reuse existing helper)
-    console.log('[SpacedRepetition] About to call findLessonsForOutcomes with:', {
-      enrichedOutcomesCount: enrichedOutcomes.length,
-      courseId,
-      studentId,
-      databasesType: typeof databases,
-      databasesExists: !!databases
-    });
-
-    const lessonRecommendations = await findLessonsForOutcomes(
-      enrichedOutcomes,
-      courseId,
-      studentId,
-      databases
-    );
+    // Find lessons using pre-fetched shared data
+    const lessonRecommendations = findLessonsForOutcomesWithData(enrichedOutcomes, sharedData);
 
     console.log(`[SpacedRepetition] Found ${lessonRecommendations.length} lessons for upcoming outcomes`);
 
-    // 5. Convert to UpcomingReview format
+    // Convert to UpcomingReview format
     const upcomingReviews: UpcomingReview[] = lessonRecommendations.map(rec => {
-      // Find earliest due date among this lesson's outcomes
       const earliestDueDate = rec.overdueOutcomes.reduce((earliest, o) =>
         o.dueAt < earliest ? o.dueAt : earliest,
         rec.overdueOutcomes[0].dueAt
@@ -549,6 +618,88 @@ async function findLessonsForOutcomes(
       daysSinceCompleted,
       estimatedMinutes: template.estMinutes || 30,
       urgencyLevel: 'medium', // Will be calculated later
+      recommendationReason: reason
+    });
+  }
+
+  return recommendations;
+}
+
+/**
+ * OPTIMIZED: Find lessons that teach the given outcomes using PRE-FETCHED data
+ * This avoids redundant database queries by using the SharedCourseData
+ */
+function findLessonsForOutcomesWithData(
+  outcomes: OutcomeInfo[],
+  sharedData: SharedCourseData
+): ReviewRecommendation[] {
+  console.log('[SpacedRepetition] findLessonsForOutcomesWithData using pre-fetched data');
+
+  const { lessonTemplates, completedSessions } = sharedData;
+
+  // Build completed lesson map from pre-fetched data
+  const completedLessonMap = new Map<string, string>(); // lessonTemplateId -> completedAt
+  completedSessions.forEach((session: any) => {
+    const lessonTemplateId = session.lessonTemplateId;
+    const completedAt = session.endedAt || session.$createdAt;
+
+    // Keep only the most recent completion
+    if (!completedLessonMap.has(lessonTemplateId) ||
+        completedAt > completedLessonMap.get(lessonTemplateId)!) {
+      completedLessonMap.set(lessonTemplateId, completedAt);
+    }
+  });
+
+  console.log(`[SpacedRepetition] Student has completed ${completedLessonMap.size} lessons (from pre-fetched data)`);
+
+  // Map outcomes to lessons (all in-memory processing, no DB queries)
+  const recommendations: ReviewRecommendation[] = [];
+
+  for (const template of lessonTemplates) {
+    // Parse outcomeRefs from template
+    let outcomeRefs: string[] = [];
+    try {
+      const parsed = JSON.parse(template.outcomeRefs || '[]');
+      outcomeRefs = Array.isArray(parsed) ? parsed : (parsed.outcomes || []);
+    } catch (error) {
+      continue;
+    }
+
+    // Find which overdue outcomes this lesson teaches
+    const matchingOutcomes = outcomes.filter(outcome =>
+      outcomeRefs.includes(outcome.outcomeId)
+    );
+
+    if (matchingOutcomes.length === 0) {
+      continue;
+    }
+
+    // Skip lessons that haven't been completed yet
+    if (!completedLessonMap.has(template.$id)) {
+      continue;
+    }
+
+    // Calculate days since completion
+    const lastCompleted = completedLessonMap.get(template.$id);
+    const daysSinceCompleted = lastCompleted
+      ? calculateDaysSince(lastCompleted)
+      : null;
+
+    // Calculate average mastery for this lesson's outcomes
+    const averageMastery = matchingOutcomes.reduce((sum, o) => sum + o.currentEMA, 0) / matchingOutcomes.length;
+
+    // Generate recommendation reason
+    const reason = generateRecommendationReason(matchingOutcomes, daysSinceCompleted);
+
+    recommendations.push({
+      lessonTemplateId: template.$id,
+      lessonTitle: template.title,
+      priority: 0,
+      overdueOutcomes: matchingOutcomes,
+      averageMastery,
+      daysSinceCompleted,
+      estimatedMinutes: template.estMinutes || 30,
+      urgencyLevel: 'medium',
       recommendationReason: reason
     });
   }

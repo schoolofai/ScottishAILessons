@@ -19,6 +19,7 @@ from ..models.walkthrough_models import (
     QuestionWalkthrough,
     WalkthroughStep,
     CommonError,
+    PrerequisiteLink,
 )
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ def parse_walkthrough_template(template_path: Path) -> QuestionWalkthrough:
     with open(template_path, 'r') as f:
         data = json.load(f)
 
-    # Parse steps
+    # Parse steps (including V2 pedagogical fields)
     steps = []
     for step_data in data.get("steps", []):
         step = WalkthroughStep(
@@ -81,7 +82,11 @@ def parse_walkthrough_template(template_path: Path) -> QuestionWalkthrough:
             working=step_data.get("working", ""),
             working_latex=step_data.get("working_latex", ""),
             marks_earned=step_data.get("marks_earned", 1),
-            examiner_notes=step_data.get("examiner_notes")
+            examiner_notes=step_data.get("examiner_notes"),
+            # V2 pedagogical fields
+            concept_explanation=step_data.get("concept_explanation"),
+            peer_tip=step_data.get("peer_tip"),
+            student_warning=step_data.get("student_warning")
         )
         steps.append(step)
 
@@ -113,11 +118,39 @@ def parse_walkthrough_template(template_path: Path) -> QuestionWalkthrough:
             error_type=error_data.get("error_type", "calculation"),
             description=description,
             why_marks_lost=why_marks_lost,
-            prevention_tip=prevention_tip
+            prevention_tip=prevention_tip,
+            # V2 pedagogical fields
+            learning_gap=error_data.get("learning_gap"),
+            marking_impact=error_data.get("marking_impact"),
+            related_topics=error_data.get("related_topics", [])
         )
         errors.append(error)
 
-    # Create QuestionWalkthrough
+    # Parse prerequisite links (V2 pedagogical field)
+    prerequisite_links = []
+    for link_data in data.get("prerequisite_links", []):
+        link = PrerequisiteLink(
+            topic_tag=link_data.get("topic_tag", ""),
+            reminder_text=link_data.get("reminder_text", ""),
+            lesson_refs=link_data.get("lesson_refs", []),
+            course_fallback=link_data.get("course_fallback")
+        )
+        prerequisite_links.append(link)
+
+    # Parse diagram_refs - handle both string and dict formats
+    # LLM may generate:
+    #   - ["diag-id-1", "diag-id-2"]  (string format - correct)
+    #   - [{"id": "diag-id-1", ...}, ...]  (dict format - needs extraction)
+    raw_diagram_refs = data.get("diagram_refs", [])
+    diagram_refs = []
+    for ref in raw_diagram_refs:
+        if isinstance(ref, str):
+            diagram_refs.append(ref)
+        elif isinstance(ref, dict) and "id" in ref:
+            diagram_refs.append(ref["id"])
+        # Skip invalid entries
+
+    # Create QuestionWalkthrough (including V2 prerequisite_links)
     walkthrough = QuestionWalkthrough(
         question_stem=data.get("question_stem", ""),
         question_stem_latex=data.get("question_stem_latex", ""),
@@ -126,7 +159,9 @@ def parse_walkthrough_template(template_path: Path) -> QuestionWalkthrough:
         steps=steps,
         common_errors=errors,
         examiner_summary=data.get("examiner_summary", ""),
-        diagram_refs=data.get("diagram_refs", [])
+        diagram_refs=diagram_refs,
+        # V2 pedagogical field
+        prerequisite_links=prerequisite_links
     )
 
     return walkthrough
@@ -138,7 +173,7 @@ def create_walkthrough_document(
     question_number: str,
     paper_metadata: Dict[str, Any],
     model_version: str,
-    status: str = "draft"
+    status: str = "published"
 ) -> WalkthroughDocument:
     """Create a WalkthroughDocument ready for database storage.
 
@@ -384,30 +419,35 @@ async def upsert_walkthrough_via_mcp(
         if document.catalog_version:
             doc_data["catalog_version"] = document.catalog_version
 
-        # Check if document exists
-        exists = await check_walkthrough_exists(doc_id, mcp_config_path)
+        # Robust upsert via delete-then-create pattern
+        # This avoids permission issues where API key can delete but not update
+        # (update requires read permission on existing doc, delete doesn't)
+        try:
+            logger.info(f"Attempting to delete existing walkthrough: {doc_id}")
+            databases.delete_document(
+                database_id="sqa_education",
+                collection_id="us_walkthroughs",
+                document_id=doc_id
+            )
+            logger.info(f"Deleted existing walkthrough: {doc_id}")
+        except AppwriteException as delete_error:
+            if delete_error.code == 404:
+                logger.info(f"No existing document to delete: {doc_id}")
+            else:
+                logger.warning(f"Delete failed (code {delete_error.code}): {delete_error.message}")
+                # Continue to create - might still work
 
-        if exists:
-            # Update existing document
-            logger.info(f"Updating existing walkthrough: {doc_id}")
-            result = databases.update_document(
-                database_id="sqa_education",
-                collection_id="us_walkthroughs",
-                document_id=doc_id,
-                data=doc_data
-            )
-        else:
-            # Create new document
-            logger.info(f"Creating new walkthrough: {doc_id}")
-            result = databases.create_document(
-                database_id="sqa_education",
-                collection_id="us_walkthroughs",
-                document_id=doc_id,
-                data=doc_data,
-                permissions=[
-                    Permission.read(Role.any())
-                ]
-            )
+        # Create fresh document
+        logger.info(f"Creating walkthrough: {doc_id}")
+        result = databases.create_document(
+            database_id="sqa_education",
+            collection_id="us_walkthroughs",
+            document_id=doc_id,
+            data=doc_data,
+            permissions=[
+                Permission.read(Role.any())
+            ]
+        )
 
         logger.info(f"✅ Walkthrough upserted: {result['$id']}")
         return result['$id']
@@ -427,7 +467,7 @@ async def upsert_walkthrough(
     paper_metadata: Dict[str, Any],
     mcp_config_path: str,
     model_version: str = "walkthrough_author_v1",
-    status: str = "draft"
+    status: str = "published"
 ) -> str:
     """Complete workflow to upsert a walkthrough from template file.
 

@@ -1,0 +1,246 @@
+{
+  "evaluation_id": "eval_001_sub_001",
+  "submission_id": "sub_001_exam_nat5_math_2024_001",
+  "exam_id": "exam_nat5_math_2024_001",
+  "student_id": "student_12345",
+  "evaluated_at": "2024-01-15T12:31:00Z",
+  "overall_result": {
+    "marks_earned": 16,
+    "marks_possible": 16,
+    "percentage": 100.0,
+    "grade": "A",
+    "grade_band": {
+      "A": {"min": 85, "max": 100},
+      "B": {"min": 70, "max": 84},
+      "C": {"min": 55, "max": 69},
+      "D": {"min": 40, "max": 54},
+      "No Award": {"min": 0, "max": 39}
+    },
+    "performance_summary": "Excellent performance demonstrating strong understanding across all topics."
+  },
+  "section_results": [
+    {
+      "section_id": "section_a",
+      "section_name": "Section A - Non-Calculator",
+      "marks_earned": 12,
+      "marks_possible": 12,
+      "percentage": 100.0
+    },
+    {
+      "section_id": "section_b",
+      "section_name": "Section B - Calculator Allowed",
+      "marks_earned": 4,
+      "marks_possible": 4,
+      "percentage": 100.0
+    }
+  ],
+  "question_feedback": [
+    {
+      "question_id": "q1",
+      "question_number": "1",
+      "marks_earned": 3,
+      "marks_possible": 3,
+      "bullet_marks": [
+        {
+          "bullet": 1,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correctly collected x terms: 3x - 2x = x",
+          "student_working": "3x - 2x = x",
+          "expected_working": "3x - 2x = x"
+        },
+        {
+          "bullet": 2,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correctly collected constant terms: 5 + 7 = 12",
+          "student_working": "5 + 7 = 12",
+          "expected_working": "5 + 7 = 12"
+        },
+        {
+          "bullet": 3,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct final answer",
+          "student_working": "x + 12",
+          "expected_working": "x + 12"
+        }
+      ],
+      "overall_feedback": "Excellent work! All steps shown clearly and correctly.",
+      "misconception_detected": null,
+      "strengths": ["Clear working shown", "Correct method applied"],
+      "areas_for_improvement": []
+    },
+    {
+      "question_id": "q2",
+      "question_number": "2",
+      "marks_earned": 4,
+      "marks_possible": 4,
+      "bullet_marks": [
+        {
+          "bullet": 1,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct perimeter formula identified",
+          "student_working": "Perimeter = 2(length + width)",
+          "expected_working": "P = 2(l + w)"
+        },
+        {
+          "bullet": 2,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct substitution of expressions",
+          "student_working": "P = 2(2x + 3 + x - 1)",
+          "expected_working": "P = 2(2x + 3 + x - 1)"
+        },
+        {
+          "bullet": 3,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Brackets expanded correctly",
+          "student_working": "P = 2(3x + 2)",
+          "expected_working": "P = 2(3x + 2)"
+        },
+        {
+          "bullet": 4,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct final simplified expression",
+          "student_working": "6x + 4",
+          "expected_working": "6x + 4"
+        }
+      ],
+      "overall_feedback": "Perfect! Clear method with all working shown.",
+      "misconception_detected": null,
+      "strengths": ["Methodical approach", "Clear presentation"],
+      "areas_for_improvement": []
+    },
+    {
+      "question_id": "q3",
+      "question_number": "3",
+      "marks_earned": 5,
+      "marks_possible": 5,
+      "bullet_marks": [
+        {
+          "bullet": 1,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Bracket expanded correctly",
+          "student_working": "6x - 3 = 4x + 9",
+          "expected_working": "6x - 3 = 4x + 9"
+        },
+        {
+          "bullet": 2,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "X terms correctly rearranged",
+          "student_working": "6x - 4x = 9 + 3",
+          "expected_working": "6x - 4x = 9 + 3"
+        },
+        {
+          "bullet": 3,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Equation simplified correctly",
+          "student_working": "2x = 12",
+          "expected_working": "2x = 12"
+        },
+        {
+          "bullet": 4,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Division step shown",
+          "student_working": "x = 12 ÷ 2",
+          "expected_working": "x = 12 ÷ 2"
+        },
+        {
+          "bullet": 5,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct final answer",
+          "student_working": "x = 6",
+          "expected_working": "x = 6"
+        }
+      ],
+      "overall_feedback": "Excellent algebraic manipulation with clear logical steps.",
+      "misconception_detected": null,
+      "strengths": ["Systematic approach", "No sign errors"],
+      "areas_for_improvement": []
+    },
+    {
+      "question_id": "q4",
+      "question_number": "4",
+      "marks_earned": 4,
+      "marks_possible": 4,
+      "bullet_marks": [
+        {
+          "bullet": 1,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct calculation identified",
+          "student_working": "156 ÷ 12",
+          "expected_working": "Miles per litre = distance ÷ fuel"
+        },
+        {
+          "bullet": 2,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Division set up correctly",
+          "student_working": "156 ÷ 12",
+          "expected_working": "156 ÷ 12"
+        },
+        {
+          "bullet": 3,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Calculation performed correctly",
+          "student_working": "= 13",
+          "expected_working": "13"
+        },
+        {
+          "bullet": 4,
+          "marks_earned": 1,
+          "marks_possible": 1,
+          "feedback": "Correct units included",
+          "student_working": "13 miles per litre",
+          "expected_working": "13 miles per litre"
+        }
+      ],
+      "overall_feedback": "Perfect answer with correct units.",
+      "misconception_detected": null,
+      "strengths": ["Understood the meaning of 'per litre'", "Included units"],
+      "areas_for_improvement": []
+    }
+  ],
+  "learning_recommendations": [
+    {
+      "topic_id": "nat5_algebra_simplify",
+      "topic_name": "Simplifying Expressions",
+      "mastery_level": "achieved",
+      "recommendation": "Continue to more challenging algebraic expressions",
+      "suggested_resources": []
+    },
+    {
+      "topic_id": "nat5_algebra_expressions",
+      "topic_name": "Algebraic Expressions",
+      "mastery_level": "achieved",
+      "recommendation": "Progress to quadratic expressions",
+      "suggested_resources": []
+    },
+    {
+      "topic_id": "nat5_algebra_equations",
+      "topic_name": "Solving Equations",
+      "mastery_level": "achieved",
+      "recommendation": "Ready for simultaneous equations",
+      "suggested_resources": []
+    },
+    {
+      "topic_id": "nat5_numeracy_ratio",
+      "topic_name": "Ratio and Proportion",
+      "mastery_level": "achieved",
+      "recommendation": "Progress to more complex ratio problems",
+      "suggested_resources": []
+    }
+  ],
+  "encouragement_message": "Outstanding work! You've demonstrated excellent understanding across all topics in this exam. Your clear working and systematic approach are exactly what examiners look for. Keep up this standard!"
+}

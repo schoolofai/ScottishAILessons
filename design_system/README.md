@@ -170,6 +170,28 @@ Themed cards for different content types.
 | Amber | `bg-amber-50` | `border-amber-200` | Tips, notes |
 | Purple | `bg-purple-50` | `border-purple-200` | Diagrams, visuals |
 
+### Alert Components
+
+Specialized alerts for educational feedback and guidance.
+
+| Type | Background | Border | Icon | Usage |
+|------|------------|--------|------|-------|
+| Scoring Insight | `--scoring-insight-bg` | `--scoring-insight-border` | Sparkles | "How to Score the Mark" AI coaching |
+| Error | `--wizard-red-bg` | `--wizard-red` | XCircle | Incorrect answers |
+| Success | `--wizard-green-bg` | `--wizard-green` | CheckCircle | Correct answers |
+| Info | `--wizard-blue-bg` | `--wizard-blue` | Info | General information |
+
+### Icon & Emoji Guidelines
+
+**Design Guidelines:**
+
+- **Do NOT use emojis** in alert labels, headings, or UI content
+- Use **Lucide icons** for visual indicators (consistent, scalable, accessible)
+- Prefer **subtle, sophisticated color palettes** over bright/jarring tones
+- Icons should be **functional**, not decorative - each icon should convey meaning
+
+**Rationale:** Emojis are visually inconsistent across platforms and can appear jarring in professional educational interfaces. Lucide icons provide a cohesive, refined aesthetic.
+
 ---
 
 ## Responsive Breakpoints

@@ -57,27 +57,19 @@ export async function GET() {
     const activeCourseIds = activeEnrollments.map((e: any) => e.courseId);
     const archivedCourseIds = archivedEnrollments.map((e: any) => e.courseId);
 
-    // Fetch courses
-    let activeCourses = [];
-    let archivedCourses = [];
+    // Fetch courses in PARALLEL (performance optimization)
+    // Both queries run simultaneously instead of sequentially
+    const [activeCoursesResult, archivedCoursesResult] = await Promise.all([
+      activeCourseIds.length > 0
+        ? databases.listDocuments('default', 'courses', [Query.equal('courseId', activeCourseIds)])
+        : Promise.resolve({ documents: [] }),
+      archivedCourseIds.length > 0
+        ? databases.listDocuments('default', 'courses', [Query.equal('courseId', archivedCourseIds)])
+        : Promise.resolve({ documents: [] })
+    ]);
 
-    if (activeCourseIds.length > 0) {
-      const activeCoursesResult = await databases.listDocuments(
-        'default',
-        'courses',
-        [Query.equal('courseId', activeCourseIds)]
-      );
-      activeCourses = activeCoursesResult.documents;
-    }
-
-    if (archivedCourseIds.length > 0) {
-      const archivedCoursesResult = await databases.listDocuments(
-        'default',
-        'courses',
-        [Query.equal('courseId', archivedCourseIds)]
-      );
-      archivedCourses = archivedCoursesResult.documents;
-    }
+    const activeCourses = activeCoursesResult.documents;
+    const archivedCourses = archivedCoursesResult.documents;
 
     return NextResponse.json({
       success: true,

@@ -113,6 +113,17 @@
   --color-error-bg: var(--wizard-red-bg);
 
   /* ═══════════════════════════════════════════════════════════════
+   * Scoring Insight - Soft Cautionary Palette
+   * For "How to Score the Mark" AI coaching alerts
+   * Uses soft rose tones for approachable, positive guidance
+   * ═══════════════════════════════════════════════════════════════ */
+
+  --scoring-insight-bg: #FFF5F5;        /* Very pale rose */
+  --scoring-insight-border: #FECACA;    /* Soft coral/rose border */
+  --scoring-insight-accent: #F87171;    /* Coral accent for icon */
+  --scoring-insight-text: #991B1B;      /* Dark rose for emphasis */
+
+  /* ═══════════════════════════════════════════════════════════════
    * Gradient Backgrounds
    * ═══════════════════════════════════════════════════════════════ */
 

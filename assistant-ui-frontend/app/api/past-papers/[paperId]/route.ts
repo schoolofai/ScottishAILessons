@@ -112,8 +112,12 @@ export async function GET(
     );
 
     // Build a Set of question numbers that have published walkthroughs
+    // Normalize by stripping 'Q' prefix (some walkthroughs have 'Q14b', others have '14b')
     const walkthroughQuestions = new Set(
-      walkthroughDocs.documents.map(d => d.question_number as string)
+      walkthroughDocs.documents.map(d => {
+        const qNum = d.question_number as string;
+        return qNum.replace(/^Q/i, ''); // Strip leading Q/q prefix
+      })
     );
 
     console.log(`[API] Found ${walkthroughQuestions.size} walkthroughs for paper ${paperId}`);

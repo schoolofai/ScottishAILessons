@@ -294,25 +294,40 @@ class WalkthroughDocument(BaseModel):
     )
 
     def generate_document_id(self) -> str:
-        """Generate unique document ID for Appwrite.
+        """Generate unique document ID for Appwrite (max 36 chars).
 
-        Format: {paper_id}_q{question_number}
-        Example: mathematics_n5_2023_X847_75_01_q4a
+        Format: {paper_id}-q{question_number}
+        Example: mathematics-n5-2023-X847-75-01-q4a
 
-        Appwrite document IDs only allow: a-z, A-Z, 0-9, underscore
-        - Hyphens are replaced with underscores
+        Appwrite document IDs:
+        - Max length: 36 characters (platform constraint)
+        - Allowed chars: a-z, A-Z, 0-9, hyphen, underscore, period
         - Parentheses are removed
         - Leading Q/q prefix is stripped before adding standard q prefix
+
+        For IDs exceeding 36 chars, uses MD5 hash suffix to maintain
+        determinism for upserts while fitting within the limit.
         """
+        import hashlib
+
         # Normalize question number for ID
         # 1. Lowercase and remove parentheses
         # 2. Strip leading "q" to avoid double-q when we add our prefix
         q_normalized = self.question_number.lower().replace("(", "").replace(")", "").lstrip("q")
 
-        # Replace hyphens with underscores for Appwrite compatibility
-        paper_id_safe = self.paper_id.replace("-", "_")
+        # Build the base ID
+        base_id = f"{self.paper_id}-q{q_normalized}"
 
-        return f"{paper_id_safe}_q{q_normalized}"
+        # If within limit, return as-is
+        if len(base_id) <= 36:
+            return base_id
+
+        # For long IDs: truncate + hash suffix for uniqueness
+        # Hash the full ID to maintain determinism across runs
+        hash_suffix = hashlib.md5(base_id.encode()).hexdigest()[:8]
+        # Keep as much of original as possible: 36 - 1 (dash) - 8 (hash) = 27 chars
+        truncated = base_id[:27]
+        return f"{truncated}-{hash_suffix}"
 
     def compress_walkthrough(self) -> str:
         """Compress walkthrough content for storage.

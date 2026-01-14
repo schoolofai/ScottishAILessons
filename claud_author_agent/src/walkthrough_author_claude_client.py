@@ -861,39 +861,75 @@ Do NOT change any other fields in the template.
             workspace_path=str(workspace_path)
         )
 
-        # Execute pipeline
-        async with ClaudeSDKClient(options) as client:
-            logger.info("Sending initial prompt to Claude Agent SDK...")
-            await client.query(initial_prompt)
+        # Execute pipeline with exception handling
+        sdk_error = None
+        try:
+            async with ClaudeSDKClient(options) as client:
+                logger.info("Sending initial prompt to Claude Agent SDK...")
+                await client.query(initial_prompt)
 
-            message_count = 0
-            async for message in client.receive_messages():
-                message_count += 1
-                logger.debug(f"Message #{message_count}: {type(message).__name__}")
+                message_count = 0
+                async for message in client.receive_messages():
+                    message_count += 1
+                    logger.debug(f"Message #{message_count}: {type(message).__name__}")
 
-                if isinstance(message, ResultMessage):
-                    logger.info(f"✅ Pipeline completed after {message_count} messages")
+                    if isinstance(message, ResultMessage):
+                        logger.info(f"✅ Pipeline completed after {message_count} messages")
 
-                    # Record metrics
-                    usage = message.usage or {}
-                    self.cost_tracker.record_subagent(
-                        name="walkthrough_author_pipeline",
-                        input_tokens=usage.get('input_tokens', 0),
-                        output_tokens=usage.get('output_tokens', 0),
-                        cost=message.total_cost_usd or 0.0,
-                        execution_time=(message.duration_ms or 0) / 1000.0,
-                        success=not message.is_error,
-                        error=""
-                    )
-                    break
+                        # Record metrics
+                        usage = message.usage or {}
+                        self.cost_tracker.record_subagent(
+                            name="walkthrough_author_pipeline",
+                            input_tokens=usage.get('input_tokens', 0),
+                            output_tokens=usage.get('output_tokens', 0),
+                            cost=message.total_cost_usd or 0.0,
+                            execution_time=(message.duration_ms or 0) / 1000.0,
+                            success=not message.is_error,
+                            error=""
+                        )
+                        break
+        except Exception as e:
+            # Capture SDK errors with full details for debugging
+            sdk_error = f"{type(e).__name__}: {str(e)}"
+            logger.error(f"❌ Claude SDK failed: {sdk_error}")
+            self.cost_tracker.record_subagent(
+                name="walkthrough_author_pipeline",
+                input_tokens=0,
+                output_tokens=0,
+                cost=0.0,
+                execution_time=0.0,
+                success=False,
+                error=sdk_error
+            )
+            return {
+                "pass": False,
+                "error": f"Agent SDK error: {sdk_error}",
+                "error_type": "agent_sdk_error",
+                "recoverable": True
+            }
 
         # Read critic result
         critic_result_path = workspace_path / "walkthrough_critic_result.json"
         if critic_result_path.exists():
-            with open(critic_result_path, 'r') as f:
-                return json.load(f)
+            try:
+                with open(critic_result_path, 'r') as f:
+                    return json.load(f)
+            except json.JSONDecodeError as e:
+                logger.error(f"❌ Failed to parse critic result: {e}")
+                return {
+                    "pass": False,
+                    "error": f"Critic result JSON parse error: {str(e)}",
+                    "error_type": "json_decode_error",
+                    "recoverable": True
+                }
         else:
-            return {"pass": False, "error": "Critic result not found"}
+            logger.error(f"❌ Critic result file not found at {critic_result_path}")
+            return {
+                "pass": False,
+                "error": "Critic result not found - agent may have crashed silently",
+                "error_type": "critic_file_missing",
+                "recoverable": True
+            }
 
     def _build_initial_prompt(
         self,
@@ -1157,20 +1193,49 @@ Begin by calling the walkthrough_author subagent.
                 )
 
                 # ═══════════════════════════════════════════════════════════════
-                # AGENT EXECUTION: 3 subagents
+                # AGENT EXECUTION: 3 subagents (with retry loop)
                 # ═══════════════════════════════════════════════════════════════
 
-                agent_start = datetime.now()
+                critic_result = None
+                critic_passed = False
+                total_attempts = 0
 
-                critic_result = await self._run_agent_pipeline(
-                    workspace_path=workspace_path,
-                    paper_metadata=paper_metadata,
-                    question_source=question_source,
-                    use_v2=use_v2
-                )
+                for attempt in range(self.max_critic_retries):
+                    total_attempts = attempt + 1
+                    agent_start = datetime.now()
 
-                agent_end = datetime.now()
-                agent_duration_ms = int((agent_end - agent_start).total_seconds() * 1000)
+                    if attempt > 0:
+                        # Exponential backoff between retries
+                        backoff_seconds = 2 ** (attempt - 1)
+                        logger.warning(f"⏳ Retry attempt {total_attempts}/{self.max_critic_retries} after {backoff_seconds}s backoff...")
+                        import time
+                        time.sleep(backoff_seconds)
+
+                    critic_result = await self._run_agent_pipeline(
+                        workspace_path=workspace_path,
+                        paper_metadata=paper_metadata,
+                        question_source=question_source,
+                        use_v2=use_v2
+                    )
+
+                    agent_end = datetime.now()
+                    agent_duration_ms = int((agent_end - agent_start).total_seconds() * 1000)
+
+                    # Check if this attempt should be retried
+                    is_recoverable = critic_result.get("recoverable", False)
+                    critic_passed = critic_result.get("validation_passed", critic_result.get("pass", False))
+
+                    if critic_passed:
+                        logger.info(f"✅ Pipeline succeeded on attempt {total_attempts}")
+                        break
+
+                    # Check if error is recoverable
+                    if not is_recoverable:
+                        logger.error(f"❌ Non-recoverable error on attempt {total_attempts}, not retrying")
+                        break
+
+                    if attempt < self.max_critic_retries - 1:
+                        logger.warning(f"⚠️ Attempt {total_attempts}/{self.max_critic_retries} failed: {critic_result.get('error', 'Unknown error')}")
 
                 # Read final template to get counts
                 steps_count = 0
@@ -1185,11 +1250,9 @@ Begin by calling the walkthrough_author subagent.
                     pass  # Use defaults if template can't be read
 
                 # Extract critic scores for metadata
-                critic_scores = critic_result.get("dimensional_scores", {})
-                # Critic uses "validation_passed" key in its output
-                critic_passed = critic_result.get("validation_passed", critic_result.get("pass", False))
+                critic_scores = critic_result.get("dimensional_scores", {}) if critic_result else {}
 
-                # Update execution log with agent stage
+                # Update execution log with agent stage (final attempt result)
                 self._update_execution_log(
                     workspace_path=workspace_path,
                     stage_name="agent_pipeline",
@@ -1198,14 +1261,18 @@ Begin by calling the walkthrough_author subagent.
                     completed_at=agent_end.isoformat(),
                     duration_ms=agent_duration_ms,
                     result={
-                        "pass": critic_passed,
-                        "overall_score": critic_result.get("overall_score", 0),
-                        "dimensional_scores": critic_scores
+                        "pass_status": critic_passed,
+                        "overall_score": critic_result.get("overall_score", 0) if critic_result else 0,
+                        "dimensional_scores": critic_scores,
+                        "attempts": total_attempts
                     }
                 )
 
                 if not critic_passed:
-                    logger.warning(f"Critic validation failed: {critic_result.get('issues', [])}")
+                    # Build detailed error message including actual error from pipeline
+                    error_detail = critic_result.get("error", "Unknown error") if critic_result else "No result"
+                    error_type = critic_result.get("error_type", "critic_validation_failed") if critic_result else "critic_validation_failed"
+                    logger.warning(f"❌ Pipeline failed after {total_attempts} attempt(s): {error_detail}")
 
                     # Write final result for failure
                     self._write_final_result(
@@ -1215,10 +1282,10 @@ Begin by calling the walkthrough_author subagent.
                         errors_count=errors_count,
                         total_marks=total_marks,
                         critic_passed=False,
-                        critic_attempts=critic_result.get("attempts", 1),
+                        critic_attempts=total_attempts,
                         critic_scores=critic_scores,
-                        error_message="Critic validation failed",
-                        error_type="critic_validation_failed"
+                        error_message=error_detail,
+                        error_type=error_type
                     )
 
                     # Finalize execution log
@@ -1231,16 +1298,16 @@ Begin by calling the walkthrough_author subagent.
                             "output_tokens": metrics.get("output_tokens", 0),
                             "total_tokens": metrics.get("total_tokens", 0),
                             "estimated_cost_usd": metrics.get("total_cost_usd", 0),
-                            "critic_attempts": critic_result.get("attempts", 1)
+                            "critic_attempts": total_attempts
                         }
                     )
 
                     return {
                         "success": False,
-                        "error_type": "critic_validation_failed",
+                        "error_type": error_type,
                         "execution_id": self.execution_id,
                         "workspace_path": str(workspace_path),
-                        "error": "Critic validation failed",
+                        "error": error_detail,
                         "critic_result": critic_result,
                         "metrics": metrics
                     }
@@ -1342,13 +1409,47 @@ Begin by calling the walkthrough_author subagent.
 
                 postprocess_start = datetime.now()
 
-                doc_id = await self._upsert_walkthrough(
-                    workspace_path=workspace_path,
-                    paper_id=paper_id,
-                    question_number=question_number,
-                    paper_metadata=paper_metadata,
-                    use_v2=use_v2
-                )
+                try:
+                    doc_id = await self._upsert_walkthrough(
+                        workspace_path=workspace_path,
+                        paper_id=paper_id,
+                        question_number=question_number,
+                        paper_metadata=paper_metadata,
+                        use_v2=use_v2
+                    )
+                except Exception as e:
+                    postprocess_end = datetime.now()
+                    postprocess_duration_ms = int((postprocess_end - postprocess_start).total_seconds() * 1000)
+                    error_msg = f"{type(e).__name__}: {str(e)}"
+                    logger.error(f"❌ Post-processing failed: {error_msg}")
+
+                    # Update execution log with failed post-processing
+                    self._update_execution_log(
+                        workspace_path=workspace_path,
+                        stage_name="post_processing",
+                        status=StageStatus.FAILED,
+                        started_at=postprocess_start.isoformat(),
+                        completed_at=postprocess_end.isoformat(),
+                        duration_ms=postprocess_duration_ms,
+                        error_message=error_msg
+                    )
+
+                    # Write final result with error
+                    self._write_final_result(
+                        workspace_path=workspace_path,
+                        success=False,
+                        doc_id=None,
+                        steps_count=steps_count,
+                        errors_count=errors_count,
+                        total_marks=total_marks,
+                        critic_passed=True,
+                        critic_attempts=critic_result.get("attempts", 1),
+                        critic_scores=critic_scores,
+                        error_message=error_msg
+                    )
+
+                    # Re-raise with proper error type for batch tracking
+                    raise type(e)(f"Post-processing upsert failed: {error_msg}") from e
 
                 postprocess_end = datetime.now()
                 postprocess_duration_ms = int((postprocess_end - postprocess_start).total_seconds() * 1000)

@@ -194,46 +194,25 @@ def get_course_id_from_paper_id(paper_id: str) -> Optional[str]:
     return get_course_id_for_paper(subject, level)
 
 
-# V2 Pilot configuration
-# Only papers in this list will use V2 prompts (pedagogically enhanced)
-V2_PILOT_PAPERS: set[str] = {
-    "mathematics-n5-2023-X847-75-01",  # N5 2023 Paper 1
-}
-
-
 def is_v2_pilot_paper(paper_id: str) -> bool:
-    """Check if this paper is in the V2 pilot scope.
+    """Check if this paper should use V2 prompts.
 
-    V2 features:
-    - Concept-first explanations
-    - Peer explainer tone
-    - Prerequisite links to lessons
-    - Learning gap + marking impact errors
+    V2 pilot completed successfully - now enabled for ALL papers.
+    Function kept for backward compatibility with existing code.
+
+    V2 features (now standard):
+    - Concept-first explanations (concept_explanation field)
+    - Peer explainer tone (peer_tip field)
+    - Exam-specific warnings (student_warning field)
+    - Prerequisite links to lessons (prerequisite_links array)
+    - Learning gap analysis (learning_gap field in errors)
+    - Related topics for review (related_topics field in errors)
 
     Args:
-        paper_id: Full paper identifier
+        paper_id: Paper identifier (ignored - V2 enabled for all)
 
     Returns:
-        True if paper should use V2 prompts
+        True (V2 is now the default for all papers)
     """
-    return paper_id in V2_PILOT_PAPERS
-
-
-def add_paper_to_v2_pilot(paper_id: str) -> None:
-    """Add a paper to the V2 pilot scope.
-
-    Args:
-        paper_id: Full paper identifier to add
-    """
-    V2_PILOT_PAPERS.add(paper_id)
-    logger.info(f"Added {paper_id} to V2 pilot scope. Total: {len(V2_PILOT_PAPERS)} papers")
-
-
-def remove_paper_from_v2_pilot(paper_id: str) -> None:
-    """Remove a paper from the V2 pilot scope.
-
-    Args:
-        paper_id: Full paper identifier to remove
-    """
-    V2_PILOT_PAPERS.discard(paper_id)
-    logger.info(f"Removed {paper_id} from V2 pilot scope. Total: {len(V2_PILOT_PAPERS)} papers")
+    _ = paper_id  # Unused - V2 enabled for all papers
+    return True

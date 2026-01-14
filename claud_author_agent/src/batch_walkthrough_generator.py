@@ -379,10 +379,9 @@ async def check_existing_walkthroughs(
     for summary in summaries:
         for question in summary.questions:
             # Build document ID matching WalkthroughDocument.generate_document_id()
-            # Strip leading q to avoid double-q, replace hyphens with underscores
+            # Format: {paper_id}-q{question_number} (preserves hyphens)
             q_normalized = question.question_number.lower().replace("(", "").replace(")", "").lstrip("q")
-            paper_id_safe = summary.paper_id.replace("-", "_")
-            doc_id = f"{paper_id_safe}_q{q_normalized}"
+            doc_id = f"{summary.paper_id}-q{q_normalized}"
 
             if doc_id in existing_ids:
                 question.has_existing_walkthrough = True
@@ -1199,10 +1198,9 @@ async def run_single_question_mode(args: argparse.Namespace) -> int:
 
         # Check for existing walkthrough
         # Build document ID matching WalkthroughDocument.generate_document_id()
-        # Strip leading q to avoid double-q, replace hyphens with underscores
+        # Format: {paper_id}-q{question_number} (preserves hyphens)
         q_normalized = args.question.lower().replace("(", "").replace(")", "").lstrip("q")
-        paper_id_safe = args.paper_id.replace("-", "_")
-        walkthrough_id = f"{paper_id_safe}_q{q_normalized}"
+        walkthrough_id = f"{args.paper_id}-q{q_normalized}"
 
         from .utils.walkthrough_upserter import check_walkthrough_exists, delete_walkthrough
         exists = await check_walkthrough_exists(walkthrough_id, args.mcp_config)

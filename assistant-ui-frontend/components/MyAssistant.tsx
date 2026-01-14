@@ -167,6 +167,27 @@ export function MyAssistant({
         streamEventsReceived: streamMessageCountRef.current
       });
 
+      // ═══════════════════════════════════════════════════════════════════════
+      // CRITICAL FIX: Skip fetching thread state if we're actively streaming
+      // or if streaming just ended (within 5 seconds). This prevents a race
+      // condition where stale backend state overwrites freshly streamed content.
+      // ═══════════════════════════════════════════════════════════════════════
+      const STREAM_PROTECTION_WINDOW_MS = 5000;
+      const streamingRecently = lastStreamEndTimeRef.current > 0 && timeSinceStreamEnd < STREAM_PROTECTION_WINDOW_MS;
+
+      if (isStreamingRef.current || streamingRecently) {
+        console.log('🛡️ onSwitchToThread SKIPPED - Streaming protection active', {
+          isCurrentlyStreaming: isStreamingRef.current,
+          timeSinceStreamEndMs: timeSinceStreamEnd,
+          protectionWindowMs: STREAM_PROTECTION_WINDOW_MS
+        });
+        // Return empty messages array to tell the runtime not to update thread state
+        // This preserves the currently displayed streamed content
+        // The runtime will see no new messages and keep the current state
+        threadIdRef.current = threadId;
+        return { messages: [], interrupts: [] };
+      }
+
       const state = await getThreadState(threadId);
       threadIdRef.current = threadId;
 

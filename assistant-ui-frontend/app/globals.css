@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Scottish AI Lessons Design System Tokens */
+@import '../../design_system/tokens/colors.css';
+@import '../../design_system/tokens/typography.css';
+@import '../../design_system/tokens/spacing.css';
+@import '../../design_system/tokens/animations.css';
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

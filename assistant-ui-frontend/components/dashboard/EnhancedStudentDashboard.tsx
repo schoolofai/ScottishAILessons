@@ -13,7 +13,7 @@ import { getReviewRecommendations, getReviewStats, getUpcomingReviews } from "@/
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText, ClipboardList } from "lucide-react";
+import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText, ClipboardList, FileQuestion } from "lucide-react";
 import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import { CourseCard } from "../courses/CourseCard";
 import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
@@ -113,113 +113,148 @@ export function EnhancedStudentDashboard() {
   const [pastPapersLevel, setPastPapersLevel] = useState<string | null>(null);
   const [pastPapersLoading, setPastPapersLoading] = useState(false);
 
+  // NAT5+ SQA Mock Exam availability state
+  const [nat5ExamsAvailable, setNat5ExamsAvailable] = useState<boolean>(false);
+  const [nat5ExamsCount, setNat5ExamsCount] = useState<number>(0);
+  const [nat5ExamsLoading, setNat5ExamsLoading] = useState(false);
+
+  // ============================================================================
+  // HELPER FUNCTIONS: Course-dependent data loading
+  // These are extracted from useEffects to enable parallel execution
+  // ============================================================================
+
+  const checkCheatSheetAvailability = useCallback(async (courseId: string) => {
+    try {
+      const { RevisionNotesDriver } = await import('@/lib/appwrite/driver/RevisionNotesDriver');
+      const driver = new RevisionNotesDriver();
+      const isAvailable = await driver.courseCheatSheetExists(courseId);
+      setCheatSheetAvailable(isAvailable);
+    } catch (error) {
+      setCheatSheetAvailable(false);
+    }
+  }, []);
+
+  const checkMockExamAvailability = useCallback(async (courseId: string) => {
+    try {
+      setMockExamLoading(true);
+      const response = await fetch(`/api/exam/availability/${courseId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setMockExamAvailable(data.available);
+        setMockExamId(data.examId);
+      } else {
+        setMockExamAvailable(false);
+        setMockExamId(null);
+      }
+    } catch (error) {
+      setMockExamAvailable(false);
+      setMockExamId(null);
+    } finally {
+      setMockExamLoading(false);
+    }
+  }, []);
+
+  const checkPastPapersAvailability = useCallback(async (courseId: string) => {
+    try {
+      setPastPapersLoading(true);
+      const response = await fetch(`/api/past-papers/availability/${courseId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPastPapersAvailable(data.available);
+        setPastPapersSubject(data.subjectSlug || null);
+        setPastPapersLevel(data.levelSlug || null);
+      } else {
+        setPastPapersAvailable(false);
+        setPastPapersSubject(null);
+        setPastPapersLevel(null);
+      }
+    } catch (error) {
+      setPastPapersAvailable(false);
+      setPastPapersSubject(null);
+      setPastPapersLevel(null);
+    } finally {
+      setPastPapersLoading(false);
+    }
+  }, []);
+
+  const checkNat5ExamAvailability = useCallback(async (courseId: string) => {
+    try {
+      setNat5ExamsLoading(true);
+      const response = await fetch(`/api/sqa-mock-exam?courseId=${courseId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNat5ExamsAvailable(data.total > 0);
+        setNat5ExamsCount(data.total || 0);
+      } else {
+        setNat5ExamsAvailable(false);
+        setNat5ExamsCount(0);
+      }
+    } catch (error) {
+      setNat5ExamsAvailable(false);
+      setNat5ExamsCount(0);
+    } finally {
+      setNat5ExamsLoading(false);
+    }
+  }, []);
+
+  // ============================================================================
+  // CONSOLIDATED COURSE DATA LOADER (Performance Optimization)
+  // Runs all course-dependent queries in PARALLEL instead of sequentially
+  // Recommendations are deferred to background (non-blocking)
+  // ============================================================================
+
+  const loadCourseData = useCallback(async (courseId: string, studentData: any) => {
+    // Reset feature flags when no course
+    if (!courseId) {
+      setCheatSheetAvailable(null);
+      setMockExamAvailable(false);
+      setMockExamId(null);
+      setPastPapersAvailable(false);
+      setPastPapersSubject(null);
+      setPastPapersLevel(null);
+      setNat5ExamsAvailable(false);
+      setNat5ExamsCount(0);
+      return;
+    }
+
+    // Run all critical data fetches in PARALLEL (performance optimization)
+    // These were previously 5 separate useEffects that ran sequentially
+    await Promise.all([
+      loadCourseProgress(),
+      checkCheatSheetAvailability(courseId),
+      checkMockExamAvailability(courseId),
+      checkPastPapersAvailability(courseId),
+      checkNat5ExamAvailability(courseId),
+      loadSpacedRepetition(courseId, studentData),
+    ]);
+
+    // DEFER recommendations to background (non-blocking)
+    // This is the slowest operation (800-1500ms) so we don't wait for it
+    // The UI shows a loading skeleton while recommendations load
+    loadRecommendations(courseId, studentData);
+  }, [checkCheatSheetAvailability, checkMockExamAvailability, checkPastPapersAvailability, checkNat5ExamAvailability]);
+
+  // ============================================================================
+  // SINGLE CONSOLIDATED useEffect for course-dependent data
+  // Replaces 5 separate useEffects that were running independently
+  // ============================================================================
+
   useEffect(() => {
     initializeStudent();
   }, []);
 
-  // Load course progress when active course changes
+  // Load ALL course-dependent data when active course changes
   useEffect(() => {
     if (activeCourse && student) {
-      loadCourseProgress();
+      loadCourseData(activeCourse, student);
     }
-  }, [activeCourse, student]);
-
-  // Check course cheat sheet availability when active course changes
-  useEffect(() => {
-    if (!activeCourse) {
-      setCheatSheetAvailable(null);
-      return;
-    }
-
-    const checkCheatSheetAvailability = async () => {
-      try {
-        const { RevisionNotesDriver } = await import('@/lib/appwrite/driver/RevisionNotesDriver');
-        const driver = new RevisionNotesDriver();
-        const isAvailable = await driver.courseCheatSheetExists(activeCourse);
-        setCheatSheetAvailable(isAvailable);
-      } catch (error) {
-        // On error, mark as unavailable
-        setCheatSheetAvailable(false);
-      }
-    };
-
-    checkCheatSheetAvailability();
-  }, [activeCourse]);
-
-  // Check mock exam availability when active course changes
-  // Note: Depends on student to ensure session is authenticated before making API call
-  useEffect(() => {
-    if (!activeCourse || !student) {
-      setMockExamAvailable(false);
-      setMockExamId(null);
-      return;
-    }
-
-    const checkMockExamAvailability = async () => {
-      try {
-        setMockExamLoading(true);
-        const response = await fetch(`/api/exam/availability/${activeCourse}`, {
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setMockExamAvailable(data.available);
-          setMockExamId(data.examId);
-        } else {
-          setMockExamAvailable(false);
-          setMockExamId(null);
-        }
-      } catch (error) {
-        // Silently fail - exam will show as unavailable
-        setMockExamAvailable(false);
-        setMockExamId(null);
-      } finally {
-        setMockExamLoading(false);
-      }
-    };
-
-    checkMockExamAvailability();
-  }, [activeCourse, student]);
-
-  // Check past papers availability when active course changes
-  useEffect(() => {
-    if (!activeCourse || !student) {
-      setPastPapersAvailable(false);
-      setPastPapersSubject(null);
-      setPastPapersLevel(null);
-      return;
-    }
-
-    const checkPastPapersAvailability = async () => {
-      try {
-        setPastPapersLoading(true);
-        const response = await fetch(`/api/past-papers/availability/${activeCourse}`, {
-          credentials: 'include',
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setPastPapersAvailable(data.available);
-          setPastPapersSubject(data.subjectSlug || null);
-          setPastPapersLevel(data.levelSlug || null);
-        } else {
-          setPastPapersAvailable(false);
-          setPastPapersSubject(null);
-          setPastPapersLevel(null);
-        }
-      } catch (error) {
-        // Silently fail - past papers will show as unavailable
-        setPastPapersAvailable(false);
-        setPastPapersSubject(null);
-        setPastPapersLevel(null);
-      } finally {
-        setPastPapersLoading(false);
-      }
-    };
-
-    checkPastPapersAvailability();
-  }, [activeCourse, student]);
+  }, [activeCourse, student, loadCourseData]);
 
   // Prefetch subscription price for instant paywall modal display
   useEffect(() => {
@@ -311,15 +346,12 @@ export function EnhancedStudentDashboard() {
         return;
       }
 
-      // Set initial active course and load its data
+      // Set initial active course - the consolidated useEffect will handle loading all data
+      // (no need to manually call loadRecommendations/loadSpacedRepetition here anymore)
       if (transformedCourses.length > 0 && !activeCourse && studentData) {
         const firstCourse = transformedCourses[0];
         setActiveCourse(firstCourse.id);
-        // Load recommendations and spaced repetition data for the first course in parallel
-        await Promise.all([
-          loadRecommendations(firstCourse.id, studentData),
-          loadSpacedRepetition(firstCourse.id, studentData)
-        ]);
+        // loadCourseData will be triggered by the useEffect when activeCourse changes
       }
 
     } catch (err) {
@@ -651,15 +683,12 @@ export function EnhancedStudentDashboard() {
     }
   };
 
-  // Handle course change
-  const handleCourseChange = useCallback(async (courseId: string) => {
+  // Handle course change - just set the active course
+  // The consolidated useEffect will automatically load all course-dependent data
+  const handleCourseChange = useCallback((courseId: string) => {
     setActiveCourse(courseId);
-    // Load recommendations and spaced repetition data in parallel
-    await Promise.all([
-      loadRecommendations(courseId, student),
-      loadSpacedRepetition(courseId, student)
-    ]);
-  }, [student]);
+    // loadCourseData is triggered automatically by the useEffect dependency on activeCourse
+  }, []);
 
   // Handle lesson start with race-condition safe session creation
   const handleStartLesson = async (lessonTemplateId: string) => {
@@ -815,10 +844,34 @@ export function EnhancedStudentDashboard() {
     router.push(`/exam/${mockExamId}`);
   }, [mockExamId, hasAccess, activeCourse, router]);
 
+  // Handle NAT5+ SQA mock exam hub navigation
+  const handleOpenNat5ExamHub = useCallback(() => {
+    // Check subscription access before opening exam hub
+    if (!hasAccess) {
+      setShowPaywallModal(true);
+      return;
+    }
+
+    router.push(`/sqa-mock-exam?courseId=${activeCourse}`);
+  }, [hasAccess, activeCourse, router]);
+
   // Memoized computed values for performance
   const studentDisplayName = useMemo(() => getStudentDisplayName(student), [student]);
 
   const hasActiveCourse = useMemo(() => Boolean(activeCourse), [activeCourse]);
+
+  // Helper to check if a course level qualifies for NAT5+ mock exams
+  const isNat5PlusLevel = useCallback((level: string): boolean => {
+    const nat5PlusLevels = ['national-5', 'higher', 'advanced-higher'];
+    return nat5PlusLevels.includes(level.toLowerCase());
+  }, []);
+
+  // Check if active course is NAT5+ eligible
+  const isActiveCourseNat5Plus = useMemo(() => {
+    if (!activeCourse) return false;
+    const course = courseData.find(c => c.id === activeCourse);
+    return course ? isNat5PlusLevel(course.level) : false;
+  }, [activeCourse, courseData, isNat5PlusLevel]);
 
   const dashboardReady = useMemo(() => {
     return !loading && !error && courseData.length > 0;
@@ -934,6 +987,23 @@ export function EnhancedStudentDashboard() {
                   <ClipboardList className="h-4 w-4" />
                 )}
                 Past Papers
+              </Button>
+            )}
+            {/* NAT5+ SQA Mock Exams Button - shown for NAT5+ courses (National 5, Higher, Advanced Higher) */}
+            {isActiveCourseNat5Plus && (
+              <Button
+                variant="default"
+                onClick={handleOpenNat5ExamHub}
+                disabled={nat5ExamsLoading}
+                className="gap-2 w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
+                data-testid="nat5-mock-exams-button"
+              >
+                {nat5ExamsLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileQuestion className="h-4 w-4" />
+                )}
+                Mock Exams{nat5ExamsCount > 0 ? ` (${nat5ExamsCount})` : ''}
               </Button>
             )}
             <Button

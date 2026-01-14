@@ -163,8 +163,9 @@ export async function GET(
 
     console.log(`[API] Fetching walkthrough: ${paperId} Q${decodedQuestionNumber}`);
 
-    // Query for the walkthrough
-    const result = await databases.listDocuments(
+    // Query for the walkthrough - try both with and without Q prefix
+    // Some walkthroughs store question_number as "14b", others as "Q14b"
+    let result = await databases.listDocuments(
       DATABASE_ID,
       COLLECTION_WALKTHROUGHS,
       [
@@ -173,6 +174,21 @@ export async function GET(
         Query.equal('status', 'published')
       ]
     );
+
+    // If not found, try with Q prefix
+    if (result.documents.length === 0) {
+      const withQPrefix = `Q${decodedQuestionNumber}`;
+      console.log(`[API] Trying with Q prefix: ${withQPrefix}`);
+      result = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTION_WALKTHROUGHS,
+        [
+          Query.equal('paper_id', paperId),
+          Query.equal('question_number', withQPrefix),
+          Query.equal('status', 'published')
+        ]
+      );
+    }
 
     // Check if walkthrough exists
     if (result.documents.length === 0) {

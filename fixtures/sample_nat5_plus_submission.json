@@ -1,0 +1,51 @@
+{
+  "submission_id": "sub_001_exam_nat5_math_2024_001",
+  "exam_id": "exam_nat5_math_2024_001",
+  "student_id": "student_12345",
+  "attempt_id": "attempt_001",
+  "submitted_at": "2024-01-15T12:30:00Z",
+  "answers": [
+    {
+      "question_id": "q1",
+      "question_number": "1",
+      "response_text": "x + 12",
+      "response_latex": "$x + 12$",
+      "working_shown": "3x - 2x = x\n5 + 7 = 12\nSo x + 12",
+      "time_spent_seconds": 120,
+      "confidence_level": "high"
+    },
+    {
+      "question_id": "q2",
+      "question_number": "2",
+      "response_text": "6x + 4",
+      "response_latex": "$6x + 4$",
+      "working_shown": "Perimeter = 2(length + width)\nP = 2(2x + 3 + x - 1)\nP = 2(3x + 2)\nP = 6x + 4",
+      "time_spent_seconds": 240,
+      "confidence_level": "medium"
+    },
+    {
+      "question_id": "q3",
+      "question_number": "3",
+      "response_text": "x = 6",
+      "response_latex": "$x = 6$",
+      "working_shown": "3(2x - 1) = 4x + 9\n6x - 3 = 4x + 9\n6x - 4x = 9 + 3\n2x = 12\nx = 6",
+      "time_spent_seconds": 300,
+      "confidence_level": "high"
+    },
+    {
+      "question_id": "q4",
+      "question_number": "4",
+      "response_text": "13 miles per litre",
+      "response_latex": "$13$ miles per litre",
+      "working_shown": "156 ÷ 12 = 13\n13 miles per litre",
+      "time_spent_seconds": 90,
+      "confidence_level": "high"
+    }
+  ],
+  "exam_metadata": {
+    "started_at": "2024-01-15T11:00:00Z",
+    "total_time_spent_seconds": 750,
+    "questions_attempted": 4,
+    "questions_skipped": 0
+  }
+}

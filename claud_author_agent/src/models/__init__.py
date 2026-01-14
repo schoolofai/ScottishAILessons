@@ -4,6 +4,27 @@ Contains dataclasses and Pydantic models for structured data throughout the pipe
 """
 
 from .diagram_spec import DiagramSpec, DiagramSpecList
+# Nat5+ Mock Exam models
+from .nat5_plus_exam_models import (
+    MarkingBullet as Nat5MarkingBullet,
+    IllustrativeAnswer as Nat5IllustrativeAnswer,
+    MarkingScheme as Nat5MarkingScheme,
+    QuestionDiagram as Nat5QuestionDiagram,
+    Nat5PlusQuestion,
+    ExamSection,
+    ExamMetadata as Nat5ExamMetadata,
+    GenerationMetadata,
+    DifficultyDistribution,
+    Nat5PlusMockExam,
+)
+from .nat5_plus_question_generation_schema import (
+    QuestionSpec,
+    ExamPlan,
+    QuestionGeneration,
+    CriticResult,
+    ValidationIssue,
+)
+
 from .walkthrough_models import (
     # Core walkthrough models
     WalkthroughStep,
@@ -57,6 +78,23 @@ from .walkthrough_models import (
 )
 
 __all__ = [
+    # Nat5+ Mock Exam models
+    "Nat5MarkingBullet",
+    "Nat5IllustrativeAnswer",
+    "Nat5MarkingScheme",
+    "Nat5QuestionDiagram",
+    "Nat5PlusQuestion",
+    "ExamSection",
+    "Nat5ExamMetadata",
+    "GenerationMetadata",
+    "DifficultyDistribution",
+    "Nat5PlusMockExam",
+    # Nat5+ Question Generation schemas
+    "QuestionSpec",
+    "ExamPlan",
+    "QuestionGeneration",
+    "CriticResult",
+    "ValidationIssue",
     # Diagram models
     "DiagramSpec",
     "DiagramSpecList",

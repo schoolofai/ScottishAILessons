@@ -1,0 +1,277 @@
+{
+  "exam_id": "exam_nat5_math_2024_001",
+  "course_id": "course_nat5_mathematics_001",
+  "subject": "Mathematics",
+  "level": "National 5",
+  "exam_version": 1,
+  "status": "published",
+  "metadata": {
+    "title": "National 5 Mathematics Mock Exam - Practice Paper 1",
+    "total_marks": 90,
+    "duration_minutes": 90,
+    "calculator_allowed": true,
+    "generated_at": "2024-01-15T10:30:00Z",
+    "sqa_aligned": true
+  },
+  "sections": [
+    {
+      "section_id": "section_a",
+      "section_name": "Section A - Non-Calculator",
+      "total_marks": 40,
+      "instructions": "Answer ALL questions. Show all working clearly.",
+      "questions": [
+        {
+          "question_id": "q1",
+          "question_number": "1",
+          "marks": 3,
+          "difficulty": "easy",
+          "question_style": "procedural",
+          "stem": "Simplify the expression 3x + 5 - 2x + 7",
+          "stem_latex": "Simplify the expression $3x + 5 - 2x + 7$",
+          "topic_ids": ["nat5_algebra_simplify"],
+          "template_paper_id": "sqa_nat5_math_2023_p1",
+          "marking_scheme": {
+            "max_marks": 3,
+            "generic_scheme": [
+              {"bullet": 1, "process": "Collect like terms for x", "marks": 1},
+              {"bullet": 2, "process": "Collect constant terms", "marks": 1},
+              {"bullet": 3, "process": "State final simplified expression", "marks": 1}
+            ],
+            "illustrative_scheme": [
+              {
+                "bullet": 1,
+                "answer": "3x - 2x = x",
+                "answer_latex": "$3x - 2x = x$",
+                "tolerance_range": null,
+                "acceptable_variations": ["x"]
+              },
+              {
+                "bullet": 2,
+                "answer": "5 + 7 = 12",
+                "answer_latex": "$5 + 7 = 12$",
+                "tolerance_range": null,
+                "acceptable_variations": ["12"]
+              },
+              {
+                "bullet": 3,
+                "answer": "x + 12",
+                "answer_latex": "$x + 12$",
+                "tolerance_range": null,
+                "acceptable_variations": ["x + 12", "12 + x"]
+              }
+            ],
+            "notes": ["Accept equivalent forms", "Award marks for correct working even if final answer incorrect"]
+          },
+          "diagrams": [],
+          "hints": ["Group the x terms together first", "Then group the numbers"],
+          "common_errors": [
+            "Forgetting to combine constants",
+            "Sign errors when collecting terms"
+          ]
+        },
+        {
+          "question_id": "q2",
+          "question_number": "2",
+          "marks": 4,
+          "difficulty": "medium",
+          "question_style": "application",
+          "stem": "A rectangle has length (2x + 3) cm and width (x - 1) cm. Find an expression for the perimeter of the rectangle, simplifying your answer.",
+          "stem_latex": "A rectangle has length $(2x + 3)$ cm and width $(x - 1)$ cm. Find an expression for the perimeter of the rectangle, simplifying your answer.",
+          "topic_ids": ["nat5_algebra_expressions", "nat5_geometry_perimeter"],
+          "template_paper_id": "sqa_nat5_math_2023_p1",
+          "marking_scheme": {
+            "max_marks": 4,
+            "generic_scheme": [
+              {"bullet": 1, "process": "Know perimeter formula or method", "marks": 1},
+              {"bullet": 2, "process": "Substitute expressions into formula", "marks": 1},
+              {"bullet": 3, "process": "Expand brackets correctly", "marks": 1},
+              {"bullet": 4, "process": "Simplify to final expression", "marks": 1}
+            ],
+            "illustrative_scheme": [
+              {
+                "bullet": 1,
+                "answer": "P = 2(l + w) or P = 2l + 2w",
+                "answer_latex": "$P = 2(l + w)$ or $P = 2l + 2w$",
+                "tolerance_range": null,
+                "acceptable_variations": ["2(l + w)", "2l + 2w", "l + l + w + w"]
+              },
+              {
+                "bullet": 2,
+                "answer": "P = 2(2x + 3 + x - 1) or P = 2(2x + 3) + 2(x - 1)",
+                "answer_latex": "$P = 2(2x + 3 + x - 1)$ or $P = 2(2x + 3) + 2(x - 1)$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 3,
+                "answer": "P = 2(3x + 2) or P = 4x + 6 + 2x - 2",
+                "answer_latex": "$P = 2(3x + 2)$ or $P = 4x + 6 + 2x - 2$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 4,
+                "answer": "6x + 4",
+                "answer_latex": "$6x + 4$",
+                "tolerance_range": null,
+                "acceptable_variations": ["6x + 4", "4 + 6x", "2(3x + 2)"]
+              }
+            ],
+            "notes": ["Accept equivalent factorised forms", "Follow-through marks apply if method is correct"]
+          },
+          "diagrams": [],
+          "hints": ["Remember: Perimeter = 2(length + width)", "Expand brackets carefully"],
+          "common_errors": [
+            "Using area formula instead of perimeter",
+            "Sign errors when expanding brackets",
+            "Forgetting to multiply by 2"
+          ]
+        },
+        {
+          "question_id": "q3",
+          "question_number": "3",
+          "marks": 5,
+          "difficulty": "hard",
+          "question_style": "problem_solving",
+          "stem": "Solve the equation: 3(2x - 1) = 4x + 9",
+          "stem_latex": "Solve the equation: $3(2x - 1) = 4x + 9$",
+          "topic_ids": ["nat5_algebra_equations"],
+          "template_paper_id": "sqa_nat5_math_2022_p1",
+          "marking_scheme": {
+            "max_marks": 5,
+            "generic_scheme": [
+              {"bullet": 1, "process": "Expand the bracket", "marks": 1},
+              {"bullet": 2, "process": "Collect x terms on one side", "marks": 1},
+              {"bullet": 3, "process": "Collect constants on other side", "marks": 1},
+              {"bullet": 4, "process": "Simplify equation", "marks": 1},
+              {"bullet": 5, "process": "Solve for x", "marks": 1}
+            ],
+            "illustrative_scheme": [
+              {
+                "bullet": 1,
+                "answer": "6x - 3 = 4x + 9",
+                "answer_latex": "$6x - 3 = 4x + 9$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 2,
+                "answer": "6x - 4x = 9 + 3",
+                "answer_latex": "$6x - 4x = 9 + 3$",
+                "tolerance_range": null,
+                "acceptable_variations": ["6x - 4x - 3 = 9", "2x - 3 = 9"]
+              },
+              {
+                "bullet": 3,
+                "answer": "2x = 12",
+                "answer_latex": "$2x = 12$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 4,
+                "answer": "x = 12 ÷ 2",
+                "answer_latex": "$x = \\frac{12}{2}$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 5,
+                "answer": "x = 6",
+                "answer_latex": "$x = 6$",
+                "tolerance_range": null,
+                "acceptable_variations": ["6"]
+              }
+            ],
+            "notes": ["Full marks for correct answer with minimal working if method is clear"]
+          },
+          "diagrams": [],
+          "hints": ["Expand the bracket first", "Get all x terms on one side"],
+          "common_errors": [
+            "Errors when expanding 3(2x - 1)",
+            "Sign errors when rearranging",
+            "Dividing instead of multiplying or vice versa"
+          ]
+        }
+      ]
+    },
+    {
+      "section_id": "section_b",
+      "section_name": "Section B - Calculator Allowed",
+      "total_marks": 50,
+      "instructions": "Answer ALL questions. A calculator may be used.",
+      "questions": [
+        {
+          "question_id": "q4",
+          "question_number": "4",
+          "marks": 4,
+          "difficulty": "medium",
+          "question_style": "application",
+          "stem": "A car travels 156 miles on 12 litres of petrol. Calculate the fuel consumption in miles per litre.",
+          "stem_latex": "A car travels $156$ miles on $12$ litres of petrol. Calculate the fuel consumption in miles per litre.",
+          "topic_ids": ["nat5_numeracy_ratio"],
+          "template_paper_id": "sqa_nat5_math_2023_p2",
+          "marking_scheme": {
+            "max_marks": 4,
+            "generic_scheme": [
+              {"bullet": 1, "process": "Identify the calculation needed", "marks": 1},
+              {"bullet": 2, "process": "Set up the division correctly", "marks": 1},
+              {"bullet": 3, "process": "Perform the calculation", "marks": 1},
+              {"bullet": 4, "process": "State answer with correct units", "marks": 1}
+            ],
+            "illustrative_scheme": [
+              {
+                "bullet": 1,
+                "answer": "Miles per litre = distance ÷ fuel",
+                "answer_latex": "Miles per litre $= \\frac{\\text{distance}}{\\text{fuel}}$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 2,
+                "answer": "156 ÷ 12",
+                "answer_latex": "$\\frac{156}{12}$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 3,
+                "answer": "13",
+                "answer_latex": "$13$",
+                "tolerance_range": null,
+                "acceptable_variations": []
+              },
+              {
+                "bullet": 4,
+                "answer": "13 miles per litre",
+                "answer_latex": "$13$ miles per litre",
+                "tolerance_range": null,
+                "acceptable_variations": ["13 mpL", "13 miles/litre"]
+              }
+            ],
+            "notes": ["Accept 13 without units for 3 marks"]
+          },
+          "diagrams": [],
+          "hints": ["What operation gives 'per litre'?"],
+          "common_errors": [
+            "Dividing litres by miles instead",
+            "Forgetting units in final answer"
+          ]
+        }
+      ]
+    }
+  ],
+  "topic_coverage": ["nat5_algebra_simplify", "nat5_algebra_expressions", "nat5_geometry_perimeter", "nat5_algebra_equations", "nat5_numeracy_ratio"],
+  "difficulty_distribution": {
+    "easy": 0.25,
+    "medium": 0.5,
+    "hard": 0.25
+  },
+  "template_sources": ["sqa_nat5_math_2023_p1", "sqa_nat5_math_2023_p2", "sqa_nat5_math_2022_p1"],
+  "generation_metadata": {
+    "model": "claude-3-5-sonnet-20241022",
+    "tokens_used": 4500,
+    "generation_timestamp": "2024-01-15T10:30:00Z",
+    "pipeline_version": "1.0.0"
+  }
+}

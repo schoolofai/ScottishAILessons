@@ -90,7 +90,7 @@ class DiagramAuthorAgent:
         self,
         workspace_path: Path,
         model: str = 'claude-sonnet-4-5',
-        max_turns_per_diagram: int = 25,  # Increased from 15 - matplotlib workaround needs more turns
+        max_turns_per_diagram: int = 200,  # High limit for complex geometric diagrams (triangles, angles, etc.)
         max_iterations: int = MAX_ITERATIONS_PER_DIAGRAM,
         rendering_api_base: str = "http://localhost:3001",
         rendering_api_key: str = ""

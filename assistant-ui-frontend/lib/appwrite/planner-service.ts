@@ -817,27 +817,30 @@ export class CoursePlannerService {
         return [];
       }
 
-      // Get course details for all enrolled courses
-      const courses: Course[] = [];
-      for (const courseId of student.enrolledCourses) {
-        try {
-          const courseDoc = await this.databases.getDocument(
-            'default',
-            'courses',
-            courseId
-          );
+      // OPTIMIZED: Batch query all courses in single request instead of N+1 loop
+      // This reduces N sequential database calls to just 1 parallel query
+      const coursesResult = await this.databases.listDocuments(
+        'default',
+        'courses',
+        [
+          Query.equal('$id', student.enrolledCourses),
+          Query.limit(100)
+        ]
+      );
 
-          const course = transformAppwriteDocument(courseDoc, CourseSchema);
-
-          // Only return active courses
-          if (course.status === 'active') {
-            courses.push(course);
+      // Transform and filter to active courses only
+      const courses: Course[] = coursesResult.documents
+        .map((doc: any) => {
+          try {
+            return transformAppwriteDocument(doc, CourseSchema);
+          } catch (error) {
+            console.warn(`Failed to transform course ${doc.$id}:`, error);
+            return null;
           }
-        } catch (error) {
-          console.warn(`Failed to fetch course ${courseId}:`, error.message);
-          // Continue with other courses
-        }
-      }
+        })
+        .filter((course: Course | null): course is Course =>
+          course !== null && course.status === 'active'
+        );
 
       return courses;
     } catch (error) {
