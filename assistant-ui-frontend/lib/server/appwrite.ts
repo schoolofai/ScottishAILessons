@@ -10,7 +10,7 @@
  * - Admin client for server operations, session client for user operations
  */
 
-import { Client, Account, Databases } from 'node-appwrite';
+import { Client, Account, Databases, Storage } from 'node-appwrite';
 import { cookies } from 'next/headers';
 
 // Session cookie name
@@ -102,6 +102,9 @@ export async function createSessionClient() {
     },
     get databases() {
       return new Databases(client);
+    },
+    get storage() {
+      return new Storage(client);
     },
   };
 }
