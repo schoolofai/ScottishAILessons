@@ -100,8 +100,13 @@ export default function AttemptReviewPage({ params }: PageProps) {
 
       const examData = await examRes.json();
 
+      // Extract exam from API response wrapper
+      if (!examData.success || !examData.exam) {
+        throw new Error("Failed to load exam details");
+      }
+
       setAttempt(attemptData);
-      setExam(examData);
+      setExam(examData.exam);
       log.info("Loaded attempt review data", {
         attemptId,
         grade: attemptData.grade,
@@ -226,7 +231,7 @@ export default function AttemptReviewPage({ params }: PageProps) {
           {/* Actions */}
           <div className="flex flex-wrap gap-4 py-6 border-t">
             <Button asChild className="bg-amber-600 hover:bg-amber-700">
-              <Link href={`/sqa-mock-exam/${exam.$id}`}>
+              <Link href={`/sqa-mock-exam/${exam.exam_id}`}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Retake This Exam
               </Link>
