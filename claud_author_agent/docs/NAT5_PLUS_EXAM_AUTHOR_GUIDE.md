@@ -335,8 +335,196 @@ All unique topic combinations have been used. Options:
 - Archive existing exams
 - Use `--force-regenerate` (may produce similar exams)
 
+---
+
+## How Generated Exams Are Evaluated
+
+The marking schemes you create in the Author Agent are consumed by the **LLM-based Evaluation System** for automatic grading. Understanding this pipeline helps you write better marking schemes.
+
+### Evaluation Pipeline Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                 FROM AUTHOR AGENT TO STUDENT FEEDBACK                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  AUTHOR AGENT (You create this)                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Question with MarkingScheme:                                       │   │
+│  │  • generic_scheme: What skill each bullet assesses                  │   │
+│  │  • illustrative_scheme: Example correct answers                     │   │
+│  │  • acceptable_variations: Alternative valid forms                   │   │
+│  │  • notes: Additional marking guidance                               │   │
+│  └─────────────────────────────────┬───────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  STUDENT TAKES EXAM                                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Student provides:                                                  │   │
+│  │  • response_text: Final answer                                      │   │
+│  │  • working_shown: Step-by-step working                             │   │
+│  └─────────────────────────────────┬───────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  LLM EVALUATOR (GPT-4o-mini)                                               │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  Receives:                                                          │   │
+│  │  • Your marking scheme (generic + illustrative)                     │   │
+│  │  • Student's answer and working                                     │   │
+│  │  • SQA marking principles prompt                                    │   │
+│  │                                                                     │   │
+│  │  Returns per-bullet:                                                │   │
+│  │  • achieved: true/false                                             │   │
+│  │  • marks_awarded: 0 or bullet's max                                 │   │
+│  │  • feedback: Specific explanation                                   │   │
+│  │  • student_evidence: Quote from their work                          │   │
+│  └─────────────────────────────────┬───────────────────────────────────┘   │
+│                                    │                                        │
+│                                    ▼                                        │
+│  STUDENT SEES FEEDBACK                                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  ✓ Bullet 1 (1 mark): "Correctly expand brackets"                  │   │
+│  │    Your work: "2(3x + 2)" ✓                                        │   │
+│  │    Expected: "6x + 4"                                               │   │
+│  │  ✗ Bullet 2 (1 mark): "State final simplified answer"              │   │
+│  │    Your answer: "6x + 8"                                            │   │
+│  │    Expected: "6x + 4"                                               │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### How Your Marking Scheme Becomes LLM Prompts
+
+The evaluator transforms your marking scheme into a structured prompt:
+
+```
+## MARKING SCHEME
+
+### Generic Scheme (what skill each bullet assesses):
+• Bullet 1 (1 mark): Correctly expand brackets
+• Bullet 2 (1 mark): Correctly simplify terms
+• Bullet 3 (1 mark): State final answer
+
+### Illustrative Scheme (example correct answers):
+• Bullet 1: Expected answer: 2x + 6 - x + 4
+• Bullet 2: Expected answer: x + 10
+• Bullet 3: Expected answer: x + 10
+
+### Acceptable Variations:
+• Bullet 3: Also accept: 10 + x, x+10
+```
+
+### Writing Effective Marking Schemes
+
+**✅ GOOD: Clear, skill-based generic scheme**
+```json
+{
+  "generic_scheme": [
+    {"bullet": 1, "process": "Set up the equation correctly", "marks": 1},
+    {"bullet": 2, "process": "Isolate the variable term", "marks": 1},
+    {"bullet": 3, "process": "Solve for the variable", "marks": 1}
+  ]
+}
+```
+
+**❌ BAD: Answer-focused rather than skill-focused**
+```json
+{
+  "generic_scheme": [
+    {"bullet": 1, "process": "Write 2x = 12", "marks": 1},
+    {"bullet": 2, "process": "Write x = 6", "marks": 2}
+  ]
+}
+```
+
+### Why Generic Scheme Matters
+
+The LLM uses the **generic scheme** to determine if the student demonstrated the required skill, even if their intermediate steps differ from the illustrative scheme. This enables:
+
+1. **Follow-through marking**: Student uses wrong value but correct method
+2. **Alternative approaches**: Student uses different valid method
+3. **Partial credit**: Some bullets achieved, others not
+
+### Acceptable Variations Field
+
+Always include `acceptable_variations` for answers with equivalent forms:
+
+```json
+{
+  "illustrative_scheme": [
+    {
+      "bullet": 3,
+      "answer": "6x + 4",
+      "acceptable_variations": ["4 + 6x", "2(3x + 2)", "2·(3x+2)"]
+    }
+  ]
+}
+```
+
+The LLM will accept any mathematically equivalent form, but explicit variations help with edge cases like:
+- Different ordering: `6x + 4` vs `4 + 6x`
+- Factored forms: `6x + 4` vs `2(3x + 2)`
+- With/without spaces: `x=6` vs `x = 6`
+
+### Common Errors Field for Better Feedback
+
+Adding `common_errors` to your questions improves feedback quality:
+
+```json
+{
+  "common_errors": [
+    "Forgetting to distribute the negative sign",
+    "Adding unlike terms (e.g., 3x + 5 = 8x)",
+    "Arithmetic errors when combining constants"
+  ]
+}
+```
+
+The LLM uses these to detect and explain misconceptions:
+
+```
+MISCONCEPTION DETECTED:
+"Student added unlike terms: 3x + 5 was incorrectly simplified to 8x.
+Remember that you can only combine terms with the same variable."
+```
+
+### SQA Marking Principles Applied by LLM
+
+The evaluator enforces these SQA principles automatically:
+
+| Principle | How It's Applied |
+|-----------|------------------|
+| **Independent Bullets** | Each bullet marked separately; error in B1 doesn't affect B2 |
+| **Follow-Through** | Correct method with wrong value still earns method marks |
+| **Equivalent Forms** | `6x + 4` = `4 + 6x` = `2(3x + 2)` all accepted |
+| **Tolerance** | Numeric answers within 1% tolerance accepted |
+| **Method Credit** | Clear working with arithmetic slip still earns method marks |
+
+### Testing Your Marking Schemes
+
+After generating an exam, test the marking scheme quality:
+
+1. **Take the exam yourself** with intentional errors
+2. **Verify follow-through marking** works for method errors
+3. **Check acceptable variations** are recognized
+4. **Review misconception detection** accuracy
+
+Example test scenarios:
+
+| Test Case | Your Answer | Expected Behavior |
+|-----------|-------------|-------------------|
+| All correct | `x + 12` | Full marks |
+| Arithmetic error | `x + 13` (5+7=13) | Partial credit for method |
+| Wrong method | Random guess | Zero marks with feedback |
+| Equivalent form | `12 + x` instead of `x + 12` | Full marks |
+| Empty | (blank) | Zero marks, no LLM call |
+
+---
+
 ## Related Documentation
 
-- [Plan File](/Users/niladribose/.claude/plans/luminous-humming-ember.md) - Full implementation plan
-- [LangGraph Evaluator](../langgraph-agent/src/agent/graph_nat5_plus_exam.py) - Grading graph
-- [Frontend Types](../assistant-ui-frontend/lib/sqa-mock-exam/types.ts) - TypeScript interfaces
+- [Main System Documentation](../../docs/NAT5_PLUS_MOCK_EXAM_SYSTEM.md) - Full system architecture and LLM evaluation details
+- [LangGraph Evaluator](../../langgraph-agent/src/agent/graph_nat5_plus_exam.py) - Grading graph
+- [Marking Engine](../../langgraph-agent/src/agent/nat5_plus_marking_engine.py) - LLM-based marking implementation
+- [Frontend Types](../../assistant-ui-frontend/lib/sqa-mock-exam/types.ts) - TypeScript interfaces
