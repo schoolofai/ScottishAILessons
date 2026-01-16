@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY src ./src
@@ -16,7 +16,7 @@ COPY src ./src
 RUN npm run build
 
 # Stage 2: Runtime stage with Playwright
-FROM mcr.microsoft.com/playwright:v1.56.0-jammy
+FROM mcr.microsoft.com/playwright:v1.57.0-jammy
 
 WORKDIR /app
 
@@ -26,7 +26,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 
 # Copy package files and install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm install --only=production
 
 # Copy built application from builder
 COPY --from=builder /app/dist ./dist
