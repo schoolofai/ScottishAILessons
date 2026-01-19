@@ -19,6 +19,12 @@ Usage:
 
     # Skip diagram generation
     python pipeline_runner.py lessons --subject physics --level higher --skip-diagrams
+
+    # Skip seed+SOW (use existing course/SOW)
+    python pipeline_runner.py lessons --subject application_of_mathematics --level higher --skip-seed-sow
+
+    # Combine flags: skip seed+SOW and diagrams
+    python pipeline_runner.py lessons --subject aom --level h --skip-seed-sow --skip-diagrams
 """
 
 import argparse
@@ -59,6 +65,7 @@ class PipelineConfig:
     run_id: str = field(default_factory=lambda: datetime.now().strftime("%Y%m%d_%H%M%S"))
     dry_run: bool = False
     skip_diagrams: bool = False
+    skip_seed_sow: bool = False
     force: bool = False
     diagram_timeout: int = 60
 
@@ -144,6 +151,29 @@ class LessonsPipeline:
         self.observability.pipeline_started(state)
 
         try:
+            # Handle --skip-seed-sow: lookup course_id and validate SOW exists
+            if self.config.skip_seed_sow:
+                self.observability.log_info(
+                    "Skip SEED+SOW enabled - looking up existing course"
+                )
+
+                # Lookup course_id from database
+                course_id = await self.step_runner.lookup_course_id(
+                    subject=self.config.subject,
+                    level=self.config.level
+                )
+                state.course_id = course_id
+
+                # Validate SOW exists
+                await self.step_runner.validate_sow_exists(course_id)
+
+                # Mark SEED and SOW as skipped in state
+                state.last_completed_step = "sow"
+                self.checkpoint_mgr.save(state)
+
+                self.observability.step_skipped("seed", "skip_seed_sow flag set")
+                self.observability.step_skipped("sow", "skip_seed_sow flag set")
+
             # Find starting step (resume support)
             start_index = self._get_start_index(state)
 
@@ -154,6 +184,10 @@ class LessonsPipeline:
                 )
 
             for step in self.STEPS[start_index:]:
+                # Skip SEED/SOW if --skip-seed-sow is set
+                if self.config.skip_seed_sow and step in (PipelineStep.SEED, PipelineStep.SOW):
+                    continue
+
                 # Skip diagrams if requested
                 if step == PipelineStep.DIAGRAMS and self.config.skip_diagrams:
                     self.observability.step_skipped(step.value, "skip_diagrams flag set")
@@ -487,6 +521,12 @@ def show_help() -> None:
     print("  # Skip diagram generation")
     print("  python pipeline_runner.py lessons --subject chemistry --level n5 --skip-diagrams")
     print()
+    print("  # Skip seed+SOW (use existing course/SOW)")
+    print("  python pipeline_runner.py lessons --subject application_of_mathematics --level higher --skip-seed-sow")
+    print()
+    print("  # Combine flags: skip seed+SOW and diagrams")
+    print("  python pipeline_runner.py lessons --subject aom --level h --skip-seed-sow --skip-diagrams")
+    print()
 
 
 async def main() -> int:
@@ -532,6 +572,11 @@ async def main() -> int:
         help="Skip diagram generation step"
     )
     lessons_parser.add_argument(
+        "--skip-seed-sow",
+        action="store_true",
+        help="Skip SEED and SOW steps (requires existing course+SOW in database)"
+    )
+    lessons_parser.add_argument(
         "--force",
         action="store_true",
         help="Force regenerate (ignore existing content)"
@@ -569,6 +614,7 @@ async def main() -> int:
                 # Apply runtime flags
                 config.dry_run = args.dry_run
                 config.skip_diagrams = args.skip_diagrams
+                config.skip_seed_sow = args.skip_seed_sow
                 config.force = args.force
                 config.diagram_timeout = args.diagram_timeout
             else:
@@ -588,6 +634,7 @@ async def main() -> int:
                     level=level,
                     dry_run=args.dry_run,
                     skip_diagrams=args.skip_diagrams,
+                    skip_seed_sow=args.skip_seed_sow,
                     force=args.force,
                     diagram_timeout=args.diagram_timeout
                 )

@@ -75,6 +75,7 @@ source claud_author_agent/.venv/bin/activate
 | `--resume <run_id>` | Resume from checkpoint |
 | `--dry-run` | Preview without execution |
 | `--skip-diagrams` | Skip diagram generation step |
+| `--skip-seed-sow` | Skip SEED and SOW steps (requires existing course+SOW) |
 | `--force` | Force regenerate existing content |
 | `--diagram-timeout` | Timeout for diagram service (default: 60s) |
 
@@ -86,6 +87,31 @@ source claud_author_agent/.venv/bin/activate
 | `app_math` | `application_of_mathematics` |
 | `n5`, `nat5` | `national_5` |
 | `ah` | `advanced_higher` |
+
+### Skip Seed and SOW Steps
+
+For courses where seeding and SOW already exist in the database, use `--skip-seed-sow` to start directly from lesson generation:
+
+```bash
+# Skip seed+SOW when course already exists
+python devops/pipeline_runner.py lessons --subject application_of_mathematics --level higher --skip-seed-sow
+
+# Combine with other flags
+python devops/pipeline_runner.py lessons --subject aom --level higher --skip-seed-sow --skip-diagrams
+```
+
+**Prerequisites for `--skip-seed-sow`:**
+- Course must exist in `default.courses` collection
+- SOW must exist in `default.Authored_SOW` collection
+
+The pipeline will fail fast with clear error messages if prerequisites are not met:
+```
+No course found for subject=gaelic, level=advanced_higher.
+Run without --skip-seed-sow to seed the course first.
+
+No SOW found for course course_c84775.
+Run without --skip-seed-sow to generate SOW first.
+```
 
 ## Directory Structure
 

@@ -33,7 +33,7 @@ from pydantic import ValidationError
 from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_diagram_author_input
 from .utils.metrics import CostTracker, format_cost_report
-from .utils.logging_config import setup_logging
+from .utils.logging_config import setup_logging, add_workspace_file_handler
 from .utils.diagram_extractor import fetch_lesson_template
 from .utils.diagram_upserter import batch_upsert_diagrams
 from .utils.diagram_validator import validate_diagram_output_schema
@@ -269,6 +269,16 @@ class DiagramAuthorClaudeAgent:
                 workspace_path = filesystem.root
 
                 logger.info(f"Workspace created: {workspace_path}")
+
+                # ═══════════════════════════════════════════════════════════════
+                # WORKSPACE FILE LOGGING: Persist all logs to run.log for observability
+                # ═══════════════════════════════════════════════════════════════
+                log_file_path = add_workspace_file_handler(
+                    workspace_path=workspace_path,
+                    log_filename="run.log",
+                    log_level="DEBUG"  # Capture ALL logs including raw Claude SDK messages
+                )
+                logger.info(f"📝 Execution log: {log_file_path}")
 
                 # ═══════════════════════════════════════════════════════════════
                 # PRE-PROCESSING: Fetch lesson template and filter eligible cards
@@ -808,11 +818,15 @@ class DiagramAuthorClaudeAgent:
                     "success": True,
                     "execution_id": self.execution_id,
                     "workspace_path": str(workspace_path),
+                    "log_file": str(log_file_path),  # Path to run.log for observability
                     "diagrams_generated": upsert_results['succeeded'],
                     "diagrams_skipped": total_cards - cards_needing_diagrams,
                     "diagrams_failed": len(errors) + upsert_results['failed'],
                     "appwrite_document_ids": appwrite_document_ids,
-                    "metrics": self.cost_tracker.get_summary(),
+                    "metrics": {
+                        **self.cost_tracker.get_summary(),
+                        "turn_count": message_count  # Capture turn count for analytics
+                    },
                     "errors": errors + upsert_results.get("errors", [])
                 }
 

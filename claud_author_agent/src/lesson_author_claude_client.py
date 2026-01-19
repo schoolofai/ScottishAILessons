@@ -17,7 +17,7 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinitio
 from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_lesson_author_input
 from .utils.metrics import CostTracker, format_cost_report
-from .utils.logging_config import setup_logging
+from .utils.logging_config import setup_logging, add_workspace_file_handler
 from .utils.compression import decompress_json_gzip_base64
 from .tools.json_validator_tool import validation_server
 
@@ -163,6 +163,16 @@ class LessonAuthorClaudeAgent:
                 workspace_path = filesystem.root
 
                 logger.info(f"Workspace created: {workspace_path}")
+
+                # ═══════════════════════════════════════════════════════════════
+                # WORKSPACE FILE LOGGING: Persist all logs to run.log for observability
+                # ═══════════════════════════════════════════════════════════════
+                log_file_path = add_workspace_file_handler(
+                    workspace_path=workspace_path,
+                    log_filename="run.log",
+                    log_level="DEBUG"  # Capture ALL logs including raw Claude SDK messages
+                )
+                logger.info(f"📝 Execution log: {log_file_path}")
 
                 # ═══════════════════════════════════════════════════════════════
                 # PRE-PROCESSING: Extract SOW entry and Course_outcomes.json (NO AGENT)
@@ -405,8 +415,12 @@ class LessonAuthorClaudeAgent:
                     "success": True,
                     "execution_id": self.execution_id,
                     "workspace_path": str(workspace_path),
+                    "log_file": str(log_file_path),  # Path to run.log for observability
                     "appwrite_document_id": appwrite_document_id,
-                    "metrics": self.cost_tracker.get_summary()
+                    "metrics": {
+                        **self.cost_tracker.get_summary(),
+                        "turn_count": message_count  # Capture turn count for analytics
+                    }
                 }
 
         except Exception as e:
