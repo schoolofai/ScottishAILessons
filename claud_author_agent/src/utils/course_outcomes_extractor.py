@@ -179,8 +179,8 @@ def _detect_structure_type(outcomes: List[Dict[str, Any]]) -> str:
     """
     # Check all outcomes for skills-based format
     for outcome in outcomes:
-        outcome_id = outcome.get("outcomeId", "")
-        if outcome_id.startswith("TOPIC_") or outcome_id.startswith("SKILL_"):
+        outcome_id = outcome.get("outcomeId") or ""
+        if outcome_id and (outcome_id.startswith("TOPIC_") or outcome_id.startswith("SKILL_")):
             logger.info(f"    Detected skills-based outcome: {outcome_id}")
             return "skills_based"
 

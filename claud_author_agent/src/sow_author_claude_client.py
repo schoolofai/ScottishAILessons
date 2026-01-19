@@ -18,7 +18,7 @@ from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinitio
 from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_input_schema, format_subject_display, format_level_display
 from .utils.metrics import CostTracker, format_cost_report
-from .utils.logging_config import setup_logging
+from .utils.logging_config import setup_logging, add_workspace_file_handler
 from .tools.sow_validator_tool import sow_validation_server
 
 logger = logging.getLogger(__name__)
@@ -386,6 +386,16 @@ class SOWAuthorClaudeAgent:
                 logger.info(f"Workspace created: {workspace_path}")
 
                 # ═══════════════════════════════════════════════════════════════
+                # WORKSPACE FILE LOGGING: Persist all logs to run.log for observability
+                # ═══════════════════════════════════════════════════════════════
+                log_file_path = add_workspace_file_handler(
+                    workspace_path=workspace_path,
+                    log_filename="run.log",
+                    log_level="DEBUG"  # Capture ALL logs including raw Claude SDK messages
+                )
+                logger.info(f"📝 Execution log: {log_file_path}")
+
+                # ═══════════════════════════════════════════════════════════════
                 # PRE-PROCESSING: Extract Course_data.txt using Python (NO AGENT)
                 # ═══════════════════════════════════════════════════════════════
                 logger.info("Pre-processing: Extracting Course_data.txt via Python utility...")
@@ -493,8 +503,12 @@ class SOWAuthorClaudeAgent:
                     "success": True,
                     "execution_id": self.execution_id,
                     "workspace_path": str(workspace_path),
+                    "log_file": str(log_file_path),  # Path to run.log for observability
                     "appwrite_document_id": appwrite_document_id,
-                    "metrics": self.cost_tracker.get_summary()
+                    "metrics": {
+                        **self.cost_tracker.get_summary(),
+                        "turn_count": message_count  # Capture turn count for analytics
+                    }
                 }
 
         except Exception as e:

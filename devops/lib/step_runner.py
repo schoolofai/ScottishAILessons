@@ -20,6 +20,7 @@ import asyncio
 import logging
 import os
 import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -170,7 +171,7 @@ class StepRunner:
             )
 
             # result contains: {success, execution_id, workspace_path, metrics, error, ...}
-            return StepResult(
+            step_result = StepResult(
                 success=result.get("success", False),
                 outputs={
                     "sow_document_id": result.get("sow_document_id"),
@@ -182,6 +183,15 @@ class StepRunner:
                 execution_id=result.get("execution_id"),
                 workspace_path=result.get("workspace_path")
             )
+
+            # Collect agent logs to devops/logs for centralized observability
+            self._collect_agent_logs(
+                step_name="sow",
+                execution_id=result.get("execution_id"),
+                workspace_path=result.get("workspace_path")
+            )
+
+            return step_result
 
         except ImportError as e:
             error_msg = f"Failed to import SOWAuthorClaudeAgent: {e}"
@@ -226,14 +236,28 @@ class StepRunner:
             if not sow_docs:
                 raise ValueError(f"No SOW found for course {course_id}")
 
-            # Parse entries from SOW document
+            # Parse entries from SOW document (handles gzip-compressed format)
+            import json
+            import gzip
+            import base64
+
             sow_doc = sow_docs[0]
-            entries_json = sow_doc.get("entries", "[]")
-            if isinstance(entries_json, str):
-                import json
-                entries = json.loads(entries_json)
+            entries_raw = sow_doc.get("entries", "[]")
+
+            if isinstance(entries_raw, list):
+                entries = entries_raw
+            elif isinstance(entries_raw, str):
+                if entries_raw.startswith("gzip:"):
+                    # Gzip-compressed base64 format
+                    compressed_data = base64.b64decode(entries_raw[5:])
+                    decompressed = gzip.decompress(compressed_data)
+                    entries = json.loads(decompressed.decode("utf-8"))
+                elif entries_raw.strip():
+                    entries = json.loads(entries_raw)
+                else:
+                    entries = []
             else:
-                entries = entries_json
+                entries = []
 
             if not entries:
                 raise ValueError(f"SOW has no entries for course {course_id}")
@@ -298,6 +322,13 @@ class StepRunner:
                         "execution_id": result.get("execution_id"),
                         "error": result.get("error")
                     })
+
+                    # Collect agent logs for this lesson
+                    self._collect_agent_logs(
+                        step_name="lessons",
+                        execution_id=result.get("execution_id"),
+                        workspace_path=result.get("workspace_path")
+                    )
 
                 except Exception as e:
                     self.logger.error(f"Lesson {order} failed: {e}")
@@ -413,6 +444,13 @@ class StepRunner:
                         "error": result.get("error")
                     })
 
+                    # Collect agent logs for this diagram
+                    self._collect_agent_logs(
+                        step_name="diagrams",
+                        execution_id=result.get("execution_id"),
+                        workspace_path=result.get("workspace_path")
+                    )
+
                 except Exception as e:
                     self.logger.error(f"Diagram generation for lesson {order} failed: {e}")
                     failed += 1
@@ -448,6 +486,124 @@ class StepRunner:
             return StepResult(success=False, error=str(e))
 
     # ═══════════════════════════════════════════════════════════════════════════
+    # COURSE/SOW LOOKUP HELPERS (for --skip-seed-sow)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def lookup_course_id(self, subject: str, level: str) -> str:
+        """Lookup course_id from database by subject and level.
+
+        Used when --skip-seed-sow is set to find existing course.
+
+        Args:
+            subject: SQA subject (underscore format, e.g., 'mathematics')
+            level: SQA level (underscore format, e.g., 'national_5')
+
+        Returns:
+            course_id (e.g., 'course_c84775')
+
+        Raises:
+            ValueError: If no course found for subject+level
+        """
+        from src.utils.appwrite_mcp import list_appwrite_documents
+        from devops.lib.validators import subject_to_db_format, level_to_db_format
+
+        # Convert to DB format (hyphen format)
+        db_subject = subject_to_db_format(subject)
+        db_level = level_to_db_format(level)
+
+        self.logger.info(f"Looking up course for {db_subject}/{db_level}")
+
+        courses = await list_appwrite_documents(
+            database_id="default",
+            collection_id="courses",
+            queries=[
+                f'equal("subject", "{db_subject}")',
+                f'equal("level", "{db_level}")'
+            ],
+            mcp_config_path=self.mcp_config_path
+        )
+
+        if not courses:
+            raise ValueError(
+                f"No course found for subject={subject}, level={level}. "
+                f"Run without --skip-seed-sow to seed the course first."
+            )
+
+        course_id = courses[0].get("courseId")
+        if not course_id:
+            raise ValueError(
+                f"Course document missing courseId field for {subject}/{level}"
+            )
+
+        self.logger.info(f"Found existing course: {course_id}")
+        return course_id
+
+    async def validate_sow_exists(self, course_id: str) -> bool:
+        """Verify SOW exists for the given course.
+
+        Used when --skip-seed-sow is set to validate prerequisites.
+
+        Args:
+            course_id: Course ID to check
+
+        Returns:
+            True if SOW exists
+
+        Raises:
+            ValueError: If no SOW found
+        """
+        import json
+        import gzip
+        import base64
+        from src.utils.appwrite_mcp import list_appwrite_documents
+
+        self.logger.info(f"Validating SOW exists for {course_id}")
+
+        sow_docs = await list_appwrite_documents(
+            database_id="default",
+            collection_id="Authored_SOW",
+            queries=[f'equal("courseId", "{course_id}")'],
+            mcp_config_path=self.mcp_config_path
+        )
+
+        if not sow_docs:
+            raise ValueError(
+                f"No SOW found for course {course_id}. "
+                f"Run without --skip-seed-sow to generate SOW first."
+            )
+
+        entries_raw = sow_docs[0].get("entries", "[]")
+
+        # Handle different storage formats
+        if isinstance(entries_raw, list):
+            # Already parsed as list
+            entries = entries_raw
+        elif isinstance(entries_raw, str):
+            if entries_raw.startswith("gzip:"):
+                # Gzip-compressed base64 format
+                compressed_data = base64.b64decode(entries_raw[5:])
+                decompressed = gzip.decompress(compressed_data)
+                entries = json.loads(decompressed.decode("utf-8"))
+            elif entries_raw.strip():
+                # Regular JSON string
+                entries = json.loads(entries_raw)
+            else:
+                entries = []
+        else:
+            entries = []
+
+        lesson_count = len(entries) if entries else 0
+        self.logger.info(f"Found existing SOW with {lesson_count} lessons")
+
+        if lesson_count == 0:
+            raise ValueError(
+                f"SOW exists for {course_id} but has no lesson entries. "
+                f"Run without --skip-seed-sow to generate SOW first."
+            )
+
+        return True
+
+    # ═══════════════════════════════════════════════════════════════════════════
     # HELPER METHODS
     # ═══════════════════════════════════════════════════════════════════════════
 
@@ -467,8 +623,57 @@ class StepRunner:
             "output_tokens": metrics.get("total_output_tokens", 0),
             "cost_usd": metrics.get("total_cost", 0),
             "execution_time_seconds": metrics.get("execution_time_seconds", 0),
-            "subagent_count": len(metrics.get("subagent_metrics", {}))
+            "subagent_count": len(metrics.get("subagent_metrics", {})),
+            "turn_count": metrics.get("turn_count", 0)  # NEW: Capture turn count
         }
+
+    def _collect_agent_logs(
+        self,
+        step_name: str,
+        execution_id: Optional[str],
+        workspace_path: Optional[str]
+    ) -> Optional[Path]:
+        """Collect agent run.log from workspace to devops logs.
+
+        Copies the agent's run.log file from the workspace directory to
+        devops/logs/{run_id}/agents/{step}/{execution_id}.log for centralized
+        observability.
+
+        Args:
+            step_name: Step name (sow, lessons, diagrams)
+            execution_id: Agent execution ID (used for log filename)
+            workspace_path: Path to agent workspace
+
+        Returns:
+            Path to collected log file, or None if not found
+        """
+        if not workspace_path:
+            self.logger.debug(f"No workspace_path for {step_name}/{execution_id}")
+            return None
+
+        source_log = Path(workspace_path) / "run.log"
+        if not source_log.exists():
+            self.logger.warning(f"Agent log not found: {source_log}")
+            return None
+
+        # Target: devops/logs/{run_id}/agents/{step}/{execution_id}.log
+        target_dir = (
+            self.project_root /
+            "devops/logs" /
+            self.config.run_id /
+            "agents" /
+            step_name
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        target_log = target_dir / f"{execution_id}.log"
+
+        try:
+            shutil.copy2(source_log, target_log)
+            self.logger.info(f"📝 Collected agent log: {target_log}")
+            return target_log
+        except Exception as e:
+            self.logger.error(f"Failed to collect agent log: {e}")
+            return None
 
     async def _run_subprocess(
         self,

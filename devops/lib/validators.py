@@ -18,6 +18,7 @@ import re
 VALID_SUBJECTS = {
     "mathematics": ["mathematics", "math", "maths"],
     "application_of_mathematics": ["application_of_mathematics", "aom", "app_math", "application-of-mathematics"],
+    "applications_of_mathematics": ["applications_of_mathematics", "aoms", "apps_math", "applications-of-mathematics"],
     "physics": ["physics", "phys"],
     "chemistry": ["chemistry", "chem"],
     "biology": ["biology", "bio"],
