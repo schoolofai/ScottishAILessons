@@ -141,21 +141,26 @@ async def extract_course_data_to_file(
     logger.info(f"  ✓ Successfully parsed data field JSON")
 
     # Step 5: Extract nested structure with validation (FAIL-FAST)
+    # SQA data structure: data.subjects[0].levels[0] contains the level-specific data
     try:
-        course_name = data_json['qualification']['title']
-        course_code = data_json['qualification']['course_code']
-        units = data_json['course_structure']['units']
-        recommended_sequence = data_json['course_structure'].get('recommended_sequence', [])
-        sequence_rationale = data_json['course_structure'].get('sequence_rationale', '')
-        delivery_notes = data_json['course_structure'].get('delivery_notes', [])
-        assessment_model = data_json.get('assessment_model', {})
-        marking_guidance = data_json.get('marking_guidance', {})
-    except KeyError as e:
+        # Navigate to level data first
+        level_data = data_json['subjects'][0]['levels'][0]
+
+        course_name = level_data['qualification']['title']
+        course_code = level_data['qualification']['course_code']
+        course_structure = level_data['course_structure']
+        units = course_structure.get('units', [])
+        recommended_sequence = course_structure.get('recommended_sequence', [])
+        sequence_rationale = course_structure.get('sequence_rationale', '')
+        delivery_notes = course_structure.get('delivery_notes', [])
+        assessment_model = level_data.get('assessment_model', {})
+        marking_guidance = level_data.get('marking_guidance', {})
+    except (KeyError, IndexError) as e:
         raise ValueError(
             f"Missing required field in data JSON: {e}. "
             f"Document ID: {document_id}. "
-            f"Expected schema: {{qualification: {{title, course_code}}, "
-            f"course_structure: {{units, recommended_sequence, ...}}}}. "
+            f"Expected schema: {{subjects: [{{levels: [{{qualification: {{title, course_code}}, "
+            f"course_structure: {{...}}}}]}}]}}. "
             f"Available keys: {list(data_json.keys())}. "
             f"This indicates a schema mismatch - check data extraction pipeline."
         )

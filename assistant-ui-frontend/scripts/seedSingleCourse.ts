@@ -196,8 +196,9 @@ async function seedSingleCourse(
     console.log(`   ✅ Extracted course code: "${processedCourse.sqaCode}"`);
     console.log(`   ✅ Generated courseId: ${processedCourse.courseId}`);
 
-    // Detect structure type
-    const structureType = processedCourse.data.course_structure?.structure_type || 'unit_based';
+    // Detect structure type (SQA data nested under subjects[0].levels[0])
+    const levelData = processedCourse.data.subjects?.[0]?.levels?.[0];
+    const structureType = levelData?.course_structure?.structure_type || 'unit_based';
     console.log(`   📊 Structure Type: ${structureType}`);
 
     if (structureType === 'skills_based') {

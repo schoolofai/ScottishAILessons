@@ -178,11 +178,12 @@ export function processSQACourse(sqaDoc: SQACourseDoc): ProcessedCourse {
   }
 
   // Extract course_code from nested qualification object (FAIL-FAST, NO FALLBACK)
-  const courseCode = parsedData.qualification?.course_code;
+  // SQA data structure: data.subjects[0].levels[0].qualification.course_code
+  const courseCode = parsedData.subjects?.[0]?.levels?.[0]?.qualification?.course_code;
   if (!courseCode) {
     throw new Error(
-      `No course_code found in data.qualification.\n\n` +
-      `Actual structure: ${JSON.stringify(parsedData.qualification || {})}`
+      `No course_code found in data.subjects[0].levels[0].qualification.\n\n` +
+      `Actual structure: ${JSON.stringify(parsedData.subjects?.[0]?.levels?.[0]?.qualification || {})}`
     );
   }
 
@@ -305,15 +306,21 @@ export async function createCourseDocument(
 export function extractOutcomes(processedCourse: ProcessedCourse): CourseOutcome[] {
   const data = processedCourse.data;
 
+  // SQA data structure: data.subjects[0].levels[0] contains the level-specific data
+  const levelData = data.subjects?.[0]?.levels?.[0];
+  if (!levelData) {
+    throw new Error('No level data found in SQA course structure (expected data.subjects[0].levels[0])');
+  }
+
   // Detect structure type (default to unit_based for backward compatibility)
-  const structureType = data.course_structure?.structure_type || 'unit_based';
+  const structureType = levelData.course_structure?.structure_type || 'unit_based';
 
   if (structureType === 'skills_based') {
     // ══════════════════════════════════════════════════════════════
     // SKILLS-BASED EXTRACTION (National 5+)
     // ══════════════════════════════════════════════════════════════
-    const skillsFramework = data.course_structure.skills_framework;
-    const topicAreas = data.course_structure.topic_areas || [];
+    const skillsFramework = levelData.course_structure.skills_framework;
+    const topicAreas = levelData.course_structure.topic_areas || [];
 
     // Fail-fast validation
     if (!skillsFramework || !skillsFramework.skills) {
@@ -357,11 +364,11 @@ export function extractOutcomes(processedCourse: ProcessedCourse): CourseOutcome
     // ══════════════════════════════════════════════════════════════
     // UNIT-BASED EXTRACTION (National 3/4)
     // ══════════════════════════════════════════════════════════════
-    const units = data.course_structure?.units || data.units || [];
+    const units = levelData.course_structure?.units || [];
 
     // Fail-fast: no units means invalid structure
     if (units.length === 0) {
-      throw new Error('No units found in course data');
+      throw new Error('No units found in course data (expected levelData.course_structure.units)');
     }
 
     const outcomes = extractOutcomesFromUnitsBased(
