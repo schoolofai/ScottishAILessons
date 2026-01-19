@@ -108,7 +108,7 @@ class StepRunner:
         self.logger.info(f"Starting seed for {subject}/{level}")
 
         cmd = [
-            "tsx",
+            "npx", "tsx",
             "scripts/seedSingleCourse.ts",
             "--subject", subject,
             "--level", level

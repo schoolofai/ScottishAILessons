@@ -12,7 +12,6 @@
 #   ./pipeline.sh help
 #
 # Environment Variables:
-#   ANTHROPIC_API_KEY    - Required for Claude agents
 #   APPWRITE_ENDPOINT    - Appwrite database endpoint
 #   APPWRITE_PROJECT_ID  - Appwrite project ID
 #   APPWRITE_API_KEY     - Appwrite API key
@@ -111,22 +110,18 @@ load_env_file "$SCRIPT_DIR/.env"
 echo ""
 echo -e "${BLUE}Checking environment variables...${NC}"
 
-# Check required and optional env vars
-ENV_OK=true
-check_env_var "ANTHROPIC_API_KEY" "required" || ENV_OK=false
+# Unset ANTHROPIC_API_KEY to use subscription instead of API key
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo -e "${YELLOW}Unsetting ANTHROPIC_API_KEY to use subscription${NC}"
+    unset ANTHROPIC_API_KEY
+fi
+echo -e "${GREEN}✓ Using subscription (ANTHROPIC_API_KEY unset)${NC}"
 
-# Check optional but recommended
+# Check optional but recommended env vars
 check_env_var "APPWRITE_ENDPOINT" "optional"
 check_env_var "APPWRITE_PROJECT_ID" "optional"
 check_env_var "APPWRITE_API_KEY" "optional"
 check_env_var "LANGSMITH_API_KEY" "optional"
-
-if [ "$ENV_OK" = false ]; then
-    echo ""
-    echo -e "${RED}Required environment variables are missing.${NC}"
-    echo "Please set them in your environment or create a .env file."
-    exit 1
-fi
 
 echo ""
 
