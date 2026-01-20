@@ -13,10 +13,14 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Tuple
 
-from .appwrite_mcp import list_appwrite_documents
+from .appwrite_mcp import list_appwrite_documents, download_from_appwrite_storage
 from .compression import decompress_json_gzip_base64
 
 logger = logging.getLogger(__name__)
+
+# Storage bucket constants (must match sow_upserter.py)
+STORAGE_PREFIX = "storage:"
+STORAGE_BUCKET_ID = "authored_sow_entries"
 
 
 async def extract_sow_entry_to_workspace(
@@ -67,18 +71,59 @@ async def extract_sow_entry_to_workspace(
 
     sow_doc = sow_docs[0]
 
-    # Parse entries field (handles compressed and uncompressed formats)
-    # Supports: TypeScript "gzip:" prefix, Python legacy raw base64, and uncompressed JSON
-    entries = sow_doc.get('entries', [])
-    if isinstance(entries, str):
-        try:
-            entries = decompress_json_gzip_base64(entries)
-        except ValueError as e:
-            logger.error(f"Failed to decompress entries field: {e}")
-            raise ValueError(
-                f"Cannot parse entries field for courseId '{courseId}': {e}. "
-                f"The entries field may be corrupted or in an unsupported format."
-            )
+    # Parse entries field (handles storage bucket refs, compressed, and uncompressed formats)
+    # Supports:
+    # - Storage bucket: "storage:<file_id>" - fetch from storage, then decompress
+    # - TypeScript "gzip:" prefix: compressed inline
+    # - Python legacy raw base64: compressed inline
+    # - Uncompressed JSON: legacy format
+    entries_raw = sow_doc.get('entries', [])
+
+    if isinstance(entries_raw, str):
+        # Check for storage bucket reference first
+        if entries_raw.startswith(STORAGE_PREFIX):
+            file_id = entries_raw[len(STORAGE_PREFIX):]
+            logger.info(f"📦 Entries stored in storage bucket, fetching: {file_id}")
+
+            try:
+                # Download compressed data from storage bucket
+                entries_bytes = await download_from_appwrite_storage(
+                    bucket_id=STORAGE_BUCKET_ID,
+                    file_id=file_id,
+                    mcp_config_path=mcp_config_path
+                )
+
+                # Decode bytes to string (it's base64-encoded gzip data)
+                entries_compressed = entries_bytes.decode('utf-8')
+
+                # Decompress the data
+                entries = decompress_json_gzip_base64(entries_compressed)
+                logger.info(f"✓ Fetched and decompressed {len(entries)} entries from storage")
+
+            except FileNotFoundError:
+                raise ValueError(
+                    f"Storage file not found for courseId '{courseId}': {file_id}. "
+                    f"The storage bucket entry may have been deleted."
+                )
+            except Exception as e:
+                logger.error(f"Failed to fetch entries from storage: {e}")
+                raise ValueError(
+                    f"Cannot fetch entries from storage for courseId '{courseId}': {e}. "
+                    f"File ID: {file_id}, Bucket: {STORAGE_BUCKET_ID}"
+                )
+        else:
+            # Inline compressed data (existing behavior)
+            try:
+                entries = decompress_json_gzip_base64(entries_raw)
+            except ValueError as e:
+                logger.error(f"Failed to decompress entries field: {e}")
+                raise ValueError(
+                    f"Cannot parse entries field for courseId '{courseId}': {e}. "
+                    f"The entries field may be corrupted or in an unsupported format."
+                )
+    else:
+        # Already parsed (list) - use as-is
+        entries = entries_raw
 
     # Find entry with matching order
     entry = next((e for e in entries if e.get('order') == order), None)

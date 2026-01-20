@@ -1,20 +1,25 @@
 # SOW Author System - Complete Guide
 
-**Version**: 2.0 (Pydantic-based validation)
-**Last Updated**: 2025-10-29
+**Version**: 3.0 (Iterative Architecture)
+**Last Updated**: 2026-01-20
+**Testing Status**: ✅ All 4 Phases Tested and Passed
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Architecture](#architecture)
-3. [Quick Start](#quick-start)
-4. [Installation](#installation)
-5. [Usage](#usage)
-6. [Input/Output Specification](#inputoutput-specification)
-7. [Subagent Prompts](#subagent-prompts)
-8. [Token Optimization](#token-optimization)
-9. [Troubleshooting](#troubleshooting)
-10. [API Reference](#api-reference)
+2. [Phase Testing Results](#phase-testing-results-2026-01-20)
+3. [Authoring Modes](#authoring-modes)
+4. [Architecture](#architecture)
+   - [Iterative Mode (Default)](#iterative-mode-architecture)
+   - [Legacy Mode](#legacy-mode-architecture)
+5. [Quick Start](#quick-start)
+6. [Installation](#installation)
+7. [Usage](#usage)
+8. [Input/Output Specification](#inputoutput-specification)
+9. [Subagent Prompts](#subagent-prompts)
+10. [Token Optimization](#token-optimization)
+11. [Troubleshooting](#troubleshooting)
+12. [API Reference](#api-reference)
 
 ---
 
@@ -31,21 +36,236 @@ The SOW (Scheme of Work) Author is an autonomous AI-powered system that generate
 - ✅ **On-Demand Research**: WebSearch/WebFetch for Scottish contexts and exemplars
 - ✅ **Cost Tracking**: Detailed token usage and cost metrics
 - ✅ **Workspace Isolation**: Each execution gets isolated filesystem
+- ✅ **Iterative Mode (v3.0)**: Lesson-by-lesson generation for better schema compliance
 
 ### What Gets Generated
 
 A complete SOW includes:
 - **Appropriate number of lesson entries** (typically 10-20, agent-determined) with full pedagogical design
-- **6-12 cards per lesson** (starter, explainer, modelling, guided practice, independent practice, exit ticket)
+- **5-card flow per teach lesson** (starter, explainer, modelling, guided_practice, exit_ticket) - simplified for iterative mode
+- **9-card structure for mock_exam** (instructions + question cards covering all skills)
 - **Assessment standard alignments** with enriched SQA descriptions
-- **Accessibility profiles** (dyslexia-friendly, plain language, extra time)
+- **Accessibility profiles** (dyslexia-friendly, plain language, CEFR B1)
 - **Scottish context integration** (local references, cultural relevance)
 - **Policy compliance** (SQA calculator rules, assessment guidelines)
 - **Coherence metadata** (sequencing notes, prerequisite tracking)
 
+**Note**: Independent practice is handled by a **separate system** outside of SOW authoring.
+
+---
+
+## Phase Testing Results (2026-01-20)
+
+All 4 phases of the iterative SOW author have been comprehensively tested with **Applications of Mathematics Higher** (`course_c84476`).
+
+### Summary
+
+| Phase | Description | Status | Duration |
+|-------|-------------|--------|----------|
+| **Phase 1** | Outline Generation | ✅ PASSED | ~2 min |
+| **Phase 2** | Per-Lesson Generation (19 lessons) | ✅ PASSED | 63.9 min |
+| **Phase 3** | Metadata Generation | ✅ PASSED | 47.1 sec |
+| **Phase 4** | Assembly & Appwrite Upsert | ✅ PASSED | 0.7 sec |
+
+### Phase 1: Outline Generation
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Unit Tests** | 32/32 passed | ✅ |
+| **Integration Tests** | 27/27 passed | ✅ |
+| **E2E Tests** | 19/19 passed | ✅ |
+| **Total Lessons** | 19 | ✅ In sweet spot (15-20) |
+| **Critic Score** | 0.76 | ✅ PASS threshold (>0.7) |
+
+### Phase 2: Per-Lesson Generation
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Total Lessons** | 19/19 generated | ✅ |
+| **Pass Rate** | 100% | ✅ |
+| **First-Attempt Pass** | 18/19 (94.7%) | ✅ |
+| **Required Revision** | 1 (Lesson 14) | ✅ Critic loop worked |
+| **Average Time/Lesson** | ~3.4 min | ✅ |
+
+### Phase 3: Metadata Generation
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Elapsed Time** | 47.1 seconds | ✅ |
+| **Policy Notes** | 5 items | ✅ |
+| **Sequencing Notes** | 7 items | ✅ |
+| **Accessibility Notes** | 6 items | ✅ |
+| **Engagement Notes** | 7 items | ✅ |
+
+### Phase 4: Assembly & Upsert
+
+| Metric | Value | Status |
+|--------|-------|--------|
+| **Assembly Time** | 0.1 seconds | ✅ |
+| **Original Size** | 409,834 chars | - |
+| **Compressed Size** | 127,501 chars | 68.9% reduction |
+| **Storage Used** | Appwrite Storage Bucket | ✅ (>100K limit) |
+| **Final Document ID** | `696f676d27b78f0a71ae` | ✅ |
+
+**Test Workspaces** (preserved for reference):
+- Phase 1: `workspace/20260119_220800/`
+- Phase 2: `workspace/phase2_full_test_20260119_231045/`
+- Phase 3: `workspace/phase3_test_20260120_093014/`
+- Phase 4: `workspace/phase4_test_20260120_*/`
+
+---
+
+## Authoring Modes
+
+**v3.0** introduces two SOW authoring modes. The **iterative mode** (default) generates lessons one at a time for better schema compliance, while the **legacy mode** generates the entire SOW in a single monolithic pass.
+
+### Mode Comparison
+
+| Aspect | Iterative (Default) | Legacy |
+|--------|---------------------|--------|
+| **CLI Flag** | `--iterative` (or omit) | `--legacy` |
+| **Class** | `IterativeSOWAuthor` | `SOWAuthorClaudeAgent` |
+| **Generation** | Lesson-by-lesson (~4K tokens each) | Monolithic (~50K+ tokens) |
+| **Schema Compliance** | ✅ Better (small scope) | ⚠️ May drift |
+| **Cross-Lesson Coherence** | ✅ Explicit validation | Implicit in prompt |
+| **Debugging** | ✅ Per-lesson workspace files | Single authored_sow.json |
+| **Web Research** | ✅ Per-lesson WebSearch/WebFetch | ✅ Full document research |
+
+### When to Use Each Mode
+
+**Use Iterative Mode (Default)** when:
+- Creating new courses
+- Schema compliance issues have occurred with legacy mode
+- Need fine-grained debugging of lesson generation
+- Lessons require individualized web research
+
+**Use Legacy Mode** when:
+- Iterative mode encounters issues
+- Backward compatibility is needed
+- Existing workflows depend on legacy behavior
+
+### CLI Usage
+
+```bash
+# Iterative mode (default)
+python -m src.sow_author_cli --courseId course_c84474
+
+# Explicit iterative mode
+python -m src.sow_author_cli --courseId course_c84474 --iterative
+
+# Legacy mode
+python -m src.sow_author_cli --courseId course_c84474 --legacy
+
+# Via DevOps pipeline
+./devops/pipeline.sh lessons --subject mathematics --level national_5          # iterative
+./devops/pipeline.sh lessons --subject physics --level higher --legacy          # legacy
+```
+
 ---
 
 ## Architecture
+
+The SOW Author system supports two architectures depending on the authoring mode selected.
+
+### Iterative Mode Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              ITERATIVE SOW AUTHOR PIPELINE (v3.0 - Default)                  │
+│                    Lesson-by-Lesson with Claude Agent SDK                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+                    ┌────────────────────────────┐
+                    │   Course_outcomes.json     │
+                    │  (SQA curriculum data from │
+                    │   Appwrite, Python extract)│
+                    └───────────┬────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  ╔══════════════════════════════════════════════════════════════════════╗ │
+│  ║         PHASE 1: OUTLINE GENERATION (Claude Agent SDK)               ║ │
+│  ║                                                                      ║ │
+│  ║   Subagent: outline_author + outline_critic (PASS/REVISE loop)      ║ │
+│  ║   Prompt: src/prompts/outline_author_prompt.md                       ║ │
+│  ║   Output: lesson_outline.json                                        ║ │
+│  ║                                                                      ║ │
+│  ║   Creates: Lesson sequence (teach + mock_exam only), standards map  ║ │
+│  ║   Validated: Pydantic + Critic score >= 0.7                         ║ │
+│  ╚══════════════════════════════════════════════════════════════════════╝ │
+└───────────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  ╔══════════════════════════════════════════════════════════════════════╗ │
+│  ║       PHASE 2: LESSON GENERATION (Claude Agent SDK, Loop N times)    ║ │
+│  ║                                                                      ║ │
+│  ║   FOR each lesson in outline (orchestrated by Python):              ║ │
+│  ║   ┌────────────────────────────────────────────────────────────────┐ ║ │
+│  ║   │  Subagent: lesson_author + lesson_critic (PASS/REVISE loop)   │ ║ │
+│  ║   │  Prompt: src/prompts/lesson_entry_prompt.md                    │ ║ │
+│  ║   │  Context: Course_outcomes + outline + previous_lessons         │ ║ │
+│  ║   │  Output: lesson_{N}.json (~4K tokens each)                     │ ║ │
+│  ║   │                                                                │ ║ │
+│  ║   │  ✅ Pydantic validation via structured output                  │ ║ │
+│  ║   │  ✅ Critic loop with 5-dimension scoring (>0.7 = PASS)         │ ║ │
+│  ║   │  ✅ Previous lessons provide coherence context                  │ ║ │
+│  ║   └────────────────────────────────────────────────────────────────┘ ║ │
+│  ╚══════════════════════════════════════════════════════════════════════╝ │
+└───────────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  ╔══════════════════════════════════════════════════════════════════════╗ │
+│  ║         PHASE 3: METADATA GENERATION (Claude Agent SDK)              ║ │
+│  ║                                                                      ║ │
+│  ║   Subagent: metadata_author (no critic - summarization task)        ║ │
+│  ║   Prompt: src/prompts/metadata_author_prompt.md                      ║ │
+│  ║   Output: metadata.json                                              ║ │
+│  ║                                                                      ║ │
+│  ║   Creates: Coherence notes, accessibility notes, engagement notes    ║ │
+│  ╚══════════════════════════════════════════════════════════════════════╝ │
+└───────────────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│  ╔══════════════════════════════════════════════════════════════════════╗ │
+│  ║              PHASE 4: ASSEMBLY (Pure Python, No LLM)                 ║ │
+│  ║                                                                      ║ │
+│  ║   Module: src/utils/sow_assembler.py                                 ║ │
+│  ║                                                                      ║ │
+│  ║   - Combines lesson_01..N.json + metadata.json                      ║ │
+│  ║   - Cross-lesson validation (order, mock_exam count)                ║ │
+│  ║   - Final AuthoredSOWIterative Pydantic validation                  ║ │
+│  ║   - Compression (gzip+base64) for entries                           ║ │
+│  ║   - Storage Bucket fallback if > 100K chars                         ║ │
+│  ║   - Upsert to Appwrite                                              ║ │
+│  ╚══════════════════════════════════════════════════════════════════════╝ │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### Iterative Mode Files
+
+| File | Purpose |
+|------|---------|
+| `src/iterative_sow_author.py` | Main orchestrator (uses Claude Agent SDK) |
+| **Prompts** | |
+| `src/prompts/outline_author_prompt.md` | Outline generation prompt |
+| `src/prompts/outline_critic_prompt.md` | Outline critic prompt (PASS/REVISE) |
+| `src/prompts/lesson_entry_prompt.md` | Single lesson generation prompt |
+| `src/prompts/lesson_critic_prompt.md` | Lesson critic prompt (5-dimension scoring) |
+| `src/prompts/metadata_author_prompt.md` | Metadata generation prompt |
+| **Schema Models** | |
+| `src/tools/sow_schema_models.py` | Pydantic models (LessonOutline, SOWEntry, Metadata, AuthoredSOW) |
+| `src/tools/critic_schema_models.py` | Pydantic models for critic results |
+| `src/utils/minimal_schemas.py` | Minimal JSON schemas for SDK structured output |
+| **Assembly & Storage** | |
+| `src/utils/sow_assembler.py` | Pure Python cross-lesson validation & assembly |
+| `src/utils/sow_upserter.py` | Appwrite upsert with compression & storage bucket |
+| `src/utils/entry_trimmer.py` | Non-essential field trimming for size reduction |
+| `src/utils/storage_helpers.py` | Appwrite Storage bucket upload/download |
+
+### Legacy Mode Architecture
 
 ### Pipeline Overview
 
@@ -308,6 +528,10 @@ OPTIONS:
   --input JSON_FILE          Load courseId from JSON file
   --courseId COURSE_ID       Provide courseId directly
   # (no options)              Interactive mode
+
+  # Authoring Mode (v3.0)
+  --iterative                Use iterative lesson-by-lesson mode (default)
+  --legacy                   Use legacy monolithic mode
 
   # Configuration
   --mcp-config PATH          Path to MCP config (default: .mcp.json)
@@ -586,6 +810,63 @@ The `authored_sow.json` file contains:
 
 ---
 
+### Iterative Mode Prompts (v3.0)
+
+The iterative mode uses three specialized prompts for each phase of generation:
+
+#### 4. Outline Author Prompt
+**Location**: `src/prompts/outline_author_prompt.md` (~180 lines)
+
+**Purpose**: Generate the lesson sequence outline before detailed generation
+
+**Key Responsibilities**:
+- Analyze Course_data.txt for standards and units
+- Plan lesson sequence (10-20 lessons typically)
+- Establish teach-revision pairing (1:1 within 3 entries)
+- Map assessment standards to lessons
+- Determine lesson types (teach, revision, independent_practice, mock_assessment)
+
+**Output**: `lesson_outline.json` with `LessonOutline` schema
+
+---
+
+#### 5. Lesson Entry Prompt
+**Location**: `src/prompts/lesson_entry_prompt.md` (~241 lines)
+
+**Purpose**: Generate a single lesson entry with full pedagogical detail
+
+**Key Responsibilities**:
+- Read outline entry for current lesson context
+- Use previous lessons for coherence
+- Generate 6-12 cards with specific CFU strategies
+- Apply WebSearch/WebFetch for Scottish context and misconceptions
+- Ensure enriched format (objects not bare strings)
+
+**Context Files Available**:
+- `Course_data.txt` - SQA curriculum data
+- `lesson_outline.json` - Full outline
+- `current_outline.json` - Current lesson's outline entry
+- `previous_lessons.json` - Previously generated lessons
+
+**Output**: `lesson_{N}.json` with `SOWEntry` schema
+
+---
+
+#### 6. Metadata Author Prompt
+**Location**: `src/prompts/metadata_author_prompt.md` (~198 lines)
+
+**Purpose**: Generate course-level metadata after all lessons are complete
+
+**Key Responsibilities**:
+- Summarize coherence across all lessons
+- Document accessibility strategies
+- Capture engagement approaches
+- Calculate weeks and periods per week
+
+**Output**: `metadata.json` with `SOWMetadata` schema
+
+---
+
 ## Token Optimization
 
 ### v2.0 Improvements (Pydantic-Based Validation)
@@ -645,11 +926,16 @@ Savings:              ~15K tokens  →  $0.23 per SOW
 **Solution**:
 ```bash
 # Check workspace for detailed errors
+# Iterative mode:
+cd claud_author_agent/workspace/<execution_id>
+cat lesson_XX_critic.json  # Check specific lesson critic result
+
+# Legacy mode:
 cd /tmp/sow_author_<execution_id>
 cat schema_validation_result.json
 
 # Common fixes:
-# - Ensure Course_data.txt has complete SQA descriptions
+# - Ensure Course_outcomes.json has complete SQA descriptions
 # - Check for generic CFU strategies ("ask questions")
 # - Verify enriched format (objects not bare strings)
 ```
@@ -691,22 +977,60 @@ python3 src/tools/sow_validator_tool.py example_sow.json
 # Update author prompt if systematic issues found
 ```
 
+#### 6. "Entries too large for Appwrite" / "Storage Bucket upload failed"
+
+**Cause**: Compressed entries exceed 100K character limit
+**Solution**:
+```bash
+# The system automatically handles this:
+# 1. Entry trimming removes non-essential fields
+# 2. If still >100K, uploads to Appwrite Storage bucket
+# 3. stores "storage:<file_id>" reference in entries field
+
+# To verify storage bucket exists:
+# Check Appwrite Console → Storage → authored_sow_entries bucket
+
+# To manually check entry size:
+cd claud_author_agent/workspace/<execution_id>
+python3 -c "
+import json
+from pathlib import Path
+data = json.loads(Path('authored_sow.json').read_text())
+entries_json = json.dumps(data['entries'])
+print(f'Entries size: {len(entries_json):,} chars')
+"
+```
+
 ### Debug Mode
 
 Enable verbose logging:
 ```bash
 python -m src.sow_author_cli \
   --courseId course_c84474 \
-  --log-level DEBUG \
-  --no-persist-workspace  # Keep workspace for inspection
+  --log-level DEBUG
 ```
+
+**Note**: Remove `--no-persist-workspace` to keep workspace for inspection.
 
 Inspect workspace files:
 ```bash
-cd /tmp/sow_author_<execution_id>
+# Iterative mode (default):
+cd claud_author_agent/workspace/<execution_id>
 ls -la
 
-# Key files:
+# Key files (iterative):
+# - Course_outcomes.json (extracted SQA data)
+# - lesson_outline.json (Phase 1 output)
+# - outline_critic_result.json (Phase 1 critic)
+# - lesson_01.json ... lesson_N.json (Phase 2 outputs)
+# - lesson_XX_critic.json (Phase 2 critic per lesson)
+# - metadata.json (Phase 3 output)
+# - authored_sow.json (Phase 4 assembled output)
+
+# Legacy mode:
+cd /tmp/sow_author_<execution_id>
+
+# Key files (legacy):
 # - Course_data.txt (extracted SQA data)
 # - authored_sow.json (generated SOW)
 # - sow_critic_result.json (unified critic feedback)
@@ -717,7 +1041,107 @@ ls -la
 
 ## API Reference
 
-### SOWAuthorClaudeAgent
+### IterativeSOWAuthor (v3.0 - Default)
+
+**Class**: `src.iterative_sow_author.IterativeSOWAuthor`
+
+#### Constructor
+
+```python
+IterativeSOWAuthor(
+    mcp_config_path: str = ".mcp.json",
+    persist_workspace: bool = True,
+    log_level: str = "INFO"
+)
+```
+
+**Parameters**:
+- `mcp_config_path` (str): Path to MCP configuration file
+- `persist_workspace` (bool): If True, preserve workspace for debugging
+- `log_level` (str): Logging level (DEBUG, INFO, WARNING, ERROR)
+
+**Returns**: IterativeSOWAuthor instance
+
+---
+
+#### execute()
+
+```python
+async execute(courseId: str, version: str = "1") -> Dict[str, Any]
+```
+
+**Parameters**:
+- `courseId` (str): Course identifier (must exist in default.courses)
+- `version` (str): SOW version string (default: "1")
+
+**Returns**: Dictionary with execution results
+
+**Success Response**:
+```python
+{
+    "success": True,
+    "execution_id": "20260119_143045",
+    "workspace_path": "/tmp/iterative_sow_20260119_143045",
+    "appwrite_document_id": "68f616168886c3362749",
+    "phases": {
+        "outline": {"status": "completed", "lessons_planned": 15},
+        "lessons": {"status": "completed", "generated": 15, "failed": 0},
+        "metadata": {"status": "completed"},
+        "assembly": {"status": "completed"}
+    },
+    "metrics": {
+        "total_tokens": 65432,
+        "total_cost_usd": 0.98,
+        "execution_time_seconds": 185.3
+    }
+}
+```
+
+**Failure Response**:
+```python
+{
+    "success": False,
+    "execution_id": "20260119_143045",
+    "error": "Lesson 5 validation failed after 3 retries",
+    "workspace_path": "/tmp/iterative_sow_20260119_143045",
+    "phases": {
+        "outline": {"status": "completed", "lessons_planned": 15},
+        "lessons": {"status": "failed", "generated": 4, "failed": 1}
+    },
+    "metrics": {...}
+}
+```
+
+---
+
+#### Workspace Files (Iterative Mode)
+
+When `persist_workspace=True`, the workspace contains:
+
+```
+workspace/<execution_id>/
+├── Course_outcomes.json         # Extracted SQA curriculum data from Appwrite
+├── sow_research.md              # Optional: Web research notes (if conducted)
+├── lesson_outline.json          # Phase 1: Lesson sequence outline
+├── outline_critic_result.json   # Phase 1: Critic evaluation result
+├── current_outline.json         # Context: Current lesson's outline entry
+├── previous_lessons.json        # Context: Previously generated lessons
+├── all_lessons.json             # Context: All lessons for metadata generation
+├── lesson_01.json               # Phase 2: Lesson 1
+├── lesson_01_critic.json        # Phase 2: Lesson 1 critic result
+├── lesson_02.json               # Phase 2: Lesson 2
+├── ...
+├── lesson_N.json                # Phase 2: Final lesson
+├── metadata.json                # Phase 3: Course-level metadata
+├── authored_sow.json            # Phase 4: Assembled SOW (pre-compression)
+└── test_metrics.json            # Debug: Phase timing and validation results
+```
+
+**Note**: Workspaces are preserved under `claud_author_agent/workspace/` directory, not `/tmp/`.
+
+---
+
+### SOWAuthorClaudeAgent (Legacy)
 
 **Class**: `src.sow_author_claude_client.SOWAuthorClaudeAgent`
 
@@ -988,6 +1412,28 @@ asyncio.run(generate_and_validate())
 ---
 
 ## Version History
+
+### v3.0.1 (2026-01-20) - Phase Testing Complete
+- ✅ **All 4 phases comprehensively tested** with Applications of Mathematics Higher
+- ✅ Storage Bucket fallback for entries >100K chars (Appwrite Storage)
+- ✅ Entry trimming for size reduction (409K → 92K chars after compression)
+- ✅ Critic loops with 5-dimension scoring (Coverage, Sequencing, Policy, Accessibility, Authenticity)
+- ✅ Simplified outline lesson types: `teach` and `mock_exam` only
+- ✅ Simplified card flow: 5 cards (starter, explainer, modelling, guided_practice, exit_ticket)
+- ✅ Test results documented with workspace preservation
+- ✅ Updated workspace file structure (Course_outcomes.json, critic results)
+
+### v3.0 (2026-01-19) - Iterative Architecture
+- ✅ New iterative lesson-by-lesson generation mode (default)
+- ✅ 4-phase architecture: Outline → Lessons (loop) → Metadata → Assembly
+- ✅ New `IterativeSOWAuthor` class using Claude Agent SDK
+- ✅ Six prompts: `outline_author`, `outline_critic`, `lesson_entry`, `lesson_critic`, `metadata_author`
+- ✅ Minimal JSON schemas for structured output (`src/utils/minimal_schemas.py`)
+- ✅ Pure Python assembler with cross-lesson validation
+- ✅ Better schema compliance via small scope (~4K tokens per lesson)
+- ✅ WebSearch/WebFetch per lesson for targeted research
+- ✅ CLI flags: `--iterative` (default), `--legacy`
+- ✅ Full DevOps pipeline integration
 
 ### v2.0 (2025-10-29) - Pydantic Optimization
 - ✅ Replaced 1265-line schema file with Pydantic models

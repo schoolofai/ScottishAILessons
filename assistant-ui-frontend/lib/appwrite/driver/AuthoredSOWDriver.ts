@@ -1,7 +1,7 @@
 import { Query } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { AuthoredSOW, AuthoredSOWData } from '../types';
-import { decompressJSON } from '../utils/compression';
+import { decompressJSONWithStorage } from '../utils/compression';
 
 /**
  * Frontend AuthoredSOW driver for client-side operations
@@ -40,7 +40,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: decompressJSON(record.entries),
+        entries: await decompressJSONWithStorage(record.entries, this.storage),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };
@@ -88,14 +88,19 @@ export class AuthoredSOWDriver extends BaseDriver {
         Query.orderDesc('version')
       ]);
 
-      return records.map(r => ({
-        courseId: r.courseId,
-        version: r.version,
-        status: r.status,
-        entries: decompressJSON(r.entries),
-        metadata: JSON.parse(r.metadata),
-        accessibility_notes: r.accessibility_notes
-      }));
+      // Process records with async decompression (handles storage refs)
+      const results: AuthoredSOWData[] = [];
+      for (const r of records) {
+        results.push({
+          courseId: r.courseId,
+          version: r.version,
+          status: r.status,
+          entries: await decompressJSONWithStorage(r.entries, this.storage),
+          metadata: JSON.parse(r.metadata),
+          accessibility_notes: r.accessibility_notes
+        });
+      }
+      return results;
     } catch (error) {
       throw this.handleError(error, `get all SOW versions for course ${courseId}`);
     }
@@ -122,7 +127,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: decompressJSON(record.entries),
+        entries: await decompressJSONWithStorage(record.entries, this.storage),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };
@@ -141,17 +146,22 @@ export class AuthoredSOWDriver extends BaseDriver {
         Query.orderDesc('$createdAt')
       ]);
 
-      return records.map(r => ({
-        $id: r.$id,
-        courseId: r.courseId,
-        version: r.version,
-        status: r.status,
-        entries: decompressJSON(r.entries),
-        metadata: JSON.parse(r.metadata),
-        accessibility_notes: r.accessibility_notes,
-        $createdAt: r.$createdAt,
-        $updatedAt: r.$updatedAt
-      }));
+      // Process records with async decompression (handles storage refs)
+      const results: Array<AuthoredSOWData & { $id: string; $createdAt?: string; $updatedAt?: string }> = [];
+      for (const r of records) {
+        results.push({
+          $id: r.$id,
+          courseId: r.courseId,
+          version: r.version,
+          status: r.status,
+          entries: await decompressJSONWithStorage(r.entries, this.storage),
+          metadata: JSON.parse(r.metadata),
+          accessibility_notes: r.accessibility_notes,
+          $createdAt: r.$createdAt,
+          $updatedAt: r.$updatedAt
+        });
+      }
+      return results;
     } catch (error) {
       throw this.handleError(error, 'get all SOWs for admin');
     }
@@ -174,7 +184,7 @@ export class AuthoredSOWDriver extends BaseDriver {
         courseId: record.courseId,
         version: record.version,
         status: record.status,
-        entries: decompressJSON(record.entries),
+        entries: await decompressJSONWithStorage(record.entries, this.storage),
         metadata: JSON.parse(record.metadata),
         accessibility_notes: record.accessibility_notes
       };

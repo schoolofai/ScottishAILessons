@@ -78,6 +78,8 @@ source claud_author_agent/.venv/bin/activate
 | `--skip-seed-sow` | Skip SEED and SOW steps (requires existing course+SOW) |
 | `--force` | Force regenerate existing content |
 | `--diagram-timeout` | Timeout for diagram service (default: 60s) |
+| `--iterative` | Use iterative lesson-by-lesson SOW authoring (default) |
+| `--legacy` | Use legacy monolithic SOW authoring |
 
 ### Subject Aliases
 
@@ -112,6 +114,32 @@ Run without --skip-seed-sow to seed the course first.
 No SOW found for course course_c84775.
 Run without --skip-seed-sow to generate SOW first.
 ```
+
+### SOW Authoring Modes
+
+Two SOW authoring modes are available:
+
+| Mode | Flag | Description |
+|------|------|-------------|
+| **Iterative** (default) | `--iterative` | Lesson-by-lesson generation with better schema compliance |
+| **Legacy** | `--legacy` | Original monolithic approach for backward compatibility |
+
+```bash
+# Use iterative mode (default - better for new courses)
+./devops/pipeline.sh lessons --subject mathematics --level national_5
+
+# Explicitly use iterative mode
+./devops/pipeline.sh lessons --subject physics --level higher --iterative
+
+# Use legacy mode (if iterative has issues)
+./devops/pipeline.sh lessons --subject chemistry --level n5 --legacy
+```
+
+**Iterative Mode Benefits:**
+- Each lesson generated independently (~4K tokens vs ~50K+ monolithic)
+- Better Pydantic schema compliance
+- Cross-lesson coherence validation
+- Easier debugging (per-lesson workspace files)
 
 ## Directory Structure
 

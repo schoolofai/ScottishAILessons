@@ -36,6 +36,7 @@ export async function GET(
 
     // Try to get authenticated session (optional - user may not be logged in)
     let databases;
+    let storage;  // Storage client for decompressing storage bucket refs
     let isAuthenticated = false;
     let user = null;
     let studentId = null;
@@ -44,6 +45,7 @@ export async function GET(
     try {
       const session = await createSessionClient();
       databases = session.databases;
+      storage = session.storage;
       user = await session.account.get();
       isAuthenticated = true;
       console.log(`[Course Detail API] Authenticated user: ${user.$id}`);
@@ -52,11 +54,12 @@ export async function GET(
       console.log('[Course Detail API] Anonymous user, showing public course details');
 
       // Create unauthenticated client for public data
-      const { Databases, Client } = await import('node-appwrite');
+      const { Databases, Client, Storage } = await import('node-appwrite');
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
       databases = new Databases(client);
+      storage = new Storage(client);
     }
 
     // Get course details - query by courseId field, not document ID
@@ -93,9 +96,9 @@ export async function GET(
 
       if (authoredSOWResult.documents.length > 0) {
         const authoredSOW = authoredSOWResult.documents[0];
-        // Decompress entries
-        const { decompressJSON } = await import('@/lib/appwrite/utils/compression');
-        lessons = decompressJSON(authoredSOW.entries);
+        // Decompress entries (supports storage bucket refs like "storage:<file_id>")
+        const { decompressJSONWithStorage } = await import('@/lib/appwrite/utils/compression');
+        lessons = await decompressJSONWithStorage(authoredSOW.entries, storage);
         console.log(`[Course Detail API] Found ${lessons.length} lessons in published SOW`);
       } else {
         console.log(`[Course Detail API] No published SOW v1 found for course ${courseId}`);

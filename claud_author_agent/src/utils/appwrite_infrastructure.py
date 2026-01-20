@@ -502,3 +502,165 @@ async def upload_to_appwrite_storage(
     except Exception as e:
         logger.error(f"Failed to upload file: {e}")
         raise
+
+
+async def upload_bytes_to_appwrite_storage(
+    bucket_id: str,
+    data: bytes,
+    file_id: str,
+    filename: str,
+    mcp_config_path: str,
+    permissions: Optional[List[str]] = None,
+    force: bool = False
+) -> str:
+    """Upload bytes directly to Appwrite Storage without creating a temp file.
+
+    Args:
+        bucket_id: Storage bucket ID (e.g., 'authored_sow_entries')
+        data: Bytes data to upload
+        file_id: Unique file ID for storage (use 'unique()' for auto-generated)
+        filename: Filename to use in storage (e.g., 'course_123_v1.json.gz')
+        mcp_config_path: Path to .mcp.json
+        permissions: File-level permissions (e.g., ['read("any")'])
+        force: If True, delete existing file before upload (overwrite)
+
+    Returns:
+        File ID of uploaded file
+
+    Raises:
+        ValueError: If data is empty
+        AppwriteException: If upload fails
+    """
+    if not data:
+        raise ValueError("Cannot upload empty data to storage")
+
+    logger.info(f"📤 Uploading {len(data):,} bytes to {bucket_id}/{filename}")
+
+    try:
+        from appwrite.services.storage import Storage
+        from appwrite.input_file import InputFile
+
+        client, _, _, _ = _get_appwrite_client(mcp_config_path)
+        storage = Storage(client)
+
+        # If force mode, delete existing file first
+        if force and file_id != "unique()":
+            try:
+                storage.delete_file(bucket_id=bucket_id, file_id=file_id)
+                logger.info(f"  Deleted existing file: {file_id}")
+            except Exception as e:
+                if "not found" not in str(e).lower():
+                    logger.warning(f"  Could not delete existing file: {e}")
+
+        # Create InputFile from bytes
+        input_file = InputFile.from_bytes(data, filename=filename)
+
+        result = storage.create_file(
+            bucket_id=bucket_id,
+            file_id=file_id,
+            file=input_file,
+            permissions=permissions or []
+        )
+
+        uploaded_file_id = result['$id']
+        logger.info(f"✓ File uploaded: {uploaded_file_id} ({len(data):,} bytes)")
+        return uploaded_file_id
+
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed. Run: pip install appwrite")
+    except Exception as e:
+        logger.error(f"Failed to upload bytes to storage: {e}")
+        raise
+
+
+async def download_from_appwrite_storage(
+    bucket_id: str,
+    file_id: str,
+    mcp_config_path: str
+) -> bytes:
+    """Download file bytes from Appwrite Storage.
+
+    Args:
+        bucket_id: Storage bucket ID (e.g., 'authored_sow_entries')
+        file_id: File ID to download
+        mcp_config_path: Path to .mcp.json
+
+    Returns:
+        File contents as bytes
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        AppwriteException: If download fails
+    """
+    logger.info(f"📥 Downloading from {bucket_id}/{file_id}")
+
+    try:
+        from appwrite.services.storage import Storage
+        from appwrite.exception import AppwriteException
+
+        client, _, _, _ = _get_appwrite_client(mcp_config_path)
+        storage = Storage(client)
+
+        # Get file download (returns bytes)
+        result = storage.get_file_download(
+            bucket_id=bucket_id,
+            file_id=file_id
+        )
+
+        logger.info(f"✓ Downloaded {len(result):,} bytes from {file_id}")
+        return result
+
+    except AppwriteException as e:
+        if e.code == 404:
+            raise FileNotFoundError(f"File not found in storage: {bucket_id}/{file_id}")
+        logger.error(f"Failed to download file: {e.message} (code: {e.code})")
+        raise
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed. Run: pip install appwrite")
+    except Exception as e:
+        logger.error(f"Failed to download file: {e}")
+        raise
+
+
+async def delete_from_appwrite_storage(
+    bucket_id: str,
+    file_id: str,
+    mcp_config_path: str
+) -> bool:
+    """Delete a file from Appwrite Storage.
+
+    Args:
+        bucket_id: Storage bucket ID
+        file_id: File ID to delete
+        mcp_config_path: Path to .mcp.json
+
+    Returns:
+        True if deleted successfully
+
+    Raises:
+        AppwriteException: If deletion fails (except 404 which returns False)
+    """
+    logger.info(f"🗑️  Deleting from {bucket_id}/{file_id}")
+
+    try:
+        from appwrite.services.storage import Storage
+        from appwrite.exception import AppwriteException
+
+        client, _, _, _ = _get_appwrite_client(mcp_config_path)
+        storage = Storage(client)
+
+        storage.delete_file(bucket_id=bucket_id, file_id=file_id)
+        logger.info(f"✓ Deleted file: {file_id}")
+        return True
+
+    except AppwriteException as e:
+        if e.code == 404:
+            logger.warning(f"File not found (already deleted?): {file_id}")
+            return False
+        logger.error(f"Failed to delete file: {e.message} (code: {e.code})")
+        raise
+    except ImportError:
+        raise ImportError("Appwrite Python SDK not installed. Run: pip install appwrite")
+    except Exception as e:
+        logger.error(f"Failed to delete file: {e}")
+        raise

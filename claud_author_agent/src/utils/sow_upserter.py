@@ -1,7 +1,8 @@
 """SOW upserter module - deterministic Python-based database persistence.
 
 Handles upserting of authored SOWs to Appwrite database after agent completion.
-Includes compression of large entries field to fit within Appwrite's 100k char limit.
+Uses gzip+base64 compression for entries field. For entries exceeding Appwrite's
+100k character limit, uses Storage Bucket approach (stores file_id instead).
 """
 
 import json
@@ -23,7 +24,8 @@ async def upsert_sow_to_appwrite(
     version: str,
     execution_id: str,
     mcp_config_path: str,
-    existing_sow_id: str | None = None
+    existing_sow_id: str | None = None,
+    iterative_mode: bool = False
 ) -> str:
     """Upsert SOW to Appwrite with version support and force mode.
 
@@ -49,6 +51,8 @@ async def upsert_sow_to_appwrite(
         execution_id: Execution timestamp ID
         mcp_config_path: Path to .mcp.json
         existing_sow_id: If provided (force mode), delete this SOW and re-link templates
+        iterative_mode: Skip AuthoredSOW Pydantic validation (use for iterative pipeline
+                        where validation was already done with AuthoredSOWIterative)
 
     Returns:
         Appwrite document ID
@@ -111,40 +115,50 @@ async def upsert_sow_to_appwrite(
     logger.info(f"✓ SOW basic structure validated: {len(sow_data['entries'])} entries")
 
     # Step 2.5: Pydantic schema validation (comprehensive)
-    logger.info("🔍 Running Pydantic schema validation before database write...")
-    sow_json_str = json.dumps(sow_data)
-    validation_result = validate_sow_schema(sow_json_str)
+    # Skip for iterative mode - validation was already done with AuthoredSOWIterative in assembler
+    if iterative_mode:
+        logger.info("⏭️  Skipping Pydantic validation (iterative_mode=True, validated with AuthoredSOWIterative)")
+    else:
+        logger.info("🔍 Running Pydantic schema validation before database write...")
+        sow_json_str = json.dumps(sow_data)
+        validation_result = validate_sow_schema(sow_json_str)
 
-    if not validation_result["valid"]:
-        error_summary = validation_result["summary"]
-        error_details = validation_result.get("errors", [])
+        if not validation_result["valid"]:
+            error_summary = validation_result["summary"]
+            error_details = validation_result.get("errors", [])
 
-        # Format error messages for display
-        error_messages = []
-        for error in error_details[:10]:  # Limit to 10 for readability
-            location = error.get("location", "unknown")
-            message = error.get("message", "validation error")
-            error_messages.append(f"  - {location}: {message}")
+            # Format error messages for display
+            error_messages = []
+            for error in error_details[:10]:  # Limit to 10 for readability
+                location = error.get("location", "unknown")
+                message = error.get("message", "validation error")
+                error_messages.append(f"  - {location}: {message}")
 
-        formatted_errors = "\n".join(error_messages)
+            formatted_errors = "\n".join(error_messages)
 
-        raise ValueError(
-            f"❌ SOW failed Pydantic schema validation:\n"
-            f"{error_summary}\n\n"
-            f"Validation errors:\n{formatted_errors}\n\n"
-            f"This indicates the SOW author/critic subagents produced invalid output. "
-            f"Check workspace files for details."
-        )
+            raise ValueError(
+                f"❌ SOW failed Pydantic schema validation:\n"
+                f"{error_summary}\n\n"
+                f"Validation errors:\n{formatted_errors}\n\n"
+                f"This indicates the SOW author/critic subagents produced invalid output. "
+                f"Check workspace files for details."
+            )
 
-    logger.info(f"✓ Pydantic validation passed: {validation_result['summary']}")
+        logger.info(f"✓ Pydantic validation passed: {validation_result['summary']}")
 
     # Step 2.7: FORCE MODE - Delete existing SOW and track templates for re-linking
     templates_to_relink = []
+    STORAGE_PREFIX = "storage:"  # For checking if old SOW used storage bucket
+    STORAGE_BUCKET_ID = "authored_sow_entries"
+
     if existing_sow_id:
         logger.warning(f"⚠️  FORCE MODE: Deleting existing SOW {existing_sow_id}")
 
         # First, query lesson templates linked to old SOW (need to re-link them later)
-        from .appwrite_mcp import list_appwrite_documents, delete_appwrite_document, update_appwrite_document
+        from .appwrite_mcp import (
+            list_appwrite_documents, delete_appwrite_document, update_appwrite_document,
+            get_appwrite_document, delete_from_appwrite_storage
+        )
 
         try:
             logger.info(f"  Querying lesson templates linked to old SOW...")
@@ -156,6 +170,31 @@ async def upsert_sow_to_appwrite(
             )
 
             logger.info(f"  Found {len(templates_to_relink)} lesson template(s) to re-link")
+
+            # Fetch old SOW to check if entries used storage bucket
+            old_sow = await get_appwrite_document(
+                database_id="default",
+                collection_id="Authored_SOW",
+                document_id=existing_sow_id,
+                mcp_config_path=mcp_config_path
+            )
+
+            if old_sow:
+                old_entries = old_sow.get("entries", "")
+                if isinstance(old_entries, str) and old_entries.startswith(STORAGE_PREFIX):
+                    # Old SOW used storage bucket - delete the file
+                    old_file_id = old_entries[len(STORAGE_PREFIX):]
+                    logger.info(f"  Old SOW used storage bucket, cleaning up file: {old_file_id}")
+                    try:
+                        await delete_from_appwrite_storage(
+                            bucket_id=STORAGE_BUCKET_ID,
+                            file_id=old_file_id,
+                            mcp_config_path=mcp_config_path
+                        )
+                        logger.info(f"  ✓ Old storage file deleted: {old_file_id}")
+                    except Exception as storage_err:
+                        # Non-fatal - log warning but continue with SOW deletion
+                        logger.warning(f"  ⚠️  Could not delete old storage file: {storage_err}")
 
             # Delete the old SOW document
             logger.info(f"  Deleting old SOW document...")
@@ -205,11 +244,62 @@ async def upsert_sow_to_appwrite(
     logger.info(f"  Final string length: {len(accessibility_notes)} chars")
     logger.info(f"  Preview: {accessibility_notes[:200]}...")
 
-    # Compress entries array using gzip+base64 (fits within Appwrite's 100k char limit)
+    # Compress entries array using gzip+base64
+    # If compressed size exceeds 100k, we'll use Storage Bucket approach
     entries_compressed = compress_json_gzip_base64(sow_data["entries"])
-
-    # Calculate compression stats for logging
     entries_stats = get_compression_stats(sow_data["entries"])
+
+    # Check if entries exceed Appwrite's 100k character limit
+    # Use Storage Bucket approach for large entries (stores file_id in entries field)
+    APPWRITE_FIELD_LIMIT = 100000
+    STORAGE_BUCKET_ID = "authored_sow_entries"
+    STORAGE_PREFIX = "storage:"
+    use_storage_bucket = len(entries_compressed) > APPWRITE_FIELD_LIMIT
+
+    if use_storage_bucket:
+        logger.info(f"📦 Entries ({len(entries_compressed):,} chars) exceed {APPWRITE_FIELD_LIMIT:,} limit")
+        logger.info(f"   Uploading to Storage Bucket: {STORAGE_BUCKET_ID}")
+
+        # Import storage upload function
+        from .appwrite_mcp import upload_bytes_to_appwrite_storage
+
+        # Generate unique filename: courseId_version_timestamp.json.gz
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        storage_filename = f"{course_id}_{version}_{timestamp}.json.gz"
+
+        # Upload compressed entries bytes to storage
+        # The compressed string is base64 encoded, so we store it as-is
+        entries_bytes = entries_compressed.encode('utf-8')
+
+        try:
+            storage_file_id = await upload_bytes_to_appwrite_storage(
+                bucket_id=STORAGE_BUCKET_ID,
+                data=entries_bytes,
+                file_id="unique()",  # Let Appwrite generate unique ID
+                filename=storage_filename,
+                mcp_config_path=mcp_config_path,
+                permissions=['read("any")'],  # Public read for lesson delivery
+                force=False
+            )
+
+            # Store storage reference in entries field instead of data
+            entries_field_value = f"{STORAGE_PREFIX}{storage_file_id}"
+            logger.info(f"   ✓ Uploaded to storage: {storage_file_id}")
+            logger.info(f"   ✓ Entries field value: {entries_field_value}")
+
+        except Exception as e:
+            error_msg = (
+                f"Failed to upload entries to storage bucket: {e}. "
+                f"Bucket '{STORAGE_BUCKET_ID}' may not exist. "
+                f"Create it manually or check Appwrite permissions."
+            )
+            logger.error(f"❌ {error_msg}")
+            raise ValueError(error_msg)
+    else:
+        # Store inline (existing behavior) - entries fit in database field
+        entries_field_value = entries_compressed
+        logger.info(f"✓ Entries ({len(entries_compressed):,} chars) fit within limit, storing inline")
 
     # Stringify metadata object (keep uncompressed for admin readability)
     metadata_str = json.dumps(sow_data["metadata"])
@@ -223,7 +313,7 @@ async def upsert_sow_to_appwrite(
         "courseId": course_id,
         "version": version,  # Use version parameter
         "status": "draft",  # New SOWs start as draft
-        "entries": entries_compressed,  # Compressed using gzip+base64
+        "entries": entries_field_value,  # May be "storage:<file_id>" or inline compressed
         "metadata": metadata_str,
         "accessibility_notes": accessibility_notes
     }
@@ -243,7 +333,10 @@ async def upsert_sow_to_appwrite(
     logger.info(f"  courseId: {document_data['courseId']}")
     logger.info(f"  version: {document_data['version']}")
     logger.info(f"  status: {document_data['status']}")
-    logger.info(f"  entries size: {len(document_data['entries'])} chars (compressed)")
+    if use_storage_bucket:
+        logger.info(f"  entries: {document_data['entries']} (storage reference)")
+    else:
+        logger.info(f"  entries size: {len(document_data['entries'])} chars (inline compressed)")
     logger.info(f"  metadata size: {len(document_data['metadata'])} chars")
 
     # Log accessibility_notes as it will be sent

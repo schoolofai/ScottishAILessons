@@ -1,7 +1,7 @@
 import { Query, ID } from 'appwrite';
 import { BaseDriver } from './BaseDriver';
 import type { AuthoredSOWData, AuthoredSOWEntry, AuthoredSOWMetadata } from '../types';
-import { decompressJSON } from '../utils/compression';
+import { decompressJSONWithStorage } from '../utils/compression';
 
 // REMOVED: SOWEntry interface - entries now come from Authored_SOW via dereference
 
@@ -80,7 +80,8 @@ export class SOWDriver extends BaseDriver {
       }
 
       // Step 3: Parse Authored_SOW data (decompress entries, parse metadata)
-      const authoredEntries: AuthoredSOWEntry[] = decompressJSON(authoredSOW.entries) || [];
+      // Uses async decompression to support storage bucket refs (storage:<file_id>)
+      const authoredEntries: AuthoredSOWEntry[] = await decompressJSONWithStorage(authoredSOW.entries, this.storage) || [];
       const authoredMetadata: AuthoredSOWMetadata = JSON.parse(authoredSOW.metadata || '{}');
 
       console.log('[SOWDriver Debug] Dereferenced curriculum:', {

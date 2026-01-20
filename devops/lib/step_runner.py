@@ -142,27 +142,39 @@ class StepRunner:
     # STEP 2: SOW AUTHOR (Direct Python Import)
     # ═══════════════════════════════════════════════════════════════════════════
 
-    async def run_sow(self, course_id: str) -> StepResult:
+    async def run_sow(self, course_id: str, use_iterative: bool = True) -> StepResult:
         """Execute Step 2: Author SOW via direct Python import.
+
+        Supports two authoring modes:
+        - Iterative (default): Lesson-by-lesson generation with better schema compliance
+        - Legacy: Original monolithic approach for backward compatibility
 
         Args:
             course_id: Course identifier (e.g., course_c84775)
+            use_iterative: Use iterative lesson-by-lesson authoring (default: True)
 
         Returns:
             StepResult with sow_document_id and lesson_count in outputs
         """
-        self.logger.info(f"Starting SOW authoring for {course_id}")
+        mode_name = "Iterative" if use_iterative else "Legacy"
+        self.logger.info(f"Starting SOW authoring for {course_id} ({mode_name} mode)")
 
         try:
-            # Import agent class
-            from src.sow_author_claude_client import SOWAuthorClaudeAgent
-
-            # Instantiate agent with workspace persistence for debugging
-            agent = SOWAuthorClaudeAgent(
-                mcp_config_path=self.mcp_config_path,
-                persist_workspace=True,
-                log_level="INFO"
-            )
+            # Import appropriate agent class based on mode
+            if use_iterative:
+                from src.iterative_sow_author import IterativeSOWAuthor
+                agent = IterativeSOWAuthor(
+                    mcp_config_path=self.mcp_config_path,
+                    persist_workspace=True,
+                    log_level="INFO"
+                )
+            else:
+                from src.sow_author_claude_client import SOWAuthorClaudeAgent
+                agent = SOWAuthorClaudeAgent(
+                    mcp_config_path=self.mcp_config_path,
+                    persist_workspace=True,
+                    log_level="INFO"
+                )
 
             # Execute agent - returns structured result dict
             result = await agent.execute(

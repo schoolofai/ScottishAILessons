@@ -68,6 +68,7 @@ class PipelineConfig:
     skip_seed_sow: bool = False
     force: bool = False
     diagram_timeout: int = 60
+    use_iterative_sow: bool = True  # Use iterative SOW authoring by default
 
     @classmethod
     def from_checkpoint(cls, run_id: str) -> "PipelineConfig":
@@ -277,7 +278,10 @@ class LessonsPipeline:
         elif step == PipelineStep.SOW:
             if not state.course_id:
                 raise ValueError("course_id not set. Run seed step first.")
-            result = await self.step_runner.run_sow(course_id=state.course_id)
+            result = await self.step_runner.run_sow(
+                course_id=state.course_id,
+                use_iterative=self.config.use_iterative_sow
+            )
 
         elif step == PipelineStep.LESSONS:
             if not state.course_id:
@@ -588,6 +592,20 @@ async def main() -> int:
         help="Timeout in seconds for diagram service (default: 60)"
     )
 
+    # SOW authoring mode options (mutually exclusive)
+    sow_mode_group = lessons_parser.add_mutually_exclusive_group()
+    sow_mode_group.add_argument(
+        "--iterative",
+        action="store_true",
+        default=True,
+        help="Use iterative lesson-by-lesson SOW authoring (default, better schema compliance)"
+    )
+    sow_mode_group.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Use legacy monolithic SOW authoring (backward compatibility)"
+    )
+
     # List command
     subparsers.add_parser("list", help="List all pipeline runs")
 
@@ -617,6 +635,7 @@ async def main() -> int:
                 config.skip_seed_sow = args.skip_seed_sow
                 config.force = args.force
                 config.diagram_timeout = args.diagram_timeout
+                config.use_iterative_sow = not args.legacy  # --legacy overrides default
             else:
                 # New run
                 if not args.subject or not args.level:
@@ -629,6 +648,9 @@ async def main() -> int:
                 print(f"Subject: {subject}")
                 print(f"Level: {level}")
 
+                # Determine SOW authoring mode (--legacy overrides default --iterative)
+                use_iterative = not args.legacy
+
                 config = PipelineConfig(
                     subject=subject,
                     level=level,
@@ -636,11 +658,16 @@ async def main() -> int:
                     skip_diagrams=args.skip_diagrams,
                     skip_seed_sow=args.skip_seed_sow,
                     force=args.force,
-                    diagram_timeout=args.diagram_timeout
+                    diagram_timeout=args.diagram_timeout,
+                    use_iterative_sow=use_iterative
                 )
 
             if config.dry_run:
                 print("\n[DRY RUN MODE - No actual execution]")
+
+            # Show SOW authoring mode
+            sow_mode = "Iterative (lesson-by-lesson)" if config.use_iterative_sow else "Legacy (monolithic)"
+            print(f"SOW Authoring Mode: {sow_mode}")
 
             # Run pipeline
             pipeline = LessonsPipeline(config)

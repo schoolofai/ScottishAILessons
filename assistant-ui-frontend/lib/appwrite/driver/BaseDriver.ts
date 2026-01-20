@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID } from 'appwrite';
+import { Client, Account, Databases, ID, Storage } from 'appwrite';
 import type { AppwriteResponse } from '../types';
 
 /**
@@ -9,6 +9,7 @@ export abstract class BaseDriver {
   protected client: Client;
   protected account: Account;
   protected databases: Databases;
+  protected storage: Storage;
 
   constructor(sessionTokenOrDatabases?: string | Databases) {
     // Handle different initialization patterns
@@ -24,10 +25,11 @@ export abstract class BaseDriver {
 
       this.account = new Account(this.client);
       this.databases = new Databases(this.client);
+      this.storage = new Storage(this.client);
     } else if (sessionTokenOrDatabases && typeof sessionTokenOrDatabases === 'object') {
       // New pattern: use pre-configured Databases instance from planner service
       this.databases = sessionTokenOrDatabases;
-      // Note: client and account will be undefined in this case
+      // Note: client, account, and storage will be undefined in this case
       // but most drivers only need databases for CRUD operations
     } else {
       // Default: no authentication (for server-side operations)
@@ -37,6 +39,7 @@ export abstract class BaseDriver {
 
       this.account = new Account(this.client);
       this.databases = new Databases(this.client);
+      this.storage = new Storage(this.client);
     }
   }
 

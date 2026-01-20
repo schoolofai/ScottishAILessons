@@ -13,12 +13,22 @@ from enum import Enum
 
 
 class CardType(str, Enum):
-    """Valid card types for lesson plan cards."""
+    """Valid card types for lesson plan cards.
+
+    SIMPLIFIED CARD FLOW (5 cards):
+    1. starter - Prior knowledge activation (5 min)
+    2. explainer - Core content delivery (10-15 min)
+    3. modelling - Teacher demonstrates with think-aloud (5-10 min)
+    4. guided_practice - Scaffolded practice with hints (10 min)
+    5. exit_ticket - Quick formative check (5 min)
+
+    NOTE: Independent practice is handled by a SEPARATE system outside of SOW authoring.
+    The iterative SOW author should ONLY produce these 5 card types.
+    """
     STARTER = "starter"
     EXPLAINER = "explainer"
     MODELLING = "modelling"
     GUIDED_PRACTICE = "guided_practice"
-    INDEPENDENT_PRACTICE = "independent_practice"
     EXIT_TICKET = "exit_ticket"
 
 
@@ -379,6 +389,166 @@ class Metadata(BaseModel):
     periods_per_week: Optional[int] = Field(None, ge=1, le=10)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# ITERATIVE SOW AUTHORING MODELS
+# These models support lesson-by-lesson generation to reduce token scope and
+# improve schema compliance. Used by IterativeSOWAuthor.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class OutlineLessonType(str, Enum):
+    """Valid lesson types for OUTLINE entries (simplified).
+
+    IMPORTANT: The outline generator produces a SIMPLIFIED structure with only:
+    - teach: Core teaching lessons with new content
+    - mock_exam: Final exam preparation (exactly 1 per course)
+
+    Other lesson types (revision, formative_assessment, independent_practice)
+    are pedagogical patterns that belong INSIDE lesson content (as card types
+    or learning activities), not as separate lessons in the outline.
+
+    This simplification:
+    - Reduces LLM confusion about teach-revision pairing rules
+    - Makes outline generation more reliable
+    - Allows lesson content to embed revision/practice activities as needed
+    """
+    TEACH = "teach"
+    MOCK_EXAM = "mock_exam"
+
+
+class LessonOutlineEntry(BaseModel):
+    """Single entry in the lesson outline (skeleton for iterative authoring).
+
+    This lightweight model captures the essential planning data for each lesson:
+    - Lesson type and position in sequence (teach or mock_exam ONLY)
+    - Curriculum alignment (outcome/unit mapping)
+    - Block placement for coherence
+
+    The full lesson details (lesson_plan, accessibility, etc.) are generated
+    separately by the Lesson Entry Author subagent.
+
+    IMPORTANT: The outline only supports 'teach' and 'mock_exam' lesson types.
+    Other pedagogical patterns (revision, formative_assessment, independent_practice)
+    should be embedded within lesson content, not as separate outline entries.
+
+    Example:
+        {
+            "order": 1,
+            "lesson_type": "teach",
+            "label_hint": "Introduction to Forces",
+            "block_name": "Forces and Motion",
+            "block_index": "B1",
+            "primary_outcome_or_skill": "O1",
+            "standards_or_skills_codes": ["AS1.1", "AS1.2"],
+            "rationale": "Foundational concepts needed for all force-related content"
+        }
+    """
+    order: int = Field(..., ge=1, description="Lesson sequence number (1-based)")
+    lesson_type: OutlineLessonType = Field(..., description="Type of lesson: 'teach' or 'mock_exam' ONLY")
+    label_hint: str = Field(..., min_length=5, max_length=100, description="Short descriptive label for the lesson")
+    block_name: str = Field(..., min_length=3, max_length=100, description="Curriculum block name")
+    block_index: str = Field(..., min_length=1, max_length=10, description="Block identifier (e.g., 'B1', 'U2')")
+    primary_outcome_or_skill: str = Field(..., min_length=1, description="Primary outcome (O1) or skill name")
+    standards_or_skills_codes: List[str] = Field(..., min_length=1, description="Assessment standard codes or skill names")
+    rationale: str = Field(..., min_length=20, max_length=300, description="Brief justification for lesson placement and content")
+
+    class Config:
+        str_strip_whitespace = True
+
+
+class LessonOutline(BaseModel):
+    """Complete lesson outline for iterative SOW authoring (SIMPLIFIED).
+
+    The outline is generated first to establish:
+    - Total number of lessons
+    - Lesson sequence and types (teach + mock_exam ONLY)
+    - Curriculum coverage mapping
+    - Block structure
+
+    This ensures consistent structure BEFORE generating detailed lesson content.
+
+    IMPORTANT: Simplified to only support 'teach' and 'mock_exam' lesson types.
+    Other pedagogical patterns (revision, formative_assessment, independent_practice)
+    should be embedded within individual lesson content as card types or learning
+    activities, not as separate outline entries.
+
+    Validation rules:
+    - Entry order must be sequential (1, 2, 3...)
+    - Must have at least 1 teach lesson
+    - Must have exactly 1 mock_exam lesson (within last 3 lessons)
+    """
+    course_subject: str = Field(..., min_length=3, description="Subject identifier (e.g., 'mathematics', 'physics')")
+    course_level: str = Field(..., min_length=3, description="Level identifier (e.g., 'national-3', 'national-5')")
+    total_lessons: int = Field(..., ge=1, description="Total number of lessons in the outline")
+    structure_type: Literal["unit_based", "skills_based"] = Field(..., description="Course structure type from Course_data.txt")
+    outlines: List[LessonOutlineEntry] = Field(..., min_length=1, description="Ordered list of lesson outlines (teach + mock_exam only)")
+
+    class Config:
+        str_strip_whitespace = True
+
+    @model_validator(mode='after')
+    def validate_total_matches_entries(self):
+        """Validate total_lessons matches actual entry count."""
+        if self.total_lessons != len(self.outlines):
+            raise ValueError(
+                f"total_lessons ({self.total_lessons}) must match number of outline entries ({len(self.outlines)})"
+            )
+        return self
+
+    @model_validator(mode='after')
+    def validate_entry_order_sequential(self):
+        """Validate entry order is sequential 1, 2, 3..."""
+        if not self.outlines:
+            return self
+
+        expected = list(range(1, len(self.outlines) + 1))
+        actual = [e.order for e in self.outlines]
+
+        if actual != expected:
+            raise ValueError(
+                f"Outline order must be sequential 1..{len(self.outlines)}, got {actual}"
+            )
+        return self
+
+    @model_validator(mode='after')
+    def validate_lesson_type_requirements(self):
+        """Validate lesson type distribution requirements.
+
+        Simplified rules (teach + mock_exam only):
+        - At least 1 teach lesson
+        - Exactly 1 mock_exam lesson
+        - mock_exam should be within last 3 lessons
+        """
+        if not self.outlines:
+            return self
+
+        lesson_types = [e.lesson_type for e in self.outlines]
+
+        # Must have at least 1 teach lesson
+        teach_count = lesson_types.count(OutlineLessonType.TEACH)
+        if teach_count < 1:
+            raise ValueError(f"Outline must have at least 1 teach lesson, found {teach_count}")
+
+        # Must have exactly 1 mock_exam
+        mock_count = lesson_types.count(OutlineLessonType.MOCK_EXAM)
+        if mock_count != 1:
+            raise ValueError(f"Outline must have exactly 1 mock_exam lesson, found {mock_count}")
+
+        # mock_exam should be within last 3 lessons (soft warning, not error)
+        mock_indices = [i for i, e in enumerate(self.outlines) if e.lesson_type == OutlineLessonType.MOCK_EXAM]
+        if mock_indices:
+            mock_order = mock_indices[0] + 1  # 1-based
+            if mock_order < len(self.outlines) - 2:  # Not in last 3
+                # This is a soft validation - we log but don't reject
+                import logging
+                logging.warning(
+                    f"mock_exam is at position {mock_order} but should ideally be within last 3 lessons "
+                    f"(lessons {len(self.outlines) - 2} to {len(self.outlines)})"
+                )
+
+        return self
+
+
 class AuthoredSOW(BaseModel):
     """Complete authored SOW with full validation.
 
@@ -467,6 +637,85 @@ class AuthoredSOW(BaseModel):
         if independent_count < 1:
             raise ValueError(
                 f"Course must have at least 1 independent_practice lesson, found {independent_count}"
+            )
+
+        # Count mock_exam
+        mock_count = lesson_types.count(LessonType.MOCK_EXAM)
+        if mock_count != 1:
+            raise ValueError(
+                f"Course must have exactly 1 mock_exam lesson, found {mock_count}"
+            )
+
+        return self
+
+    class Config:
+        populate_by_name = True  # Allow $id alias
+        str_strip_whitespace = True
+
+
+class AuthoredSOWIterative(BaseModel):
+    """AuthoredSOW for iterative pipeline (teach + mock_exam only).
+
+    The iterative SOW author generates only 'teach' and 'mock_exam' lesson types.
+    Revision and independent_practice lessons are handled by a separate system.
+
+    This model skips:
+    - teach-revision pairing validation
+    - independent_practice requirement validation
+
+    It DOES validate:
+    - Sequential entry ordering (1, 2, 3...)
+    - Exactly 1 mock_exam lesson
+    - At least 1 teach lesson
+    """
+    # Database-managed fields (optional - agent doesn't provide, upserter adds)
+    id: Optional[str] = Field(None, alias="$id")
+    courseId: Optional[str] = Field(None, min_length=5)
+    version: Optional[str] = None
+    status: Optional[Literal["draft", "published"]] = None
+
+    # Core content
+    metadata: Metadata
+    entries: List[SOWEntry] = Field(..., min_length=1)
+
+    # Top-level accessibility summary (string, not array) - optional
+    accessibility_notes: Optional[str] = Field(None, min_length=50)
+
+    @model_validator(mode='after')
+    def validate_entry_order_sequential(self):
+        """Validate entry order is sequential 1, 2, 3..."""
+        if not self.entries:
+            return self
+
+        expected = list(range(1, len(self.entries) + 1))
+        actual = [e.order for e in self.entries]
+
+        if actual != expected:
+            raise ValueError(
+                f"Entry order must be sequential 1..{len(self.entries)}, "
+                f"got {actual}"
+            )
+        return self
+
+    @model_validator(mode='after')
+    def validate_iterative_requirements(self):
+        """Validate iterative pipeline requirements (teach + mock_exam only).
+
+        Requirements:
+        - At least 1 teach lesson
+        - Exactly 1 mock_exam lesson
+        - NO validation for revision or independent_practice
+        """
+        if not self.entries:
+            return self
+
+        lesson_types = [e.lesson_type for e in self.entries]
+
+        # Count teach lessons
+        teach_count = lesson_types.count(LessonType.TEACH)
+        if teach_count < 1:
+            raise ValueError(
+                f"Course must have at least 1 teach lesson, found {teach_count}"
             )
 
         # Count mock_exam

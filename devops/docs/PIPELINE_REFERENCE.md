@@ -245,14 +245,35 @@ None - this is a direct database seeding operation.
 
 ### Step 2: Author SOW (Scheme of Work)
 
+#### Authoring Modes
+
+Two SOW authoring modes are available:
+
+| Mode | Flag | Description | Token Budget |
+|------|------|-------------|--------------|
+| **Iterative** (default) | `--iterative` | Lesson-by-lesson generation | ~4K per lesson |
+| **Legacy** | `--legacy` | Original monolithic approach | ~50K+ total |
+
+**Iterative Mode** (recommended for new courses):
+- Generates a lesson outline first
+- Then generates each lesson entry individually
+- Better schema compliance through smaller scope
+- Cross-lesson validation in Python assembler
+
 #### CLI Usage
 
 ```bash
 cd claud_author_agent
 source .venv/bin/activate
 
-# Basic usage (subject/level auto-fetched from database)
+# Basic usage - iterative mode (default)
 python -m src.sow_author_cli --courseId <courseId>
+
+# Explicit iterative mode
+python -m src.sow_author_cli --courseId course_c84775 --iterative
+
+# Legacy monolithic mode
+python -m src.sow_author_cli --courseId course_c84775 --legacy
 
 # Examples
 python -m src.sow_author_cli --courseId course_c84775
@@ -333,6 +354,55 @@ python -m src.sow_author_cli                      # Interactive prompts
 │  1. Parse authored_sow.json                                                 │
 │  2. Final Pydantic validation                                               │
 │  3. Upsert to default.Authored_SOW                                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Iterative Agent Architecture (--iterative, default)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    ITERATIVE SOW AUTHOR PIPELINE                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  PRE-PROCESSING (Python - NO LLM)                                           │
+│  ─────────────────────────────────                                          │
+│  1. Validate courseId exists in default.courses                             │
+│  2. Extract Course_data.txt to workspace                                    │
+│                                                                              │
+│  PHASE 1: OUTLINE GENERATION (Claude Agent SDK)                             │
+│  ───────────────────────────────────────────────                            │
+│  ┌─────────────────────┐                                                    │
+│  │   @outline_author   │ ── Reads Course_data.txt                          │
+│  │   (~2K tokens)      │ ── Writes lesson_outline.json                     │
+│  │                     │ ── Validates with sow_outline_validator           │
+│  └──────────┬──────────┘                                                    │
+│             │                                                               │
+│  PHASE 2: LESSON-BY-LESSON GENERATION (Loop N times)                        │
+│  ─────────────────────────────────────────────────────                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  FOR each lesson in outline:                                         │   │
+│  │  ┌─────────────────────┐                                            │   │
+│  │  │   @lesson_author    │ ── Context: outline + previous lessons     │   │
+│  │  │   (~4K tokens each) │ ── Writes lesson_{N}.json                  │   │
+│  │  │                     │ ── Validates with sow_entry_validator      │   │
+│  │  └─────────────────────┘                                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+│  PHASE 3: METADATA GENERATION (Claude Agent SDK)                            │
+│  ─────────────────────────────────────────────────                          │
+│  ┌─────────────────────┐                                                    │
+│  │   @metadata_author  │ ── Summarizes all lessons                         │
+│  │   (~1K tokens)      │ ── Writes metadata.json                           │
+│  │                     │ ── Validates with sow_metadata_validator          │
+│  └──────────┬──────────┘                                                    │
+│             │                                                               │
+│  PHASE 4: ASSEMBLY (Python - NO LLM)                                        │
+│  ─────────────────────────────────────                                      │
+│  1. Combine lessons + metadata                                              │
+│  2. Cross-lesson validation (ordering, teach-revision pairing)              │
+│  3. Final AuthoredSOW Pydantic validation                                   │
+│  4. Upsert to default.Authored_SOW                                          │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```

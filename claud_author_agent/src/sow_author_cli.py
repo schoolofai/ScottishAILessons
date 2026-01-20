@@ -5,6 +5,10 @@ Supports three input methods:
 1. JSON file: --input input.json
 2. Command-line args: --subject mathematics --level national-5 --courseId course_123
 3. Interactive prompts: (no args provided)
+
+Supports two authoring modes:
+- --iterative: New lesson-by-lesson approach (better schema compliance, default)
+- --legacy: Original monolithic approach (backward compatibility)
 """
 
 import argparse
@@ -16,6 +20,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from .sow_author_claude_client import SOWAuthorClaudeAgent
+from .iterative_sow_author import IterativeSOWAuthor
 
 # Setup logging
 logging.basicConfig(
@@ -171,6 +176,20 @@ Examples:
         help='Logging level (default: INFO)'
     )
 
+    # Authoring mode options (mutually exclusive)
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        '--iterative',
+        action='store_true',
+        default=True,
+        help='Use iterative lesson-by-lesson authoring (default, better schema compliance)'
+    )
+    mode_group.add_argument(
+        '--legacy',
+        action='store_true',
+        help='Use legacy monolithic authoring (backward compatibility)'
+    )
+
     return parser.parse_args()
 
 
@@ -180,7 +199,8 @@ async def run_agent(
     force: bool = False,
     mcp_config_path: str = ".mcp.json",
     persist_workspace: bool = True,
-    log_level: str = "INFO"
+    log_level: str = "INFO",
+    use_iterative: bool = True
 ) -> Dict[str, Any]:
     """Run the SOW Author agent with given parameters.
 
@@ -191,18 +211,22 @@ async def run_agent(
         mcp_config_path: Path to MCP config
         persist_workspace: Whether to preserve workspace
         log_level: Logging level
+        use_iterative: Use iterative authoring (True) or legacy monolithic (False)
 
     Returns:
         Result dictionary from agent execution
     """
+    mode_name = "Iterative" if use_iterative else "Legacy"
+
     print("=" * 70)
-    print("SOW Author Claude Agent")
+    print(f"SOW Author Claude Agent ({mode_name} Mode)")
     print("=" * 70)
     print()
     print("Input Parameters:")
     print(f"  Course ID:     {courseId}")
     print(f"  Version:       {version}")
     print(f"  Force Mode:    {'YES' if force else 'NO'}")
+    print(f"  Auth Mode:     {mode_name}")
     print(f"  MCP Config:    {mcp_config_path}")
     print(f"  Persist WS:    {persist_workspace}")
     print(f"  Log Level:     {log_level}")
@@ -210,16 +234,27 @@ async def run_agent(
     print("Note: Subject and level will be automatically fetched from database")
     if force:
         print("⚠️  WARNING: Force mode will overwrite existing SOW for this version!")
+    if use_iterative:
+        print("📋 Using iterative lesson-by-lesson authoring (better schema compliance)")
+    else:
+        print("📦 Using legacy monolithic authoring (backward compatibility)")
     print()
     print("=" * 70)
     print()
 
-    # Initialize agent
-    agent = SOWAuthorClaudeAgent(
-        mcp_config_path=mcp_config_path,
-        persist_workspace=persist_workspace,
-        log_level=log_level
-    )
+    # Initialize appropriate agent based on mode
+    if use_iterative:
+        agent = IterativeSOWAuthor(
+            mcp_config_path=mcp_config_path,
+            persist_workspace=persist_workspace,
+            log_level=log_level
+        )
+    else:
+        agent = SOWAuthorClaudeAgent(
+            mcp_config_path=mcp_config_path,
+            persist_workspace=persist_workspace,
+            log_level=log_level
+        )
 
     # Execute pipeline with version and force parameters
     result = await agent.execute(
@@ -297,14 +332,18 @@ async def main() -> int:
             logger.info("No input provided, entering interactive mode")
             params = interactive_input()
 
-        # Run agent with version and force parameters
+        # Determine authoring mode (--legacy overrides default --iterative)
+        use_iterative = not args.legacy
+
+        # Run agent with version, force, and mode parameters
         result = await run_agent(
             courseId=params["courseId"],
             version=args.version,
             force=args.force,
             mcp_config_path=args.mcp_config,
             persist_workspace=not args.no_persist_workspace,
-            log_level=args.log_level
+            log_level=args.log_level,
+            use_iterative=use_iterative
         )
 
         # Print result

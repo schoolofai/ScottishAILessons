@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient } from '@/lib/server/appwrite';
-import { Query } from 'node-appwrite';
+import { Query, Storage } from 'node-appwrite';
 import type { AuthoredSOW } from '@/lib/appwrite/types';
-import { decompressJSON } from '@/lib/appwrite/utils/compression';
+import { decompressJSONWithStorage } from '@/lib/appwrite/utils/compression';
 
 /**
  * GET /api/admin/sows
@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
   try {
     console.log('[Admin SOWs API] Fetching all SOWs for admin...');
 
-    // Get authenticated session - REQUIRED
-    const { account, databases } = await createSessionClient();
+    // Get authenticated session - REQUIRED (includes storage for large entry decompression)
+    const { account, databases, storage } = await createSessionClient();
     const user = await account.get();
 
     console.log(`[Admin SOWs API] User authenticated: ${user.$id}`);
@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
     console.log(`[Admin SOWs API] Found ${response.documents.length} SOWs`);
 
     // Transform the documents to match expected format
-    // IMPORTANT: Both entries AND metadata may be gzip compressed
-    // Use decompressJSON for both to handle compressed and uncompressed data
-    const sows = response.documents.map((doc: any) => {
+    // IMPORTANT: Both entries AND metadata may be gzip compressed or in storage bucket
+    // Use decompressJSONWithStorage to handle storage refs, compressed, and uncompressed data
+    const sows = await Promise.all(response.documents.map(async (doc: any) => {
       const typedDoc = doc as AuthoredSOW;
 
-      // Decompress entries and metadata
-      const entries = decompressJSON(typedDoc.entries);
-      const metadata = decompressJSON(typedDoc.metadata);
+      // Decompress entries and metadata (supports storage bucket refs like "storage:<file_id>")
+      const entries = await decompressJSONWithStorage(typedDoc.entries, storage);
+      const metadata = await decompressJSONWithStorage(typedDoc.metadata, storage);
 
       // Calculate total_lessons and total_estimated_minutes from entries if not in metadata
       const entriesArray = Array.isArray(entries) ? entries : [];
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
         $createdAt: typedDoc.$createdAt,
         $updatedAt: typedDoc.$updatedAt
       };
-    });
+    }));
 
     return NextResponse.json({
       success: true,

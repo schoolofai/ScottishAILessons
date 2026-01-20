@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID, Permission } from 'node-appwrite';
+import { Client, Account, Databases, Storage, ID, Permission } from 'node-appwrite';
 import type { AppwriteResponse } from '@/lib/appwrite/types';
 
 /**
@@ -9,14 +9,16 @@ export abstract class ServerBaseDriver {
   protected client: Client;
   protected account: Account;
   protected databases: Databases;
+  protected storage: Storage;
   protected sessionUserId?: string;
 
-  constructor(sessionClient?: { client: Client; account: Account; databases: Databases; users?: any }, sessionUserId?: string) {
+  constructor(sessionClient?: { client: Client; account: Account; databases: Databases; storage?: Storage; users?: any }, sessionUserId?: string) {
     if (sessionClient) {
       // Use provided admin client (since SSR session auth is broken in node-appwrite v19.1.0)
       this.client = sessionClient.client;
       this.account = sessionClient.account;
       this.databases = sessionClient.databases;
+      this.storage = sessionClient.storage || new Storage(this.client);
       this.sessionUserId = sessionUserId;
     } else {
       // Fallback: create unauthenticated client (for backward compatibility)
@@ -26,6 +28,7 @@ export abstract class ServerBaseDriver {
 
       this.account = new Account(this.client);
       this.databases = new Databases(this.client);
+      this.storage = new Storage(this.client);
     }
   }
 

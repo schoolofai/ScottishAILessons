@@ -524,5 +524,8 @@ from .appwrite_infrastructure import (
     create_appwrite_enum_attribute,
     create_appwrite_index,
     create_appwrite_bucket,
-    upload_to_appwrite_storage
+    upload_to_appwrite_storage,
+    upload_bytes_to_appwrite_storage,
+    download_from_appwrite_storage,
+    delete_from_appwrite_storage
 )

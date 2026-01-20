@@ -6,8 +6,11 @@
  */
 
 import pako from 'pako';
+import { Storage } from 'appwrite';
 
 const COMPRESSION_PREFIX = 'gzip:';
+const STORAGE_PREFIX = 'storage:';
+const STORAGE_BUCKET_ID = 'authored_sow_entries';
 
 /**
  * Compress cards array to gzipped base64 string
@@ -371,3 +374,134 @@ function decompressRawGzipBase64JSON<T>(data: string): T {
     throw new Error(`Raw gzip decompression failed: ${error.message}`);
   }
 }
+
+/**
+ * Check if data is a storage bucket reference
+ *
+ * Storage references have the format: "storage:<file_id>"
+ * where file_id is the Appwrite storage file ID.
+ */
+export function isStorageRef(data: string): boolean {
+  return typeof data === 'string' && data.startsWith(STORAGE_PREFIX);
+}
+
+/**
+ * Extract file ID from storage reference
+ *
+ * @param data - Storage reference string (e.g., "storage:abc123")
+ * @returns File ID (e.g., "abc123")
+ */
+export function getStorageFileId(data: string): string {
+  if (!isStorageRef(data)) {
+    throw new Error('Data is not a storage reference');
+  }
+  return data.substring(STORAGE_PREFIX.length);
+}
+
+/**
+ * Decompress JSON data with storage bucket support
+ *
+ * **ASYNC** version of decompressJSON that handles storage bucket references.
+ * Use this when the data might be stored in Appwrite Storage (for large entries).
+ *
+ * Handles:
+ * - Storage bucket: "storage:<file_id>" - fetches from storage, then decompresses
+ * - TypeScript format: "gzip:" prefix + base64-encoded gzip
+ * - Python format: raw base64-encoded gzip (no prefix)
+ * - Uncompressed JSON strings (backward compatibility)
+ * - Already-parsed objects (pass-through)
+ * - Null/undefined (returns null)
+ *
+ * @param data - Compressed/uncompressed data, storage ref, or parsed object
+ * @param storage - Appwrite Storage client (required for storage refs)
+ * @returns Parsed object or null
+ * @throws Error if decompression/parsing/fetching fails
+ */
+export async function decompressJSONWithStorage<T = any>(
+  data: string | any | null | undefined,
+  storage?: Storage
+): Promise<T | null> {
+  // Handle null/undefined
+  if (data === null || data === undefined) {
+    console.warn('[compression] Received null/undefined data');
+    return null;
+  }
+
+  // Handle already-parsed objects (backward compatibility edge case)
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    console.warn('[compression] Received already-parsed object, returning as-is');
+    return data;
+  }
+
+  // Handle non-string data
+  if (typeof data !== 'string') {
+    console.warn('[compression] Unexpected data type:', typeof data);
+    return null;
+  }
+
+  // Check for storage bucket reference FIRST
+  if (isStorageRef(data)) {
+    const fileId = getStorageFileId(data);
+    console.log(`[compression] 📦 Fetching entries from storage: ${fileId}`);
+
+    if (!storage) {
+      throw new Error(
+        'Storage client required to fetch storage-backed entries. ' +
+        'Pass the Appwrite Storage client to decompressJSONWithStorage().'
+      );
+    }
+
+    try {
+      // Fetch file from storage bucket
+      // Browser SDK returns a URL, server SDK returns bytes
+      const fileResponse = storage.getFileDownload(STORAGE_BUCKET_ID, fileId);
+
+      if (!fileResponse) {
+        throw new Error(`Storage returned null/undefined for file ID: ${fileId}`);
+      }
+
+      let compressedString: string;
+
+      // In browser SDK, getFileDownload returns a URL string
+      // We need to fetch the actual content from that URL
+      if (typeof fileResponse === 'string' && fileResponse.startsWith('http')) {
+        console.log(`[compression] Fetching from URL: ${fileResponse.substring(0, 50)}...`);
+        const response = await fetch(fileResponse);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        compressedString = await response.text();
+      } else if (typeof fileResponse === 'object' && 'then' in fileResponse) {
+        // Server SDK returns a Promise<ArrayBuffer>
+        const buffer = await (fileResponse as Promise<ArrayBuffer>);
+        compressedString = new TextDecoder().decode(buffer);
+      } else if (typeof fileResponse === 'string') {
+        // Direct string content
+        compressedString = fileResponse;
+      } else {
+        throw new Error(`Unexpected response type from getFileDownload: ${typeof fileResponse}`);
+      }
+
+      console.log(`[compression] ✓ Downloaded ${compressedString.length} chars from storage`);
+
+      // The stored data is gzip+base64 compressed (same format as inline)
+      // It might have the "gzip:" prefix or be raw base64
+      return decompressJSON<T>(compressedString);
+
+    } catch (error: any) {
+      console.error(`[compression] Failed to fetch from storage: ${error}`);
+      throw new Error(
+        `Failed to fetch entries from storage bucket '${STORAGE_BUCKET_ID}', ` +
+        `file ID '${fileId}': ${error.message || error}`
+      );
+    }
+  }
+
+  // Not a storage ref - delegate to sync decompressJSON
+  return decompressJSON<T>(data);
+}
+
+/**
+ * Storage bucket constants (exported for drivers that need them)
+ */
+export { STORAGE_PREFIX, STORAGE_BUCKET_ID };

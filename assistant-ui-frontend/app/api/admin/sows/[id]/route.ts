@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient } from '@/lib/server/appwrite';
-import { decompressJSON, compressJSON } from '@/lib/appwrite/utils/compression';
+import { decompressJSONWithStorage, compressJSON } from '@/lib/appwrite/utils/compression';
 
 /**
  * GET /api/admin/sows/[id]
@@ -36,8 +36,8 @@ export async function GET(
       );
     }
 
-    // Get authenticated session - REQUIRED
-    const { account, databases } = await createSessionClient();
+    // Get authenticated session - REQUIRED (includes storage for large entry decompression)
+    const { account, databases, storage } = await createSessionClient();
     const user = await account.get();
 
     console.log(`[Admin SOWs Detail API] User authenticated: ${user.$id}`);
@@ -69,9 +69,9 @@ export async function GET(
     console.info(`✅ SOW ${sowId} fetched successfully`);
 
     // Decompress entries and metadata fields
-    // These may be gzip compressed in the database
-    const entries = decompressJSON(sowDoc.entries);
-    const metadata = decompressJSON(sowDoc.metadata);
+    // These may be gzip compressed or in storage bucket (storage:<file_id>)
+    const entries = await decompressJSONWithStorage(sowDoc.entries, storage);
+    const metadata = await decompressJSONWithStorage(sowDoc.metadata, storage);
 
     // Calculate total_lessons and total_estimated_minutes from entries if not in metadata
     const entriesArray = Array.isArray(entries) ? entries : [];
@@ -172,8 +172,8 @@ export async function PATCH(
       );
     }
 
-    // Get authenticated session - REQUIRED
-    const { account, databases } = await createSessionClient();
+    // Get authenticated session - REQUIRED (includes storage for decompression)
+    const { account, databases, storage } = await createSessionClient();
     const user = await account.get();
 
     console.log(`[Admin SOWs Update API] User authenticated: ${user.$id}`);
@@ -265,9 +265,9 @@ export async function PATCH(
 
     console.info(`✅ SOW ${sowId} updated successfully`);
 
-    // Decompress for response
-    const entries = decompressJSON(updatedDoc.entries);
-    const metadata = decompressJSON(updatedDoc.metadata);
+    // Decompress for response (supports storage bucket refs)
+    const entries = await decompressJSONWithStorage(updatedDoc.entries, storage);
+    const metadata = await decompressJSONWithStorage(updatedDoc.metadata, storage);
 
     const entriesArray = Array.isArray(entries) ? entries : [];
     const totalLessons = metadata?.total_lessons ?? entriesArray.length;

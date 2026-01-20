@@ -5,8 +5,8 @@
  * Uses SOWV2 reference architecture to dereference Authored_SOW for curriculum data.
  */
 
-import { Databases, Query } from 'appwrite';
-import { decompressJSON } from '../appwrite/utils/compression';
+import { Databases, Query, Storage } from 'appwrite';
+import { decompressJSONWithStorage } from '../appwrite/utils/compression';
 
 // ============================================================================
 // Types & Interfaces
@@ -75,12 +75,14 @@ export class ProgressError extends Error {
  * 2. Sessions (completed count)
  * 3. MasteryV2 (average mastery)
  *
+ * @param storage - Optional Storage client for decompressing storage bucket refs
  * @throws {ProgressError} If SOWV2 or Authored_SOW not found
  */
 export async function getCourseProgress(
   studentId: string,
   courseId: string,
-  databases: Databases
+  databases: Databases,
+  storage?: Storage
 ): Promise<CourseProgress> {
   console.log('[Progress Service] Calculating progress:', { studentId, courseId });
 
@@ -110,7 +112,8 @@ export async function getCourseProgress(
       sowv2.source_authored_sow_id
     );
 
-    const sowEntries = decompressJSON(authoredSOW.entries) || [];
+    // Decompress entries (supports storage bucket refs like "storage:<file_id>")
+    const sowEntries = await decompressJSONWithStorage(authoredSOW.entries, storage) || [];
     const totalLessons = sowEntries.length;
 
     console.log('[Progress Service] Total lessons from Authored_SOW:', totalLessons);
