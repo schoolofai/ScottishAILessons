@@ -43,16 +43,16 @@ The lesson_template.json file MUST contain these exact fields:
       "cfu": {
         "type": "numeric|mcq|short|structured (REQUIRED)",
         "id": "string (REQUIRED)",
-        "stem": "string (REQUIRED)"
-      },
-      "rubric": {
-        "total_points": "integer (REQUIRED)",
-        "criteria": [
-          {
-            "description": "string (REQUIRED)",
-            "points": "integer (REQUIRED)"
-          }
-        ]
+        "stem": "string (REQUIRED)",
+        "rubric": {
+          "total_points": "integer >= 1 (REQUIRED - inside CFU)",
+          "criteria": [
+            {
+              "description": "string (REQUIRED)",
+              "points": "integer (REQUIRED)"
+            }
+          ]
+        }
       },
       "misconceptions": [
         {
@@ -179,7 +179,9 @@ output_courseId = input_courseId
 #### Card Schema Compliance (for each card):
 - [ ] Has required fields: `id`, `title`, `explainer`, `explainer_plain`
 - [ ] If CFU present: has `cfu.type`, `cfu.id`, `cfu.stem`
-- [ ] Has `rubric` with `total_points` and `criteria` array
+- [ ] **CRITICAL**: Has `cfu.rubric` (INSIDE CFU) with `total_points >= 1` and non-empty `criteria` array
+- [ ] **NO card-level rubric** - rubric MUST be inside CFU object only
+- [ ] Empty rubrics (total_points=0, criteria=[]) will **FAIL validation**
 - [ ] Has `misconceptions` array (can be empty but must exist)
 - [ ] Each misconception has: `id`, `misconception`, `clarification`
 
@@ -423,7 +425,7 @@ Learn from these mistakes to avoid schema validation failures:
             "misconceptions_addressed": [
               {
                 "misconception": "Calculating the discount but forgetting to subtract...",
-                "remediation": "The AI tutor will prompt: 'Great, you've found...'"
+                "clarification": "The AI tutor will prompt: 'Great, you've found...'"
               }
             ],
             "estimated_minutes": 15
@@ -724,7 +726,7 @@ SOW Card:
   "misconceptions_addressed": [
     {
       "misconception": "Calculating the discount amount but forgetting to subtract it from the original price",
-      "remediation": "The AI tutor will prompt: 'Great, you've found the discount is £1. Now, what do you do with that £1 to find the new price?'"
+      "clarification": "The AI tutor will prompt: 'Great, you've found the discount is £1. Now, what do you do with that £1 to find the new price?'"
     }
   ],
   "cfu_strategy": "Structured question with Scottish shopping context"
@@ -1337,7 +1339,11 @@ Use exemplars from research pack where available; otherwise, use internet search
    - Use course-level context from `sow_context.json` as guided by `<using_sow_context>`
    - Follow card design patterns from `<card_design_patterns>` based on lesson_type
    - Create 3-5 pedagogical cards with varied CFU types using guidance from `<cfu_design_by_lesson_type>`
-   - Include rubrics with clear criteria and point allocations
+   - **CRITICAL**: Rubric must be INSIDE the CFU object, not at card level:
+     * Each CFU must have `cfu.rubric.total_points >= 1`
+     * Each CFU must have at least one criterion in `cfu.rubric.criteria`
+     * Do NOT create a separate card-level rubric field
+     * Empty rubrics (total_points=0, criteria=[]) will **FAIL the Python validator**
    - Identify 1-3 common misconceptions per card using `<misconception_identification>`
 
    - **VALIDATE BEFORE WRITING** using checklist from `<output_schema_requirements>`:

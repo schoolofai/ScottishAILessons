@@ -31,8 +31,15 @@ from .utils.batch_utils import (
     format_dry_run_table,
     calculate_estimates,
     format_duration,
-    format_batch_summary_console
+    format_batch_summary_console,
+    # Delete mode utilities
+    fetch_lessons_for_deletion,
+    fetch_diagrams_for_lesson_ids,
+    format_delete_dry_run_table,
+    format_delete_summary_console
 )
+from .utils.diagram_cleanup import delete_diagrams_for_lesson_ids
+from .utils.appwrite_mcp import delete_appwrite_document
 
 # Setup module logger
 logger = logging.getLogger(__name__)
@@ -553,6 +560,257 @@ async def execute_batch_generation(
     return summary
 
 
+# =============================================================================
+# DELETE MODE FUNCTIONS
+# =============================================================================
+
+async def perform_delete_dry_run(
+    courseId: str,
+    all_versions: bool,
+    batch_id: str,
+    log_dir: Path,
+    mcp_config_path: str
+) -> Dict[str, Any]:
+    """Execute delete dry-run analysis and output plan.
+
+    Args:
+        courseId: Course identifier
+        all_versions: Whether to delete all versions or just claud_Agent_sdk
+        batch_id: Batch identifier
+        log_dir: Log directory path
+        mcp_config_path: Path to MCP config
+
+    Returns:
+        Plan dictionary with lessons and diagrams to delete
+
+    Raises:
+        ValueError: If no lessons found for the course
+    """
+    # Fetch lessons to delete
+    lessons = await fetch_lessons_for_deletion(
+        courseId=courseId,
+        mcp_config_path=mcp_config_path,
+        all_versions=all_versions
+    )
+
+    if not lessons:
+        raise ValueError(
+            f"No lessons found for courseId='{courseId}' "
+            f"{'(all versions)' if all_versions else 'with model_version=claud_Agent_sdk'}. "
+            f"Nothing to delete."
+        )
+
+    # Fetch diagrams for these lessons
+    lesson_ids = [lesson.get('$id') for lesson in lessons]
+    diagrams = await fetch_diagrams_for_lesson_ids(
+        lesson_template_ids=lesson_ids,
+        mcp_config_path=mcp_config_path
+    )
+
+    # Format console table
+    table = format_delete_dry_run_table(lessons, diagrams, all_versions)
+
+    # Print console output
+    print()
+    print(table)
+    print()
+    print(f"Course ID: {courseId}")
+    print()
+    print("⚠️  This is a DRY RUN - no data will be deleted.")
+    print()
+    print("To execute deletion:")
+    print(f"  python -m src.batch_lesson_generator --courseId {courseId} --delete")
+    print()
+
+    # Build plan dict
+    plan = {
+        "batch_id": batch_id,
+        "courseId": courseId,
+        "dry_run": True,
+        "delete_mode": True,
+        "all_versions": all_versions,
+        "timestamp": datetime.now().isoformat(),
+        "lessons_to_delete": [
+            {
+                "doc_id": l.get('$id'),
+                "sow_order": l.get('sow_order'),
+                "title": l.get('title'),
+                "model_version": l.get('model_version')
+            }
+            for l in lessons
+        ],
+        "diagrams_to_delete": [
+            {
+                "doc_id": d.get('$id'),
+                "lessonTemplateId": d.get('lessonTemplateId'),
+                "cardId": d.get('cardId'),
+                "image_file_id": d.get('image_file_id')
+            }
+            for d in diagrams
+        ],
+        "summary": {
+            "total_lessons": len(lessons),
+            "total_diagrams": len(diagrams),
+            "total_storage_files": sum(1 for d in diagrams if d.get('image_file_id'))
+        }
+    }
+
+    # Write dry_run_delete_plan.json
+    plan_file = log_dir / "dry_run_delete_plan.json"
+    with open(plan_file, 'w', encoding='utf-8') as f:
+        json.dump(plan, f, indent=2)
+
+    print(f"✓ Dry-run delete plan saved to: {plan_file}")
+    print()
+
+    return plan
+
+
+async def execute_batch_deletion(
+    courseId: str,
+    all_versions: bool,
+    batch_id: str,
+    log_dir: Path,
+    batch_logger: logging.Logger,
+    mcp_config_path: str
+) -> Dict[str, Any]:
+    """Execute batch deletion of lessons and diagrams.
+
+    Follows referential integrity: deletes diagrams (children) before lessons (parents).
+
+    Args:
+        courseId: Course identifier
+        all_versions: Whether to delete all versions or just claud_Agent_sdk
+        batch_id: Batch identifier
+        log_dir: Log directory path
+        batch_logger: Logger for batch orchestration
+        mcp_config_path: Path to MCP config
+
+    Returns:
+        Summary dictionary with deletion results
+
+    Raises:
+        ValueError: If no lessons found
+        Exception: On database delete failure (fast-fail)
+    """
+    start_time = time.time()
+
+    # Log header
+    batch_logger.info("═" * 70)
+    batch_logger.info("🗑️  Batch Deletion Starting")
+    batch_logger.info("═" * 70)
+    batch_logger.info(f"Batch ID: {batch_id}")
+    batch_logger.info(f"Course ID: {courseId}")
+    batch_logger.info(f"All Versions: {'Yes' if all_versions else 'No (claud_Agent_sdk only)'}")
+    batch_logger.info(f"Log Directory: {log_dir}/")
+    batch_logger.info("─" * 70)
+
+    # Phase 1: Discovery
+    batch_logger.info("Phase 1: Discovery - fetching lessons and diagrams...")
+
+    lessons = await fetch_lessons_for_deletion(
+        courseId=courseId,
+        mcp_config_path=mcp_config_path,
+        all_versions=all_versions
+    )
+
+    if not lessons:
+        raise ValueError(
+            f"No lessons found for courseId='{courseId}' "
+            f"{'(all versions)' if all_versions else 'with model_version=claud_Agent_sdk'}. "
+            f"Nothing to delete."
+        )
+
+    lesson_ids = [lesson.get('$id') for lesson in lessons]
+    diagrams = await fetch_diagrams_for_lesson_ids(
+        lesson_template_ids=lesson_ids,
+        mcp_config_path=mcp_config_path
+    )
+
+    batch_logger.info(f"Found {len(lessons)} lessons, {len(diagrams)} diagrams")
+    batch_logger.info("─" * 70)
+
+    # Phase 2: Delete diagrams (children first)
+    batch_logger.info("Phase 2: Deleting diagrams (children first for referential integrity)...")
+
+    diagram_result = await delete_diagrams_for_lesson_ids(
+        diagrams=diagrams,
+        mcp_config_path=mcp_config_path,
+        batch_logger=batch_logger
+    )
+
+    batch_logger.info("─" * 70)
+
+    # Phase 3: Delete lessons (parents)
+    batch_logger.info("Phase 3: Deleting lesson templates...")
+
+    deleted_lessons = 0
+    for idx, lesson in enumerate(lessons, 1):
+        lesson_id = lesson.get('$id')
+        sow_order = lesson.get('sow_order', 0)
+        title = lesson.get('title', 'Untitled')
+
+        batch_logger.info(f"  [{idx}/{len(lessons)}] Deleting lesson {lesson_id} (order: {sow_order}, title: {title})")
+
+        try:
+            await delete_appwrite_document(
+                database_id="default",
+                collection_id="lesson_templates",
+                document_id=lesson_id,
+                mcp_config_path=mcp_config_path
+            )
+            deleted_lessons += 1
+            batch_logger.info(f"    ✅ Deleted: {lesson_id}")
+
+        except Exception as e:
+            # Database delete is FATAL - raise immediately
+            error_msg = f"Failed to delete lesson {lesson_id}: {str(e)}"
+            batch_logger.error(f"    ❌ {error_msg}")
+            raise Exception(error_msg)
+
+    batch_logger.info("─" * 70)
+
+    # Phase 4: Summary
+    end_time = time.time()
+    total_duration_seconds = int(end_time - start_time)
+
+    summary = {
+        "batch_id": batch_id,
+        "courseId": courseId,
+        "all_versions": all_versions,
+        "start_time": datetime.fromtimestamp(start_time).isoformat(),
+        "end_time": datetime.fromtimestamp(end_time).isoformat(),
+        "duration_seconds": total_duration_seconds,
+        "duration_human": format_duration(total_duration_seconds),
+        "deleted_lessons": deleted_lessons,
+        "deleted_diagrams": diagram_result['deleted_diagrams'],
+        "deleted_storage": diagram_result['deleted_storage'],
+        "storage_errors": diagram_result['storage_errors'],
+        "log_directory": str(log_dir.absolute())
+    }
+
+    # Log summary
+    batch_logger.info("═" * 70)
+    batch_logger.info("🗑️  Batch Deletion Complete")
+    batch_logger.info("═" * 70)
+    batch_logger.info("Summary:")
+    batch_logger.info(f"  Lessons deleted:    {deleted_lessons}")
+    batch_logger.info(f"  Diagrams deleted:   {diagram_result['deleted_diagrams']}")
+    batch_logger.info(f"  Storage files:      {diagram_result['deleted_storage']}")
+    batch_logger.info(f"  Storage warnings:   {len(diagram_result['storage_errors'])}")
+    batch_logger.info(f"  Total Duration:     {format_duration(total_duration_seconds)}")
+    batch_logger.info("═" * 70)
+
+    # Write delete_summary.json
+    summary_file = log_dir / "delete_summary.json"
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        json.dump(summary, f, indent=2)
+
+    batch_logger.info(f"Summary saved to: {summary_file}")
+
+    return summary
+
+
 def parse_arguments() -> argparse.Namespace:
     """Parse command-line arguments.
 
@@ -575,6 +833,18 @@ Examples:
 
   # Automated force regeneration (CI/CD)
   python -m src.batch_lesson_generator --courseId course_c84874 --force --yes
+
+  # Delete mode - preview deletion (dry-run)
+  python -m src.batch_lesson_generator --courseId course_c84874 --delete --dry-run
+
+  # Delete with confirmation prompt
+  python -m src.batch_lesson_generator --courseId course_c84874 --delete
+
+  # Delete without confirmation (CI/CD)
+  python -m src.batch_lesson_generator --courseId course_c84874 --delete --yes
+
+  # Delete ALL lessons (not just claud_Agent_sdk)
+  python -m src.batch_lesson_generator --courseId course_c84874 --delete --all-versions
         """
     )
 
@@ -596,6 +866,18 @@ Examples:
         '--force',
         action='store_true',
         help='Overwrite ALL existing lessons'
+    )
+
+    # Delete mode arguments
+    parser.add_argument(
+        '--delete',
+        action='store_true',
+        help='Delete ALL lessons and diagrams for courseId (DESTRUCTIVE)'
+    )
+    parser.add_argument(
+        '--all-versions',
+        action='store_true',
+        help='Delete lessons regardless of model_version (default: only claud_Agent_sdk)'
     )
 
     # Confirmation arguments
@@ -643,9 +925,18 @@ async def main() -> int:
     try:
         args = parse_arguments()
 
-        # Generate batch ID
+        # Validate mutually exclusive modes
+        if args.delete and args.force:
+            print("\n❌ ERROR: --delete and --force are mutually exclusive.")
+            print("   Use --delete to remove lessons, or --force to regenerate them.\n")
+            return 2
+
+        # Generate batch ID (include 'delete' prefix for delete mode)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        batch_id = f"batch_{args.courseId}_{timestamp}"
+        if args.delete:
+            batch_id = f"delete_{args.courseId}_{timestamp}"
+        else:
+            batch_id = f"batch_{args.courseId}_{timestamp}"
 
         # Setup batch logging
         log_dir, batch_logger = setup_batch_logging(
@@ -661,6 +952,76 @@ async def main() -> int:
             "persist_workspace": not args.no_persist_workspace,
             "log_level": args.log_level
         }
+
+        # =====================================================================
+        # DELETE MODE
+        # =====================================================================
+        if args.delete:
+            if args.dry_run:
+                # Delete dry-run mode
+                await perform_delete_dry_run(
+                    courseId=args.courseId,
+                    all_versions=args.all_versions,
+                    batch_id=batch_id,
+                    log_dir=log_dir,
+                    mcp_config_path=args.mcp_config
+                )
+                return 0  # Success
+            else:
+                # Confirmation prompt (unless --yes)
+                if not args.yes:
+                    # Fetch lessons to show what will be deleted
+                    lessons = await fetch_lessons_for_deletion(
+                        args.courseId, args.mcp_config, args.all_versions
+                    )
+                    lesson_ids = [l.get('$id') for l in lessons]
+                    diagrams = await fetch_diagrams_for_lesson_ids(
+                        lesson_ids, args.mcp_config
+                    )
+
+                    print()
+                    print("=" * 70)
+                    print("⚠️  DESTRUCTIVE OPERATION - Batch Deletion")
+                    print("=" * 70)
+                    print(f"Course ID: {args.courseId}")
+                    print(f"Filter: {'All versions' if args.all_versions else 'model_version = claud_Agent_sdk only'}")
+                    print()
+                    print("Items to be PERMANENTLY DELETED:")
+                    print(f"  📚 Lessons:        {len(lessons)}")
+                    print(f"  🖼️  Diagrams:       {len(diagrams)}")
+                    print(f"  📁 Storage files:  {sum(1 for d in diagrams if d.get('image_file_id'))}")
+                    print()
+                    print("⚠️  THIS ACTION CANNOT BE UNDONE!")
+                    print()
+
+                    response = input("Type 'DELETE' to confirm: ").strip()
+                    if response != "DELETE":
+                        print("\nAborted. No data was deleted.\n")
+                        return 0
+
+                # Execute batch deletion
+                summary = await execute_batch_deletion(
+                    courseId=args.courseId,
+                    all_versions=args.all_versions,
+                    batch_id=batch_id,
+                    log_dir=log_dir,
+                    batch_logger=batch_logger,
+                    mcp_config_path=args.mcp_config
+                )
+
+                # Print console summary
+                print()
+                print(format_delete_summary_console(summary))
+                print()
+
+                # Determine exit code
+                if summary.get('storage_errors'):
+                    return 1  # Partial failure (storage warnings)
+                return 0  # Success
+
+        # =====================================================================
+        # GENERATION MODE (default)
+        # =====================================================================
 
         # Execute dry-run OR generation
         if args.dry_run:

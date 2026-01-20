@@ -16,7 +16,7 @@ from .appwrite_mcp import (
     get_appwrite_document,
     list_appwrite_documents
 )
-from .compression import decompress_json_gzip_base64
+from .compression import decompress_json_gzip_base64, parse_sow_entries
 
 logger = logging.getLogger(__name__)
 
@@ -122,7 +122,12 @@ async def extract_authored_sow(
     sow_doc = sow_docs[0]  # Take first published SOW
     logger.info(f"Found SOW: {sow_doc.get('$id')} (version: {sow_doc.get('version', '1')})")
 
-    # Decompress entries if compressed
+    # Parse entries field (handles all formats: storage bucket, compressed, uncompressed)
+    # Uses unified parse_sow_entries() helper that supports:
+    # - Storage bucket: "storage:<file_id>" - fetch from bucket, decompress
+    # - TypeScript "gzip:" prefix: inline compressed
+    # - Python legacy raw base64: inline compressed
+    # - Uncompressed JSON: legacy format
     entries_raw = sow_doc.get("entries")
 
     if not entries_raw:
@@ -131,22 +136,21 @@ async def extract_authored_sow(
             f"Cannot generate revision notes without lesson entries."
         )
 
-    # Check if entries is compressed (string starting with gzip marker)
-    if isinstance(entries_raw, str):
-        try:
-            logger.info("Decompressing SOW entries...")
-            entries = decompress_json_gzip_base64(entries_raw)
-            sow_doc["entries"] = entries
-            logger.info(f"✓ Decompressed {len(entries)} SOW entries")
-        except Exception as e:
-            raise Exception(
-                f"Failed to decompress SOW entries for {course_id}: {e}. "
-                f"The entries field may be corrupted or use an unsupported compression format."
-            )
-    else:
-        # Already decompressed (array)
-        entries = entries_raw
-        logger.info(f"✓ SOW entries already decompressed ({len(entries)} entries)")
+    try:
+        logger.info("Parsing SOW entries...")
+        entries = await parse_sow_entries(
+            entries_raw=entries_raw,
+            mcp_config_path=mcp_config_path,
+            courseId=course_id
+        )
+        sow_doc["entries"] = entries
+        logger.info(f"✓ Parsed {len(entries)} SOW entries")
+    except ValueError as e:
+        raise Exception(
+            f"Failed to parse SOW entries for {course_id}: {e}. "
+            f"The entries field may be corrupted, use an unsupported format, "
+            f"or reference a missing storage file."
+        )
 
     # Validate entries structure
     if not isinstance(entries, list) or len(entries) == 0:

@@ -179,6 +179,7 @@ class StepRunner:
             # Execute agent - returns structured result dict
             result = await agent.execute(
                 courseId=course_id,
+                version=self.config.version,
                 force=self.config.force
             )
 
@@ -422,6 +423,28 @@ class StepRunner:
                 order = lesson.get("sow_order")
                 lesson_id = lesson.get("$id")
                 self.logger.info(f"Processing diagrams for lesson {order}/{total_lessons}")
+
+                # Check if diagrams already exist for this lesson (skip logic)
+                if not self.config.force:
+                    existing_diagrams = await list_appwrite_documents(
+                        database_id="default",
+                        collection_id="lesson_diagrams",
+                        queries=[f'equal("lesson_template_id", "{lesson_id}")'],
+                        mcp_config_path=self.mcp_config_path
+                    )
+                    if existing_diagrams:
+                        self.logger.info(
+                            f"Lesson {order} already has {len(existing_diagrams)} diagrams, skipping"
+                        )
+                        skipped += 1
+                        diagram_results.append({
+                            "order": order,
+                            "lesson_id": lesson_id,
+                            "success": True,
+                            "skipped": True,
+                            "existing_diagrams": len(existing_diagrams)
+                        })
+                        continue
 
                 try:
                     agent = DiagramAuthorClaudeAgent(

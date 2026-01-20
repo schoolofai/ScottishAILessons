@@ -99,8 +99,40 @@ Your output must match this exact structure:
 - **guided_practice**: Scaffolded practice with hints (10 min)
 - **exit_ticket**: Quick formative check (5 min)
 
+**Card Count Guidance:**
+- `teach` lessons: Typically 5-7 cards using the 5-card flow, but use your judgment based on topic complexity and learning objectives
+- `mock_exam` lessons: Typically 6-10 cards (instructions + question cards), adjust based on exam coverage needs
+- Each card should have realistic timing (typically 5-15 min per card)
+- Prioritize pedagogical effectiveness over hitting a specific card count
+
 Include misconceptions, worked examples, and practice problems.
 NOTE: Independent practice is handled by a SEPARATE system outside of SOW authoring.
+
+### Rubric Guidance for Assessment Cards (REQUIRED)
+
+**MANDATORY for these card_types:**
+- `exit_ticket` (teach lessons) - formative assessment rubric
+
+**Rubric Structure:**
+```json
+{
+  "rubric_guidance": {
+    "total_points": 10,
+    "criteria": [
+      {"description": "Correct method identified", "points": 2},
+      {"description": "Accurate calculation", "points": 4},
+      {"description": "Interpretation in context", "points": 2},
+      {"description": "Units and precision", "points": 2}
+    ]
+  }
+}
+```
+
+**Rules:**
+1. `total_points`: 6-12 points for exit_ticket cards (formative assessment)
+2. `criteria`: Points MUST sum to total_points exactly
+3. Each criterion needs clear, measurable description
+4. NON-assessment cards (starter, explainer, modelling, guided_practice): `"rubric_guidance": null`
 
 ### Card Types for "mock_exam" Lessons
 
@@ -270,4 +302,7 @@ The orchestrator will validate and persist the output.
 - ✅ Scottish contexts and engagement hooks included
 - ✅ Misconceptions addressed with remediation strategies
 - ✅ NO independent_practice cards (handled by separate system)
+- ✅ exit_ticket cards have rubric_guidance with total_points and criteria
+- ✅ criteria points sum equals total_points exactly
+- ✅ Non-assessment cards (starter, explainer, modelling, guided_practice) have null rubric_guidance
 </success_criteria>

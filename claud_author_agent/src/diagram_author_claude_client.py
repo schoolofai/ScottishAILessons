@@ -199,7 +199,8 @@ class DiagramAuthorClaudeAgent:
         courseId: str,
         order: int,
         card_order: Optional[int] = None,
-        eligible_cards: Optional[List[Dict[str, Any]]] = None
+        eligible_cards: Optional[List[Dict[str, Any]]] = None,
+        force: bool = False
     ) -> Dict[str, Any]:
         """Execute the complete diagram generation pipeline.
 
@@ -211,6 +212,7 @@ class DiagramAuthorClaudeAgent:
             eligible_cards: Optional pre-computed eligible cards from EligibilityAnalyzerAgent.
                            When provided, skips internal eligibility analysis (avoids duplicate LLM calls).
                            Used by batch_diagram_generator to pass pre-computed results.
+            force: If True, regenerate diagrams even if they already exist. Default False.
 
         Returns:
             Dictionary containing:
@@ -238,6 +240,9 @@ class DiagramAuthorClaudeAgent:
             single_card_mode = False
             single_card_index = None
             logger.info(f"📚 FULL MODE: Generating diagrams for all cards in lesson order {order}")
+
+        if force:
+            logger.info("🔄 FORCE MODE: Will regenerate diagrams even if they already exist")
 
         # Validate input schema (courseId format, order ≥ 1)
         is_valid, error_msg = validate_diagram_author_input({

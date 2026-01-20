@@ -182,25 +182,31 @@ _CARD_SCHEMA = {
             }
         },
         "rubric_guidance": {
-            "type": "object",
-            "properties": {
-                "total_points": {"type": "integer"},
-                "criteria": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "description": {"type": "string"},
-                            "points": {"type": "integer"}
-                        },
-                        "required": ["description", "points"]
-                    }
+            "oneOf": [
+                {"type": "null"},
+                {
+                    "type": "object",
+                    "properties": {
+                        "total_points": {"type": "integer"},
+                        "criteria": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "description": {"type": "string"},
+                                    "points": {"type": "integer"}
+                                },
+                                "required": ["description", "points"]
+                            }
+                        }
+                    },
+                    "required": ["total_points", "criteria"]
                 }
-            }
+            ]
         },
         "estimated_minutes": {"type": "integer"}
     },
-    "required": ["card_number", "card_type", "title", "purpose", "pedagogical_approach", "cfu_strategy"]
+    "required": ["card_number", "card_type", "title", "purpose", "pedagogical_approach", "cfu_strategy", "rubric_guidance"]
 }
 
 SOW_ENTRY_SCHEMA = {

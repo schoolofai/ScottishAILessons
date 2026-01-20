@@ -443,6 +443,27 @@ Each entry in `entries[]`:
 
 ### Step 3: Author Lessons
 
+#### Default Behavior: Skip Existing Lessons
+
+The lesson author step **automatically skips lessons that already exist** in the `lesson_templates` collection. This saves significant time and cost when re-running the pipeline.
+
+| Scenario | Behavior |
+|----------|----------|
+| Lesson doesn't exist | Generate lesson |
+| Lesson already exists | **Skip** (log: "Lesson X already exists, skipping") |
+| `--force` flag provided | **Regenerate** all lessons |
+
+The skip check queries `lesson_templates` by `courseId` and `sow_order`:
+```python
+existing = await list_appwrite_documents(
+    collection_id="lesson_templates",
+    queries=[
+        f'equal("courseId", "{course_id}")',
+        f'equal("sow_order", {order})'
+    ]
+)
+```
+
 #### CLI Usage
 
 ```bash
@@ -456,10 +477,10 @@ python -m src.lesson_author_cli --courseId <courseId> --order <order>
 python -m src.lesson_author_cli --courseId course_c84775 --order 1
 python -m src.lesson_author_cli --courseId course_c84775 --order 5
 
-# Batch mode (all lessons for a course)
+# Batch mode (all lessons for a course) - skips existing lessons by default
 python -m src.batch_lesson_generator --courseId course_c84775
 python -m src.batch_lesson_generator --courseId course_c84775 --dry-run
-python -m src.batch_lesson_generator --courseId course_c84775 --force  # Regenerate all
+python -m src.batch_lesson_generator --courseId course_c84775 --force  # Regenerate ALL
 
 # Input methods
 python -m src.lesson_author_cli --input input.json
@@ -556,6 +577,24 @@ python -m src.lesson_author_cli  # Interactive
 
 ### Step 4: Generate Diagrams
 
+#### Default Behavior: Skip Existing Diagrams
+
+The diagram author step **automatically skips lessons that already have diagrams** in the `lesson_diagrams` collection. This saves significant time and cost when re-running the pipeline.
+
+| Scenario | Behavior |
+|----------|----------|
+| No diagrams exist for lesson | Generate diagrams |
+| Diagrams already exist | **Skip** (log: "Lesson X already has N diagrams, skipping") |
+| `--force` flag provided | **Regenerate** all diagrams |
+
+The skip check queries `lesson_diagrams` by `lesson_template_id`:
+```python
+existing_diagrams = await list_appwrite_documents(
+    collection_id="lesson_diagrams",
+    queries=[f'equal("lesson_template_id", "{lesson_id}")']
+)
+```
+
 #### CLI Usage
 
 ```bash
@@ -568,10 +607,10 @@ python -m src.diagram_author_cli --courseId <courseId> --order <order>
 # Single card only
 python -m src.diagram_author_cli --courseId course_c84775 --order 1 --card-order 2
 
-# Batch mode (all lessons)
+# Batch mode (all lessons) - skips existing diagrams by default
 python -m src.batch_diagram_generator --courseId course_c84775
 python -m src.batch_diagram_generator --courseId course_c84775 --dry-run
-python -m src.batch_diagram_generator --courseId course_c84775 --force
+python -m src.batch_diagram_generator --courseId course_c84775 --force  # Regenerate ALL
 ```
 
 #### Prerequisites

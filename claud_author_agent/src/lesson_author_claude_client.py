@@ -18,7 +18,7 @@ from .utils.filesystem import IsolatedFilesystem
 from .utils.validation import validate_lesson_author_input
 from .utils.metrics import CostTracker, format_cost_report
 from .utils.logging_config import setup_logging, add_workspace_file_handler
-from .utils.compression import decompress_json_gzip_base64
+from .utils.compression import parse_sow_entries
 from .tools.json_validator_tool import validation_server
 
 logger = logging.getLogger(__name__)
@@ -480,18 +480,18 @@ class LessonAuthorClaudeAgent:
 
             logger.info(f"  ✓ SOW document found: {courseId}")
 
-            # Parse entries field (handles compressed and uncompressed formats)
-            # Supports: TypeScript "gzip:" prefix, Python legacy raw base64, and uncompressed JSON
-            entries = sow_doc.get('entries', [])
-            if isinstance(entries, str):
-                try:
-                    entries = decompress_json_gzip_base64(entries)
-                except ValueError as e:
-                    logger.error(f"Failed to decompress entries field: {e}")
-                    raise ValueError(
-                        f"Cannot parse entries field for courseId '{courseId}': {e}. "
-                        f"The entries field may be corrupted or in an unsupported format."
-                    )
+            # Parse entries field (handles all formats: storage bucket, compressed, uncompressed)
+            # Uses unified parse_sow_entries() helper that supports:
+            # - Storage bucket: "storage:<file_id>" - fetch from bucket, decompress
+            # - TypeScript "gzip:" prefix: inline compressed
+            # - Python legacy raw base64: inline compressed
+            # - Uncompressed JSON: legacy format
+            entries_raw = sow_doc.get('entries', [])
+            entries = await parse_sow_entries(
+                entries_raw=entries_raw,
+                mcp_config_path=str(self.mcp_config_path),
+                courseId=courseId
+            )
 
             # Find entry with matching order
             entry = next((e for e in entries if e.get('order') == order), None)

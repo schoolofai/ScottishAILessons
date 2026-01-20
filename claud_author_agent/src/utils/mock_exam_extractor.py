@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
 from .appwrite_mcp import list_appwrite_documents
-from .compression import decompress_json_gzip_base64
+from .compression import parse_sow_entries
 
 logger = logging.getLogger(__name__)
 
@@ -71,17 +71,18 @@ async def extract_mock_exam_entries_to_workspace(
     sow_id = sow_doc.get('$id', '')
     logger.info(f"Found published SOW: {sow_id}")
 
-    # Step 2: Decompress entries field
-    entries = sow_doc.get('entries', [])
-    if isinstance(entries, str):
-        try:
-            entries = decompress_json_gzip_base64(entries)
-        except ValueError as e:
-            logger.error(f"Failed to decompress entries field: {e}")
-            raise ValueError(
-                f"Cannot parse entries field for courseId '{courseId}': {e}. "
-                f"The entries field may be corrupted or in an unsupported format."
-            )
+    # Step 2: Parse entries field (handles all formats: storage bucket, compressed, uncompressed)
+    # Uses unified parse_sow_entries() helper that supports:
+    # - Storage bucket: "storage:<file_id>" - fetch from bucket, decompress
+    # - TypeScript "gzip:" prefix: inline compressed
+    # - Python legacy raw base64: inline compressed
+    # - Uncompressed JSON: legacy format
+    entries_raw = sow_doc.get('entries', [])
+    entries = await parse_sow_entries(
+        entries_raw=entries_raw,
+        mcp_config_path=mcp_config_path,
+        courseId=courseId
+    )
 
     if not isinstance(entries, list):
         raise ValueError(
@@ -359,9 +360,13 @@ async def validate_mock_exam_prerequisites(
     sow_doc = sow_docs[0]
 
     # Check 3: Mock exam entries exist
-    entries = sow_doc.get('entries', [])
-    if isinstance(entries, str):
-        entries = decompress_json_gzip_base64(entries)
+    # Uses unified parse_sow_entries() helper for all formats
+    entries_raw = sow_doc.get('entries', [])
+    entries = await parse_sow_entries(
+        entries_raw=entries_raw,
+        mcp_config_path=mcp_config_path,
+        courseId=courseId
+    )
 
     mock_exam_entries = _filter_mock_exam_entries(entries)
 

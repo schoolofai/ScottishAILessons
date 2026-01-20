@@ -4,13 +4,18 @@ Reduces database field sizes to fit within Appwrite's field size limits.
 Supports both entries arrays and metadata objects.
 
 Mirrors TypeScript compression.ts for consistency across Python/TypeScript code.
+
+Also provides unified parsing for SOW entries that may be stored:
+- Inline as compressed gzip+base64 (TypeScript or Python format)
+- In Appwrite Storage bucket with reference "storage:<file_id>"
+- As uncompressed JSON (legacy)
 """
 
 import base64
 import gzip
 import json
 import logging
-from typing import Any
+from typing import Any, Dict, List, Union
 
 logger = logging.getLogger(__name__)
 
@@ -231,3 +236,111 @@ def is_compressed(data: str) -> bool:
         return len(decoded) >= 2 and decoded[0:2] == b'\x1f\x8b'
     except Exception:
         return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SOW Entry Parsing - Unified handler for all storage formats
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Storage bucket constants for large SOW entries (must match sow_upserter.py)
+STORAGE_PREFIX = "storage:"
+STORAGE_BUCKET_ID = "authored_sow_entries"
+
+
+async def parse_sow_entries(
+    entries_raw: Union[str, List[Dict[str, Any]]],
+    mcp_config_path: str,
+    courseId: str = "unknown"
+) -> List[Dict[str, Any]]:
+    """Parse SOW entries field, handling all storage formats.
+
+    This is the unified entry point for parsing SOW entries across all author agents.
+    It handles entries that may be stored:
+    - In Appwrite Storage bucket: "storage:<file_id>" - fetch, then decompress
+    - Inline with TypeScript "gzip:" prefix: compressed inline
+    - Inline with Python legacy raw base64: compressed inline
+    - As uncompressed JSON: legacy format
+    - Already parsed as a list: pass through
+
+    Args:
+        entries_raw: The entries field from Authored_SOW document.
+            Can be a string (compressed or storage ref) or already-parsed list.
+        mcp_config_path: Path to MCP config for storage bucket access.
+        courseId: Course identifier for error messages.
+
+    Returns:
+        Parsed list of entry dictionaries.
+
+    Raises:
+        ValueError: If entries cannot be parsed (corrupt data, unsupported format).
+        FileNotFoundError: If storage bucket file is missing (wrapped as ValueError).
+
+    Example:
+        >>> entries = await parse_sow_entries(
+        ...     entries_raw=sow_doc.get('entries'),
+        ...     mcp_config_path=".mcp.json",
+        ...     courseId="course_c84476"
+        ... )
+        >>> print(f"Found {len(entries)} SOW entries")
+    """
+    # Case 1: Already a list - return as-is (no processing needed)
+    if isinstance(entries_raw, list):
+        logger.debug(f"[parse_sow_entries] Entries already parsed as list ({len(entries_raw)} items)")
+        return entries_raw
+
+    # Must be a string at this point
+    if not isinstance(entries_raw, str):
+        raise ValueError(
+            f"Cannot parse entries field for courseId '{courseId}': "
+            f"Expected string or list, got {type(entries_raw).__name__}"
+        )
+
+    # Case 2: Storage bucket reference - fetch from storage, then decompress
+    if entries_raw.startswith(STORAGE_PREFIX):
+        file_id = entries_raw[len(STORAGE_PREFIX):]
+        logger.info(f"📦 [parse_sow_entries] Entries stored in storage bucket, fetching: {file_id}")
+
+        try:
+            # Import here to avoid circular imports
+            from .appwrite_infrastructure import download_from_appwrite_storage
+
+            # Download compressed data from storage bucket
+            entries_bytes = await download_from_appwrite_storage(
+                bucket_id=STORAGE_BUCKET_ID,
+                file_id=file_id,
+                mcp_config_path=mcp_config_path
+            )
+
+            # Decode bytes to string (it's base64-encoded gzip data)
+            entries_compressed = entries_bytes.decode('utf-8')
+
+            # Decompress the data using existing utility
+            entries = decompress_json_gzip_base64(entries_compressed)
+            logger.info(f"✓ [parse_sow_entries] Fetched and decompressed {len(entries)} entries from storage")
+            return entries
+
+        except FileNotFoundError:
+            raise ValueError(
+                f"Storage file not found for courseId '{courseId}': {file_id}. "
+                f"The storage bucket entry may have been deleted. "
+                f"Bucket: {STORAGE_BUCKET_ID}"
+            )
+        except Exception as e:
+            logger.error(f"[parse_sow_entries] Failed to fetch entries from storage: {e}")
+            raise ValueError(
+                f"Failed to fetch entries from storage for courseId '{courseId}': {e}. "
+                f"File ID: {file_id}, Bucket: {STORAGE_BUCKET_ID}"
+            )
+
+    # Case 3: Inline compressed or raw JSON - use existing decompression
+    try:
+        logger.debug(f"[parse_sow_entries] Attempting inline decompression for courseId '{courseId}'")
+        entries = decompress_json_gzip_base64(entries_raw)
+        logger.info(f"✓ [parse_sow_entries] Decompressed {len(entries)} entries (inline format)")
+        return entries
+    except ValueError as e:
+        raise ValueError(
+            f"Cannot parse entries field for courseId '{courseId}': {e}. "
+            f"Data preview: {entries_raw[:100]}... "
+            f"The entries field may be corrupted or in an unsupported format."
+        )

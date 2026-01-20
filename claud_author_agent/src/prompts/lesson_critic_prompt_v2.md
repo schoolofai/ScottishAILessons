@@ -67,9 +67,20 @@ mcp__validator__validate_lesson_template {"file_path": "lesson_template.json"}
 **Quick Reference for Schema Gate**:
 - **Required fields**: courseId, title, outcomeRefs, lesson_type, estMinutes, createdBy, sow_order, version, status, engagement_tags, policy, cards
 - **Forbidden fields**: assessmentStandardRefs, accessibility_profile, coherence, calculator_section
-- **Card requirements**: id, title, explainer, explainer_plain, cfu, rubric, misconceptions
+- **Card requirements**: id, title, explainer, explainer_plain, cfu (with rubric inside), misconceptions
 - **CFU critical**: `stem` field (NOT question_text), type-specific fields (mcq needs answerIndex, numeric needs expected/tolerance/money2dp)
-- **Rubric critical**: `sum(criteria.points) == total_points`
+- **Misconception critical** (STRICT FIELD VALIDATION):
+  - MUST have fields: `id`, `misconception`, `clarification`
+  - MUST NOT use: `description`, `remediation` (these are incorrect field names - instant FAIL)
+  - ID format: `MISC_[SUBJECT]_[TOPIC]_NNN` (e.g., MISC_MATH_FRACTIONS_001)
+  - `misconception` min length: 10 characters
+  - `clarification` min length: 10 characters
+- **Rubric critical** (MUST be INSIDE CFU object, NOT at card level):
+  - Rubric must be inside `cfu.rubric` (NOT at card level)
+  - `cfu.rubric.total_points >= 1` for all CFUs (empty rubrics with total_points=0 = instant FAIL)
+  - `cfu.rubric.criteria.length >= 1` (at least one criterion required)
+  - `sum(cfu.rubric.criteria.points) == cfu.rubric.total_points`
+  - Card-level rubric field should NOT exist (deprecated)
 - **Transformations**: outcomeRefs=COMBINED, sow_order=SOW.order, calculator_allowed=boolean, createdBy="lesson_author_agent"
 
 ---
@@ -490,7 +501,8 @@ Use Write tool to create `critic_result.json` with all fields
 - CFU uses "question_text" instead of "stem"
 - Card missing explainer_plain
 - Rubric criteria sum ≠ total_points
-- Misconception ID wrong format
+- Misconception ID wrong format (must be MISC_[SUBJECT]_[TOPIC]_NNN)
+- **Misconception uses wrong field names**: `description` instead of `misconception`, `remediation` instead of `clarification`
 
 **Lesson-Type Card Structure Violations** (CRITICAL):
 - formative_assessment or mock_exam lesson has starter card(s) → VIOLATION

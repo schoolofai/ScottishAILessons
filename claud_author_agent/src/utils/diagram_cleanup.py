@@ -348,3 +348,100 @@ async def delete_diagrams_batch(
         "lessons_processed": len(lesson_orders),
         "results": results
     }
+
+
+async def delete_diagrams_for_lesson_ids(
+    diagrams: List[Dict[str, Any]],
+    mcp_config_path: str,
+    batch_logger: logging.Logger
+) -> Dict[str, Any]:
+    """Delete all diagrams (database + storage) for batch deletion mode.
+
+    This is used by the batch delete command to delete diagrams for multiple
+    lesson templates at once. It accepts pre-fetched diagram documents and
+    deletes both storage files and database records.
+
+    Args:
+        diagrams: List of diagram documents (already fetched)
+        mcp_config_path: Path to MCP config file
+        batch_logger: Logger for batch operations
+
+    Returns:
+        Dictionary with deletion results:
+        {
+            "deleted_diagrams": int,
+            "deleted_storage": int,
+            "storage_errors": List[str]
+        }
+
+    Raises:
+        Exception: On database delete failure (fast-fail)
+
+    Example:
+        >>> result = await delete_diagrams_for_lesson_ids(
+        ...     diagrams=[{...}, {...}],
+        ...     mcp_config_path=".mcp.json",
+        ...     batch_logger=logger
+        ... )
+        >>> result["deleted_diagrams"]
+        15
+    """
+    from .appwrite_mcp import delete_appwrite_document
+    from .storage_uploader import delete_diagram_image
+
+    deleted_diagrams = 0
+    deleted_storage = 0
+    storage_errors = []
+
+    batch_logger.info(f"Deleting {len(diagrams)} diagrams (storage + database)...")
+
+    for idx, diagram in enumerate(diagrams, 1):
+        diagram_id = diagram.get('$id')
+        lesson_id = diagram.get('lessonTemplateId', 'unknown')
+        card_id = diagram.get('cardId', 'unknown')
+        image_file_id = diagram.get('image_file_id')
+
+        batch_logger.info(f"  [{idx}/{len(diagrams)}] Deleting diagram {diagram_id} (lesson: {lesson_id}, card: {card_id})")
+
+        # Step 1: Delete storage file (non-fatal on error)
+        if image_file_id:
+            try:
+                await delete_diagram_image(
+                    file_id=image_file_id,
+                    mcp_config_path=mcp_config_path
+                )
+                deleted_storage += 1
+                batch_logger.debug(f"    ✅ Storage file deleted: {image_file_id}")
+            except Exception as e:
+                # Storage delete is non-fatal (file may already be gone)
+                error_msg = f"Storage delete failed for {image_file_id}: {str(e)}"
+                batch_logger.warning(f"    ⚠️  {error_msg}")
+                storage_errors.append(error_msg)
+
+        # Step 2: Delete database record (FATAL on error - fast-fail)
+        try:
+            await delete_appwrite_document(
+                database_id="default",
+                collection_id="lesson_diagrams",
+                document_id=diagram_id,
+                mcp_config_path=mcp_config_path
+            )
+            deleted_diagrams += 1
+            batch_logger.debug(f"    ✅ Database record deleted: {diagram_id}")
+
+        except Exception as e:
+            # Database delete is FATAL - raise immediately
+            error_msg = f"Failed to delete diagram document {diagram_id}: {str(e)}"
+            batch_logger.error(f"    ❌ {error_msg}")
+            raise Exception(error_msg)
+
+    batch_logger.info(f"✅ Deleted {deleted_diagrams} diagram documents, {deleted_storage} storage files")
+
+    if storage_errors:
+        batch_logger.warning(f"⚠️  {len(storage_errors)} storage deletions failed (non-fatal)")
+
+    return {
+        "deleted_diagrams": deleted_diagrams,
+        "deleted_storage": deleted_storage,
+        "storage_errors": storage_errors
+    }

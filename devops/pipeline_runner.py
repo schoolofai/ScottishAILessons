@@ -69,6 +69,7 @@ class PipelineConfig:
     force: bool = False
     diagram_timeout: int = 60
     use_iterative_sow: bool = True  # Use iterative SOW authoring by default
+    version: str = "1"  # SOW version number
 
     @classmethod
     def from_checkpoint(cls, run_id: str) -> "PipelineConfig":
@@ -606,6 +607,15 @@ async def main() -> int:
         help="Use legacy monolithic SOW authoring (backward compatibility)"
     )
 
+    # SOW version option
+    lessons_parser.add_argument(
+        "--version",
+        type=str,
+        default="1",
+        dest="sow_version",  # Use dest to avoid conflict with argparse's --version
+        help="SOW version to generate (default: 1)"
+    )
+
     # List command
     subparsers.add_parser("list", help="List all pipeline runs")
 
@@ -636,6 +646,7 @@ async def main() -> int:
                 config.force = args.force
                 config.diagram_timeout = args.diagram_timeout
                 config.use_iterative_sow = not args.legacy  # --legacy overrides default
+                config.version = args.sow_version  # SOW version
             else:
                 # New run
                 if not args.subject or not args.level:
@@ -659,15 +670,17 @@ async def main() -> int:
                     skip_seed_sow=args.skip_seed_sow,
                     force=args.force,
                     diagram_timeout=args.diagram_timeout,
-                    use_iterative_sow=use_iterative
+                    use_iterative_sow=use_iterative,
+                    version=args.sow_version
                 )
 
             if config.dry_run:
                 print("\n[DRY RUN MODE - No actual execution]")
 
-            # Show SOW authoring mode
+            # Show SOW authoring mode and version
             sow_mode = "Iterative (lesson-by-lesson)" if config.use_iterative_sow else "Legacy (monolithic)"
             print(f"SOW Authoring Mode: {sow_mode}")
+            print(f"SOW Version: {config.version}")
 
             # Run pipeline
             pipeline = LessonsPipeline(config)

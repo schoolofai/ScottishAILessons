@@ -49,26 +49,43 @@ class RubricCriterion(BaseModel):
 
 
 class Rubric(BaseModel):
-    """Complete marking scheme for a question or card."""
+    """Complete marking scheme for a question or card.
+
+    IMPORTANT: Empty rubrics (total_points=0, criteria=[]) are INVALID for lesson authoring.
+    All cards must have proper assessment criteria for formative feedback.
+    """
     model_config = ConfigDict(extra="allow")  # Allow extra fields
 
-    total_points: float = Field(default=0, ge=0, description="Total marks available (0 allowed for draft lessons)")
-    criteria: List[RubricCriterion] = Field(default=[], description="Breakdown of mark allocation (optional for diagram generation)")
+    total_points: float = Field(default=0, ge=0, description="Total marks available - must be >= 1 for lessons")
+    criteria: List[RubricCriterion] = Field(default=[], description="Breakdown of mark allocation - must have at least one criterion")
+
+    @model_validator(mode='after')
+    def validate_non_empty_rubric(self):
+        """Validate rubric is not empty for lesson authoring.
+
+        Empty rubrics (total_points=0, criteria=[]) are INVALID for lessons.
+        All lesson cards must have proper assessment criteria for formative feedback.
+        """
+        # Check for empty rubric (both 0 points AND no criteria)
+        if self.total_points == 0 and len(self.criteria) == 0:
+            raise ValueError(
+                "Empty rubric detected (total_points=0, criteria=[]). "
+                "All cards must have rubric.total_points >= 1 and at least one criterion. "
+                "This is required for proper assessment and formative feedback."
+            )
+        return self
 
     @field_validator('criteria')
     @classmethod
     def validate_criteria_sum(cls, v, info):
-        """Validate sum of criteria points equals total_points.
-
-        For diagram generation, we skip this validation if rubric is empty/draft.
-        """
+        """Validate sum of criteria points equals total_points."""
         if not v:
-            return v  # Empty criteria is allowed for diagram generation
+            return v  # Empty criteria handled by model_validator above
 
         total_from_criteria = sum(criterion.points for criterion in v)
         total_points = info.data.get('total_points') if hasattr(info, 'data') else None
 
-        # Skip validation if total_points is 0 or None (draft rubric)
+        # Skip sum validation if total_points not yet available (handled by model_validator)
         if not total_points:
             return v
 
@@ -81,15 +98,28 @@ class Rubric(BaseModel):
 
 
 class Misconception(BaseModel):
-    """Common student error and remediation strategy."""
-    model_config = ConfigDict(extra="allow")  # Allow extra fields like remediation, skill
+    """Common student error and remediation strategy.
 
-    id: Optional[str] = Field(
-        None,
-        description="Format: MISC_SUBJECT_TOPIC_NNN (optional for diagram generation)"
+    REQUIRED FIELDS: id, misconception, clarification
+    DO NOT use: description, remediation (these are incorrect field names)
+    """
+    model_config = ConfigDict(extra="forbid")  # REJECT unknown fields like 'description', 'remediation'
+
+    id: str = Field(
+        ...,
+        pattern=r'^MISC_[A-Z]+_[A-Z0-9_]+_\d{3}$',
+        description="Format: MISC_SUBJECT_TOPIC_NNN (e.g., MISC_MATH_FRACTIONS_001)"
     )
-    misconception: Optional[str] = Field(None, description="Brief error description (optional)")
-    clarification: Optional[str] = Field(None, description="Corrective explanation (optional)")
+    misconception: str = Field(
+        ...,
+        min_length=10,
+        description="Brief error description - what students commonly get wrong"
+    )
+    clarification: str = Field(
+        ...,
+        min_length=10,
+        description="Corrective explanation - how to address the misconception"
+    )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -118,7 +148,8 @@ class CFU_MCQ(BaseModel):
     multiSelect: bool = Field(False, description="True=checkboxes (multiple answers), False=radio buttons (single answer)")
     answerIndices: Optional[List[int]] = Field(None, description="Zero-indexed positions of all correct answers (multi-select)")
 
-    rubric: Optional[Rubric] = Field(None, description="Marking scheme (optional for diagram generation)")
+    # REQUIRED: Rubric must be inside CFU object (not at card level)
+    rubric: Rubric = Field(..., description="Marking scheme - REQUIRED inside CFU object")
 
     @model_validator(mode='after')
     def validate_answer_configuration(self):
@@ -168,7 +199,8 @@ class CFU_Numeric(BaseModel):
     expected: float = Field(..., description="Correct numeric answer")
     tolerance: float = Field(..., ge=0, description="Acceptable margin (e.g., 0.01 for money)")
     money2dp: bool = Field(False, description="Enforce 2 decimal places for currency (optional)")
-    rubric: Optional[Rubric] = Field(None, description="Marking scheme with method + accuracy marks (optional for diagram generation)")
+    # REQUIRED: Rubric must be inside CFU object (not at card level)
+    rubric: Rubric = Field(..., description="Marking scheme with method + accuracy marks - REQUIRED inside CFU object")
     hints: Optional[List[str]] = Field(None, min_length=3, max_length=5, description="Progressive hint sequence")
 
 
@@ -179,7 +211,8 @@ class CFU_StructuredResponse(BaseModel):
     type: Literal["structured_response"] = Field(..., description="CFU type discriminator")
     id: str = Field(..., min_length=1, description="Unique question ID")
     stem: str = Field(..., min_length=10, description="Multi-part question with (a), (b), (c) structure")
-    rubric: Optional[Rubric] = Field(None, description="Detailed marking scheme (optional for diagram generation)")
+    # REQUIRED: Rubric must be inside CFU object (not at card level)
+    rubric: Rubric = Field(..., description="Detailed marking scheme - REQUIRED inside CFU object")
 
 
 class CFU_ShortText(BaseModel):
@@ -189,7 +222,8 @@ class CFU_ShortText(BaseModel):
     type: Literal["short_text", "short_answer"] = Field(..., description="CFU type discriminator (accepts short_text or short_answer)")
     id: str = Field(..., min_length=1, description="Unique question ID")
     stem: str = Field(..., min_length=10, description="Question prompting brief written response")
-    rubric: Optional[Rubric] = Field(None, description="Marking scheme (optional for diagram generation)")
+    # REQUIRED: Rubric must be inside CFU object (not at card level)
+    rubric: Rubric = Field(..., description="Marking scheme - REQUIRED inside CFU object")
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -201,6 +235,9 @@ class LessonTemplateCard(BaseModel):
 
     This is the OUTPUT schema, NOT the SOW input schema.
     DO NOT include: card_number, card_type, purpose (those are SOW fields).
+
+    IMPORTANT: Rubric is now INSIDE the CFU object, NOT at card level.
+    Card-level rubric has been deprecated - use cfu.rubric instead.
     """
 
     model_config = ConfigDict(extra="allow")  # Allow additional fields for extensibility
@@ -210,8 +247,9 @@ class LessonTemplateCard(BaseModel):
     title: str = Field(..., min_length=10, max_length=150, description="Card heading")
     explainer: str = Field(..., min_length=50, description="Detailed learning content (100-500 words)")
     explainer_plain: str = Field(..., min_length=30, description="CEFR A2-B1 accessible version")
-    cfu: Dict[str, Any] = Field(..., description="Check For Understanding (type-specific validation below)")
-    rubric: Optional[Rubric] = Field(None, description="Card-level marking scheme (optional for diagram generation)")
+    cfu: Dict[str, Any] = Field(..., description="Check For Understanding with REQUIRED rubric field inside")
+    # NOTE: Card-level rubric is DEPRECATED - rubric must be inside cfu object
+    # Keeping as Optional for backward compatibility with old lessons, but new lessons should not use it
     misconceptions: List[Misconception] = Field(default=[], description="Student error anticipation (optional for diagram generation)")
 
     # === OPTIONAL FIELDS ===
@@ -444,8 +482,10 @@ def _format_validation_errors(pydantic_errors: List[Dict[str, Any]]) -> Dict[str
             "Check that all required fields are present",
             "Verify CFU uses 'type' field (NOT 'cfu_type')",
             "Ensure card IDs are sequential (card_001, card_002, ...)",
-            "Validate rubric: total_points must equal sum of criteria points",
+            "CRITICAL: Rubric must be INSIDE CFU object (cfu.rubric), NOT at card level",
+            "Validate cfu.rubric: total_points >= 1 and must equal sum of criteria points",
             "Check misconception ID format: MISC_[SUBJECT]_[TOPIC]_NNN",
+            "CRITICAL: Misconception fields MUST be: id, misconception, clarification (NOT description, remediation)",
             "Verify CFU type-specific fields (e.g., MCQ needs answerIndex)",
             "Ensure lesson_type enum is valid",
             "Check courseId format (must start with 'course_')",

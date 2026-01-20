@@ -76,10 +76,27 @@ source claud_author_agent/.venv/bin/activate
 | `--dry-run` | Preview without execution |
 | `--skip-diagrams` | Skip diagram generation step |
 | `--skip-seed-sow` | Skip SEED and SOW steps (requires existing course+SOW) |
-| `--force` | Force regenerate existing content |
+| `--force` | Force regenerate existing lessons AND diagrams |
 | `--diagram-timeout` | Timeout for diagram service (default: 60s) |
 | `--iterative` | Use iterative lesson-by-lesson SOW authoring (default) |
 | `--legacy` | Use legacy monolithic SOW authoring |
+
+### Default Skip Behavior
+
+The pipeline automatically skips existing content to save time and cost:
+
+| Step | Skip Condition | Override |
+|------|----------------|----------|
+| **Lesson Author** | Lesson exists in `lesson_templates` (by `courseId` + `sow_order`) | `--force` |
+| **Diagram Author** | Diagrams exist in `lesson_diagrams` (by `lesson_template_id`) | `--force` |
+
+```bash
+# Default: Skips existing lessons and diagrams
+./devops/pipeline.sh lessons --subject mathematics --level national_5
+
+# Force: Regenerates ALL lessons and diagrams (expensive!)
+./devops/pipeline.sh lessons --subject mathematics --level national_5 --force
+```
 
 ### Subject Aliases
 

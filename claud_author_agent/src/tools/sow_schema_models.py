@@ -270,6 +270,25 @@ class Card(BaseModel):
             self.practice_problems = normalized
         return self
 
+    @model_validator(mode='after')
+    def validate_assessment_cards_have_rubric(self):
+        """Require rubric_guidance for assessment-focused cards (exit_ticket).
+
+        This enforces the legacy requirement: "For cards with assessment focus,
+        include rubric_guidance (total_points, criteria)"
+
+        Assessment card types that require rubric_guidance:
+        - exit_ticket: Formative assessment at end of teach lessons
+        """
+        ASSESSMENT_TYPES = {CardType.EXIT_TICKET}
+
+        if self.card_type in ASSESSMENT_TYPES and self.rubric_guidance is None:
+            raise ValueError(
+                f"Card type '{self.card_type.value}' requires rubric_guidance with "
+                f"total_points and criteria. Assessment cards cannot have null rubric."
+            )
+        return self
+
     class Config:
         str_strip_whitespace = True
 
@@ -534,16 +553,16 @@ class LessonOutline(BaseModel):
         if mock_count != 1:
             raise ValueError(f"Outline must have exactly 1 mock_exam lesson, found {mock_count}")
 
-        # mock_exam should be within last 3 lessons (soft warning, not error)
+        # mock_exam must be within last 3 lessons (hard validation - legacy parity)
         mock_indices = [i for i, e in enumerate(self.outlines) if e.lesson_type == OutlineLessonType.MOCK_EXAM]
         if mock_indices:
             mock_order = mock_indices[0] + 1  # 1-based
-            if mock_order < len(self.outlines) - 2:  # Not in last 3
-                # This is a soft validation - we log but don't reject
-                import logging
-                logging.warning(
-                    f"mock_exam is at position {mock_order} but should ideally be within last 3 lessons "
-                    f"(lessons {len(self.outlines) - 2} to {len(self.outlines)})"
+            total = len(self.outlines)
+            # Must be in last 3 positions (total-2, total-1, total)
+            if mock_order < total - 2:
+                raise ValueError(
+                    f"mock_exam must be within last 3 lessons but is at position {mock_order}. "
+                    f"Should be at position {total - 2}, {total - 1}, or {total} (of {total} total lessons)."
                 )
 
         return self
@@ -724,6 +743,31 @@ class AuthoredSOWIterative(BaseModel):
             raise ValueError(
                 f"Course must have exactly 1 mock_exam lesson, found {mock_count}"
             )
+
+        return self
+
+    @model_validator(mode='after')
+    def validate_mock_exam_position(self):
+        """Validate mock_exam is within last 3 lessons (legacy schema_critic parity).
+
+        This ensures exam preparation happens at the end of the course, not mid-course.
+        Enforces the same requirement as LessonOutline.validate_lesson_type_requirements.
+        """
+        if not self.entries:
+            return self
+
+        mock_indices = [i for i, e in enumerate(self.entries)
+                        if e.lesson_type == LessonType.MOCK_EXAM]
+
+        if mock_indices:
+            mock_pos = mock_indices[0] + 1  # 1-based position
+            total = len(self.entries)
+            # Must be in last 3 positions (total-2, total-1, total)
+            if mock_pos < total - 2:
+                raise ValueError(
+                    f"mock_exam must be within last 3 lessons but is at position {mock_pos}. "
+                    f"Should be at position {total - 2}, {total - 1}, or {total} (of {total} total lessons)."
+                )
 
         return self
 

@@ -12,7 +12,7 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 
 from .appwrite_mcp import list_appwrite_documents
-from .compression import decompress_json_gzip_base64
+from .compression import parse_sow_entries
 
 logger = logging.getLogger(__name__)
 
@@ -129,14 +129,18 @@ async def get_authored_sow_for_course(
 
         sow_doc = sow_docs[0]
 
-        # Parse entries field
-        entries = sow_doc.get('entries', [])
-        if isinstance(entries, str):
-            try:
-                entries = decompress_json_gzip_base64(entries)
-            except ValueError as e:
-                logger.error(f"Failed to decompress entries: {e}")
-                return None
+        # Parse entries field (handles all formats: storage bucket, compressed, uncompressed)
+        # Uses unified parse_sow_entries() helper
+        entries_raw = sow_doc.get('entries', [])
+        try:
+            entries = await parse_sow_entries(
+                entries_raw=entries_raw,
+                mcp_config_path=mcp_config_path,
+                courseId=course_id
+            )
+        except ValueError as e:
+            logger.error(f"Failed to parse SOW entries: {e}")
+            return None
 
         sow_doc['entries'] = entries
         logger.info(f"Found SOW with {len(entries)} entries")

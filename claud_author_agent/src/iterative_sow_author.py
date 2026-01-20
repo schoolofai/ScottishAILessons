@@ -40,6 +40,7 @@ from .utils.sdk_message_logger import log_sdk_message, create_phase_logger
 # NOTE: MCP servers removed due to SDK transport bug with query() in v0.1.19
 # Validation is now handled by structured output + Pydantic after generation
 from .tools.sow_schema_models import LessonOutline, SOWEntry, Metadata
+from pydantic import ValidationError
 from .tools.critic_schema_models import (
     OutlineCriticResult,
     LessonCriticResult,
@@ -180,6 +181,33 @@ logger.info("Set CLAUDE_CODE_MAX_OUTPUT_TOKENS=100000 (agent output budget)")
 # Constants for critic loops
 MAX_REVISION_ATTEMPTS = 3
 PASS_THRESHOLD = 0.7
+
+
+def validate_lesson_entry_schema(lesson_dict: dict) -> tuple[bool, str]:
+    """Validate lesson entry against SOWEntry Pydantic model (fail-fast).
+
+    This function provides deterministic schema validation BEFORE the critic runs.
+    Validation errors are formatted for LLM consumption so they can be fed back
+    to the lesson author for immediate revision.
+
+    Args:
+        lesson_dict: Dictionary containing the lesson entry data
+
+    Returns:
+        (True, "") if valid
+        (False, error_message) if invalid - error message fed to author for revision
+    """
+    try:
+        SOWEntry.model_validate(lesson_dict)
+        return True, ""
+    except ValidationError as e:
+        # Format errors for LLM consumption
+        error_messages = []
+        for error in e.errors():
+            loc = " -> ".join(str(x) for x in error['loc'])
+            error_messages.append(f"- {loc}: {error['msg']}")
+
+        return False, "Schema validation failed:\n" + "\n".join(error_messages)
 
 
 class IterativeSOWAuthor:
@@ -667,7 +695,15 @@ Evaluate lesson {order} now. Read all files, then provide the LessonCriticResult
         subject: str,
         level: str
     ) -> SOWEntry:
-        """Generate lesson with critic validation loop.
+        """Generate lesson with fail-fast schema validation and critic validation loop.
+
+        Implements a two-stage validation approach:
+        1. **Schema validation (fail-fast)**: Pydantic validates structure before critic
+           - If schema fails, errors are fed directly to author for revision
+           - No critic involvement for schema issues (deterministic validation)
+        2. **Critic validation**: Pedagogical quality assessment (if schema passes)
+           - Critic evaluates content quality across 5 dimensions
+           - REVISION_REQUIRED triggers author revision with critic guidance
 
         Args:
             workspace_path: Path to isolated workspace
@@ -678,38 +714,65 @@ Evaluate lesson {order} now. Read all files, then provide the LessonCriticResult
             level: Course level identifier
 
         Returns:
-            Validated SOWEntry that passed critique
+            Validated SOWEntry that passed both schema and critic validation
 
         Raises:
             ValueError: If max revision attempts exceeded
         """
         revision_guidance = None
+        schema_errors = None
 
         for attempt in range(1, MAX_REVISION_ATTEMPTS + 1):
             logger.info(f"📝 Lesson {order} generation attempt {attempt}/{MAX_REVISION_ATTEMPTS}")
 
-            # Generate lesson
-            lesson = await self._generate_lesson_structured(
-                workspace_path, order, outline_entry, previous_lessons,
-                subject, level, revision_guidance
-            )
+            # Build combined revision guidance (schema errors take priority)
+            combined_guidance = []
+            if schema_errors:
+                combined_guidance.append(f"SCHEMA VALIDATION FAILED - Fix these issues:\n{schema_errors}")
+            if revision_guidance:
+                combined_guidance.extend(revision_guidance)
 
-            # Critique lesson
+            try:
+                # Generate lesson (includes Pydantic validation)
+                lesson = await self._generate_lesson_structured(
+                    workspace_path, order, outline_entry, previous_lessons,
+                    subject, level, combined_guidance if combined_guidance else None
+                )
+                # Schema validation passed (Pydantic validated in _generate_lesson_structured)
+                schema_errors = None
+            except ValidationError as e:
+                # Schema validation failed - feed errors back to author (fail-fast)
+                error_messages = []
+                for error in e.errors():
+                    loc = " -> ".join(str(x) for x in error['loc'])
+                    error_messages.append(f"- {loc}: {error['msg']}")
+                schema_errors = "\n".join(error_messages)
+                logger.warning(f"⚠️ Lesson {order} schema validation failed:\n{schema_errors}")
+                continue  # Retry without going to critic
+
+            # Schema passed - now critique for pedagogical quality
             critique = await self._critique_lesson(workspace_path, lesson, order)
 
             if critique.verdict == "PASS":
                 logger.info(f"✅ Lesson {order} PASSED on attempt {attempt}")
                 return lesson
 
-            # REVISION_REQUIRED - prepare for next attempt
+            # REVISION_REQUIRED from critic - prepare for next attempt
             logger.warning(f"⚠️ Lesson {order} needs revision (score: {critique.overall_score:.2f})")
             logger.warning(f"   Issues: {critique.summary}")
             revision_guidance = critique.revision_guidance
 
-        raise ValueError(
-            f"Lesson {order} failed after {MAX_REVISION_ATTEMPTS} attempts. "
-            f"Last critique: {critique.summary}"
-        )
+        # Provide appropriate error message based on failure type
+        if schema_errors:
+            raise ValueError(
+                f"Lesson {order} failed schema validation after {MAX_REVISION_ATTEMPTS} attempts. "
+                f"Schema errors:\n{schema_errors}"
+            )
+        else:
+            raise ValueError(
+                f"Lesson {order} failed after {MAX_REVISION_ATTEMPTS} attempts. "
+                f"Last critique: {critique.summary}"
+            )
 
     # ═══════════════════════════════════════════════════════════════════════════
     # Metadata Generation
