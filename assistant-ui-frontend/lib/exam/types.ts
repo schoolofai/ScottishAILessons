@@ -16,6 +16,12 @@ export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export type CalculatorPolicy = 'non_calc' | 'calc' | 'mixed' | 'exam_conditions';
 
+/**
+ * SQA exam levels - used to determine UI styling and component selection
+ * NAT3/NAT4 use simplified rich text components with age-appropriate features
+ */
+export type ExamLevel = 'national-3' | 'national-4' | 'national-5' | 'higher' | 'advanced-higher';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // QUESTION STRUCTURE - Matches backend MockExam schema
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -76,7 +82,8 @@ export interface Section {
 export interface ExamMetadata {
   title: string;
   subject: string;
-  level: string;
+  /** SQA level - determines UI component selection for NAT3/NAT4 enhanced features */
+  level: ExamLevel;
   totalMarks: number;
   timeLimit: number;
   instructions?: string;
@@ -100,6 +107,12 @@ export interface AnswerResponse {
   numeric_value?: number;
   response_text?: string;
   working_out?: string;
+  /** Rich text HTML content for enhanced NAT3/NAT4 responses */
+  response_html?: string;
+  /** Rich text HTML for working out (enhanced NAT3/NAT4) */
+  working_out_html?: string;
+  /** Base64 encoded images from drawings (enhanced NAT3/NAT4) */
+  attached_images?: string[];
 }
 
 export interface SubmittedAnswer {

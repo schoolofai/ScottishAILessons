@@ -61,7 +61,7 @@ outputs/
 
 | Lesson Type | Notes Depth | Word Count | Purpose |
 |-------------|-------------|------------|---------|
-| **teach** | FULL DETAILED | 300-600 words | Contains actual course content - concepts, formulas, misconceptions |
+| **teach** | CONCEPT RECAP | 200-350 words | Fast revision - concepts, formulas, misconceptions inline |
 | **revision** | BRIEF REFERENCE | 50-100 words | Practice activities only - references prerequisite teach lessons |
 | **independent_practice** | BRIEF REFERENCE | 50-100 words | Practice tasks - references prerequisite teach lessons |
 | **formative_assessment** | CHECKLIST ONLY | 50-100 words | Assessment procedure - lists teach lessons to review |
@@ -141,90 +141,84 @@ outputs/
 
 ---
 
-#### Template A: TEACH Lessons (FULL DETAIL)
+#### Template A: TEACH Lessons (CONCEPT RECAP)
 
 **Applies to**: `lesson_type == "teach"`
 
-**Word Count**: 300-600 words
+**Word Count**: 200-350 words
+
+**Key Principle**: Focus on **concepts**, not cards. Merge related cards into unified concept sections for faster revision and better retention.
 
 **Structure**:
 ```markdown
 # Lesson [N]: [Title]
 
-**Duration**: [X minutes] | **Type**: teach
+**Duration**: [X minutes] | **Type**: teach | **Outcomes**: [O1, AS1.1]
 
 ---
 
-## Lesson Summary
-**Prerequisites**: [→ See: Lesson M]
-**Builds Toward**: [→ See: Lesson P]
-**Learning Outcomes**: [From outcomeRefs]
+## 📚 Concept Notes
+
+### [Concept 1 Name]
+- **Key Point**: [One-sentence summary of the concept]
+- **Formula**: $formula$ (if applicable)
+- ⚠️ **Watch out**: [Inline misconception - what students often get wrong]
+
+📊 **Visual** (if diagram exists for this concept):
+![{diagram_description}]({image_url})
+
+### [Concept 2 Name]
+- **Key Point**: [One-sentence summary]
+- **Example**: [Brief worked example if critical]
+- ⚠️ **Watch out**: [Inline misconception]
+
+### [Concept 3 Name]
+- **Key Point**: [One-sentence summary]
+- **Formula**: $formula$ (if applicable)
 
 ---
 
-## Card-by-Card Breakdown
+## 📝 Cornell Notes
 
-### Card 1: [Card Title]
-**Key Learning**: [Extract from explainer field]
-**Worked Example**: [If present in explainer]
-**Common Pitfall**: [From misconceptions array if present]
+| Cues (Questions) | Notes (Key Points) |
+|------------------|-------------------|
+| What is [concept]? | [Brief answer] |
+| How do you calculate [X]? | [Formula + method] |
+| What's the common mistake with [Y]? | [Misconception + fix] |
 
-### Card 2: [Card Title]
-[Repeat for ALL cards]
-
----
-
-## Common Misconceptions
-
-### Misconception 1: [From card misconceptions]
-- **What it is**: ...
-- **Why it's wrong**: ...
-- **How to fix**: ...
+**Summary** (2-3 sentences):
+[Synthesize the lesson's core takeaway in your own words]
 
 ---
 
-## Checkpoint Questions
+## ✅ Quick Self-Test
 
-1. **[Question from CFU cards]**
-   <details>
-   <summary>Show Answer</summary>
-   [Answer with working]
-   </details>
+1. **Q**: [CFU question from cards]
+   <details><summary>Answer</summary>[Answer]</details>
 
----
-
-## Visual References
-📊 **Diagram**: [From lesson_diagrams/ if available]
+2. **Q**: [CFU question]
+   <details><summary>Answer</summary>[Answer]</details>
 
 ---
 
-## Cornell Method Notes Template
+## 🔗 Navigation
 
-| Cues/Questions | Notes | Examples |
-|----------------|-------|----------|
-| [Key question] | [Core concept] | [Example] |
+**Prerequisites**: [→ See: Lesson M] | **Next**: [→ See: Lesson P]
 
 ---
 
-## Review Schedule
-📅 **Spaced Repetition Plan**:
-- **Day 2**: [Brief task]
-- **Day 5**: [Practice task]
-- **Week 2**: [Application task]
-- **Month 1**: [Integration task]
-
----
-
-**Next Lesson**: [→ See: Lesson X]
+**Word Count**: ~[actual] words
 ```
 
 **Pedagogical Guidelines for TEACH Lessons**:
-- Break down EVERY card into digestible summaries
+- **Consolidate by concept** - merge cards covering the same concept
+- **Inline misconceptions** - use ⚠️ markers, NOT separate section
+- **Inline formulas** - include with the concept, NOT in formulas sheet
+- **Inline diagrams** - embed directly under the relevant concept
 - Preserve LaTeX math notation from `explainer` fields
 - Use `explainer_plain` for accessibility when available
-- Extract ALL misconceptions from cards' misconceptions arrays
-- Include ALL CFU questions as checkpoint questions
-- **Embed lesson diagrams using markdown image syntax** (see instructions below)
+- Include CFU questions in Quick Self-Test section
+- Keep to 200-350 words - prioritize clarity over completeness
 
 #### 📊 How to Embed Diagram Images
 
@@ -400,15 +394,15 @@ for sow_entry in Authored_SOW["entries"]:
 
     # Apply appropriate template based on type
     if lesson_type == "teach":
-        # Template A: FULL DETAILED NOTES
-        generate_detailed_notes(
+        # Template A: CONCEPT RECAP NOTES (200-350 words)
+        generate_concept_notes(
             lesson_order,
             lesson_template,
             include_all_cards=True,
             include_misconceptions=True,
             include_diagrams=True,
             include_cfu_questions=True,
-            word_target=400  # 300-600 range
+            word_target=275  # 200-350 range
         )
 
     elif lesson_type in ["revision", "independent_practice"]:
@@ -468,11 +462,13 @@ for sow_entry in Authored_SOW["entries"]:
      - Read corresponding lesson template from inputs/lesson_templates/
 
      IF lesson_type == "teach":
-       - Apply Template A (FULL DETAIL)
-       - Decompress cards array
-       - Extract ALL card content (explainer, examples, CFU, misconceptions)
-       - Match lesson diagrams by lesson template ID
-       - Generate 300-600 word detailed notes
+       - Apply Template A (CONCEPT RECAP)
+       - Identify unique concepts across cards (merge related cards)
+       - Extract key points, formulas, and misconceptions per concept
+       - Embed diagrams inline with relevant concepts
+       - Create Cornell Notes table with Cues/Notes/Summary
+       - Include CFU questions in Quick Self-Test section
+       - Generate 200-350 word concept recap notes
        - Write to outputs/lesson_notes_{order:02d}.md
 
      ELIF lesson_type in ["revision", "independent_practice"]:
@@ -492,7 +488,7 @@ for sow_entry in Authored_SOW["entries"]:
    ```
    - Verify all output files exist (one per lesson)
    - Check word count targets by lesson type:
-     * TEACH lessons: 300-600 words ✓
+     * TEACH lessons: 200-350 words ✓
      * REVISION/PRACTICE lessons: 50-100 words ✓
      * ASSESSMENT lessons: 50-100 words ✓
      * Cheat sheet: 1500-2500 words total ✓
@@ -541,7 +537,10 @@ Before completing, verify:
 
 ### Per-Lesson Notes Checks
 - [ ] All lesson notes files exist (one per lesson, ALL 16)
-- [ ] **TEACH lessons** (7 total) have FULL detail (300-600 words each)
+- [ ] **TEACH lessons** have concept recap format (200-350 words each)
+- [ ] Concept Notes use bullet points with inline formulas and ⚠️ misconceptions
+- [ ] Cornell Notes table has Cues | Notes columns + Summary
+- [ ] Quick Self-Test has 2-3 CFU questions with collapsible answers
 - [ ] **REVISION lessons** (5 total) are brief references (<100 words each)
 - [ ] **ASSESSMENT lessons** (2-4 total) are checklists (<100 words each)
 - [ ] NO detailed card breakdowns for revision/assessment lessons
@@ -599,7 +598,7 @@ See `schemas/revision_notes_output.md` for detailed examples of:
    - [ ] Read course data (SOW, outcomes, identify lesson types)
    - [ ] Separate teach lessons from revision/assessment lessons
    - [ ] Generate course cheat sheet (two-section structure)
-   - [ ] Generate TEACH lesson notes (full detail, 300-600 words each)
+   - [ ] Generate TEACH lesson notes (concept recap, 200-350 words each)
    - [ ] Generate REVISION lesson notes (brief references, 50-100 words each)
    - [ ] Generate ASSESSMENT lesson notes (checklists, 50-100 words each)
    - [ ] Self-review and quality check (verify filtering applied correctly)
@@ -624,14 +623,21 @@ See `schemas/revision_notes_output.md` for detailed examples of:
 
 ✅ **DO**:
 - Check `lesson_type` field in SOW BEFORE generating each note
-- Use Template A (detailed) ONLY for teach lessons
+- Use Template A (concept recap) ONLY for teach lessons (200-350 words)
+- **Merge cards by concept** - consolidate related cards into unified concept sections
+- **Inline misconceptions** with ⚠️ markers under each concept
+- **Inline formulas** with the concept, not in separate section
+- **Inline diagrams** directly under the relevant concept
+- Include Cornell Notes table with Cues/Notes/Summary
+- Include Quick Self-Test with CFU questions
 - Use Templates B/C (brief) for revision/assessment lessons
-- Create two-section cheat sheet (teach detailed, others table)
 - Preserve LaTeX math notation in teach lessons
 
 ❌ **DON'T**:
 - Generate 400+ word notes for revision/assessment lessons
-- Create card-by-card breakdowns for non-teach lessons
+- **Create card-by-card breakdowns** - use concept-based organization instead
+- Create separate "Common Misconceptions" sections - inline them with concepts
+- Create separate "Visual References" sections - embed diagrams inline
 - Invent new content - use SOW and lesson templates as source of truth
 - Skip any lessons - ALL lessons need files (even brief ones)
 

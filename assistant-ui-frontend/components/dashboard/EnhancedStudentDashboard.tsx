@@ -2,259 +2,80 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { CourseNavigationTabs, type CourseData } from "../courses/CourseNavigationTabs";
-import { RecommendationSection, type RecommendationsData } from "../recommendations/RecommendationSection";
-import { CourseProgressCard } from "../progress/CourseProgressCard";
-import { CourseCurriculum } from "../curriculum/CourseCurriculum";
-import { CourseCheatSheetButton } from "../revision-notes/CourseCheatSheetButton";
-import { SpacedRepetitionPanel } from "./SpacedRepetitionPanel";
-import { getCourseProgress } from "@/lib/services/progress-service";
-import { getReviewRecommendations, getReviewStats, getUpcomingReviews } from "@/lib/services/spaced-repetition-service";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { DashboardCourseGrid } from "./DashboardCourseGrid";
 import { Button } from "../ui/button";
 import { Alert, AlertDescription } from "../ui/alert";
-import { Loader2, BookOpen, GraduationCap, Archive, ChevronDown, ChevronUp, FileText, ClipboardList, FileQuestion } from "lucide-react";
+import { BookOpen, Archive, ChevronDown, ChevronUp } from "lucide-react";
 import { DashboardSkeleton } from "../ui/LoadingSkeleton";
 import { CourseCard } from "../courses/CourseCard";
-import { enrollStudentInCourse } from "@/lib/services/enrollment-service";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { SubscriptionPaywallModal, type PriceInfo } from "./SubscriptionPaywallModal";
 import { SubscriptionStatusBanner } from "../subscription/SubscriptionStatusBanner";
+import type { EnhancedCourseData } from "../courses/EnhancedCourseCard";
 import {
   type Course,
-  type Session,
-  transformCoursesForNavigation,
   formatErrorMessage,
-  validateLessonStartContext,
-  createLessonStartPayload,
-  getSessionUrl,
-  getStudentDisplayName,
-  debugLog
+  getStudentDisplayName
 } from "../../lib/dashboard/utils";
-import { cache, createCacheKey } from "../../lib/cache";
-
-// Type imports are handled by the utils file
 
 /**
- * Parse a mastery key (outcome or composite) for user-friendly display
- *
- * @param key - Mastery key from emaByOutcome (document ID or composite key)
- * @returns Parsed key information
- *
- * @example
- * parseMasteryKey("outcome_test_simple_o1") → { isComposite: false, documentId: "outcome_test_simple_o1" }
- * parseMasteryKey("outcome_test_simple_o1#AS1.1") → { isComposite: true, documentId: "outcome_test_simple_o1", asCode: "AS1.1" }
+ * Transform courses from API format to EnhancedCourseData format for the grid
  */
-function parseMasteryKey(key: string): {
-  isComposite: boolean;
-  documentId: string;
-  asCode?: string;
-} {
-  // Check if key contains "#" separator (composite key)
-  if (key.includes('#')) {
-    const [documentId, asCode] = key.split('#');
-    return {
-      isComposite: true,
-      documentId: documentId.trim(),
-      asCode: asCode.trim()
-    };
-  }
-
-  // Regular document ID (outcome-level)
-  return {
-    isComposite: false,
-    documentId: key
-  };
+function transformToEnhancedCourseData(courses: Course[]): EnhancedCourseData[] {
+  return courses.map(course => ({
+    id: course.courseId,
+    subject: course.subject,
+    level: course.level || 'unknown',
+    progress: course.progress || 0,
+    completedLessons: course.completedLessons || 0,
+    totalLessons: course.totalLessons || 0,
+    nextLessonTitle: course.nextLessonTitle,
+    overdueLessons: course.overdueLessons || 0,
+    status: 'active' as const
+  }));
 }
 
+/**
+ * EnhancedStudentDashboard - Main dashboard with gamified course card grid
+ *
+ * This component displays:
+ * - Welcome header with student name
+ * - Course cards in a responsive grid layout
+ * - Archived courses section
+ * - Subscription status banner and paywall
+ *
+ * Course-specific content (curriculum, recommendations, exams) is now
+ * displayed on the dedicated course detail page at /dashboard/course/[courseId]
+ */
 export function EnhancedStudentDashboard() {
   const router = useRouter();
+
+  // Student state
   const [student, setStudent] = useState<any>(null);
   const [courses, setCourses] = useState<Course[]>([]);
-  const [courseData, setCourseData] = useState<CourseData[]>([]);
-  const [activeCourse, setActiveCourse] = useState<string>("");
-  const [recommendations, setRecommendations] = useState<RecommendationsData | null>(null);
-  const [spacedRepetitionData, setSpacedRepetitionData] = useState<any | null>(null);
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [courseData, setCourseData] = useState<EnhancedCourseData[]>([]);
   const [loading, setLoading] = useState(true);
   const [coursesLoading, setCoursesLoading] = useState(false);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
-  const [spacedRepetitionLoading, setSpacedRepetitionLoading] = useState(false);
   const [error, setError] = useState("");
   const [coursesError, setCoursesError] = useState<string | null>(null);
-  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
-  const [spacedRepetitionError, setSpacedRepetitionError] = useState<string | null>(null);
-  const [courseProgress, setCourseProgress] = useState<any>(null);
-  const [progressLoading, setProgressLoading] = useState(false);
-  const [startingLessonId, setStartingLessonId] = useState<string | null>(null);
-  const [cheatSheetAvailable, setCheatSheetAvailable] = useState<boolean | null>(null);
 
   // Archived courses state
   const [archivedCourses, setArchivedCourses] = useState<Course[]>([]);
   const [showArchived, setShowArchived] = useState(false);
 
-  // Recommendations section state
-  const [showRecommendations, setShowRecommendations] = useState(true);
-
-  // Subscription paywall state (T042)
+  // Subscription paywall state
   const { hasAccess, isLoading: subscriptionLoading } = useSubscription();
   const [showPaywallModal, setShowPaywallModal] = useState(false);
   const [subscriptionPrice, setSubscriptionPrice] = useState<PriceInfo | null>(null);
 
-  // Mock exam availability state
-  const [mockExamAvailable, setMockExamAvailable] = useState<boolean>(false);
-  const [mockExamId, setMockExamId] = useState<string | null>(null);
-  const [mockExamLoading, setMockExamLoading] = useState(false);
-
-  // Past papers availability state
-  const [pastPapersAvailable, setPastPapersAvailable] = useState<boolean>(false);
-  const [pastPapersSubject, setPastPapersSubject] = useState<string | null>(null);
-  const [pastPapersLevel, setPastPapersLevel] = useState<string | null>(null);
-  const [pastPapersLoading, setPastPapersLoading] = useState(false);
-
-  // NAT5+ SQA Mock Exam availability state
-  const [nat5ExamsAvailable, setNat5ExamsAvailable] = useState<boolean>(false);
-  const [nat5ExamsCount, setNat5ExamsCount] = useState<number>(0);
-  const [nat5ExamsLoading, setNat5ExamsLoading] = useState(false);
-
   // ============================================================================
-  // HELPER FUNCTIONS: Course-dependent data loading
-  // These are extracted from useEffects to enable parallel execution
-  // ============================================================================
-
-  const checkCheatSheetAvailability = useCallback(async (courseId: string) => {
-    try {
-      const { RevisionNotesDriver } = await import('@/lib/appwrite/driver/RevisionNotesDriver');
-      const driver = new RevisionNotesDriver();
-      const isAvailable = await driver.courseCheatSheetExists(courseId);
-      setCheatSheetAvailable(isAvailable);
-    } catch (error) {
-      setCheatSheetAvailable(false);
-    }
-  }, []);
-
-  const checkMockExamAvailability = useCallback(async (courseId: string) => {
-    try {
-      setMockExamLoading(true);
-      const response = await fetch(`/api/exam/availability/${courseId}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMockExamAvailable(data.available);
-        setMockExamId(data.examId);
-      } else {
-        setMockExamAvailable(false);
-        setMockExamId(null);
-      }
-    } catch (error) {
-      setMockExamAvailable(false);
-      setMockExamId(null);
-    } finally {
-      setMockExamLoading(false);
-    }
-  }, []);
-
-  const checkPastPapersAvailability = useCallback(async (courseId: string) => {
-    try {
-      setPastPapersLoading(true);
-      const response = await fetch(`/api/past-papers/availability/${courseId}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setPastPapersAvailable(data.available);
-        setPastPapersSubject(data.subjectSlug || null);
-        setPastPapersLevel(data.levelSlug || null);
-      } else {
-        setPastPapersAvailable(false);
-        setPastPapersSubject(null);
-        setPastPapersLevel(null);
-      }
-    } catch (error) {
-      setPastPapersAvailable(false);
-      setPastPapersSubject(null);
-      setPastPapersLevel(null);
-    } finally {
-      setPastPapersLoading(false);
-    }
-  }, []);
-
-  const checkNat5ExamAvailability = useCallback(async (courseId: string) => {
-    try {
-      setNat5ExamsLoading(true);
-      const response = await fetch(`/api/sqa-mock-exam?courseId=${courseId}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setNat5ExamsAvailable(data.total > 0);
-        setNat5ExamsCount(data.total || 0);
-      } else {
-        setNat5ExamsAvailable(false);
-        setNat5ExamsCount(0);
-      }
-    } catch (error) {
-      setNat5ExamsAvailable(false);
-      setNat5ExamsCount(0);
-    } finally {
-      setNat5ExamsLoading(false);
-    }
-  }, []);
-
-  // ============================================================================
-  // CONSOLIDATED COURSE DATA LOADER (Performance Optimization)
-  // Runs all course-dependent queries in PARALLEL instead of sequentially
-  // Recommendations are deferred to background (non-blocking)
-  // ============================================================================
-
-  const loadCourseData = useCallback(async (courseId: string, studentData: any) => {
-    // Reset feature flags when no course
-    if (!courseId) {
-      setCheatSheetAvailable(null);
-      setMockExamAvailable(false);
-      setMockExamId(null);
-      setPastPapersAvailable(false);
-      setPastPapersSubject(null);
-      setPastPapersLevel(null);
-      setNat5ExamsAvailable(false);
-      setNat5ExamsCount(0);
-      return;
-    }
-
-    // Run all critical data fetches in PARALLEL (performance optimization)
-    // These were previously 5 separate useEffects that ran sequentially
-    await Promise.all([
-      loadCourseProgress(),
-      checkCheatSheetAvailability(courseId),
-      checkMockExamAvailability(courseId),
-      checkPastPapersAvailability(courseId),
-      checkNat5ExamAvailability(courseId),
-      loadSpacedRepetition(courseId, studentData),
-    ]);
-
-    // DEFER recommendations to background (non-blocking)
-    // This is the slowest operation (800-1500ms) so we don't wait for it
-    // The UI shows a loading skeleton while recommendations load
-    loadRecommendations(courseId, studentData);
-  }, [checkCheatSheetAvailability, checkMockExamAvailability, checkPastPapersAvailability, checkNat5ExamAvailability]);
-
-  // ============================================================================
-  // SINGLE CONSOLIDATED useEffect for course-dependent data
-  // Replaces 5 separate useEffects that were running independently
+  // INITIALIZATION
   // ============================================================================
 
   useEffect(() => {
     initializeStudent();
   }, []);
-
-  // Load ALL course-dependent data when active course changes
-  useEffect(() => {
-    if (activeCourse && student) {
-      loadCourseData(activeCourse, student);
-    }
-  }, [activeCourse, student, loadCourseData]);
 
   // Prefetch subscription price for instant paywall modal display
   useEffect(() => {
@@ -271,7 +92,7 @@ export function EnhancedStudentDashboard() {
     };
 
     fetchSubscriptionPrice();
-  }, []); // Only once on mount
+  }, []);
 
   // Initialize student using server-side API (SSR-compatible)
   const initializeStudent = async () => {
@@ -336,8 +157,8 @@ export function EnhancedStudentDashboard() {
       setCourses(coursesData.active);
       setArchivedCourses(coursesData.archived);
 
-      // Transform for navigation
-      const transformedCourses = transformCoursesForNavigation(coursesData.active);
+      // Transform for the card grid
+      const transformedCourses = transformToEnhancedCourseData(coursesData.active);
       setCourseData(transformedCourses);
 
       // Check if no active enrollments
@@ -346,41 +167,43 @@ export function EnhancedStudentDashboard() {
         return;
       }
 
-      // Set initial active course - the consolidated useEffect will handle loading all data
-      // (no need to manually call loadRecommendations/loadSpacedRepetition here anymore)
-      if (transformedCourses.length > 0 && !activeCourse && studentData) {
-        const firstCourse = transformedCourses[0];
-        setActiveCourse(firstCourse.id);
-        // loadCourseData will be triggered by the useEffect when activeCourse changes
-      }
-
     } catch (err) {
       console.error('[Dashboard] Failed to load enrollments:', err);
       setCoursesError(formatErrorMessage(err));
-      // Re-throw to propagate error to parent handler (fast-fail, no fallback)
       throw err;
     } finally {
       setCoursesLoading(false);
     }
   };
 
-  // REMOVED: loadCoursesClientSide and loadArchivedCourses - now using loadEnrollmentsFromAPI with server API
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
+
+  // Handle course selection - navigate to course detail page
+  const handleCourseSelect = useCallback((courseId: string) => {
+    router.push(`/dashboard/course/${courseId}`);
+  }, [router]);
+
+  // Handle browse courses navigation
+  const handleBrowseCourses = useCallback(() => {
+    router.push('/courses/catalog');
+  }, [router]);
 
   // Handle re-enrollment from archived courses
   const handleReenroll = async (courseId: string, courseName: string) => {
     if (!student) {
       toast.error('Student data not available');
-      throw new Error('Student data not available'); // Fast fail
+      throw new Error('Student data not available');
     }
 
     try {
-      // Use server API for re-enrollment
       const response = await fetch('/api/student/enroll', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Include httpOnly cookies
+        credentials: 'include',
         body: JSON.stringify({ courseId }),
       });
 
@@ -395,487 +218,31 @@ export function EnhancedStudentDashboard() {
         throw new Error(result.error || 'Failed to re-enroll in course');
       }
 
-      // Reload courses to update the UI using server API
+      // Reload courses to update the UI
       await loadEnrollmentsFromAPI(student);
 
       toast.success(`Welcome back! Your progress in ${courseName} has been restored.`);
     } catch (error) {
       console.error('Failed to re-enroll:', error);
       toast.error('Failed to re-enroll in course. Please try again.');
-      throw error; // Fast fail, no fallback
+      throw error;
     }
   };
-
-  // Load recommendations for a specific course using LangGraph Course Manager
-  const loadRecommendations = async (courseId: string, studentData?: any) => {
-    try {
-      setRecommendationsLoading(true);
-      setRecommendationsError(null);
-
-      // 1. Quick backend availability check BEFORE attempting to load recommendations
-      // This implements fail-fast error handling to avoid slow timeouts
-      try {
-        const { checkBackendAvailability } = await import('@/lib/backend-status');
-        await checkBackendAvailability();
-      } catch (backendError) {
-        // Backend is not available - fail fast with user-friendly message
-        console.error('[Recommendations] Backend availability check failed:', backendError);
-        throw new Error('Your AI recommendation system is currently not available. Please ensure the backend service is running.');
-      }
-
-      // 2. Get student data first (use parameter or state)
-      const currentStudent = studentData || student;
-      if (!currentStudent) {
-        throw new Error('Student data not available');
-      }
-
-      // 3. Check cache first (5 minute TTL for recommendations)
-      const cacheKey = createCacheKey('recommendations', currentStudent.$id, courseId);
-      const cachedRecommendations = cache.get<RecommendationsData>(cacheKey);
-
-      if (cachedRecommendations) {
-        setRecommendations(cachedRecommendations);
-        setRecommendationsLoading(false);
-        return;
-      }
-
-      // 4. Get all recommendations data via server-side API (httpOnly cookie authentication)
-      const recommendationsDataResponse = await fetch(`/api/student/recommendations-data/${courseId}`, {
-        method: 'GET',
-        credentials: 'include', // Include httpOnly cookies
-      });
-
-      if (!recommendationsDataResponse.ok) {
-        const errorData = await recommendationsDataResponse.json().catch(() => ({
-          error: 'Failed to load recommendations data'
-        }));
-        throw new Error(errorData.error || 'Failed to fetch recommendations data');
-      }
-
-      const { data: recommendationsData } = await recommendationsDataResponse.json();
-      const course = recommendationsData.course;
-      const templatesResult = { documents: recommendationsData.lessonTemplates };
-      const masteryV2Record = recommendationsData.mastery;
-      const sowDocuments = recommendationsData.sow;
-
-      // Convert MasteryV2 to legacy format for compatibility
-      let masteryData = [];
-      if (masteryV2Record) {
-        const emaByOutcome = masteryV2Record.emaByOutcome || {};
-
-        // Convert EMA data to legacy mastery format for templates
-        // Keys can be:
-        // - Document IDs: "outcome_test_simple_o1" → display as is (will be enriched later)
-        // - Composite keys: "outcome_test_simple_o1#AS1.1" → parse and display AS code
-        masteryData = Object.entries(emaByOutcome).map(([key, ema]) => {
-          // Parse composite keys for user-friendly display
-          const displayRef = parseMasteryKey(key);
-
-          return {
-            outcomeRef: displayRef.isComposite ? displayRef.asCode : key, // Show AS code for composite, full ID for outcomes
-            masteryLevel: ema, // Use EMA score as mastery level
-            rawKey: key, // Keep raw key for debugging
-            keyType: displayRef.isComposite ? 'assessment_standard' : 'outcome'
-          };
-        });
-      }
-
-      // 8. Routine data removed - keeping spaced repetition separate from recommendations
-
-      // 9. Validate SOW data
-      if (!sowDocuments || sowDocuments.length === 0) {
-        const error = new Error(
-          `No SOWV2 data found for student: ${currentStudent.$id}, course: ${course.courseId}. ` +
-          `SOWV2 collection must be populated for this enrollment.`
-        );
-        console.error('[SOW Query] FAILED:', error.message);
-        throw error;
-      }
-
-      // 10. Build complete scheduling context (matching Task 7 isolation test format)
-
-      let sowEntries = [];
-      if (sowDocuments.length > 0) {
-        const rawEntries = sowDocuments[0].entries || '[]';
-
-        try {
-          const parsedEntries = JSON.parse(rawEntries);
-
-          sowEntries = parsedEntries.map((entry: any) => ({
-            templateId: entry.lessonTemplateId,
-            order: entry.order,
-            plannedAt: entry.plannedAt
-          }));
-        } catch (error) {
-          console.error('[SOW Debug] Error parsing entries:', error);
-        }
-      }
-
-      const context = {
-        mode: "course_manager",
-        student: {
-          id: currentStudent.$id,
-          name: currentStudent.name,
-          email: currentStudent.email || `${currentStudent.name}@example.com`
-        },
-        course: {
-          $id: course.$id,
-          courseId: course.courseId,
-          subject: course.subject,
-          sqaCode: course.sqaCode || ''
-        },
-        templates: templatesResult.documents.map(template => ({
-          $id: template.$id,
-          title: template.title,
-          // outcomeRefs is already decompressed by the API
-          outcomeRefs: template.outcomeRefs || [],
-          estMinutes: template.estMinutes || 30
-        })),
-        mastery: masteryData.map(record => ({
-          outcomeRef: record.outcomeRef,
-          masteryLevel: record.masteryLevel
-        })),
-        sow: sowEntries
-      };
-
-      // 11. Call LangGraph Course Manager using SDK
-      const { Client: LangGraphClient } = await import('@langchain/langgraph-sdk');
-      const langGraphClient = new LangGraphClient({
-        apiUrl: process.env.NEXT_PUBLIC_LANGGRAPH_API_URL || 'http://localhost:2024',
-        apiKey: process.env.NEXT_PUBLIC_LANGSMITH_API_KEY,
-      });
-
-      // Create thread for Course Manager
-      const thread = await langGraphClient.threads.create();
-
-      // Run Course Manager with complete context
-      const run = await langGraphClient.runs.create(
-        thread.thread_id,
-        process.env.NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID || 'agent',
-        {
-          input: {
-            session_context: context,
-            mode: "course_manager"
-          }
-        }
-      );
-
-      // Wait for completion
-      const result = await langGraphClient.runs.join(thread.thread_id, run.run_id);
-
-      // Get final state
-      const state = await langGraphClient.threads.getState(thread.thread_id);
-
-      // Extract recommendation from state only - NO FALLBACKS
-      const courseRecommendation = state.values?.course_recommendation;
-
-      if (!courseRecommendation) {
-        const errorDetails = {
-          stateKeys: Object.keys(state.values || {}),
-          stateHasCourseRec: !!state.values?.course_recommendation,
-          stateHasError: !!state.values?.error,
-          stateError: state.values?.error,
-          threadId: thread.thread_id,
-          runId: run.run_id,
-          timestamp: new Date().toISOString()
-        };
-
-        console.error('[Recommendation Extraction] FAILED - No course_recommendation in state:', errorDetails);
-
-        throw new Error(
-          `No course_recommendation found in LangGraph state. ` +
-          `Available state keys: [${Object.keys(state.values || {}).join(', ')}]. ` +
-          `Thread: ${thread.thread_id}, Run: ${run.run_id}. ` +
-          `State error: ${state.values?.error || 'none'}`
-        );
-      }
-
-      // Transform LangGraph response to match RecommendationSection expected format
-      const transformedRecommendations = {
-        available: true,
-        recommendations_ready: true,
-        thread_id: thread.thread_id,
-        candidates: courseRecommendation.recommendations?.map(rec => ({
-          lessonTemplateId: rec.lessonId,
-          title: rec.title,
-          priorityScore: rec.score,
-          reasons: rec.reasons || [],
-          flags: rec.flags || []
-        })) || [],
-        metadata: {
-          total_candidates: courseRecommendation.recommendations?.length || 0,
-          generated_at: courseRecommendation.generatedAt || new Date().toISOString(),
-          graph_run_id: run.run_id,
-          rubric: 'Overdue > Low Mastery > Early Order | -Recent -Too Long'
-        }
-      };
-
-      // Cache the recommendations (5 minute TTL) - reuse cacheKey from earlier
-      cache.set(cacheKey, transformedRecommendations, 5 * 60 * 1000);
-
-      setRecommendations(transformedRecommendations);
-    } catch (err) {
-      console.error("Failed to load recommendations from LangGraph:", err);
-
-      // Specific error message for SOWV2 issues
-      if (err instanceof Error && err.message.includes('SOWV2')) {
-        setRecommendationsError(`SOW Data Missing: ${err.message}`);
-      } else {
-        setRecommendationsError(err instanceof Error ? err.message : "Failed to load recommendations from Course Manager");
-      }
-    } finally {
-      setRecommendationsLoading(false);
-    }
-  };
-
-  // Load spaced repetition data for the active course
-  // TODO: Convert to server-side API call (currently disabled after removing dual session)
-  const loadSpacedRepetition = async (courseId: string, studentData?: any) => {
-    if (!studentData) {
-      return;
-    }
-
-    try {
-      setSpacedRepetitionLoading(true);
-      setSpacedRepetitionError(null);
-
-      // Fetch spaced repetition data via server-side API (httpOnly cookie authentication)
-      const spacedRepResponse = await fetch(`/api/student/spaced-repetition/${courseId}`, {
-        method: 'GET',
-        credentials: 'include', // Include httpOnly cookies
-      });
-
-      if (!spacedRepResponse.ok) {
-        const errorData = await spacedRepResponse.json().catch(() => ({
-          error: 'Failed to load spaced repetition data'
-        }));
-        throw new Error(errorData.error || 'Failed to fetch spaced repetition data');
-      }
-
-      const { data: spacedRepData } = await spacedRepResponse.json();
-
-      // Set the spaced repetition data
-      setSpacedRepetitionData(spacedRepData);
-    } catch (err) {
-      console.error('[loadSpacedRepetition] Failed to load:', err);
-      setSpacedRepetitionError(
-        err instanceof Error ? err.message : 'Failed to load spaced repetition data'
-      );
-    } finally {
-      setSpacedRepetitionLoading(false);
-    }
-  };
-
-  // Load course progress for the active course
-  // TODO: Convert to server-side API call (currently disabled after removing dual session)
-  const loadCourseProgress = async () => {
-    try {
-      setProgressLoading(true);
-
-      // Temporarily disabled - requires server-side API endpoint
-      // The dashboard gracefully handles missing progress data
-      setCourseProgress(null);
-    } catch (err) {
-      console.error('[Progress] Failed to load course progress:', err);
-      setCourseProgress(null);
-    } finally {
-      setProgressLoading(false);
-    }
-  };
-
-  // Handle course change - just set the active course
-  // The consolidated useEffect will automatically load all course-dependent data
-  const handleCourseChange = useCallback((courseId: string) => {
-    setActiveCourse(courseId);
-    // loadCourseData is triggered automatically by the useEffect dependency on activeCourse
-  }, []);
-
-  // Handle lesson start with race-condition safe session creation
-  const handleStartLesson = async (lessonTemplateId: string) => {
-    const startTime = Date.now();
-
-    try {
-      // T043: Check subscription BEFORE starting lesson
-      if (!hasAccess) {
-        setShowPaywallModal(true);
-        return; // STOP - do not proceed
-      }
-
-      // Set loading state for this specific lesson
-      setStartingLessonId(lessonTemplateId);
-
-      // Validate lesson start context
-      const validation = validateLessonStartContext(
-        lessonTemplateId,
-        activeCourse,
-        recommendations?.thread_id
-      );
-
-      if (!validation.isValid) {
-        const { logger } = await import('@/lib/logger');
-        logger.error('lesson_start_validation_failed', {
-          lessonTemplateId,
-          error: validation.error
-        });
-        throw new Error(validation.error);
-      }
-
-      const { logger } = await import('@/lib/logger');
-      logger.info('lesson_start_initiated', {
-        lessonTemplateId,
-        courseId: activeCourse,
-        threadId: recommendations?.thread_id,
-        studentId: student.$id
-      });
-
-      // Create session via server-side API (uses httpOnly cookie for auth)
-      // No client-side authentication needed - middleware handles security
-      const response = await fetch('/api/sessions', {
-        method: 'POST',
-        credentials: 'include', // Include httpOnly cookies
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          lessonTemplateId,
-          courseId: activeCourse,
-          threadId: recommendations?.thread_id
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to create session' }));
-        throw new Error(errorData.error || 'Failed to create session');
-      }
-
-      const { sessionId } = await response.json();
-
-      const duration = Date.now() - startTime;
-
-      logger.info('lesson_start_completed', {
-        lessonTemplateId,
-        sessionId,
-        duration,
-        action: 'created_fresh'
-      });
-
-      // Invalidate caches with proper tags
-      const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
-      cache.invalidate(cacheKey);
-
-      // Also invalidate session-related caches
-      cache.invalidate(`sessions:student:${student.$id}`);
-      cache.invalidate(`sessions:lesson:${lessonTemplateId}`);
-
-      logger.info('cache_invalidated', {
-        keys: [cacheKey, `sessions:student:${student.$id}`, `sessions:lesson:${lessonTemplateId}`]
-      });
-
-      // Navigate to session
-      router.push(`/session/${sessionId}`);
-    } catch (err) {
-      const duration = Date.now() - startTime;
-      const { logger } = await import('@/lib/logger');
-
-      logger.error('lesson_start_failed', {
-        lessonTemplateId,
-        duration,
-        error: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
-      });
-
-      // Show user-friendly error
-      if (err instanceof Error && err.message.includes('Unauthorized')) {
-        setError('You do not have permission to access this session.');
-      } else if (err instanceof Error && err.message.includes('authenticated')) {
-        setError('Your session has expired. Please log in again.');
-      } else {
-        setError(formatErrorMessage(err));
-      }
-
-      // Clear loading state on error
-      setStartingLessonId(null);
-    }
-  };
-
-  // Handle view detailed progress
-  const handleViewProgress = useCallback(() => {
-    if (activeCourse) {
-      router.push(`/dashboard/progress/${activeCourse}`);
-    }
-  }, [activeCourse, router]);
-
-  // Handle recommendations retry
-  const handleRecommendationsRetry = useCallback(() => {
-    if (activeCourse && student) {
-      // Invalidate cache before retrying to force fresh data
-      const cacheKey = createCacheKey('recommendations', student.$id, activeCourse);
-      cache.invalidate(cacheKey);
-
-      loadRecommendations(activeCourse, student);
-    }
-  }, [activeCourse, student]);
-
-  // Handle spaced repetition retry
-  const handleSpacedRepetitionRetry = useCallback(() => {
-    if (activeCourse && student) {
-      loadSpacedRepetition(activeCourse, student);
-    }
-  }, [activeCourse, student]);
 
   // Handle dashboard retry (for initialization failures)
   const handleDashboardRetry = useCallback(() => {
     initializeStudent();
   }, []);
 
-  // Handle mock exam start
-  const handleStartMockExam = useCallback(() => {
-    if (!mockExamId) {
-      toast.error('No mock exam available for this course');
-      return;
-    }
+  // ============================================================================
+  // COMPUTED VALUES
+  // ============================================================================
 
-    // Check subscription access before starting exam
-    if (!hasAccess) {
-      setShowPaywallModal(true);
-      return;
-    }
-
-    router.push(`/exam/${mockExamId}`);
-  }, [mockExamId, hasAccess, activeCourse, router]);
-
-  // Handle NAT5+ SQA mock exam hub navigation
-  const handleOpenNat5ExamHub = useCallback(() => {
-    // Check subscription access before opening exam hub
-    if (!hasAccess) {
-      setShowPaywallModal(true);
-      return;
-    }
-
-    router.push(`/sqa-mock-exam?courseId=${activeCourse}`);
-  }, [hasAccess, activeCourse, router]);
-
-  // Memoized computed values for performance
   const studentDisplayName = useMemo(() => getStudentDisplayName(student), [student]);
 
-  const hasActiveCourse = useMemo(() => Boolean(activeCourse), [activeCourse]);
-
-  // Helper to check if a course level qualifies for NAT5+ mock exams
-  const isNat5PlusLevel = useCallback((level: string): boolean => {
-    const nat5PlusLevels = ['national-5', 'higher', 'advanced-higher'];
-    return nat5PlusLevels.includes(level.toLowerCase());
-  }, []);
-
-  // Check if active course is NAT5+ eligible
-  const isActiveCourseNat5Plus = useMemo(() => {
-    if (!activeCourse) return false;
-    const course = courseData.find(c => c.id === activeCourse);
-    return course ? isNat5PlusLevel(course.level) : false;
-  }, [activeCourse, courseData, isNat5PlusLevel]);
-
-  const dashboardReady = useMemo(() => {
-    return !loading && !error && courseData.length > 0;
-  }, [loading, error, courseData.length]);
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (loading) {
     return <DashboardSkeleton />;
@@ -909,7 +276,7 @@ export function EnhancedStudentDashboard() {
             You haven't enrolled in any courses yet. Browse our course catalog to get started with your learning journey.
           </p>
           <Button
-            onClick={() => router.push('/courses/catalog')}
+            onClick={handleBrowseCourses}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Browse Courses
@@ -921,195 +288,33 @@ export function EnhancedStudentDashboard() {
 
   return (
     <div className="container mx-auto p-6 space-y-6" data-testid="student-dashboard">
-      {/* Subscription Status Banner - shows for payment_failed or cancelled */}
+      {/* Subscription Status Banner */}
       <SubscriptionStatusBanner />
 
-      {/* Enhanced Header */}
+      {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">
           Welcome back, {studentDisplayName}!
         </h1>
-        <p className="text-gray-600 mb-4">
-          Ready to continue your learning across <strong>{courseData.length} courses</strong>?
-          {courseData.length > 0 && " Here's what we recommend next:"}
+        <p className="text-gray-600">
+          You have <strong>{courseData.length}</strong> active course{courseData.length !== 1 ? 's' : ''}.
+          Select one to continue learning.
         </p>
-        {courseData.length > 0 && (
-          <div className="flex gap-2 justify-center flex-wrap">
-            {courseData.map(course => (
-              <span
-                key={course.id}
-                className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-full capitalize"
-              >
-                {course.subject.replace(/-/g, ' ')} - {course.level.replace(/-/g, ' ')}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Course Navigation */}
-      <div data-testid="course-navigation-section" className="mb-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h2 className="text-xl font-semibold flex items-center">
-            <BookOpen className="h-5 w-5 mr-2" />
-            Your Courses
-          </h2>
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            {/* Mock Exam Button - shown only when exam is available for active course */}
-            {mockExamAvailable && mockExamId && (
-              <Button
-                variant="default"
-                onClick={handleStartMockExam}
-                disabled={mockExamLoading}
-                className="gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700"
-                data-testid="take-mock-exam-button"
-              >
-                {mockExamLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-                Take Mock Exam
-              </Button>
-            )}
-            {/* Past Papers Button - shown only when past papers are available for active course */}
-            {pastPapersAvailable && pastPapersSubject && pastPapersLevel && (
-              <Button
-                variant="default"
-                onClick={() => router.push(`/past-papers/${encodeURIComponent(pastPapersSubject)}/${encodeURIComponent(pastPapersLevel)}`)}
-                disabled={pastPapersLoading}
-                className="gap-2 w-full sm:w-auto bg-purple-600 hover:bg-purple-700"
-                data-testid="browse-past-papers-button"
-              >
-                {pastPapersLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ClipboardList className="h-4 w-4" />
-                )}
-                Past Papers
-              </Button>
-            )}
-            {/* NAT5+ SQA Mock Exams Button - shown for NAT5+ courses (National 5, Higher, Advanced Higher) */}
-            {isActiveCourseNat5Plus && (
-              <Button
-                variant="default"
-                onClick={handleOpenNat5ExamHub}
-                disabled={nat5ExamsLoading}
-                className="gap-2 w-full sm:w-auto bg-amber-600 hover:bg-amber-700"
-                data-testid="nat5-mock-exams-button"
-              >
-                {nat5ExamsLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileQuestion className="h-4 w-4" />
-                )}
-                Mock Exams{nat5ExamsCount > 0 ? ` (${nat5ExamsCount})` : ''}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => router.push('/courses/catalog')}
-              className="gap-2 w-full sm:w-auto"
-            >
-              <GraduationCap className="h-4 w-4" />
-              Browse More Courses
-            </Button>
-          </div>
-        </div>
-        <CourseNavigationTabs
+      {/* Course Cards Grid */}
+      <div data-testid="course-navigation-section">
+        <h2 className="text-xl font-semibold flex items-center mb-4">
+          <BookOpen className="h-5 w-5 mr-2" />
+          Your Courses
+        </h2>
+        <DashboardCourseGrid
           courses={courseData}
-          activeCourse={activeCourse}
-          onCourseChange={handleCourseChange}
+          onCourseSelect={handleCourseSelect}
+          onBrowseCourses={handleBrowseCourses}
           loading={coursesLoading}
-          error={coursesError}
         />
       </div>
-
-      {/* Hero Section - Course Progress */}
-      {hasActiveCourse && courseProgress && !progressLoading && (
-        <div data-testid="course-progress-section" className="mb-6">
-          <CourseProgressCard
-            progress={courseProgress}
-            onViewDetails={handleViewProgress}
-            cheatSheetAvailable={cheatSheetAvailable}
-            courseId={activeCourse}
-          />
-        </div>
-      )}
-
-      {/* Two Column Layout - Spaced Repetition and AI Recommendations */}
-      {hasActiveCourse && student && (
-        <div className="mb-6">
-          {/* Collapsible Header - More prominent card-like appearance */}
-          <button
-            onClick={() => setShowRecommendations(!showRecommendations)}
-            className="mb-4 w-full flex items-center justify-between px-4 py-3 rounded-lg border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-white hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                <BookOpen className="h-5 w-5 text-blue-600" />
-              </div>
-              <span className="font-semibold text-gray-900 text-base">Reviews & Recommendations</span>
-              <span className="px-2.5 py-1 text-xs bg-blue-100 text-blue-700 rounded-full font-medium">
-                AI Recommended
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 font-medium">
-                {showRecommendations ? 'Click to hide' : 'Click to expand'}
-              </span>
-              {showRecommendations ? (
-                <ChevronUp className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
-              ) : (
-                <ChevronDown className="h-5 w-5 text-blue-600 group-hover:text-blue-700" />
-              )}
-            </div>
-          </button>
-
-          {/* Collapsible Content */}
-          {showRecommendations && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column - Spaced Repetition */}
-              <div className="h-[250px] flex flex-col">
-                <SpacedRepetitionPanel
-                  data={spacedRepetitionData}
-                  loading={spacedRepetitionLoading}
-                  error={spacedRepetitionError}
-                  onStartReview={handleStartLesson}
-                  onRetry={handleSpacedRepetitionRetry}
-                />
-              </div>
-
-              {/* Right Column - AI Recommendations */}
-              <div className="h-[250px] flex flex-col">
-                <RecommendationSection
-                  courseId={activeCourse}
-                  recommendations={recommendations}
-                  loading={recommendationsLoading}
-                  error={recommendationsError}
-                  onStartLesson={handleStartLesson}
-                  onRetry={handleRecommendationsRetry}
-                  courseName={courseData.find(c => c.id === activeCourse)?.subject}
-                  startingLessonId={startingLessonId}
-                  variant="sidebar"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Course Curriculum - Full Width Below */}
-      {hasActiveCourse && (
-        <div>
-          <CourseCurriculum
-            courseId={activeCourse}
-            studentId={student?.$id}
-            onStartLesson={handleStartLesson}
-            startingLessonId={startingLessonId}
-          />
-        </div>
-      )}
 
       {/* Archived Courses Section */}
       {archivedCourses.length > 0 && (
@@ -1155,7 +360,7 @@ export function EnhancedStudentDashboard() {
         </div>
       )}
 
-      {/* T042: Subscription paywall modal */}
+      {/* Subscription paywall modal */}
       <SubscriptionPaywallModal
         isOpen={showPaywallModal}
         onClose={() => setShowPaywallModal(false)}

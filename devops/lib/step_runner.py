@@ -422,7 +422,7 @@ class StepRunner:
                     existing_diagrams = await list_appwrite_documents(
                         database_id="default",
                         collection_id="lesson_diagrams",
-                        queries=[f'equal("lesson_template_id", "{lesson_id}")'],
+                        queries=[f'equal("lessonTemplateId", "{lesson_id}")'],
                         mcp_config_path=self.mcp_config_path
                     )
                     if existing_diagrams:

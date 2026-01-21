@@ -1,11 +1,17 @@
-import { type CourseData } from '../../components/courses/CourseNavigationTabs';
-
+/**
+ * Course data from API including progress information
+ */
 export interface Course {
   $id: string;
   courseId: string;
   subject: string;
   phase: string;
   level: string;
+  progress?: number;
+  completedLessons?: number;
+  totalLessons?: number;
+  nextLessonTitle?: string;
+  overdueLessons?: number;
 }
 
 export interface Session {
@@ -23,18 +29,21 @@ export interface Session {
 }
 
 /**
- * Transform raw course data into the format expected by CourseNavigationTabs
+ * Transform raw course data into a generic format
+ * @deprecated Use transformToEnhancedCourseData in EnhancedStudentDashboard instead
  */
-export function transformCoursesForNavigation(courses: Course[]): CourseData[] {
+export function transformCoursesForNavigation(courses: Course[]): any[] {
   return courses.map((course: Course) => ({
-    id: course.courseId, // Use courseId instead of $id to preserve space format
+    id: course.courseId,
     subject: course.subject.toLowerCase(),
     level: course.level,
     title: course.subject.charAt(0).toUpperCase() + course.subject.slice(1),
-    progress: Math.floor(Math.random() * 100), // Mock progress - replace with real data
-    enrolled: true, // Mock enrollment - replace with real enrollment check
-    completedLessons: Math.floor(Math.random() * 20),
-    totalLessons: 25,
+    progress: course.progress || 0,
+    enrolled: true,
+    completedLessons: course.completedLessons || 0,
+    totalLessons: course.totalLessons || 0,
+    nextLessonTitle: course.nextLessonTitle,
+    overdueLessons: course.overdueLessons || 0,
     status: 'active' as const
   }));
 }

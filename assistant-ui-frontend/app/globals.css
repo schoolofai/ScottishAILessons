@@ -255,4 +255,100 @@
   .rich-text-editor .ProseMirror p:last-child {
     @apply mb-0;
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * Simplified Rich Text Editor - NAT3/NAT4 Level-Specific Styling
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Level-specific editor borders using design system tokens */
+  .simplified-rich-text-editor[data-level="n3"] {
+    --editor-primary: var(--level-n3);
+    --editor-bg: var(--level-n3-bg);
+  }
+
+  .simplified-rich-text-editor[data-level="n4"] {
+    --editor-primary: var(--level-n4);
+    --editor-bg: var(--level-n4-bg);
+  }
+
+  /* Simplified editor prose styling */
+  .simplified-rich-text-editor .ProseMirror {
+    @apply text-foreground bg-white dark:bg-background;
+    padding: 1rem;
+  }
+
+  .simplified-rich-text-editor .ProseMirror:focus {
+    @apply outline-none;
+  }
+
+  /* Placeholder styling for simplified editor */
+  .simplified-rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground;
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    white-space: pre-wrap;
+  }
+
+  /* Larger touch targets for accessibility (NAT3/NAT4 students) */
+  .simplified-rich-text-editor .toolbar-button,
+  .simplified-rich-text-editor button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Math shortcuts with larger touch targets */
+  .simplified-math-shortcuts .shortcut-btn {
+    min-height: 44px;
+    min-width: 44px;
+    font-size: 1.125rem;
+  }
+
+  @media (max-width: 768px) {
+    .simplified-math-shortcuts .shortcut-btn {
+      min-height: 48px;
+      min-width: 48px;
+      font-size: 1.25rem;
+    }
+  }
+
+  /* Math formula styling in simplified editor */
+  .simplified-rich-text-editor .ProseMirror .math-inline {
+    @apply inline-block px-2 py-1 rounded mx-1;
+    background-color: var(--editor-bg, #DBEAFE);
+    border: 1px solid var(--editor-primary, #3B82F6);
+  }
+
+  /* List styling for simplified editor */
+  .simplified-rich-text-editor .ProseMirror ul,
+  .simplified-rich-text-editor .ProseMirror ol {
+    @apply pl-6 my-2;
+  }
+
+  .simplified-rich-text-editor .ProseMirror ul {
+    @apply list-disc;
+  }
+
+  .simplified-rich-text-editor .ProseMirror li {
+    @apply my-1;
+  }
+
+  /* Focus state for simplified editor container */
+  .simplified-rich-text-editor:focus-within {
+    @apply ring-2 ring-offset-2 ring-offset-background;
+    --tw-ring-color: var(--editor-primary, #3B82F6);
+  }
+
+  /* Image styling in simplified editor */
+  .simplified-rich-text-editor .ProseMirror img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+  }
+
+  .simplified-rich-text-editor .ProseMirror img.ProseMirror-selectednode {
+    outline: 3px solid var(--editor-primary, #3B82F6);
+    outline-offset: 2px;
+  }
 }
