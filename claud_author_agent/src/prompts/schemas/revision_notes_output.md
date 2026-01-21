@@ -112,191 +112,116 @@ graph TD
 
 ---
 
-## Output File 2: Per-Lesson Notes
+## Output File 2: Per-Lesson Notes (TEACH Lessons)
 
 **Filename Pattern**: `lesson_notes_01.md`, `lesson_notes_02.md`, etc.
 
-**Word Count Target**: 300-600 words per lesson
+**Word Count Target**: 200-350 words per TEACH lesson (50-100 words for revision/assessment)
 
-**Purpose**: Detailed breakdown of lesson content for deep understanding.
+**Purpose**: Fast, concept-focused revision for quick retention.
 
-### Template Structure
+**Key Principle**: Focus on **concepts**, not cards. Merge related cards into unified concept sections for faster revision and better retention.
+
+### Template Structure (TEACH Lessons)
 
 ```markdown
 # Lesson [N]: [Title from lesson template]
 
-**Duration**: [estMinutes from template] minutes | **Type**: [lesson_type - teach/practice/assess]
+**Duration**: [estMinutes from template] minutes | **Type**: teach | **Outcomes**: [O1, AS1.1]
 
 ---
 
-## Lesson Summary
+## 📚 Concept Notes
 
-**Prerequisites**:
-- [→ See: Lesson M] [Topic name]
-- [→ See: Lesson K] [Topic name]
+### [Concept 1 Name - extracted from card titles]
 
-**Builds Toward**:
-- [→ See: Lesson P] [Future topic]
-- [→ See: Lesson Q] [Future topic]
+- **Key Point**: [One-sentence summary of the concept]
+- **Formula**: $formula$ (if applicable, e.g., $\frac{numerator}{denominator} \times amount = result$)
+- ⚠️ **Watch out**: [Inline misconception - what students often get wrong]
 
-**Learning Outcomes**:
-- [Outcome Code from SOW entry's outcomes array]: [Description from course_outcomes.json]
+📊 **Visual** (if diagram exists for this concept):
+![{diagram_description}]({image_url})
+
+### [Concept 2 Name]
+
+- **Key Point**: [One-sentence summary]
+- **Example**: [Brief worked example if critical, e.g., "Find 2/5 of 20 → (2÷5)×20 = 8"]
+- ⚠️ **Watch out**: [Inline misconception]
+
+### [Concept 3 Name]
+
+- **Key Point**: [One-sentence summary]
+- **Formula**: $formula$ (if applicable)
 
 ---
 
-## Card-by-Card Breakdown
+## 📝 Cornell Notes
 
-### Card 1: [card.type] - [Extract topic from card.explainer first line]
+| Cues (Questions) | Notes (Key Points) |
+|------------------|-------------------|
+| What is [concept]? | [Brief answer - 1-2 sentences max] |
+| How do you calculate [X]? | [Formula + method] |
+| What's the common mistake with [Y]? | [Misconception + fix] |
 
-**Key Learning**:
-- [Main point 1 extracted from explainer content]
-- [Main point 2]
+**Summary** (2-3 sentences):
+[Synthesize the lesson's core takeaway - students should write this in their own words]
 
-**Worked Example** (if present):
-[From card.explainer - extract step-by-step solution]
+---
 
-Example:
+## ✅ Quick Self-Test
+
+1. **Q**: [CFU question from cards]
+   <details><summary>Answer</summary>[Answer with brief working if needed]</details>
+
+2. **Q**: [CFU question from cards]
+   <details><summary>Answer</summary>[Answer]</details>
+
+---
+
+## 🔗 Navigation
+
+**Prerequisites**: [→ See: Lesson M] | **Next**: [→ See: Lesson P]
+
+---
+
+**Word Count**: ~[actual] words
 ```
-Problem: Find 2/5 of 20
-Step 1: Convert fraction to division → 2 ÷ 5 = 0.4
-Step 2: Multiply by amount → 0.4 × 20 = 8
-Answer: 8
-```
 
-**Common Pitfall** (if card.misconceptions exists):
-❌ **Mistake**: [Reference misconception from card.misconceptions array]
-✓ **Correct**: [How to avoid this error]
+### Key Differences from Card-by-Card Approach
 
----
+| Aspect | Old Approach | New Concept-Based Approach |
+|--------|--------------|---------------------------|
+| Structure | Card 1, Card 2, Card 3... | Concept A, Concept B, Concept C... |
+| Misconceptions | Separate section at end | ⚠️ Inline with each concept |
+| Formulas | Separate "Formulas Sheet" | Inline with relevant concept |
+| Diagrams | "Visual References" section | Inline under relevant concept |
+| Word Count | 300-600 words | 200-350 words |
+| Focus | Comprehensive breakdown | Fast recap, retention |
 
-### Card 2: [type] - [Topic]
-[Same structure repeated for each card in lesson template]
+### Diagram Embedding (Inline with Concepts)
 
----
-
-## Common Misconceptions
-
-### Misconception 1: [From any card's misconceptions field]
-- **What it is**: [Brief explanation of the error]
-- **Why it's wrong**: [Conceptual explanation]
-- **How to fix**: [Correct approach with example]
-
-[Repeat for each misconception found in lesson cards]
-
----
-
-## Checkpoint Questions
-
-Test your understanding with these questions from the lesson:
-
-1. [CFU question from card with type="cfu"]
-   <details>
-   <summary>Show Answer</summary>
-   [Answer extracted from CFU card content]
-   </details>
-
-2. [Another CFU question]
-   <details>
-   <summary>Show Answer</summary>
-   [Answer]
-   </details>
-
----
-
-## Visual References
-
-**Format**: Embed diagrams inline using markdown image syntax with pre-constructed Appwrite Storage URLs.
-
-### For Lessons WITH Diagrams:
-
-**Preferred Approach** (Inline with Cards):
+**For Lessons WITH Diagrams** - embed directly under the relevant concept:
 ```markdown
-### Card 3: Garden Fencing Problem
+### Perimeter Calculation
 
-**Key Learning**: Calculate perimeter when one side is not counted
+- **Key Point**: Perimeter is the total distance around a shape
+- **Formula**: $P = 2(l + w)$ for rectangles
+- ⚠️ **Watch out**: Don't include sides that don't need fencing (e.g., walls)
 
-📊 **Visual Diagram**:
+📊 **Visual**:
 ![Glasgow tenement garden (6m × 4m) with three sides marked in blue solid lines requiring fencing](https://cloud.appwrite.io/v1/storage/buckets/images/files/dgm_image_0540e9bd/view?project=6733d8e1000e21a840a8)
-
-*This diagram shows the problem setup with labeled dimensions for calculating perimeter and area.*
-
-**Worked Example**: ...
 ```
 
-**Alternative Approach** (Consolidated Section):
+**For Lessons WITHOUT Diagrams**:
 ```markdown
-## Visual References
-
-### Card 1: [Card Title]
-
-📊 **Diagram**:
-![{diagram_description}]({image_url})
-
-**Context**: {diagram_context} - Explains the problem setup visually
-**Purpose**: Helps visualize the relationship between dimensions and calculation method
-
-### Card 3: [Card Title]
-
-📊 **Diagram**:
-![{diagram_description}]({image_url})
-
-**Context**: {diagram_context} - Shows worked solution steps
-**Purpose**: Reinforces correct calculation procedure with visual feedback
+📊 *No visual diagrams available - create your own sketch to aid memory.*
 ```
 
-### For Lessons WITHOUT Diagrams:
-
-```markdown
-📊 **No visual diagrams available for this lesson.**
-**Alternative**: Create your own sketch of [key concept] to aid memory.
-```
-
-**Implementation Notes**:
+### Implementation Notes
 - Use `diagram_description` field as both alt text AND image title
-- The `image_url` field contains the full Appwrite Storage URL (pre-constructed in pre-processing)
-- Match diagrams to cards using `lessonTemplateId` and `cardId` fields
-- Inline placement (Option 1) is preferred for better learning context
-
----
-
-## Cornell Method Notes Template
-
-Use this structure for your own notes while studying:
-
-| Cues/Questions | Notes | Examples |
-|----------------|-------|----------|
-| [What is the key formula?] | [Main concept from Card 1] | [Worked example from Card 1] |
-| [When to use this method?] | [Application context from Card 2] | [Real-world scenario] |
-| [Common mistake to avoid?] | [Misconception from above] | [Counter-example showing correct way] |
-
----
-
-## Review Schedule
-
-📅 **Spaced Repetition Plan**:
-- **Day 2**: Review key concepts section (5 min)
-- **Day 5**: Attempt checkpoint questions without notes (10 min)
-- **Week 2**: Practice similar problems from past papers (15 min)
-- **Month 1**: Full lesson review before assessment (20 min)
-
----
-
-## Notes Coverage
-
-✅ **Covered in this lesson**:
-- [Key Concept 1 from cards]
-- [Key Concept 2 from cards]
-
-⚠️ **Not covered / missing data**:
-- [Any gaps identified, e.g., "No worked examples for subtopic X"]
-- [Any missing diagrams or resources]
-
-**Suggestion**: Consult teacher or textbook for additional examples if needed.
-
----
-
-**Next Lesson**: [→ See: Lesson [N+1]] [Title of next lesson]
-```
+- The `image_url` field contains the full Appwrite Storage URL (pre-constructed)
+- Match diagrams to concepts by `lessonTemplateId` and `cardId` fields
+- **Always inline diagrams** - no separate "Visual References" section
 
 ---
 
@@ -394,28 +319,60 @@ $(3 \div 4) \times 16 = 0.75 \times 16 = 12$
 
 ---
 
-## Example: Completed Lesson Note Excerpt
+## Example: Completed TEACH Lesson Note (Concept-Based)
 
 ```markdown
-### Card 2: explainer - Converting Fractions to Decimals
+# Lesson 3: Fractions of Amounts
 
-**Key Learning**:
-- Divide numerator by denominator to get decimal equivalent
-- Use long division if calculator not available
-- Round to appropriate decimal places (usually 2-3 for practical problems)
+**Duration**: 50 minutes | **Type**: teach | **Outcomes**: O1, AS1.2
 
-**Worked Example**:
-```
-Problem: Convert 3/8 to decimal
-Step 1: Set up division → 3 ÷ 8
-Step 2: Perform calculation → 0.375
-Answer: 0.375 (exact) or 0.38 (rounded to 2 d.p.)
-```
+---
 
-**Common Pitfall**:
-❌ **Mistake**: Dividing denominator by numerator (8 ÷ 3)
-✓ **Correct**: Always numerator ÷ denominator (3 ÷ 8)
-**Why**: The fraction bar means "divided by" - top number divided by bottom number
+## 📚 Concept Notes
+
+### Fraction to Decimal Conversion
+
+- **Key Point**: Divide numerator by denominator to convert any fraction to decimal
+- **Formula**: $\frac{a}{b} = a \div b$
+- ⚠️ **Watch out**: Don't divide denominator by numerator (8÷3 is wrong for 3/8)
+
+### Finding a Fraction of an Amount
+
+- **Key Point**: "Of" means multiply - convert fraction to decimal, then multiply
+- **Example**: Find 2/5 of 20 → (2÷5)×20 = 0.4×20 = 8
+- ⚠️ **Watch out**: Don't divide the amount by both numbers separately
+
+---
+
+## 📝 Cornell Notes
+
+| Cues (Questions) | Notes (Key Points) |
+|------------------|-------------------|
+| How to convert fraction to decimal? | Divide numerator by denominator: $\frac{3}{8} = 3÷8 = 0.375$ |
+| What does "of" mean in fractions? | Multiply: $\frac{2}{5}$ of 20 = $\frac{2}{5} × 20 = 8$ |
+| Common mistake with division order? | Always top ÷ bottom, never bottom ÷ top |
+
+**Summary**: Fractions represent division. Convert to decimals by dividing, then multiply to find amounts.
+
+---
+
+## ✅ Quick Self-Test
+
+1. **Q**: Convert 3/4 to a decimal
+   <details><summary>Answer</summary>3 ÷ 4 = 0.75</details>
+
+2. **Q**: Find 3/5 of 25
+   <details><summary>Answer</summary>(3÷5)×25 = 0.6×25 = 15</details>
+
+---
+
+## 🔗 Navigation
+
+**Prerequisites**: [→ See: Lesson 2] | **Next**: [→ See: Lesson 4]
+
+---
+
+**Word Count**: ~210 words
 ```
 
 ---
@@ -433,15 +390,21 @@ Before finalizing output files, verify:
 - [ ] Mermaid concept map included
 - [ ] Word count: 1500-2500 words
 
-**Per-Lesson Notes**:
+**Per-Lesson Notes (TEACH)**:
 - [ ] One file per lesson (matching SOW order)
-- [ ] All cards from lesson template covered
-- [ ] Worked examples extracted
-- [ ] Misconceptions documented
-- [ ] CFU questions included as checkpoints
-- [ ] Lesson diagrams referenced (or noted as missing)
-- [ ] Review schedule included
-- [ ] Word count: 300-600 words per file
+- [ ] **Concept-based structure** (NOT card-by-card)
+- [ ] ⚠️ Misconceptions inline with concepts
+- [ ] Formulas inline with concepts
+- [ ] Diagrams inline with concepts (if available)
+- [ ] Cornell Notes table with Cues/Notes + Summary
+- [ ] Quick Self-Test with CFU questions
+- [ ] Navigation section with prerequisites/next
+- [ ] Word count: **200-350 words** per TEACH lesson
+
+**Per-Lesson Notes (Revision/Assessment)**:
+- [ ] Brief reference format (50-100 words)
+- [ ] Clear reference to prerequisite teach lessons
+- [ ] No card-by-card breakdown
 
 **Formatting**:
 - [ ] Valid markdown syntax (no broken headers/lists)

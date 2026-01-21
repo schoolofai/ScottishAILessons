@@ -8,8 +8,11 @@ import { MCQQuestion } from "./questions/MCQQuestion";
 import { NumericQuestion } from "./questions/NumericQuestion";
 import { ShortTextQuestion } from "./questions/ShortTextQuestion";
 import { StructuredQuestion } from "./questions/StructuredQuestion";
+import { EnhancedStructuredQuestion } from "./questions/EnhancedStructuredQuestion";
+import { EnhancedNumericQuestion } from "./questions/EnhancedNumericQuestion";
 import { MarkdownRenderer } from "@/components/ui/markdown-renderer";
-import type { Question, AnswerResponse } from "@/lib/exam/types";
+import type { Question, AnswerResponse, ExamLevel } from "@/lib/exam/types";
+import type { SimplifiedLevel } from "@/components/ui/simplified-math-shortcuts";
 
 interface QuestionWithSection extends Question {
   sectionId: string;
@@ -34,6 +37,8 @@ interface QuestionRendererProps {
   onNext: () => void;
   canGoPrevious: boolean;
   canGoNext: boolean;
+  /** SQA level - determines which input components to use */
+  level?: ExamLevel;
 }
 
 /**
@@ -58,6 +63,7 @@ export function QuestionRenderer({
   onNext,
   canGoPrevious,
   canGoNext,
+  level,
 }: QuestionRendererProps) {
   const difficultyStyles = {
     easy: 'bg-green-100 text-green-700',
@@ -65,8 +71,24 @@ export function QuestionRenderer({
     hard: 'bg-red-100 text-red-700',
   };
 
+  /**
+   * Check if the current level should use enhanced (rich text) components
+   * NAT3 and NAT4 get the enhanced components with math/drawing support
+   */
+  const useEnhancedComponents = level === 'national-3' || level === 'national-4';
+
+  /**
+   * Map exam level to SimplifiedLevel type for enhanced components
+   */
+  const getSimplifiedLevel = (): SimplifiedLevel => {
+    if (level === 'national-3') return 'n3';
+    if (level === 'national-4') return 'n4';
+    return 'n4'; // Default fallback
+  };
+
   const renderQuestionInput = () => {
     const currentResponse = answer?.response || {};
+    const simplifiedLevel = getSimplifiedLevel();
 
     switch (question.question_type) {
       case 'mcq':
@@ -89,6 +111,23 @@ export function QuestionRenderer({
         );
 
       case 'numeric':
+        // Use enhanced component for NAT3/NAT4
+        if (useEnhancedComponents) {
+          return (
+            <EnhancedNumericQuestion
+              value={currentResponse.numeric_value}
+              expectedFormat={question.cfu_config.expected_format}
+              onChange={(value) => onAnswerChange({ numeric_value: value })}
+              level={simplifiedLevel}
+              allowMathInput={question.cfu_config.expected_format === 'fraction_or_decimal'}
+              onRichChange={(html) => onAnswerChange({
+                numeric_value: currentResponse.numeric_value,
+                response_html: html,
+              })}
+              richValue={currentResponse.response_html}
+            />
+          );
+        }
         return (
           <NumericQuestion
             value={currentResponse.numeric_value}
@@ -106,6 +145,23 @@ export function QuestionRenderer({
         );
 
       case 'structured_response':
+        // Use enhanced component for NAT3/NAT4
+        if (useEnhancedComponents) {
+          return (
+            <EnhancedStructuredQuestion
+              value={currentResponse.response_html || currentResponse.response_text || ''}
+              workingOut={currentResponse.working_out_html || currentResponse.working_out || ''}
+              onChange={(text, working) => onAnswerChange({
+                response_text: text, // Store as response_text for backward compat
+                response_html: text, // Also store as HTML
+                working_out: working,
+                working_out_html: working,
+              })}
+              level={simplifiedLevel}
+              questionStem={question.question_stem}
+            />
+          );
+        }
         return (
           <StructuredQuestion
             value={currentResponse.response_text || ''}

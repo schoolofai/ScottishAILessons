@@ -14,6 +14,7 @@ import type {
   SubmittedAnswer,
   EvaluationResult,
   ExamPhase,
+  ExamLevel,
 } from "@/lib/exam/types";
 
 // Polling interval for checking grading status (5 seconds)
@@ -514,6 +515,7 @@ export function ExamContainer({
             onNext={() => handleQuestionChange(Math.min(allQuestions.length - 1, currentQuestionIndex + 1))}
             canGoPrevious={currentQuestionIndex > 0}
             canGoNext={currentQuestionIndex < allQuestions.length - 1}
+            level={exam.metadata?.level as ExamLevel}
           />
         </div>
       </div>
