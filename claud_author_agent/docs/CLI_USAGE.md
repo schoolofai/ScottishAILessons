@@ -1,6 +1,6 @@
 # Author Agents CLI Usage Guide
 
-> **Quick Reference:** All 7 author agents for the Scottish AI Lessons content authoring pipeline.
+> **Quick Reference:** All 8 author agents for the Scottish AI Lessons content authoring pipeline.
 
 ---
 
@@ -14,8 +14,9 @@
 6. [Revision Notes Author](#5-revision-notes-author)
 7. [Mock Exam Author (< Nat5)](#6-mock-exam-author--nat5)
 8. [Nat5+ Exam Author](#7-nat5-exam-author)
-9. [Common Patterns](#common-patterns)
-10. [Workflow Examples](#workflow-examples)
+9. [Walkthrough Author (Past Papers)](#8-walkthrough-author-past-papers)
+10. [Common Patterns](#common-patterns)
+11. [Workflow Examples](#workflow-examples)
 
 ---
 
@@ -70,6 +71,27 @@ python -m src.nat5_plus.exam_generator_client generate \
   --course-id course_nat5_maths \
   --workspace ./workspaces/exam_002 \
   --calculator false
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAST PAPER WALKTHROUGH AUTHORING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Walkthrough Author - Generate walkthrough for a single question
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 \
+  --question 1
+
+# Walkthrough Author - Batch mode (all questions in a paper)
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01
+
+# Walkthrough Author - Batch by subject/level (all papers)
+python -m src.batch_walkthrough_generator \
+  --subject Mathematics --level "National 5"
+
+# Walkthrough Author - Dry run (preview without generating)
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 --dry-run
 ```
 
 ---
@@ -662,6 +684,241 @@ python -m src.nat5_plus.exam_generator_client regenerate-diagram \
 
 ---
 
+## 8. Walkthrough Author (Past Papers)
+
+**Purpose:** Generate student-facing step-by-step walkthroughs for SQA past paper questions. Transforms marking schemes from `us_papers` into pedagogical content in `us_walkthroughs` with common errors, examiner insights, and LaTeX-formatted solutions.
+
+**CLI Command:**
+```bash
+python -m src.batch_walkthrough_generator [OPTIONS]
+```
+
+### Architecture
+
+The Walkthrough Author uses a **3-subagent pipeline** powered by Claude Agent SDK:
+
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│  Walkthrough    │ ──► │  Common Errors  │ ──► │  Walkthrough    │
+│    Author       │     │   Subagent      │     │    Critic       │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+      │                        │                        │
+      ▼                        ▼                        ▼
+  Generate steps         Add 2-4 common          Validate alignment
+  from marking           student errors          with marking scheme
+  scheme                 with bullet refs        and quality checks
+```
+
+### Prerequisites
+
+- Papers must exist in `sqa_education.us_papers` collection with marking schemes
+- MCP configuration (`.mcp.json`) with Appwrite credentials
+
+### Input Methods
+
+| Method | Arguments | Description |
+|--------|-----------|-------------|
+| Single question | `--paper-id <id> --question <num>` | Process one question |
+| Single paper | `--paper-id <id>` | Process all questions in paper |
+| Batch by filters | `--subject <name> --level <level>` | Process all matching papers |
+| Dry run | `--dry-run` | Preview plan without execution |
+
+### All Arguments
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--paper-id` | string | - | Paper document ID (e.g., `mathematics-n5-2023-X847-75-01`) |
+| `--question` | string | - | Question number (e.g., `1`, `4a`, `5b(i)`) |
+| `--subject` | string | - | Filter by subject (e.g., `Mathematics`) |
+| `--level` | string | - | Filter by level (e.g., `National 5`, `Higher`) |
+| `--year` | int | - | Filter by year (e.g., `2023`) |
+| `--dry-run` | flag | `false` | Preview what will be generated without executing |
+| `--force` | flag | `false` | Regenerate existing walkthroughs |
+| `--max-critic-retries` | int | `3` | Maximum validation retry attempts |
+| `--mcp-config` | file path | `.mcp.json` | MCP configuration file |
+| `--no-persist-workspace` | flag | `false` | Delete workspace after execution |
+| `--log-level` | choice | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+### Usage Examples
+
+```bash
+# Generate walkthrough for a single question
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 \
+  --question 1
+
+# Generate walkthroughs for all questions in a paper
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01
+
+# Dry run - preview what will be generated
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 \
+  --dry-run
+
+# Batch mode - all N5 Mathematics papers
+python -m src.batch_walkthrough_generator \
+  --subject Mathematics --level "National 5"
+
+# Batch mode - specific year
+python -m src.batch_walkthrough_generator \
+  --subject Mathematics --level "National 5" --year 2023
+
+# Force regenerate existing walkthroughs
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 \
+  --force
+
+# Debug mode with preserved workspace
+python -m src.batch_walkthrough_generator \
+  --paper-id mathematics-n5-2023-X847-75-01 \
+  --question 14b \
+  --log-level DEBUG
+```
+
+### Pipeline Steps
+
+1. **PRE-PROCESSING (Python):**
+   - Fetch paper from `us_papers` collection
+   - Extract question + marking scheme data
+   - Generate blank `walkthrough_template.json`
+   - Build prerequisite links (V2 papers only)
+
+2. **WALKTHROUGH AUTHOR (Subagent 1):**
+   - Read marking scheme from `walkthrough_source.json`
+   - Generate step-by-step solution aligned with SQA bullets
+   - Write steps to `walkthrough_template.json`
+
+3. **COMMON ERRORS SUBAGENT (Subagent 2):**
+   - Analyze question for typical student mistakes
+   - Generate 2-4 common errors with bullet references
+   - Add `common_errors` array to template
+
+4. **WALKTHROUGH CRITIC (Subagent 3):**
+   - Validate marking scheme alignment
+   - Check LaTeX syntax correctness
+   - Validate error quality and bullet references
+   - Write result to `walkthrough_critic_result.json`
+
+5. **POST-PROCESSING (Python):**
+   - Validate `common_errors` schema with Pydantic
+   - GZIP compress walkthrough content (~70% reduction)
+   - Upsert to `us_walkthroughs` collection
+
+### V1 vs V2 Prompts
+
+The pipeline supports two prompt versions:
+
+| Version | Description | Features |
+|---------|-------------|----------|
+| **V1** | Examiner-focused (default) | Steps, marks, examiner notes |
+| **V2** | Pedagogically enhanced | + concept explanations, peer tips, learning gaps, prerequisite links |
+
+V2 is automatically enabled for pilot papers. The model version is tracked in the output document.
+
+### Output
+
+- **Appwrite Collection:** `sqa_education.us_walkthroughs`
+- **Appwrite Database:** `sqa_education` (NOT default)
+- **Workspace:** `workspace/<execution_id>/` (preserved by default)
+
+#### Generated Document Structure
+
+```json
+{
+  "paper_id": "mathematics-n5-2023-X847-75-01",
+  "question_number": "14b",
+  "marks": 5,
+  "status": "published",
+  "model_version": "walkthrough_author_v1",
+  "walkthrough_content": "<GZIP+BASE64 compressed JSON>",
+  "last_modified": "2025-01-22T10:30:00Z"
+}
+```
+
+#### Walkthrough Content (Decompressed)
+
+```json
+{
+  "question_stem": "Calculate the gradient of the line...",
+  "question_stem_latex": "Calculate the gradient of the line $y = 2x + 3$",
+  "topic_tags": ["Straight Line", "Gradient"],
+  "total_marks": 5,
+  "steps": [
+    {
+      "bullet": 1,
+      "label": "Step 1",
+      "process": "Identify the gradient from y = mx + c form",
+      "working": "m = 2",
+      "working_latex": "$m = 2$",
+      "marks_earned": 2,
+      "examiner_notes": "Accept m = 2 stated",
+      "concept_explanation": "In y = mx + c, m is the coefficient of x",
+      "peer_tip": "Just look at the number in front of x!"
+    }
+  ],
+  "common_errors": [
+    {
+      "error_type": "conceptual",
+      "description": "Confusing gradient with y-intercept",
+      "why_marks_lost": "•1 and •2 lost",
+      "prevention_tip": "Remember: gradient is the coefficient of x, intercept is the constant",
+      "learning_gap": "Understanding y = mx + c form",
+      "related_topics": ["Straight Line Equation"]
+    }
+  ],
+  "examiner_summary": "Well-answered question. Most candidates correctly identified...",
+  "diagram_refs": ["d1", "d2"]
+}
+```
+
+### Workspace Files
+
+| File | Purpose |
+|------|---------|
+| `walkthrough_source.json` | Extracted question + marking scheme |
+| `paper_context.json` | General marking principles, formulae |
+| `walkthrough_template.json` | Generated walkthrough (final output) |
+| `walkthrough_critic_result.json` | Critic validation result |
+| `execution_manifest.json` | Execution metadata |
+| `execution_log.json` | Stage-by-stage progress |
+| `final_result.json` | Success/failure summary |
+
+### Error Types
+
+The `common_errors` field uses these error type categories:
+
+| Error Type | Description |
+|------------|-------------|
+| `conceptual` | Misunderstanding of mathematical concepts |
+| `calculation` | Arithmetic or computational errors |
+| `procedural` | Wrong method or missing steps |
+| `notation` | Incorrect mathematical notation |
+| `misread` | Misreading the question |
+| `incomplete` | Partial answer or missing conclusion |
+
+### Troubleshooting
+
+**"Paper not found" error:**
+- Verify paper exists in `us_papers` collection
+- Check paper ID format: `{subject}-{level_code}-{year}-{paper_code_normalized}`
+
+**"Question not found" error:**
+- Check question number format (e.g., `14b` not `Q14b`)
+- Verify question exists in paper's `data.questions` array
+
+**Critic validation fails repeatedly:**
+- Check workspace for `walkthrough_critic_result.json`
+- Review dimensional scores to identify failing criteria
+- Consider increasing `--max-critic-retries`
+
+**Schema validation fails:**
+- Common with `common_errors` field
+- Agent auto-corrects schema drift (wrong field names)
+- Check logs for specific Pydantic validation errors
+
+---
+
 ## Common Patterns
 
 ### Shared Arguments
@@ -793,6 +1050,23 @@ cat workspace/<execution_id>/critic_feedback.json
 ```json
 {
   "course_id": "course_c84474"
+}
+```
+
+### Walkthrough Author (Single Question)
+```json
+{
+  "paper_id": "mathematics-n5-2023-X847-75-01",
+  "question_number": "14b"
+}
+```
+
+### Walkthrough Author (Batch by Filters)
+```json
+{
+  "subject": "Mathematics",
+  "level": "National 5",
+  "year": 2023
 }
 ```
 

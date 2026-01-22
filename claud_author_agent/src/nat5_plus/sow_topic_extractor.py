@@ -18,29 +18,54 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# Storage bucket constants for SOW entries
+STORAGE_PREFIX = "storage:"
+STORAGE_BUCKET_ID = "authored_sow_entries"
+
 
 def _decompress_entries(entries_str: str) -> List[Dict[str, Any]]:
-    """Decompress gzip+base64 encoded entries field.
+    """Decompress SOW entries, handling all storage formats.
 
-    The Authored_SOW collection stores entries as 'gzip:BASE64_DATA'.
-    This function handles the decompression.
+    The Authored_SOW collection uses dual storage strategy:
+    1. Inline storage: 'gzip:BASE64_DATA' for entries < 100KB
+    2. Storage bucket: 'storage:<file_id>' for entries > 100KB
+
+    Args:
+        entries_str: Raw entries string from Appwrite document
+
+    Returns:
+        List of parsed SOW entry dictionaries
+
+    Raises:
+        ValueError: If decompression fails (no silent fallback per CLAUDE.md)
     """
     if not entries_str:
-        return []
+        raise ValueError("Empty entries string - cannot decompress")
 
-    # Handle gzip: prefix
+    # Case 1: Storage bucket reference - fetch from storage, then decompress
+    if entries_str.startswith(STORAGE_PREFIX):
+        file_id = entries_str[len(STORAGE_PREFIX):]
+        logger.info(f"📦 Fetching entries from storage bucket: {file_id}")
+
+        from ..utils.appwrite_client import download_file_content
+        entries_bytes = download_file_content(STORAGE_BUCKET_ID, file_id)
+        entries_str = entries_bytes.decode('utf-8')  # Now has gzip: prefix
+
+    # Case 2: Inline compressed with gzip: prefix
     if entries_str.startswith("gzip:"):
         entries_str = entries_str[5:]  # Remove 'gzip:' prefix
 
+    # Case 3: Base64 decode and gzip decompress
     try:
-        # Base64 decode, then gzip decompress
         compressed_data = base64.b64decode(entries_str)
         decompressed_data = gzip.decompress(compressed_data)
         entries = json.loads(decompressed_data.decode('utf-8'))
-        return entries if isinstance(entries, list) else []
+        if not isinstance(entries, list):
+            raise ValueError(f"Expected list of entries, got {type(entries).__name__}")
+        return entries
     except Exception as e:
         logger.error(f"Failed to decompress entries: {e}")
-        return []
+        raise ValueError(f"Failed to decompress SOW entries: {e}")
 
 
 @dataclass

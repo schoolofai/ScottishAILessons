@@ -180,6 +180,30 @@ def ensure_bucket_exists(bucket_id: str = EXAM_DIAGRAMS_BUCKET_ID) -> bool:
             raise ValueError(f"Failed to check storage bucket: {e}")
 
 
+def download_file_content(bucket_id: str, file_id: str) -> bytes:
+    """Download file content from Appwrite Storage.
+
+    Args:
+        bucket_id: Storage bucket ID
+        file_id: File ID to download
+
+    Returns:
+        File content as bytes
+
+    Raises:
+        ValueError: If file not found or download fails
+    """
+    storage = get_storage()
+    try:
+        # Appwrite SDK returns bytes directly
+        return storage.get_file_download(
+            bucket_id=bucket_id,
+            file_id=file_id
+        )
+    except Exception as e:
+        raise ValueError(f"Failed to download file {file_id} from bucket {bucket_id}: {e}")
+
+
 def upload_diagram(
     local_path: Path,
     exam_id: str,
