@@ -249,28 +249,21 @@ class StepRunner:
             if not sow_docs:
                 raise ValueError(f"No SOW found for course {course_id}")
 
-            # Parse entries from SOW document (handles gzip-compressed format)
-            import json
-            import gzip
-            import base64
+            # Parse entries from SOW document using unified parser
+            # Handles all formats: list, gzip:, storage:, plain JSON
+            from src.utils.compression import parse_sow_entries
 
             sow_doc = sow_docs[0]
             entries_raw = sow_doc.get("entries", "[]")
 
-            if isinstance(entries_raw, list):
-                entries = entries_raw
-            elif isinstance(entries_raw, str):
-                if entries_raw.startswith("gzip:"):
-                    # Gzip-compressed base64 format
-                    compressed_data = base64.b64decode(entries_raw[5:])
-                    decompressed = gzip.decompress(compressed_data)
-                    entries = json.loads(decompressed.decode("utf-8"))
-                elif entries_raw.strip():
-                    entries = json.loads(entries_raw)
-                else:
-                    entries = []
-            else:
-                entries = []
+            try:
+                entries = await parse_sow_entries(
+                    entries_raw=entries_raw,
+                    mcp_config_path=self.mcp_config_path,
+                    courseId=course_id
+                )
+            except ValueError as e:
+                raise ValueError(f"SOW entries parsing failed for {course_id}: {e}")
 
             if not entries:
                 raise ValueError(f"SOW has no entries for course {course_id}")
@@ -587,10 +580,8 @@ class StepRunner:
         Raises:
             ValueError: If no SOW found
         """
-        import json
-        import gzip
-        import base64
         from src.utils.appwrite_mcp import list_appwrite_documents
+        from src.utils.compression import parse_sow_entries
 
         self.logger.info(f"Validating SOW exists for {course_id}")
 
@@ -609,23 +600,19 @@ class StepRunner:
 
         entries_raw = sow_docs[0].get("entries", "[]")
 
-        # Handle different storage formats
-        if isinstance(entries_raw, list):
-            # Already parsed as list
-            entries = entries_raw
-        elif isinstance(entries_raw, str):
-            if entries_raw.startswith("gzip:"):
-                # Gzip-compressed base64 format
-                compressed_data = base64.b64decode(entries_raw[5:])
-                decompressed = gzip.decompress(compressed_data)
-                entries = json.loads(decompressed.decode("utf-8"))
-            elif entries_raw.strip():
-                # Regular JSON string
-                entries = json.loads(entries_raw)
-            else:
-                entries = []
-        else:
-            entries = []
+        # Use unified parser that handles all formats:
+        # - list: already parsed
+        # - gzip: prefix: inline compressed
+        # - storage: prefix: storage bucket reference
+        # - plain JSON string
+        try:
+            entries = await parse_sow_entries(
+                entries_raw=entries_raw,
+                mcp_config_path=self.mcp_config_path,
+                courseId=course_id
+            )
+        except ValueError as e:
+            raise ValueError(f"SOW entries parsing failed for {course_id}: {e}")
 
         lesson_count = len(entries) if entries else 0
         self.logger.info(f"Found existing SOW with {lesson_count} lessons")
