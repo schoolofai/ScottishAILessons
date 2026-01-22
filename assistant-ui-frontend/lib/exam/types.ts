@@ -191,6 +191,10 @@ export interface QuestionFeedback {
   misconception_detected?: string;
   related_concept?: string;
   suggested_review?: string;
+  /** Specific feedback about the student's diagram if one was submitted */
+  diagram_feedback?: string;
+  /** Assessment of diagram accuracy: 'accurate', 'mostly_accurate', 'needs_improvement', 'incorrect' */
+  diagram_accuracy?: 'accurate' | 'mostly_accurate' | 'needs_improvement' | 'incorrect';
 }
 
 export interface LearningRecommendation {

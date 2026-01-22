@@ -9,6 +9,10 @@
 #   ./pipeline.sh lessons --resume 20260109_143022
 #   ./pipeline.sh lessons --subject physics --level higher --dry-run
 #   ./pipeline.sh list
+#   ./pipeline.sh list --verbose
+#   ./pipeline.sh list --status failed
+#   ./pipeline.sh list --resumable
+#   ./pipeline.sh status 20260121_143022
 #   ./pipeline.sh help
 #
 # Environment Variables:
@@ -137,14 +141,19 @@ if [ -z "$1" ]; then
     echo -e "${YELLOW}No command specified.${NC}"
     echo ""
     echo "Available commands:"
-    echo "  lessons    Run course creation pipeline"
-    echo "  list       List all pipeline runs"
-    echo "  help       Show detailed help"
+    echo "  lessons           Run course creation pipeline"
+    echo "  list              List all pipeline runs"
+    echo "  status <run_id>   Show detailed status for a specific run"
+    echo "  help              Show detailed help"
     echo ""
     echo "Examples:"
     echo "  ./pipeline.sh lessons --subject mathematics --level national_5"
     echo "  ./pipeline.sh lessons --resume 20260109_143022"
     echo "  ./pipeline.sh list"
+    echo "  ./pipeline.sh list --verbose"
+    echo "  ./pipeline.sh list --status failed"
+    echo "  ./pipeline.sh list --resumable"
+    echo "  ./pipeline.sh status 20260121_143022"
     echo ""
     exit 0
 fi

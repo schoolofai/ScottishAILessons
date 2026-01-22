@@ -29,6 +29,9 @@
 
 # List all runs
 ./devops/pipeline.sh list
+
+# Show detailed status for a run
+./devops/pipeline.sh status 20260121_143022
 ```
 
 ---
@@ -92,7 +95,13 @@ Shows all pipeline runs with their status, subject, level, and cost.
 ./devops/pipeline.sh list
 ```
 
-**Output:**
+**Options:**
+- `--verbose, -v` - Show detailed information including last/next step and errors
+- `--status <STATUS>` - Filter by status (e.g., `failed`, `completed`, `in_progress`). Use comma for multiple.
+- `--subject <SUBJECT>` - Filter by subject name
+- `--resumable` - Show only resumable runs (equivalent to `--status failed,in_progress`)
+
+**Basic Output:**
 ```
 ================================================================================
 PIPELINE RUNS
@@ -110,8 +119,92 @@ Resumable runs (2):
   - 20260120_091500: physics/higher (last: lessons)
   - 20260119_160000: chemistry/n5 (last: sow)
 
-Resume with: python pipeline_runner.py lessons --resume <run_id>
+Resume with: ./devops/pipeline.sh lessons --resume <run_id>
+Details with: ./devops/pipeline.sh status <run_id>
 ```
+
+**Verbose Output (`--verbose`):**
+```
+================================================================================
+PIPELINE RUNS
+================================================================================
+
+Run ID               Subject         Level      Status       Last Step  Next Step  Cost
+----------------------------------------------------------------------------------------------------
+20260121_143022      mathematics     national_5 completed    diagrams   -          $28.60
+20260120_091500      physics         higher     failed       lessons    lessons    $12.35
+    └─ Error: Pydantic validation failed for card 3: missing 'cfu_question'...
+20260119_160000      chemistry       n5         in_progress  sow        lessons    $5.20
+----------------------------------------------------------------------------------------------------
+Total runs: 3
+```
+
+**Filter Examples:**
+```bash
+# Show only failed runs
+./devops/pipeline.sh list --status failed
+
+# Show only mathematics courses
+./devops/pipeline.sh list --subject mathematics
+
+# Show resumable runs (failed or in_progress)
+./devops/pipeline.sh list --resumable
+
+# Combine verbose with filter
+./devops/pipeline.sh list --verbose --status failed
+```
+
+### `status <run_id>` - Show Detailed Status
+
+Shows comprehensive status information for a specific pipeline run.
+
+```bash
+./devops/pipeline.sh status 20260121_143022
+```
+
+**Output:**
+```
+═══════════════════════════════════════════════════════════════════
+PIPELINE STATUS: 20260121_143022
+═══════════════════════════════════════════════════════════════════
+
+Run ID:     20260121_143022
+Pipeline:   lessons
+Subject:    mathematics
+Level:      national_5
+Course ID:  course_c84775
+Status:     ❌ failed
+
+Started:    2026-01-21T14:30:22Z
+Updated:    2026-01-21T15:45:33Z
+Duration:   1h 15m 11s
+
+─── STEPS ────────────────────────────────────────────────────────
+ ✅ seed       completed    2.3s       $0.00
+ ✅ sow        completed    4m 23s     $1.85
+ ❌ lessons    failed       45m 12s    $12.50
+ ⏸️  diagrams   pending      -          -
+
+─── ERROR ────────────────────────────────────────────────────────
+Step: lessons
+Error: Pydantic validation failed for card 3: missing 'cfu_question' field
+
+─── RESUME ───────────────────────────────────────────────────────
+Next step: lessons
+Command: ./devops/pipeline.sh lessons --resume 20260121_143022
+
+─── COST ─────────────────────────────────────────────────────────
+Total Cost:   $14.35
+Total Tokens: 125,000
+
+═══════════════════════════════════════════════════════════════════
+```
+
+**Use Cases:**
+- Investigate why a pipeline failed
+- Check progress of a long-running pipeline
+- Determine which step to debug
+- Get the exact resume command
 
 ### `help` - Show Detailed Help
 
@@ -245,6 +338,63 @@ Run without --skip-seed-sow to seed the course first.
 ```bash
 ./devops/pipeline.sh lessons --subject physics --level higher --diagram-timeout 120
 ```
+
+---
+
+## List Command Options
+
+### `--verbose, -v`
+
+**Description:** Show detailed information in list output
+
+**Additional columns shown:**
+- Last completed step
+- Next step to run
+- Error message (truncated) for failed runs
+
+**Example:**
+```bash
+./devops/pipeline.sh list --verbose
+```
+
+### `--status <STATUS>`
+
+**Description:** Filter list by pipeline status
+
+**Values:** `pending`, `in_progress`, `completed`, `failed`
+
+**Multiple:** Comma-separated for multiple statuses
+
+**Examples:**
+```bash
+./devops/pipeline.sh list --status failed
+./devops/pipeline.sh list --status failed,in_progress
+```
+
+### `--subject <SUBJECT>`
+
+**Description:** Filter list by subject name
+
+**Examples:**
+```bash
+./devops/pipeline.sh list --subject mathematics
+./devops/pipeline.sh list --subject physics --verbose
+```
+
+### `--resumable`
+
+**Description:** Show only resumable runs (failed or in_progress)
+
+**Equivalent to:** `--status failed,in_progress`
+
+**Example:**
+```bash
+./devops/pipeline.sh list --resumable
+```
+
+---
+
+## SOW Options
 
 ### `--iterative` (default)
 
@@ -581,6 +731,21 @@ Or use `--skip-diagrams` flag
 
 # List all runs
 ./devops/pipeline.sh list
+
+# List with verbose details
+./devops/pipeline.sh list --verbose
+
+# List only failed runs
+./devops/pipeline.sh list --status failed
+
+# List resumable runs
+./devops/pipeline.sh list --resumable
+
+# List runs for specific subject
+./devops/pipeline.sh list --subject mathematics
+
+# Show detailed status for a run
+./devops/pipeline.sh status 20260121_143022
 
 # Show help
 ./devops/pipeline.sh help

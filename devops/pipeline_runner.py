@@ -40,7 +40,13 @@ from typing import Optional, Dict, Any
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from devops.lib.checkpoint_manager import CheckpointManager, PipelineState, StepState
+from devops.lib.checkpoint_manager import (
+    CheckpointManager,
+    PipelineState,
+    StepState,
+    format_duration,
+    calculate_duration_seconds
+)
 from devops.lib.step_runner import StepRunner, StepResult
 from devops.lib.observability import ObservabilityManager
 from devops.lib.diagram_service import DiagramServiceManager, DiagramServiceError
@@ -461,44 +467,221 @@ def print_summary(result: Dict[str, Any]) -> None:
     print("=" * 60 + "\n")
 
 
-def list_runs() -> None:
-    """List all pipeline runs with their status."""
+def list_runs(
+    verbose: bool = False,
+    status_filter: Optional[str] = None,
+    subject_filter: Optional[str] = None,
+    resumable_only: bool = False
+) -> None:
+    """List all pipeline runs with their status.
+
+    Args:
+        verbose: Show detailed information including last/next step and errors
+        status_filter: Filter by status (comma-separated, e.g., "failed,in_progress")
+        subject_filter: Filter by subject name
+        resumable_only: Show only resumable runs (failed or in_progress)
+    """
     runs = CheckpointManager.list_runs()
 
     if not runs:
         print("\nNo pipeline runs found.\n")
         return
 
-    print("\n" + "=" * 80)
+    # Apply filters
+    if resumable_only:
+        runs = [r for r in runs if r["status"] in ("failed", "in_progress")]
+    elif status_filter:
+        statuses = [s.strip().lower() for s in status_filter.split(",")]
+        runs = [r for r in runs if r["status"] in statuses]
+
+    if subject_filter:
+        # Normalize subject filter for comparison
+        subject_filter_lower = subject_filter.lower().replace("-", "_")
+        runs = [r for r in runs if r["subject"].lower() == subject_filter_lower]
+
+    if not runs:
+        print("\nNo pipeline runs match the filter criteria.\n")
+        return
+
+    print("\n" + "=" * 100)
     print("PIPELINE RUNS")
-    print("=" * 80)
+    print("=" * 100)
 
-    # Header
-    print(f"\n{'Run ID':<20} {'Subject':<15} {'Level':<12} {'Status':<12} {'Cost':>10}")
-    print("-" * 80)
+    if verbose:
+        # Verbose mode: show more columns
+        print(f"\n{'Run ID':<20} {'Subject':<15} {'Level':<10} {'Status':<12} "
+              f"{'Last Step':<10} {'Next Step':<10} {'Cost':>8}")
+        print("-" * 100)
 
-    for run in runs:
-        cost = f"${run.get('total_cost_usd', 0):.2f}"
-        print(
-            f"{run['run_id']:<20} "
-            f"{run['subject']:<15} "
-            f"{run['level']:<12} "
-            f"{run['status']:<12} "
-            f"{cost:>10}"
-        )
+        for run in runs:
+            cost = f"${run.get('total_cost_usd', 0):.2f}"
+            last_step = run.get("last_completed_step", "-") or "-"
+            next_step = run.get("next_step", "-") or "-"
 
-    print("-" * 80)
+            print(
+                f"{run['run_id']:<20} "
+                f"{run['subject']:<15} "
+                f"{run['level']:<10} "
+                f"{run['status']:<12} "
+                f"{last_step:<10} "
+                f"{next_step:<10} "
+                f"{cost:>8}"
+            )
+
+            # Show error on separate line if present
+            if run.get("error"):
+                error_preview = run["error"][:60] + "..." if len(run.get("error", "")) > 60 else run["error"]
+                print(f"    \u2514\u2500 Error: {error_preview}")
+    else:
+        # Standard mode
+        print(f"\n{'Run ID':<20} {'Subject':<15} {'Level':<12} {'Status':<12} {'Cost':>10}")
+        print("-" * 80)
+
+        for run in runs:
+            cost = f"${run.get('total_cost_usd', 0):.2f}"
+            print(
+                f"{run['run_id']:<20} "
+                f"{run['subject']:<15} "
+                f"{run['level']:<12} "
+                f"{run['status']:<12} "
+                f"{cost:>10}"
+            )
+
+    print("-" * (100 if verbose else 80))
     print(f"Total runs: {len(runs)}")
 
-    # Show resumable runs
-    resumable = [r for r in runs if r["status"] in ("failed", "in_progress")]
-    if resumable:
-        print(f"\nResumable runs ({len(resumable)}):")
-        for run in resumable[:5]:
-            print(f"  - {run['run_id']}: {run['subject']}/{run['level']} (last: {run.get('last_completed_step', 'N/A')})")
-        print("\nResume with: python pipeline_runner.py lessons --resume <run_id>")
+    # Show resumable runs (unless we're already filtering for them)
+    if not resumable_only:
+        resumable = [r for r in runs if r["status"] in ("failed", "in_progress")]
+        if resumable:
+            print(f"\nResumable runs ({len(resumable)}):")
+            for run in resumable[:5]:
+                print(f"  - {run['run_id']}: {run['subject']}/{run['level']} (last: {run.get('last_completed_step', 'N/A')})")
+            if len(resumable) > 5:
+                print(f"    ... and {len(resumable) - 5} more")
+            print("\nResume with: ./devops/pipeline.sh lessons --resume <run_id>")
+            print("Details with: ./devops/pipeline.sh status <run_id>")
 
     print()
+
+
+def show_status(run_id: str) -> None:
+    """Show detailed status for a specific pipeline run.
+
+    Args:
+        run_id: The run ID to show status for
+    """
+    # Validate run_id format (YYYYMMDD_HHMMSS)
+    import re
+    if not re.match(r"^\d{8}_\d{6}$", run_id):
+        print(f"\n\u274c Invalid run_id format: {run_id}")
+        print("Expected format: YYYYMMDD_HHMMSS (e.g., 20260121_143022)")
+        print("\nUse './devops/pipeline.sh list' to see available runs.")
+        return
+
+    # Get comprehensive run details
+    details = CheckpointManager.get_run_details(run_id)
+
+    if details is None:
+        print(f"\n\u274c No checkpoint found for run_id: {run_id}")
+        print("\nUse './devops/pipeline.sh list' to see available runs.")
+        return
+
+    # Status icons
+    status_icons = {
+        "completed": "\u2705",
+        "failed": "\u274c",
+        "in_progress": "\u23f3",
+        "pending": "\u23f8\ufe0f",
+        "skipped": "\u23ed\ufe0f"
+    }
+
+    # Print header
+    print("\n" + "\u2550" * 65)
+    print(f"PIPELINE STATUS: {details['run_id']}")
+    print("\u2550" * 65)
+
+    # Basic info
+    status_icon = status_icons.get(details["status"], "\u2753")
+    print(f"\nRun ID:     {details['run_id']}")
+    print(f"Pipeline:   {details['pipeline']}")
+    print(f"Subject:    {details['subject']}")
+    print(f"Level:      {details['level']}")
+    if details.get("course_id"):
+        print(f"Course ID:  {details['course_id']}")
+    print(f"Status:     {status_icon} {details['status']}")
+
+    # Timing
+    print(f"\nStarted:    {details.get('started_at', 'N/A')}")
+    print(f"Updated:    {details.get('updated_at', 'N/A')}")
+    if details.get("total_duration_seconds") and details["total_duration_seconds"] > 0:
+        print(f"Duration:   {format_duration(details['total_duration_seconds'])}")
+
+    # Steps section
+    print("\n\u2500\u2500\u2500 STEPS " + "\u2500" * 56)
+
+    # All possible steps in order
+    all_steps = ["seed", "sow", "lessons", "diagrams"]
+    completed_step_map = {s["step"]: s for s in details.get("completed_steps", [])}
+
+    # Find which steps are completed/failed/pending
+    for step_name in all_steps:
+        step_info = completed_step_map.get(step_name)
+
+        if step_info:
+            status = step_info.get("status", "unknown")
+            icon = status_icons.get(status, "\u2753")
+
+            # Format duration
+            duration = step_info.get("duration_seconds")
+            duration_str = format_duration(duration) if duration and duration > 0 else "-"
+
+            # Format cost
+            cost = step_info.get("cost_usd", 0)
+            cost_str = f"${cost:.2f}" if cost > 0 else "-"
+
+            print(f" {icon} {step_name:<10} {status:<12} {duration_str:<10} {cost_str}")
+        else:
+            # Check if this is the next step
+            if step_name == details.get("next_step"):
+                print(f" \u23f8\ufe0f  {step_name:<10} {'pending':<12} {'-':<10} -")
+            elif details["status"] in ("completed",):
+                # Pipeline completed but step not in completed_steps (might be skipped)
+                print(f" \u23ed\ufe0f  {step_name:<10} {'skipped':<12} {'-':<10} -")
+            else:
+                # Truly pending
+                print(f" \u23f8\ufe0f  {step_name:<10} {'pending':<12} {'-':<10} -")
+
+    # Error section (if failed)
+    if details["status"] == "failed" and details.get("error"):
+        print("\n\u2500\u2500\u2500 ERROR " + "\u2500" * 56)
+        # Find which step failed
+        failed_step = None
+        for step_info in details.get("completed_steps", []):
+            if step_info.get("status") == "failed":
+                failed_step = step_info.get("step")
+                break
+
+        if failed_step:
+            print(f"Step: {failed_step}")
+        print(f"Error: {details['error'][:500]}")  # Truncate long errors
+        if len(details.get("error", "")) > 500:
+            print("       (truncated - see checkpoint.json for full error)")
+
+    # Resume section (if resumable)
+    if details["status"] in ("failed", "in_progress"):
+        print("\n\u2500\u2500\u2500 RESUME " + "\u2500" * 55)
+        next_step = details.get("next_step", "unknown")
+        print(f"Next step: {next_step}")
+        print(f"Command: ./devops/pipeline.sh lessons --resume {run_id}")
+
+    # Cost summary
+    if details.get("total_cost_usd", 0) > 0:
+        print("\n\u2500\u2500\u2500 COST " + "\u2500" * 57)
+        print(f"Total Cost:   ${details['total_cost_usd']:.2f}")
+        print(f"Total Tokens: {details.get('total_tokens', 0):,}")
+
+    print("\n" + "\u2550" * 65 + "\n")
 
 
 def show_help() -> None:
@@ -617,7 +800,37 @@ async def main() -> int:
     )
 
     # List command
-    subparsers.add_parser("list", help="List all pipeline runs")
+    list_parser = subparsers.add_parser("list", help="List all pipeline runs")
+    list_parser.add_argument(
+        "--verbose", "-v",
+        action="store_true",
+        help="Show detailed information including last step, next step, and errors"
+    )
+    list_parser.add_argument(
+        "--status",
+        metavar="STATUS",
+        help="Filter by status (e.g., failed, completed, in_progress). Use comma for multiple."
+    )
+    list_parser.add_argument(
+        "--subject",
+        metavar="SUBJECT",
+        help="Filter by subject name"
+    )
+    list_parser.add_argument(
+        "--resumable",
+        action="store_true",
+        help="Show only resumable runs (failed or in_progress)"
+    )
+
+    # Status command
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Show detailed status for a specific pipeline run"
+    )
+    status_parser.add_argument(
+        "run_id",
+        help="Run ID to show status for (format: YYYYMMDD_HHMMSS)"
+    )
 
     # Help command
     subparsers.add_parser("help", help="Show detailed help")
@@ -626,7 +839,16 @@ async def main() -> int:
 
     # Handle commands
     if args.command == "list":
-        list_runs()
+        list_runs(
+            verbose=getattr(args, "verbose", False),
+            status_filter=getattr(args, "status", None),
+            subject_filter=getattr(args, "subject", None),
+            resumable_only=getattr(args, "resumable", False)
+        )
+        return 0
+
+    if args.command == "status":
+        show_status(args.run_id)
         return 0
 
     if args.command == "help":

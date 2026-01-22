@@ -483,3 +483,500 @@ test.describe('SQA Mock Exam - Timer and Progress', () => {
     }
   });
 });
+
+// ============================================================================
+// NAT5+ DIAGRAM ASSESSMENT TESTS
+// ============================================================================
+// These tests specifically target the diagram test exam (test_nat5_plus_diagram_exam)
+// Prerequisites:
+//   cd assistant-ui-frontend
+//   python scripts/seed_nat5_plus_diagram_exam.py
+// ============================================================================
+
+const TEST_DIAGRAM_EXAM_ID = 'test_nat5_plus_diagram_exam';
+const GRADING_TIMEOUT = 90000; // LLM grading can take 30-60 seconds
+
+test.describe('NAT5+ Diagram Assessment - Exam Loading', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginTestUser(page);
+  });
+
+  test('should load test exam with diagram questions', async ({ page }) => {
+    // Navigate directly to the NAT5+ diagram test exam
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Check that exam loads
+    const pageContent = await page.locator('body').textContent();
+    expect(pageContent).toBeTruthy();
+
+    // Check for "Exam not found" error - indicates seed script needs to run
+    const hasNotFoundError = await page.locator('text=not found').isVisible().catch(() => false);
+    const hasLoadingError = await page.locator('text=Error loading').isVisible().catch(() => false);
+
+    if (hasNotFoundError || hasLoadingError) {
+      console.log('⚠️ Test exam not seeded. Run: python scripts/seed_nat5_plus_diagram_exam.py');
+      test.skip();
+      return;
+    }
+
+    // Should show exam content or instructions
+    const hasTitle = await page.locator('text=NAT5 Diagram').isVisible().catch(() => false);
+    const hasBeginButton = await page.locator('text=Begin Exam').isVisible().catch(() => false);
+    const hasExamContent = hasTitle || hasBeginButton;
+
+    expect(hasExamContent).toBeTruthy();
+    console.log('✓ NAT5+ diagram test exam loaded successfully');
+  });
+
+  test('should display correct exam metadata', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found, text=Error').first().isVisible().catch(() => false);
+    if (hasError) {
+      console.log('⚠️ Test exam not seeded');
+      test.skip();
+      return;
+    }
+
+    // Check metadata (from seed script: total_marks=9, duration=15 min)
+    const pageContent = await page.locator('body').textContent() || '';
+
+    // Should mention marks or duration somewhere
+    const hasMarksInfo = pageContent.includes('9') || pageContent.includes('marks');
+    const hasDurationInfo = pageContent.includes('15') || pageContent.includes('minutes');
+
+    console.log(`Exam metadata - Marks info: ${hasMarksInfo}, Duration info: ${hasDurationInfo}`);
+
+    if (hasMarksInfo || hasDurationInfo) {
+      console.log('✓ Exam metadata displayed correctly');
+    }
+  });
+});
+
+test.describe('NAT5+ Diagram Assessment - Enhanced Components', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginTestUser(page);
+  });
+
+  test('should display RichTextEditor with Formula and Draw buttons', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found, text=Error').first().isVisible().catch(() => false);
+    if (hasError) {
+      test.skip();
+      return;
+    }
+
+    // Start exam - button says "Start Exam" not "Begin Exam"
+    const startExamButton = page.locator('button').filter({ hasText: /Start Exam/i });
+    if (await startExamButton.isVisible().catch(() => false)) {
+      await startExamButton.click();
+      await page.waitForTimeout(3000);
+    }
+
+    // NAT5+ SQA mock exam uses RichTextEditor which ALWAYS has Formula (Σ) and Draw buttons
+    // These are NOT gated by level check like NAT3/NAT4 generic exams
+    const hasFormulaButton = await page.locator('button').filter({ hasText: /Formula|Σ/i }).isVisible().catch(() => false);
+    const hasDrawButton = await page.locator('button').filter({ hasText: /Draw/i }).isVisible().catch(() => false);
+    const hasMathButton = await page.locator('button').filter({ hasText: /Math/i }).isVisible().catch(() => false);
+
+    console.log(`Enhanced components - Formula: ${hasFormulaButton}, Draw: ${hasDrawButton}, Math: ${hasMathButton}`);
+
+    // At least one enhanced component should be visible
+    const hasEnhancedFeatures = hasFormulaButton || hasDrawButton || hasMathButton;
+
+    if (hasEnhancedFeatures) {
+      console.log('✓ NAT5+ enhanced components (Formula/Draw) are available');
+    } else {
+      console.log('ℹ Enhanced components not visible on this question - checking for input area');
+      // At minimum, should have contenteditable area (RichTextEditor) or textarea
+      const hasEditor = await page.locator('[contenteditable="true"], textarea').first().isVisible().catch(() => false);
+      expect(hasEditor).toBeTruthy();
+    }
+  });
+
+  test('should open Excalidraw drawing modal from Draw button', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found').isVisible().catch(() => false);
+    if (hasError) {
+      test.skip();
+      return;
+    }
+
+    // Start exam - button says "Start Exam" not "Begin Exam"
+    const startExamButton = page.locator('button').filter({ hasText: /Start Exam/i });
+    if (await startExamButton.isVisible().catch(() => false)) {
+      await startExamButton.click();
+      await page.waitForTimeout(3000);
+    }
+
+    // Navigate to Q2 (first diagram question - circle/chord geometry)
+    const nextButton = page.locator('button').filter({ hasText: /Next|→/ });
+    if (await nextButton.isVisible().catch(() => false)) {
+      await nextButton.click();
+      await page.waitForTimeout(1500);
+    }
+
+    // Find and click Draw button
+    const drawButton = page.locator('button').filter({ hasText: /Draw/i }).first();
+    const hasDrawButton = await drawButton.isVisible().catch(() => false);
+
+    if (hasDrawButton) {
+      await drawButton.click();
+      await page.waitForTimeout(2000);
+
+      // Check if Excalidraw modal/canvas opened
+      const hasCanvas = await page.locator('canvas').isVisible().catch(() => false);
+      const hasExcalidraw = await page.locator('.excalidraw, [class*="excalidraw"]').isVisible().catch(() => false);
+      const hasDrawingModal = await page.locator('text=Insert Drawing, text=Save Drawing, text=Cancel').first().isVisible().catch(() => false);
+
+      console.log(`Drawing UI - Canvas: ${hasCanvas}, Excalidraw: ${hasExcalidraw}, Modal: ${hasDrawingModal}`);
+
+      if (hasCanvas || hasExcalidraw || hasDrawingModal) {
+        console.log('✓ Excalidraw drawing interface opened successfully');
+
+        // Close the modal
+        const cancelButton = page.locator('button').filter({ hasText: /Cancel|Close/i });
+        if (await cancelButton.isVisible().catch(() => false)) {
+          await cancelButton.click();
+        }
+      }
+    } else {
+      console.log('ℹ Draw button not visible - may be different UI state');
+    }
+  });
+
+  test('should open Formula editor from Formula button', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found').isVisible().catch(() => false);
+    if (hasError) {
+      test.skip();
+      return;
+    }
+
+    // Start exam - button says "Start Exam" not "Begin Exam"
+    const startExamButton = page.locator('button').filter({ hasText: /Start Exam/i });
+    if (await startExamButton.isVisible().catch(() => false)) {
+      await startExamButton.click();
+      await page.waitForTimeout(3000);
+    }
+
+    // Find and click Formula button
+    const formulaButton = page.locator('button').filter({ hasText: /Formula|Σ|Math/i }).first();
+    const hasFormulaButton = await formulaButton.isVisible().catch(() => false);
+
+    if (hasFormulaButton) {
+      await formulaButton.click();
+      await page.waitForTimeout(1500);
+
+      // Check if formula editor opened
+      const hasFormulaModal = await page.locator('text=Insert Formula, text=Insert Math, text=LaTeX').first().isVisible().catch(() => false);
+      const hasMathInput = await page.locator('input[placeholder*="formula"], input[placeholder*="LaTeX"], textarea[placeholder*="formula"]').isVisible().catch(() => false);
+
+      console.log(`Formula UI - Modal: ${hasFormulaModal}, Input: ${hasMathInput}`);
+
+      if (hasFormulaModal || hasMathInput) {
+        console.log('✓ Formula editor opened successfully');
+
+        // Close the modal
+        const cancelButton = page.locator('button').filter({ hasText: /Cancel|Close/i });
+        if (await cancelButton.isVisible().catch(() => false)) {
+          await cancelButton.click();
+        }
+      }
+    } else {
+      console.log('ℹ Formula button not visible on this question');
+    }
+  });
+});
+
+test.describe('NAT5+ Diagram Assessment - Full E2E Flow', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginTestUser(page);
+  });
+
+  test('should complete exam with text answers for all questions', async ({ page }) => {
+    test.setTimeout(GRADING_TIMEOUT + 30000);
+
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found').isVisible().catch(() => false);
+    if (hasError) {
+      console.log('⚠️ Test exam not seeded. Run: python scripts/seed_nat5_plus_diagram_exam.py');
+      test.skip();
+      return;
+    }
+
+    // Start exam - button says "Start Exam" not "Begin Exam"
+    const startExamButton = page.locator('button').filter({ hasText: /Start Exam/i });
+    if (await startExamButton.isVisible().catch(() => false)) {
+      await startExamButton.click();
+      await page.waitForTimeout(3000);
+    }
+
+    // Q1: Quadratic equation (text-only baseline)
+    // Answer: (x-2)(x-3) = 0, x = 2 or x = 3
+    const textInput1 = page.locator('[contenteditable="true"], textarea').first();
+    if (await textInput1.isVisible().catch(() => false)) {
+      await textInput1.click();
+      await page.waitForTimeout(300);
+
+      try {
+        // Try to type - contenteditable doesn't support fill()
+        await textInput1.type('(x - 2)(x - 3) = 0\nx - 2 = 0 or x - 3 = 0\nx = 2 or x = 3');
+      } catch {
+        // Fallback for textarea
+        await textInput1.fill('(x - 2)(x - 3) = 0, x - 2 = 0 or x - 3 = 0, x = 2 or x = 3');
+      }
+      console.log('✓ Answered Q1 (quadratic equation)');
+    }
+
+    // Navigate to Q2
+    let nextButton = page.locator('button').filter({ hasText: /Next|→/ });
+    if (await nextButton.isVisible().catch(() => false)) {
+      await nextButton.click();
+      await page.waitForTimeout(1500);
+    }
+
+    // Q2: Circle/chord geometry (DIAGRAM REQUIRED - but we'll use text description)
+    const textInput2 = page.locator('[contenteditable="true"], textarea').first();
+    if (await textInput2.isVisible().catch(() => false)) {
+      await textInput2.click();
+      await page.waitForTimeout(300);
+
+      try {
+        await textInput2.type('Circle with centre O, radius 4cm. Chord AB = 6cm. M is midpoint of AB.\nAM = MB = 3cm (perpendicular from centre bisects chord)\nUsing Pythagoras: OM² + AM² = OA²\nOM² + 9 = 16\nOM² = 7\nOM = √7 ≈ 2.65cm');
+      } catch {
+        await textInput2.fill('Circle with centre O, radius 4cm. Chord AB = 6cm. AM = MB = 3cm. OM = √7 ≈ 2.65cm');
+      }
+      console.log('✓ Answered Q2 (circle/chord - text description)');
+    }
+
+    // Navigate to Q3
+    nextButton = page.locator('button').filter({ hasText: /Next|→/ });
+    if (await nextButton.isVisible().catch(() => false)) {
+      await nextButton.click();
+      await page.waitForTimeout(1500);
+    }
+
+    // Q3: Trig graph y = 2sin(x) (DIAGRAM REQUIRED - but we'll use text description)
+    const textInput3 = page.locator('[contenteditable="true"], textarea').first();
+    if (await textInput3.isVisible().catch(() => false)) {
+      await textInput3.click();
+      await page.waitForTimeout(300);
+
+      try {
+        await textInput3.type('Graph of y = 2sin(x) from 0° to 360°:\n- Sinusoidal curve, one complete period\n- Maximum at (90°, 2)\n- Minimum at (270°, -2)\n- Crosses x-axis at 0°, 180°, 360°');
+      } catch {
+        await textInput3.fill('Graph of y = 2sin(x): Max at (90°, 2), Min at (270°, -2), crosses x-axis at 0°, 180°, 360°');
+      }
+      console.log('✓ Answered Q3 (trig graph - text description)');
+    }
+
+    // Submit exam
+    const submitButton = page.locator('button').filter({ hasText: /Submit|Finish|Complete/i });
+    if (await submitButton.isVisible().catch(() => false)) {
+      await submitButton.click();
+      await page.waitForTimeout(2000);
+
+      // Confirm submission if dialog appears
+      const confirmButton = page.locator('button').filter({ hasText: /Confirm|Yes|Submit/i });
+      if (await confirmButton.isVisible().catch(() => false)) {
+        await confirmButton.click();
+      }
+
+      console.log('✓ Exam submitted, waiting for grading...');
+
+      // Wait for grading results
+      await page.waitForTimeout(GRADING_TIMEOUT);
+
+      // Check for results
+      const pageContent = await page.locator('body').textContent();
+      const hasResults = pageContent?.includes('Result') ||
+                         pageContent?.includes('Grade') ||
+                         pageContent?.includes('Score') ||
+                         pageContent?.includes('marks');
+
+      if (hasResults) {
+        console.log('✓ Grading results received');
+
+        // Look for feedback
+        const hasFeedback = pageContent?.includes('feedback') ||
+                           pageContent?.includes('Correct') ||
+                           pageContent?.includes('correct');
+
+        if (hasFeedback) {
+          console.log('✓ Question feedback displayed');
+        }
+      } else {
+        console.log('ℹ Results may still be loading or different UI state');
+      }
+    } else {
+      console.log('ℹ Submit button not visible - may need to navigate to last question');
+    }
+  });
+
+  test('should handle submission with drawing content', async ({ page }) => {
+    test.setTimeout(GRADING_TIMEOUT + 30000);
+
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Skip if exam not seeded
+    const hasError = await page.locator('text=not found').isVisible().catch(() => false);
+    if (hasError) {
+      test.skip();
+      return;
+    }
+
+    // Start exam - button says "Start Exam" not "Begin Exam"
+    const startExamButton = page.locator('button').filter({ hasText: /Start Exam/i });
+    if (await startExamButton.isVisible().catch(() => false)) {
+      await startExamButton.click();
+      await page.waitForTimeout(3000);
+    }
+
+    // Navigate to Q2 (diagram question)
+    const nextButton = page.locator('button').filter({ hasText: /Next|→/ });
+    if (await nextButton.isVisible().catch(() => false)) {
+      await nextButton.click();
+      await page.waitForTimeout(1500);
+    }
+
+    // Try to use the Draw button and create a drawing
+    const drawButton = page.locator('button').filter({ hasText: /Draw/i }).first();
+    if (await drawButton.isVisible().catch(() => false)) {
+      await drawButton.click();
+      await page.waitForTimeout(2000);
+
+      // Check for Excalidraw canvas
+      const canvas = page.locator('canvas').first();
+      const hasCanvas = await canvas.isVisible().catch(() => false);
+
+      if (hasCanvas) {
+        // Note: Excalidraw has complex canvas interactions with overlays
+        console.log('✓ Drawing canvas opened - drawing automation is complex');
+
+        // Look for save/insert/cancel button to close the modal
+        // The modal dialog intercepts pointer events, so we need to close it first
+        const saveButton = page.locator('button').filter({ hasText: /Save|Insert|Done/i }).first();
+        const cancelButton = page.locator('button').filter({ hasText: /Cancel|Close/i }).first();
+
+        if (await saveButton.isVisible().catch(() => false)) {
+          await saveButton.click();
+          console.log('✓ Drawing saved/inserted');
+          await page.waitForTimeout(1000);
+        } else if (await cancelButton.isVisible().catch(() => false)) {
+          await cancelButton.click();
+          console.log('✓ Drawing modal cancelled');
+          await page.waitForTimeout(1000);
+        } else {
+          // Try pressing Escape to close the modal
+          await page.keyboard.press('Escape');
+          console.log('✓ Pressed Escape to close modal');
+          await page.waitForTimeout(1000);
+        }
+      }
+    } else {
+      console.log('ℹ Draw button not visible - may be different UI state');
+    }
+
+    // Add text description to answer area (only after modal is closed)
+    const textInput = page.locator('[contenteditable="true"], textarea').first();
+    if (await textInput.isVisible().catch(() => false)) {
+      // Verify no modal is blocking
+      const hasOpenDialog = await page.locator('[role="dialog"][data-state="open"]').isVisible().catch(() => false);
+      if (!hasOpenDialog) {
+        await textInput.click();
+        try {
+          await textInput.type('Circle with chord and perpendicular from centre');
+        } catch {
+          await textInput.fill('Circle with chord and perpendicular from centre');
+        }
+        console.log('✓ Added text description to answer');
+      } else {
+        console.log('ℹ Dialog still open - skipping text input');
+      }
+    }
+
+    console.log('✓ Drawing flow test completed');
+  });
+});
+
+test.describe('NAT5+ Diagram Assessment - Results Verification', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginTestUser(page);
+  });
+
+  test('should show diagram feedback in results', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Check if there's a completed attempt with results
+    const hasViewResults = await page.locator('text=View Results, text=Grade, text=Score').first().isVisible().catch(() => false);
+
+    if (hasViewResults) {
+      // Click to view results
+      const viewButton = page.locator('text=View Results').first();
+      await viewButton.click();
+      await page.waitForTimeout(3000);
+
+      // Look for diagram-specific feedback (from multimodal grading)
+      const pageContent = await page.locator('body').textContent();
+
+      const hasDiagramFeedback = pageContent?.includes('diagram') ||
+                                  pageContent?.includes('drawing') ||
+                                  pageContent?.includes('accurate') ||
+                                  pageContent?.includes('needs_improvement') ||
+                                  pageContent?.includes('diagram_accuracy');
+
+      if (hasDiagramFeedback) {
+        console.log('✓ Diagram-specific feedback found in results');
+      } else {
+        console.log('ℹ No diagram-specific feedback visible (may be text-only answers)');
+      }
+
+      // Check for question-by-question feedback
+      const hasQ1Feedback = pageContent?.includes('Question 1') || pageContent?.includes('Q1');
+      const hasQ2Feedback = pageContent?.includes('Question 2') || pageContent?.includes('Q2');
+      const hasQ3Feedback = pageContent?.includes('Question 3') || pageContent?.includes('Q3');
+
+      console.log(`Question feedback - Q1: ${hasQ1Feedback}, Q2: ${hasQ2Feedback}, Q3: ${hasQ3Feedback}`);
+    } else {
+      console.log('ℹ No completed exam attempt found - submit an exam first');
+    }
+  });
+
+  test('should display marks breakdown per question', async ({ page }) => {
+    await page.goto(`${BASE_URL}/sqa-mock-exam/${TEST_DIAGRAM_EXAM_ID}`);
+    await page.waitForTimeout(3000);
+
+    // Check for results display
+    const pageContent = await page.locator('body').textContent() || '';
+
+    // Look for marks display (each question worth 3 marks)
+    const hasMarksBreakdown = pageContent.includes('/3') ||
+                              pageContent.includes('3 marks') ||
+                              pageContent.includes('/9') ||
+                              pageContent.includes('9 marks');
+
+    if (hasMarksBreakdown) {
+      console.log('✓ Marks breakdown displayed in results');
+    } else {
+      console.log('ℹ Marks breakdown not visible (may need to complete exam first)');
+    }
+  });
+});

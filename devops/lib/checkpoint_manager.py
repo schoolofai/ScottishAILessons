@@ -25,6 +25,51 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def format_duration(seconds: float) -> str:
+    """Format duration in seconds to human-readable string.
+
+    Args:
+        seconds: Duration in seconds
+
+    Returns:
+        Human-readable string like "2.3s", "4m 23s", "1h 15m 11s"
+    """
+    if seconds < 0:
+        return "-"
+
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+
+    minutes = int(seconds // 60)
+    remaining_seconds = int(seconds % 60)
+
+    if minutes < 60:
+        return f"{minutes}m {remaining_seconds}s"
+
+    hours = minutes // 60
+    remaining_minutes = minutes % 60
+
+    return f"{hours}h {remaining_minutes}m {remaining_seconds}s"
+
+
+def calculate_duration_seconds(started_at: str, completed_at: str) -> float:
+    """Calculate duration between two ISO timestamps.
+
+    Args:
+        started_at: ISO format start timestamp
+        completed_at: ISO format end timestamp
+
+    Returns:
+        Duration in seconds, or -1 if parsing fails
+    """
+    try:
+        start = datetime.fromisoformat(started_at.rstrip("Z"))
+        end = datetime.fromisoformat(completed_at.rstrip("Z"))
+        return (end - start).total_seconds()
+    except (ValueError, AttributeError):
+        return -1
+
+
 @dataclass
 class StepState:
     """State for a single pipeline step."""
@@ -310,6 +355,89 @@ class CheckpointManager:
         )
 
         return runs
+
+    @classmethod
+    def get_run_details(
+        cls,
+        run_id: str,
+        base_path: Optional[Path] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Get comprehensive details for a specific pipeline run.
+
+        Args:
+            run_id: The run ID to get details for
+            base_path: Base directory for checkpoints
+
+        Returns:
+            Detailed run information dict or None if not found
+        """
+        base = base_path or Path(__file__).parent.parent / "checkpoints"
+        checkpoint = base / run_id / "checkpoint.json"
+
+        if not checkpoint.exists():
+            return None
+
+        try:
+            with open(checkpoint) as f:
+                data = json.load(f)
+
+            # Parse completed steps with full details
+            completed_steps = []
+            for step_data in data.get("completed_steps", []):
+                step_info = {
+                    "step": step_data.get("step"),
+                    "status": step_data.get("status"),
+                    "started_at": step_data.get("started_at"),
+                    "completed_at": step_data.get("completed_at"),
+                    "duration_seconds": step_data.get("duration_seconds"),
+                    "error": step_data.get("error"),
+                    "cost_usd": 0.0
+                }
+
+                # Extract cost from metrics if available
+                metrics = step_data.get("metrics", {})
+                if metrics:
+                    step_info["cost_usd"] = metrics.get("cost_usd", 0.0)
+                    step_info["input_tokens"] = metrics.get("input_tokens", 0)
+                    step_info["output_tokens"] = metrics.get("output_tokens", 0)
+
+                # Calculate duration if not stored
+                if step_info["duration_seconds"] is None and step_info["started_at"] and step_info["completed_at"]:
+                    step_info["duration_seconds"] = calculate_duration_seconds(
+                        step_info["started_at"],
+                        step_info["completed_at"]
+                    )
+
+                completed_steps.append(step_info)
+
+            # Calculate total pipeline duration
+            started_at = data.get("started_at")
+            updated_at = data.get("updated_at")
+            total_duration = None
+            if started_at and updated_at:
+                total_duration = calculate_duration_seconds(started_at, updated_at)
+
+            return {
+                "run_id": data["run_id"],
+                "pipeline": data.get("pipeline", "lessons"),
+                "subject": data["subject"],
+                "level": data["level"],
+                "course_id": data.get("course_id"),
+                "status": data["status"],
+                "started_at": started_at,
+                "updated_at": updated_at,
+                "total_duration_seconds": total_duration,
+                "last_completed_step": data.get("last_completed_step"),
+                "next_step": data.get("next_step"),
+                "total_cost_usd": data.get("total_cost_usd", 0),
+                "total_tokens": data.get("total_tokens", 0),
+                "error": data.get("error"),
+                "completed_steps": completed_steps
+            }
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"Failed to load run details for {run_id}: {e}")
+            return None
 
     @classmethod
     def get_resumable_runs(cls, base_path: Optional[Path] = None) -> List[Dict[str, Any]]:

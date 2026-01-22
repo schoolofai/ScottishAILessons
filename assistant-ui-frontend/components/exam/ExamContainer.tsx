@@ -20,6 +20,26 @@ import type {
 // Polling interval for checking grading status (5 seconds)
 const POLL_INTERVAL_MS = 5000;
 
+/**
+ * Extract base64 images from HTML content (rich text editor output).
+ * Finds img tags with data:image/... src attributes.
+ */
+function extractImagesFromHtml(html: string): string[] {
+  if (!html) return [];
+
+  // Pattern for base64 images in src attribute
+  // Matches: src="data:image/png;base64,ABC123..." or src='data:image/jpeg;base64,XYZ...'
+  const pattern = /src=["']data:image\/[^;]+;base64,([^"']+)["']/g;
+  const images: string[] = [];
+  let match;
+
+  while ((match = pattern.exec(html)) !== null) {
+    images.push(match[1]);
+  }
+
+  return images;
+}
+
 interface ExamContainerProps {
   exam: MockExam;
   attemptId: string;
@@ -268,7 +288,7 @@ export function ExamContainer({
       const progress = getProgress();
       const answersArray = getAnswersArray();
 
-      // Build submission payload
+      // Build submission payload with image extraction
       const submissionPayload = {
         attemptId,
         examId: exam.examId,
@@ -276,12 +296,31 @@ export function ExamContainer({
         courseId: exam.courseId,
         answers: answersArray.map((ans) => {
           const question = allQuestions.find((q) => q.question_id === ans.questionId);
+          const response = ans.response || {};
+
+          // Extract images from rich HTML content
+          const responseImages = extractImagesFromHtml(response.response_html || '');
+          const workingImages = extractImagesFromHtml(response.working_out_html || '');
+
+          // Combine all images: explicit attachments + extracted from HTML
+          // Deduplicate and limit to 4 images per question
+          const existingAttached = response.attached_images || [];
+          const allImages = [...new Set([
+            ...existingAttached,
+            ...responseImages,
+            ...workingImages
+          ])].slice(0, 4);
+
           return {
             question_id: ans.questionId,
             question_number: question?.question_number || 0,
             section_id: question?.sectionId || '',
             question_type: question?.question_type || 'short_text',
-            response: ans.response,
+            response: {
+              ...response,
+              // Include extracted images in the response
+              attached_images: allImages.length > 0 ? allImages : undefined,
+            },
             time_spent_seconds: ans.timeSpent || 0,
             was_flagged: flaggedQuestions.has(ans.questionId),
           };
