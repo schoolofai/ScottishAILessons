@@ -144,10 +144,15 @@ async def generate_nat5_plus_exam(
     question_offset = 0
     for batch_idx, batch in enumerate(chunk(exam_plan.question_specs, size=5)):
         logger.info(f"Processing batch {batch_idx + 1}")
-        batch_results = await asyncio.gather(*[
-            generate_single_question(spec, sow_topics, templates, workspace_path, question_offset + i)
-            for i, spec in enumerate(batch)
-        ], return_exceptions=True)
+        batch_results = []
+        for i, spec in enumerate(batch):
+            try:
+                result = await generate_single_question(
+                    spec, sow_topics, templates, workspace_path, question_offset + i
+                )
+                batch_results.append(result)
+            except Exception as e:
+                batch_results.append(e)
         question_offset += len(batch)
 
         for i, result in enumerate(batch_results):

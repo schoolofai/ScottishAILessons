@@ -441,9 +441,10 @@ async def generate_diagrams_for_exam(
 
     for batch_idx, batch in enumerate(chunk(classifications, PARALLEL_BATCH_SIZE)):
         logger.info(f"   Processing batch {batch_idx + 1}...")
+        batch_results = []
 
-        # Create individual workspace for each question in batch
-        batch_tasks = []
+        # Process each classification sequentially to avoid anyio cancel scope errors
+        # (Claude Agent SDK uses anyio which enforces task affinity for cancel scopes)
         for classification in batch:
             qid = classification.question_id
             question = question_lookup.get(qid)
@@ -456,17 +457,16 @@ async def generate_diagrams_for_exam(
             q_workspace = workspace_path / f"diagram_{qid}"
             q_workspace.mkdir(exist_ok=True)
 
-            batch_tasks.append(
-                _generate_single_diagram(
+            try:
+                result = await _generate_single_diagram(
                     classification=classification,
                     question=question,
                     workspace_path=q_workspace,
                     diagrams_dir=diagrams_dir
                 )
-            )
-
-        # Execute batch in parallel
-        batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
+                batch_results.append(result)
+            except Exception as e:
+                batch_results.append(e)
 
         # Process results
         for i, result in enumerate(batch_results):
