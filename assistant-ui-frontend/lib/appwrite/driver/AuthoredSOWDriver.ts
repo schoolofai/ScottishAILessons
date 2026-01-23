@@ -11,30 +11,53 @@ export class AuthoredSOWDriver extends BaseDriver {
   private readonly COLLECTION_ID = 'Authored_SOW';
 
   /**
-   * Get published SOW for a course - DEFAULTS TO VERSION 1
+   * Get published SOW for a course - uses LATEST PUBLISHED VERSION by default
    *
-   * Frontend always uses version 1 as the stable/production version
-   * unless explicitly requesting a different version.
+   * If no version is specified, fetches the highest version number that is published.
+   * This supports the progressive versioning model where newer versions supersede older ones.
    *
    * @param courseId - Course identifier
-   * @param version - SOW version (default: "1")
+   * @param version - SOW version (optional - defaults to latest published)
    * @returns Published SOW data or null if not found
    */
-  async getPublishedSOW(courseId: string, version: string = "1"): Promise<AuthoredSOWData | null> {
+  async getPublishedSOW(courseId: string, version?: string): Promise<AuthoredSOWData | null> {
     try {
-      const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
-        Query.equal('courseId', courseId),
-        Query.equal('version', version),  // Filter by specific version
-        Query.equal('status', 'published'),
-        Query.limit(1)
-      ]);
+      let record: AuthoredSOW | null = null;
 
-      if (!records.length) {
-        console.log(`[AuthoredSOWDriver] No published SOW v${version} found for course ${courseId}`);
+      if (version) {
+        // Specific version requested
+        const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
+          Query.equal('courseId', courseId),
+          Query.equal('version', version),
+          Query.equal('status', 'published'),
+          Query.limit(1)
+        ]);
+        record = records.length ? records[0] : null;
+      } else {
+        // No version specified - get latest published version
+        const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
+          Query.equal('courseId', courseId),
+          Query.equal('status', 'published'),
+          Query.limit(100) // Get all published versions
+        ]);
+
+        if (records.length > 0) {
+          // Find the highest version number
+          record = records.reduce((latest, current) => {
+            const latestVersion = parseInt(latest.version, 10) || 0;
+            const currentVersion = parseInt(current.version, 10) || 0;
+            return currentVersion > latestVersion ? current : latest;
+          });
+        }
+      }
+
+      if (!record) {
+        const versionStr = version ? `v${version}` : 'latest';
+        console.log(`[AuthoredSOWDriver] No published SOW (${versionStr}) found for course ${courseId}`);
         return null;
       }
 
-      const record = records[0];
+      console.log(`[AuthoredSOWDriver] Using SOW v${record.version} for course ${courseId}`);
 
       return {
         courseId: record.courseId,
@@ -45,33 +68,50 @@ export class AuthoredSOWDriver extends BaseDriver {
         accessibility_notes: record.accessibility_notes
       };
     } catch (error) {
-      throw this.handleError(error, `get published SOW v${version} for course ${courseId}`);
+      const versionStr = version ? `v${version}` : 'latest';
+      throw this.handleError(error, `get published SOW (${versionStr}) for course ${courseId}`);
     }
   }
 
   /**
-   * Get all courseIds that have published VERSION 1 SOWs
+   * Get all courseIds that have any published SOWs (latest version logic)
    * Used to filter the courses catalog to only show courses with lesson structures
    * Returns a Set for O(1) lookup performance
    *
-   * IMPORTANT: Only counts version 1 (stable/production) SOWs
+   * Uses "latest published version" approach - includes courses with any
+   * published version (v1, v2, v3, etc.) rather than restricting to v1 only
    */
   async getPublishedCourseIds(): Promise<Set<string>> {
     try {
+      // Get ALL published SOWs regardless of version
       const records = await this.list<AuthoredSOW>(this.COLLECTION_ID, [
-        Query.equal('version', '1'),  // Only version 1 (production)
         Query.equal('status', 'published'),
         Query.limit(500) // Reasonable limit for production courses
       ]);
 
-      const courseIds = new Set<string>();
+      // Track courseIds and their highest published version (for logging)
+      const courseVersionMap = new Map<string, number>();
       records.forEach(record => {
         if (record.courseId) {
-          courseIds.add(record.courseId);
+          const version = parseInt(record.version, 10) || 1;
+          const currentMax = courseVersionMap.get(record.courseId) || 0;
+          if (version > currentMax) {
+            courseVersionMap.set(record.courseId, version);
+          }
         }
       });
 
-      console.log(`[AuthoredSOWDriver] Found ${courseIds.size} courses with published v1 SOWs`);
+      const courseIds = new Set<string>(courseVersionMap.keys());
+      console.log(`[AuthoredSOWDriver] Found ${courseIds.size} courses with published SOWs (latest version logic)`);
+
+      // Log version breakdown for debugging
+      const versionCounts: Record<string, number> = {};
+      courseVersionMap.forEach((version) => {
+        const key = `v${version}`;
+        versionCounts[key] = (versionCounts[key] || 0) + 1;
+      });
+      console.log(`[AuthoredSOWDriver] Version breakdown:`, versionCounts);
+
       return courseIds;
     } catch (error) {
       throw this.handleError(error, 'get published course IDs');

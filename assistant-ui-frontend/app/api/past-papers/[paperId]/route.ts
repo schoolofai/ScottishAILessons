@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient, createAdminClient } from '@/lib/server/appwrite';
 import { Query } from 'node-appwrite';
+import { parsePaperId } from '../utils';
 
 const DATABASE_ID = 'sqa_education';
 const COLLECTION_PAPERS = 'us_papers';
@@ -70,24 +71,46 @@ export async function GET(
 
     console.log(`[API] Fetching paper: ${paperId}`);
 
-    // Fetch paper document
-    let document;
+    // Parse paperId to extract query components
+    // paperId format: "subject-levelCode-year-paperCode" (e.g., "applications-of-mathematics-n5-2023-X844-75-01")
+    let parsedPaper;
     try {
-      document = await databases.getDocument(
-        DATABASE_ID,
-        COLLECTION_PAPERS,
-        paperId
+      parsedPaper = parsePaperId(paperId);
+    } catch (parseError) {
+      const err = parseError as Error;
+      console.error(`[API] Failed to parse paperId: ${err.message}`);
+      return NextResponse.json(
+        { error: `Invalid paper ID format: ${paperId}`, statusCode: 400 },
+        { status: 400 }
       );
-    } catch (fetchError: unknown) {
-      const err = fetchError as Error & { code?: number };
-      if (err.code === 404 || err.message?.includes('not found')) {
-        return NextResponse.json(
-          { error: `Paper not found: ${paperId}`, statusCode: 404 },
-          { status: 404 }
-        );
-      }
-      throw fetchError;
     }
+
+    const { subject, level, year, paperCode } = parsedPaper;
+    console.log(`[API] Parsed paperId - subject: ${subject}, level: ${level}, year: ${year}, paperCode: ${paperCode}`);
+
+    // Query for paper document by metadata instead of document ID
+    // This avoids Appwrite's document ID character restrictions (no hyphens allowed)
+    const paperResult = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTION_PAPERS,
+      [
+        Query.equal('subject', subject),
+        Query.equal('level', level),
+        Query.equal('year', year),
+        Query.equal('paper_code', paperCode),
+        Query.limit(1)
+      ]
+    );
+
+    if (paperResult.documents.length === 0) {
+      console.log(`[API] Paper not found: subject=${subject}, level=${level}, year=${year}, paperCode=${paperCode}`);
+      return NextResponse.json(
+        { error: `Paper not found: ${paperId}`, statusCode: 404 },
+        { status: 404 }
+      );
+    }
+
+    const document = paperResult.documents[0];
 
     // Parse the data field
     let paperData;
@@ -101,11 +124,13 @@ export async function GET(
     }
 
     // Query walkthroughs for this paper to determine which questions have them
+    // Use actual document.$id (not URL-formatted paperId) since walkthroughs store the actual Appwrite document ID
+    const actualPaperId = document.$id;
     const walkthroughDocs = await databases.listDocuments(
       DATABASE_ID,
       COLLECTION_WALKTHROUGHS,
       [
-        Query.equal('paper_id', paperId),
+        Query.equal('paper_id', actualPaperId),
         Query.equal('status', 'published'),
         Query.select(['question_number'])  // Only need question numbers for efficiency
       ]

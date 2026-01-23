@@ -1,4 +1,4 @@
-import { Client, Account, Databases, ID } from 'appwrite';
+import { Client, Account, Databases, ID, Storage } from 'appwrite';
 
 // SECURITY: This file contains API keys and MUST only be imported by server-side code
 // Fail fast if imported client-side to prevent API key exposure
@@ -45,6 +45,7 @@ export const createAdminClient = () => {
     client,
     account: new Account(client),
     databases: new Databases(client),
+    storage: new Storage(client),
   };
 };
 
@@ -62,6 +63,7 @@ export const createSessionClient = (sessionSecret?: string) => {
     client,
     account: new Account(client),
     databases: new Databases(client),
+    storage: new Storage(client),
   };
 };
 

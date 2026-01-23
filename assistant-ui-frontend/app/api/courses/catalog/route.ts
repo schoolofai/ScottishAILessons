@@ -20,6 +20,7 @@ export async function GET() {
   try {
     // Try to get authenticated session (optional - user may not be logged in)
     let databases;
+    let storage;
     let isAuthenticated = false;
     let user = null;
     let studentId = null;
@@ -27,18 +28,20 @@ export async function GET() {
     try {
       const session = await createSessionClient();
       databases = session.databases;
+      storage = session.storage;
       user = await session.account.get();
       isAuthenticated = true;
     } catch (authError) {
       // User not authenticated - that's OK, we'll show public catalog
       console.log('[Catalog API] Anonymous user, showing public catalog');
 
-      // Create unauthenticated client for public data
-      const { Databases, Client } = await import('node-appwrite');
+      // Create unauthenticated client for public data (need both Databases AND Storage)
+      const { Databases, Client, Storage } = await import('node-appwrite');
       const client = new Client()
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!);
       databases = new Databases(client);
+      storage = new Storage(client);
     }
 
     // Get all courses (increase limit to load all courses, not just default 25)
@@ -49,7 +52,8 @@ export async function GET() {
     console.log(`[Catalog API] Loaded ${coursesResult.documents.length} total courses`);
 
     // Filter courses to only those with published SOWs (version 1)
-    const sowDriver = new AuthoredSOWDriver(databases);
+    // Pass both databases and storage to support storage-backed SOW entries
+    const sowDriver = new AuthoredSOWDriver(databases, storage);
     const publishedCourseIds = await sowDriver.getPublishedCourseIds();
 
     const coursesWithPublishedSOWs = coursesResult.documents.filter(

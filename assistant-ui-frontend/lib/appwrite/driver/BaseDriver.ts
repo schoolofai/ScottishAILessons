@@ -11,7 +11,7 @@ export abstract class BaseDriver {
   protected databases: Databases;
   protected storage: Storage;
 
-  constructor(sessionTokenOrDatabases?: string | Databases) {
+  constructor(sessionTokenOrDatabases?: string | Databases, storageClient?: Storage) {
     // Handle different initialization patterns
     if (typeof sessionTokenOrDatabases === 'string') {
       // Traditional pattern: initialize with session token
@@ -27,10 +27,14 @@ export abstract class BaseDriver {
       this.databases = new Databases(this.client);
       this.storage = new Storage(this.client);
     } else if (sessionTokenOrDatabases && typeof sessionTokenOrDatabases === 'object') {
-      // New pattern: use pre-configured Databases instance from planner service
+      // New pattern: use pre-configured Databases + Storage instances
       this.databases = sessionTokenOrDatabases;
-      // Note: client, account, and storage will be undefined in this case
-      // but most drivers only need databases for CRUD operations
+      // Accept optional storage client for storage-backed SOW entries
+      if (storageClient) {
+        this.storage = storageClient;
+      }
+      // Note: client and account will be undefined in this case
+      // but most drivers only need databases and storage for CRUD operations
     } else {
       // Default: no authentication (for server-side operations)
       this.client = new Client()

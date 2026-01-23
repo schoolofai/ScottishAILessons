@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient, createAdminClient } from '@/lib/server/appwrite';
 import { Query } from 'node-appwrite';
 import { decompressJSON } from '@/lib/appwrite/utils/compression';
+import { parsePaperId } from '../../../utils';
 
 const DATABASE_ID = 'sqa_education';
 const COLLECTION_PAPERS = 'us_papers';
@@ -163,13 +164,56 @@ export async function GET(
 
     console.log(`[API] Fetching walkthrough: ${paperId} Q${decodedQuestionNumber}`);
 
-    // Query for the walkthrough - try both with and without Q prefix
-    // Some walkthroughs store question_number as "14b", others as "Q14b"
+    // Parse paperId to extract query components for paper lookup
+    // paperId format: "subject-levelCode-year-paperCode" (e.g., "applications-of-mathematics-n5-2023-X844-75-01")
+    let parsedPaper;
+    try {
+      parsedPaper = parsePaperId(paperId);
+    } catch (parseError) {
+      const err = parseError as Error;
+      console.error(`[API] Failed to parse paperId: ${err.message}`);
+      return NextResponse.json(
+        { error: `Invalid paper ID format: ${paperId}`, statusCode: 400 },
+        { status: 400 }
+      );
+    }
+
+    const { subject, level, year, paperCode } = parsedPaper;
+    console.log(`[API] Parsed paperId - subject: ${subject}, level: ${level}, year: ${year}, paperCode: ${paperCode}`);
+
+    // First, resolve paperId to actual Appwrite document ID
+    // Walkthroughs store the actual document ID in paper_id field, not the URL-formatted paperId
+    const paperResult = await databases.listDocuments(
+      DATABASE_ID,
+      COLLECTION_PAPERS,
+      [
+        Query.equal('subject', subject),
+        Query.equal('level', level),
+        Query.equal('year', year),
+        Query.equal('paper_code', paperCode),
+        Query.limit(1)
+      ]
+    );
+
+    if (paperResult.documents.length === 0) {
+      console.log(`[API] Paper not found: subject=${subject}, level=${level}, year=${year}, paperCode=${paperCode}`);
+      return NextResponse.json(
+        { error: `Paper not found: ${paperId}`, statusCode: 404 },
+        { status: 404 }
+      );
+    }
+
+    const paperDoc = paperResult.documents[0];
+    const actualPaperId = paperDoc.$id;
+    console.log(`[API] Resolved paperId to actual document ID: ${actualPaperId}`);
+
+    // Query for the walkthrough using actual document ID
+    // Try both with and without Q prefix (some walkthroughs store "14b", others "Q14b")
     let result = await databases.listDocuments(
       DATABASE_ID,
       COLLECTION_WALKTHROUGHS,
       [
-        Query.equal('paper_id', paperId),
+        Query.equal('paper_id', actualPaperId),
         Query.equal('question_number', decodedQuestionNumber),
         Query.equal('status', 'published')
       ]
@@ -183,7 +227,7 @@ export async function GET(
         DATABASE_ID,
         COLLECTION_WALKTHROUGHS,
         [
-          Query.equal('paper_id', paperId),
+          Query.equal('paper_id', actualPaperId),
           Query.equal('question_number', withQPrefix),
           Query.equal('status', 'published')
         ]
@@ -231,15 +275,10 @@ export async function GET(
     console.log(`[API] Retrieved walkthrough with ${content.steps.length} steps`);
 
     // Fetch diagrams from source paper if diagram_refs exist
+    // Note: paperDoc was already fetched earlier when resolving paperId to actual document ID
     let diagrams: Diagram[] = [];
     if (content.diagram_refs && content.diagram_refs.length > 0) {
       try {
-        const paperDoc = await databases.getDocument(
-          DATABASE_ID,
-          COLLECTION_PAPERS,
-          paperId
-        );
-
         const paperData = JSON.parse(paperDoc.data as string);
         diagrams = findQuestionDiagrams(
           paperData.questions || [],
@@ -251,9 +290,9 @@ export async function GET(
 
         // Fix diagram URLs by appending project ID
         diagrams = fixDiagramUrls(diagrams);
-      } catch (paperError) {
+      } catch (diagramError) {
         // Log but don't fail - diagrams are optional enhancement
-        console.warn(`[API] Could not fetch paper for diagrams:`, paperError);
+        console.warn(`[API] Could not parse paper data for diagrams:`, diagramError);
       }
     }
 

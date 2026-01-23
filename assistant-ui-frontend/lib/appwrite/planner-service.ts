@@ -37,6 +37,7 @@ import {
 export class CoursePlannerService {
   private databases;
   private account;
+  private storage;
   private sdkWrapper: AppwriteSDKWrapper;
   private masteryDriver: MasteryDriver;
   private routineDriver: RoutineDriver;
@@ -45,13 +46,15 @@ export class CoursePlannerService {
 
   constructor(sessionSecret?: string) {
     if (sessionSecret) {
-      const { databases, account } = createSessionClient(sessionSecret);
+      const { databases, account, storage } = createSessionClient(sessionSecret);
       this.databases = databases;
       this.account = account;
+      this.storage = storage;
     } else {
-      const { databases, account } = createAdminClient();
+      const { databases, account, storage } = createAdminClient();
       this.databases = databases;
       this.account = account;
+      this.storage = storage;
     }
 
     // Initialize SDK wrapper for edge case handling
@@ -63,9 +66,10 @@ export class CoursePlannerService {
     }
 
     // Initialize drivers for new data structures
+    // Pass storage to SOWDriver for storage-backed SOW entries
     this.masteryDriver = new MasteryDriver(this.databases);
     this.routineDriver = new RoutineDriver(this.databases);
-    this.sowDriver = new SOWDriver(this.databases);
+    this.sowDriver = new SOWDriver(this.databases, this.storage);
     this.evidenceDriver = new EvidenceDriver(this.databases);
   }
 
