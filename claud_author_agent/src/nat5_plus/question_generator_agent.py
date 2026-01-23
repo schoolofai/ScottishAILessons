@@ -439,6 +439,8 @@ async def generate_single_question(
             max_turns=5
         )
 
+        # IMPORTANT: Must consume all messages to avoid async cleanup issues with sequential queries
+        question = None
         async for message in query(prompt=prompt, options=options):
             if hasattr(message, 'structured_output') and message.structured_output:
                 # SDK wraps structured output in 'parameter' key - extract it
@@ -454,9 +456,11 @@ async def generate_single_question(
                 _save_question(question, workspace_path, question_index)
 
                 logger.info(f"Generated question {question_index}: {question.marks} marks")
-                return question
+                # Don't return early - let generator complete
 
-        raise ValueError("No structured output received from LLM")
+        if question is None:
+            raise ValueError("No structured output received from LLM")
+        return question
 
     except ImportError:
         logger.warning("Claude Agent SDK not available, using mock generation")
