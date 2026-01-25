@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSessionClient, createAdminClient } from '@/lib/server/appwrite';
 import { Query } from 'node-appwrite';
 import { decompressJSON } from '@/lib/appwrite/utils/compression';
-import { parsePaperId } from '../../../utils';
+import { parsePaperId } from '../../../../utils';
 
 const DATABASE_ID = 'sqa_education';
 const COLLECTION_PAPERS = 'us_papers';
