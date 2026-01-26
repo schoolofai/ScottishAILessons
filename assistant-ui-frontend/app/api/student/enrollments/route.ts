@@ -3,13 +3,91 @@ import { createSessionClient } from '@/lib/server/appwrite';
 import { Query } from 'node-appwrite';
 
 /**
+ * Calculate lesson progress for a list of courses
+ * Fetches lesson templates and completed sessions to compute actual progress
+ */
+async function calculateCourseProgress(
+  databases: any,
+  courses: any[],
+  studentId: string
+): Promise<any[]> {
+  if (courses.length === 0) return [];
+
+  const courseIds = courses.map(c => c.courseId);
+
+  // Fetch lesson templates for all courses (only published ones count)
+  const lessonTemplatesResult = await databases.listDocuments(
+    'default',
+    'lesson_templates',
+    [
+      Query.equal('courseId', courseIds),
+      Query.equal('status', 'published'),
+      Query.limit(500) // Handle courses with many lessons
+    ]
+  );
+
+  // Group lesson templates by courseId
+  const lessonsByCoureId: Record<string, string[]> = {};
+  for (const template of lessonTemplatesResult.documents) {
+    const courseId = template.courseId;
+    if (!lessonsByCoureId[courseId]) {
+      lessonsByCoureId[courseId] = [];
+    }
+    lessonsByCoureId[courseId].push(template.$id);
+  }
+
+  // Fetch all completed sessions for this student
+  const sessionsResult = await databases.listDocuments(
+    'default',
+    'sessions',
+    [
+      Query.equal('studentId', studentId),
+      Query.equal('status', 'completed'),
+      Query.limit(1000) // Handle students with many sessions
+    ]
+  );
+
+  // Group completed lesson template IDs by courseId
+  const completedByCoureId: Record<string, Set<string>> = {};
+  for (const session of sessionsResult.documents) {
+    const lessonTemplateId = session.lessonTemplateId;
+    // Find which course this lesson belongs to
+    for (const [courseId, lessonIds] of Object.entries(lessonsByCoureId)) {
+      if (lessonIds.includes(lessonTemplateId)) {
+        if (!completedByCoureId[courseId]) {
+          completedByCoureId[courseId] = new Set();
+        }
+        completedByCoureId[courseId].add(lessonTemplateId);
+        break;
+      }
+    }
+  }
+
+  // Enrich courses with calculated progress
+  return courses.map(course => {
+    const courseId = course.courseId;
+    const totalLessons = lessonsByCoureId[courseId]?.length || 0;
+    const completedLessons = completedByCoureId[courseId]?.size || 0;
+    const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+    return {
+      ...course,
+      totalLessons,
+      completedLessons,
+      progress
+    };
+  });
+}
+
+/**
  * GET /api/student/enrollments
  *
  * Fetches enrollments and courses for the authenticated student.
  * Returns both active and archived enrollments with full course data.
+ * Dynamically calculates lesson progress from lesson_templates and sessions.
  *
  * Returns:
- * - 200: Enrollment and course data
+ * - 200: Enrollment and course data with calculated progress
  * - 401: Not authenticated
  * - 500: Server error
  */
@@ -68,8 +146,12 @@ export async function GET() {
         : Promise.resolve({ documents: [] })
     ]);
 
-    const activeCourses = activeCoursesResult.documents;
-    const archivedCourses = archivedCoursesResult.documents;
+    // Calculate actual lesson progress for each course
+    // This fixes the 0/0 bug by computing from lesson_templates + sessions
+    const [activeCoursesWithProgress, archivedCoursesWithProgress] = await Promise.all([
+      calculateCourseProgress(databases, activeCoursesResult.documents, student.$id),
+      calculateCourseProgress(databases, archivedCoursesResult.documents, student.$id)
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -80,8 +162,8 @@ export async function GET() {
           archived: archivedEnrollments
         },
         courses: {
-          active: activeCourses,
-          archived: archivedCourses
+          active: activeCoursesWithProgress,
+          archived: archivedCoursesWithProgress
         }
       }
     });

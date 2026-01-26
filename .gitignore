@@ -117,3 +117,4 @@ logs/
 
 # Ignore claud_author_agent workspaces
 claud_author_agent/workspaces/
+.mcp.json
