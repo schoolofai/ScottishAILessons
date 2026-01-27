@@ -74,48 +74,162 @@ interface WalkthroughContent {
   steps: WalkthroughStep[];
   common_errors: CommonError[];
   examiner_summary: string;
-  diagram_refs: string[];
+  /** @deprecated Diagrams now fetched directly from us_papers. Kept for backward compatibility. */
+  diagram_refs?: string[];
+}
+
+interface PaperQuestion {
+  number: string;
+  text: string;
+  text_latex: string;
+  marks: number | null;
+  has_parts: boolean;
+  parts: QuestionPart[];
+  topic_tags: string[];
+  diagrams?: Diagram[];
+}
+
+interface QuestionPart {
+  part: string;
+  subpart: string | null;
+  text: string;
+  text_latex: string;
+  marks: number;
+  topic_tags: string[];
 }
 
 /**
- * Find diagrams for a question from paper data.
- * Handles part questions by looking up parent question's diagrams.
+ * Parse question number into components.
+ * "1" -> { baseNumber: "1", part: null, subpart: null }
+ * "4a" -> { baseNumber: "4", part: "a", subpart: null }
+ * "5b(i)" -> { baseNumber: "5", part: "b", subpart: "i" }
  */
-function findQuestionDiagrams(
-  questions: Array<{
-    number: string;
-    diagrams?: Diagram[];
-    has_parts?: boolean;
-    parts?: Array<{ part?: string; subpart?: string }>;
-  }>,
-  questionNumber: string,
-  diagramRefs: string[]
+function parseQuestionNumber(questionNumber: string): {
+  baseNumber: string;
+  part: string | null;
+  subpart: string | null;
+} {
+  const pattern = /^(\d+)([a-z])?(?:\(([ivx]+)\))?$/i;
+  const match = questionNumber.match(pattern);
+
+  if (!match) {
+    return { baseNumber: questionNumber, part: null, subpart: null };
+  }
+
+  return {
+    baseNumber: match[1],
+    part: match[2]?.toLowerCase() || null,
+    subpart: match[3]?.toLowerCase() || null
+  };
+}
+
+/**
+ * Find diagrams for a question directly from paper data.
+ * Parts inherit parent question's diagrams (per paper_extractor.py:162).
+ *
+ * This replaces the old diagram_refs-based approach with direct lookup,
+ * ensuring diagrams are always fresh from the source paper.
+ */
+function findQuestionDiagramsDirect(
+  questions: Array<{ number: string; diagrams?: Diagram[] }>,
+  questionNumber: string
 ): Diagram[] {
-  if (!diagramRefs || diagramRefs.length === 0) {
+  const parsed = parseQuestionNumber(questionNumber);
+
+  // Find parent question by base number
+  const parentQuestion = questions.find(q => q.number === parsed.baseNumber);
+  if (!parentQuestion) {
     return [];
   }
 
-  // Build a map of all diagrams across all questions
-  const diagramMap = new Map<string, Diagram>();
+  return parentQuestion.diagrams || [];
+}
 
-  for (const q of questions) {
-    if (q.diagrams) {
-      for (const d of q.diagrams) {
-        diagramMap.set(d.id, d);
-      }
+/**
+ * Find parent question context for multi-part questions.
+ *
+ * Multi-part questions (e.g., "4a", "5b(i)") have a parent question with main
+ * context text that provides crucial setup information. The walkthrough generator
+ * only stores the part-specific text, losing this parent context.
+ *
+ * This function finds the parent question and returns its text to be prepended
+ * to the walkthrough's question_stem for complete context.
+ *
+ * @param questions - Array of questions from paper data
+ * @param questionNumber - The question number (e.g., "4a", "5b(i)")
+ * @returns Object with parent text and text_latex, or null if not a multi-part question
+ */
+function findParentQuestionContext(
+  questions: PaperQuestion[],
+  questionNumber: string
+): { text: string; text_latex: string } | null {
+  const parsed = parseQuestionNumber(questionNumber);
+
+  // Not a multi-part question if no part letter
+  if (!parsed.part) {
+    return null;
+  }
+
+  // Find parent question by base number
+  const parentQuestion = questions.find(q => q.number === parsed.baseNumber);
+  if (!parentQuestion) {
+    console.log(`[API] Parent question ${parsed.baseNumber} not found for ${questionNumber}`);
+    return null;
+  }
+
+  // Only return context if parent has parts and has meaningful text
+  if (!parentQuestion.has_parts) {
+    return null;
+  }
+
+  // Check if parent text is substantive (not just whitespace or very short)
+  const trimmedText = (parentQuestion.text || '').trim();
+  if (trimmedText.length < 10) {
+    // Parent text is too short to be meaningful context
+    return null;
+  }
+
+  console.log(`[API] Found parent context for ${questionNumber}: ${trimmedText.substring(0, 50)}...`);
+
+  return {
+    text: parentQuestion.text,
+    text_latex: parentQuestion.text_latex || parentQuestion.text
+  };
+}
+
+/**
+ * Prepend parent question context to walkthrough content.
+ *
+ * Modifies the walkthrough's question_stem and question_stem_latex to include
+ * the parent question's context text, providing complete question information
+ * for multi-part questions.
+ */
+function prependParentContext(
+  content: WalkthroughContent,
+  parentContext: { text: string; text_latex: string },
+  questionNumber: string
+): WalkthroughContent {
+  const parsed = parseQuestionNumber(questionNumber);
+
+  // Build the part label (e.g., "(a)", "(b)(i)")
+  let partLabel = '';
+  if (parsed.part) {
+    partLabel = `(${parsed.part})`;
+    if (parsed.subpart) {
+      partLabel += `(${parsed.subpart})`;
     }
   }
 
-  // Look up diagrams by their refs
-  const diagrams: Diagram[] = [];
-  for (const ref of diagramRefs) {
-    const diagram = diagramMap.get(ref);
-    if (diagram) {
-      diagrams.push(diagram);
-    }
-  }
+  // Prepend parent context with clear separation
+  // Format: "Parent context text\n\n(a) Part-specific text"
+  const updatedStem = `${parentContext.text.trim()}\n\n**${partLabel}** ${content.question_stem}`;
+  const updatedStemLatex = `${parentContext.text_latex.trim()}\n\n**${partLabel}** ${content.question_stem_latex}`;
 
-  return diagrams;
+  return {
+    ...content,
+    question_stem: updatedStem,
+    question_stem_latex: updatedStemLatex
+  };
 }
 
 /**
@@ -274,26 +388,44 @@ export async function GET(
 
     console.log(`[API] Retrieved walkthrough with ${content.steps.length} steps`);
 
-    // Fetch diagrams from source paper if diagram_refs exist
+    // Parse paper data once for both parent context and diagrams
+    let paperData: { questions: PaperQuestion[] } | null = null;
+    try {
+      paperData = JSON.parse(paperDoc.data as string);
+    } catch (parseError) {
+      console.warn(`[API] Could not parse paper data:`, parseError);
+    }
+
+    // =========================================================================
+    // MULTI-PART QUESTION FIX: Prepend parent question context
+    // =========================================================================
+    // For multi-part questions (e.g., "4a", "5b(i)"), the walkthrough only
+    // contains the part-specific question text. The parent question's main
+    // context (which often contains crucial setup information) is missing.
+    //
+    // This fix fetches the parent question text from the paper data and
+    // prepends it to the walkthrough's question_stem for complete context.
+    // =========================================================================
+    if (paperData) {
+      const parentContext = findParentQuestionContext(
+        paperData.questions || [],
+        decodedQuestionNumber
+      );
+
+      if (parentContext) {
+        console.log(`[API] Prepending parent context for multi-part question ${decodedQuestionNumber}`);
+        content = prependParentContext(content, parentContext, decodedQuestionNumber);
+      }
+    }
+
+    // Fetch diagrams directly from source paper data using question number
+    // This replaces the old diagram_refs approach - diagrams are always fetched fresh
     // Note: paperDoc was already fetched earlier when resolving paperId to actual document ID
     let diagrams: Diagram[] = [];
-    if (content.diagram_refs && content.diagram_refs.length > 0) {
-      try {
-        const paperData = JSON.parse(paperDoc.data as string);
-        diagrams = findQuestionDiagrams(
-          paperData.questions || [],
-          decodedQuestionNumber,
-          content.diagram_refs
-        );
-
-        console.log(`[API] Found ${diagrams.length} diagrams for Q${decodedQuestionNumber}`);
-
-        // Fix diagram URLs by appending project ID
-        diagrams = fixDiagramUrls(diagrams);
-      } catch (diagramError) {
-        // Log but don't fail - diagrams are optional enhancement
-        console.warn(`[API] Could not parse paper data for diagrams:`, diagramError);
-      }
+    if (paperData) {
+      diagrams = findQuestionDiagramsDirect(paperData.questions || [], decodedQuestionNumber);
+      diagrams = fixDiagramUrls(diagrams);
+      console.log(`[API] Found ${diagrams.length} diagrams for Q${decodedQuestionNumber} (direct fetch)`);
     }
 
     // Return the walkthrough with full diagram objects

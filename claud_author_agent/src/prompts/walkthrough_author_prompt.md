@@ -20,6 +20,27 @@ You are creating content that gives students a **competitive advantage**:
 3. **Error Prevention**: Warn about common errors — "If you omit brackets here, you lose this mark"
 4. **Notation Precision**: Match the notation and phrasing examiners expect
 
+## Content Quality Principle
+
+While V1 walkthroughs focus on examiner alignment, the `working` field should still be helpful to students:
+
+- Don't just copy terse examiner answers verbatim if they're unclear
+- Show meaningful working that demonstrates the result, not just labels
+- For software/construction tasks, the `working` should describe what the output looks like
+
+**Example - Software Question:**
+```
+Examiner answer: "Histogram of hours"
+Better working: "Histogram showing frequency distribution with hours on x-axis,
+                frequency on y-axis, bars touching (continuous data)"
+```
+
+The `process` field stays as examiner language, but `working` should be clear enough for students to verify their own work.
+
+## Supporting Resources
+
+If `walkthrough_source.json` includes `available_resources`, these are data files (CSV, spreadsheets) that students may need for the question. When relevant, reference the filename in your walkthrough so students know which file to use.
+
 ## Input Files
 
 Read these files from your workspace using `pwd` for the absolute path:
@@ -68,49 +89,9 @@ Generate the walkthrough and write to `walkthrough_template.json`:
     }
   ],
   "common_errors": [],
-  "examiner_summary": "Correct answer without working scores 0/2. Both marks require evidence of method.",
-  "diagram_refs": ["diag-n5-2023-p1-q1-abc123"]
+  "examiner_summary": "Correct answer without working scores 0/2. Both marks require evidence of method."
 }
 ```
-
-## Critical: diagram_refs Format
-
-When the question has diagrams in `walkthrough_source.json`, you MUST extract ONLY the string IDs:
-
-1. Read the `diagrams` array from the source question
-2. Extract ONLY the `id` field from each diagram object
-3. Write as a flat list of strings to `diagram_refs`
-
-**Example Source (walkthrough_source.json):**
-```json
-{
-  "question": {
-    "diagrams": [
-      {"id": "diag-n5-2023-p1-q4-abc123", "file_id": "xyz", "context": "question"},
-      {"id": "diag-n5-2023-p1-q4-def456", "file_id": "uvw", "context": "question"}
-    ]
-  }
-}
-```
-
-**CORRECT output (walkthrough_template.json):**
-```json
-{
-  "diagram_refs": ["diag-n5-2023-p1-q4-abc123", "diag-n5-2023-p1-q4-def456"]
-}
-```
-
-**WRONG output (causes Pydantic validation failure):**
-```json
-{
-  "diagram_refs": [
-    {"id": "diag-n5-2023-p1-q4-abc123"},
-    {"id": "diag-n5-2023-p1-q4-def456"}
-  ]
-}
-```
-
-If no diagrams exist, use an empty array: `"diagram_refs": []`
 
 ## Critical Mapping Rules
 
@@ -155,7 +136,7 @@ Distribute notes from `solution.notes[]` to relevant steps:
 If `parent_context` exists:
 - The question is a sub-part (e.g., "4a", "5b(ii)")
 - Include parent context in your understanding but focus on this part's marking scheme
-- Parent diagrams are inherited — reference them via `diagram_refs`
+- Parent diagrams are inherited (handled automatically by the frontend)
 
 ## LaTeX Formatting Rules
 
@@ -180,7 +161,6 @@ If `parent_context` exists:
 | `working_latex` | Valid LaTeX |
 | `marks_earned` | Integer ≥ 0, typically 1 |
 | `examiner_notes` | Optional, from solution.notes |
-| `diagram_refs` | List of **string IDs only**. Extract `id` from diagram objects. Format: `["diag-id"]` NOT `[{"id": "diag-id"}]` |
 
 ## Validation Rules
 
@@ -203,16 +183,18 @@ If `parent_context` exists:
 
 1. Read `walkthrough_source.json` to understand the question and marking scheme
 2. Read `paper_context.json` for general marking principles
-3. For each bullet in `generic_scheme`:
+3. Check `available_resources` in walkthrough_source.json - if relevant files exist, note them for reference
+4. For each bullet in `generic_scheme`:
    - Create a step with the process description
-   - Map the corresponding `illustrative_scheme` working
+   - Map the corresponding `illustrative_scheme` working (improve clarity if needed)
    - Add relevant examiner notes from `solution.notes`
    - Generate an appropriate label
-4. Copy topic_tags from source
-5. Set `examiner_summary` from general notes
-6. Reference any diagrams via their IDs
-7. Leave `common_errors` empty (will be filled by errors subagent)
-8. Write to `walkthrough_template.json`
+   - Reference file names from available_resources where relevant
+5. Copy topic_tags from source
+6. Set `examiner_summary` from general notes
+7. Reference any diagrams via their IDs
+8. Leave `common_errors` empty (will be filled by errors subagent)
+9. Write to `walkthrough_template.json`
 
 ## Important Notes
 

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, FileText, Calculator, Clock, BookOpen } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -60,7 +59,8 @@ interface WalkthroughContentData {
   steps: WalkthroughStep[];
   common_errors: CommonError[];
   examiner_summary: string;
-  diagram_refs: string[];
+  /** @deprecated Diagrams now fetched directly from us_papers. Kept for backward compatibility. */
+  diagram_refs?: string[];
 }
 
 interface WalkthroughData {
@@ -122,7 +122,9 @@ export function PaperViewer({
   urlParams,
 }: PaperViewerProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+
+  // Track if initial question selection has been applied (one-time only)
+  const initialSelectionApplied = useRef(false);
 
   // Paper data state
   const [paper, setPaper] = useState<PaperData | null>(null);
@@ -148,7 +150,8 @@ export function PaperViewer({
   // Mobile drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Fetch paper data
+  // Fetch paper data - only depends on paperId, NOT initialQuestion
+  // This prevents re-fetching when URL query param changes
   useEffect(() => {
     async function fetchPaper() {
       try {
@@ -170,16 +173,6 @@ export function PaperViewer({
           paperId,
           questionCount: data.paper?.questions?.length,
         });
-
-        // If initial question is set, select it
-        if (initialQuestion && data.paper) {
-          const questionExists = data.paper.questions.some(
-            (q: QuestionItem) => q.number === initialQuestion
-          );
-          if (questionExists) {
-            setSelectedQuestion(initialQuestion);
-          }
-        }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         setPaperError(message);
@@ -190,7 +183,22 @@ export function PaperViewer({
     }
 
     fetchPaper();
-  }, [paperId, initialQuestion]);
+  }, [paperId]);
+
+  // Apply initial question selection once paper is loaded (one-time only)
+  // This effect handles the ?q= URL parameter on initial page load
+  useEffect(() => {
+    if (paper && initialQuestion && !initialSelectionApplied.current) {
+      const questionExists = paper.questions.some(
+        (q: QuestionItem) => q.number === initialQuestion
+      );
+      if (questionExists) {
+        setSelectedQuestion(initialQuestion);
+        logger.info('Applied initial question selection', { initialQuestion });
+      }
+      initialSelectionApplied.current = true;
+    }
+  }, [paper, initialQuestion]);
 
   // Fetch walkthrough when question is selected
   useEffect(() => {
@@ -244,22 +252,26 @@ export function PaperViewer({
     fetchWalkthrough();
   }, [selectedQuestion, paperId, paper]);
 
-  // Sync selected question to URL
+  // Sync selected question to URL using native History API
+  // This prevents triggering React/Next.js router state changes which would
+  // cause the parent component to re-render with new searchParams
   useEffect(() => {
-    if (!paper) return;
+    if (!paper || typeof window === 'undefined') return;
 
-    const currentQ = searchParams.get('q');
+    // Get current URL query param
+    const currentUrl = new URL(window.location.href);
+    const currentQ = currentUrl.searchParams.get('q');
 
     if (selectedQuestion && selectedQuestion !== currentQ) {
       // Update URL with new question
       const newUrl = `/past-papers/${urlParams.subject}/${urlParams.level}/${urlParams.year}/${urlParams.paperCode}?q=${encodeURIComponent(selectedQuestion)}`;
-      router.replace(newUrl, { scroll: false });
+      window.history.replaceState(null, '', newUrl);
     } else if (!selectedQuestion && currentQ) {
       // Remove question from URL
       const newUrl = `/past-papers/${urlParams.subject}/${urlParams.level}/${urlParams.year}/${urlParams.paperCode}`;
-      router.replace(newUrl, { scroll: false });
+      window.history.replaceState(null, '', newUrl);
     }
-  }, [selectedQuestion, searchParams, urlParams, router, paper]);
+  }, [selectedQuestion, urlParams, paper]);
 
   // Handle question selection
   const handleSelectQuestion = useCallback((questionNumber: string) => {

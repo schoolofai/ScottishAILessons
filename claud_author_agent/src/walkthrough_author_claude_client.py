@@ -27,6 +27,7 @@ from .utils.course_mapper import (
     is_v2_pilot_paper,
 )
 from .utils.lesson_linker import build_prerequisite_links
+from .utils.appwrite_client import download_file_content
 from pydantic import ValidationError as PydanticValidationError
 from .models.walkthrough_models import (
     WalkthroughDocument,
@@ -110,7 +111,8 @@ def generate_blank_walkthrough_template(
         "steps": [],  # To be filled by agent
         "common_errors": [],  # To be filled by errors subagent
         "examiner_summary": "",  # To be filled by agent
-        "diagram_refs": [d.get("id", "") for d in question.get("diagrams", [])]
+        # diagram_refs deprecated - diagrams now fetched directly from us_papers
+        "diagram_refs": []
     }
 
 
@@ -814,6 +816,95 @@ Do NOT change any other fields in the template.
             # In tests, this will be mocked
             raise
 
+    async def _download_resources_to_workspace(
+        self,
+        paper_doc: Dict[str, Any],
+        workspace_path: Path
+    ) -> List[Dict[str, Any]]:
+        """Download all supporting resources to workspace/resources/ directory.
+
+        Reads the supporting_resources field from the paper document and downloads
+        each file from Appwrite Storage to enable the agent to read file content
+        and generate content-aware guidance.
+
+        Args:
+            paper_doc: Paper document from us_papers collection
+            workspace_path: Path to the workspace directory
+
+        Returns:
+            List of resource metadata dicts with local_path added, e.g.:
+            [
+                {
+                    "filename": "Q5 Radio.csv",
+                    "resource_type": "data_file",
+                    "description": "Data File: Q5 Radio",
+                    "local_path": "resources/Q5 Radio.csv"
+                }
+            ]
+        """
+        resources_dir = workspace_path / "resources"
+        resources_dir.mkdir(exist_ok=True)
+
+        # Parse supporting_resources field (JSON string or dict)
+        resources_str = paper_doc.get("supporting_resources", "{}")
+        try:
+            if isinstance(resources_str, str):
+                resources_data = json.loads(resources_str) if resources_str else {}
+            else:
+                resources_data = resources_str or {}
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse supporting_resources JSON: {e}")
+            return []
+
+        resources = resources_data.get("resources", [])
+        if not resources:
+            logger.info("No supporting resources found in paper document")
+            return []
+
+        logger.info(f"📁 Downloading {len(resources)} supporting resources to workspace...")
+        downloaded = []
+
+        # Get bucket ID for supporting resources
+        # US papers use 'us_resources' bucket for supporting files
+        bucket_id = "us_resources"
+
+        for resource in resources:
+            file_id = resource.get("file_id")
+            filename = resource.get("filename", "unknown")
+
+            if not file_id:
+                logger.warning(f"Resource '{filename}' has no file_id, skipping")
+                continue
+
+            try:
+                # Download file from Appwrite storage
+                local_path = resources_dir / filename
+                logger.debug(f"Downloading {filename} (file_id={file_id})...")
+
+                file_content = download_file_content(
+                    bucket_id=bucket_id,
+                    file_id=file_id
+                )
+
+                # Write to local file
+                local_path.write_bytes(file_content)
+                logger.info(f"  ✓ Downloaded: {filename} ({len(file_content)} bytes)")
+
+                # Add to downloaded list with relative path
+                downloaded.append({
+                    "filename": filename,
+                    "resource_type": resource.get("resource_type", "unknown"),
+                    "description": resource.get("description", ""),
+                    "local_path": str(local_path.relative_to(workspace_path))
+                })
+
+            except Exception as e:
+                # Log warning but continue - resources are optional for walkthrough generation
+                logger.warning(f"  ⚠ Failed to download '{filename}': {e}")
+
+        logger.info(f"✅ Downloaded {len(downloaded)}/{len(resources)} resources successfully")
+        return downloaded
+
     async def _run_agent_pipeline(
         self,
         workspace_path: Path,
@@ -1135,6 +1226,32 @@ Begin by calling the walkthrough_author subagent.
 
                 preprocess_start = datetime.now()
 
+                # ─────────────────────────────────────────────────────────────────
+                # SUPPORTING RESOURCES: Download to workspace for agent access
+                # ─────────────────────────────────────────────────────────────────
+                # Agent can read these files to generate content-aware guidance
+                # (e.g., knowing column names in Q5 Radio.csv for histogram steps)
+
+                downloaded_resources = await self._download_resources_to_workspace(
+                    paper_doc=paper_doc,
+                    workspace_path=workspace_path
+                )
+
+                # Add available_resources to question_source so agent can see them
+                if downloaded_resources:
+                    question_source["available_resources"] = [
+                        {
+                            "filename": r["filename"],
+                            "resource_type": r["resource_type"],
+                            "description": r["description"],
+                            "local_path": r["local_path"]  # Where agent can read it
+                        }
+                        for r in downloaded_resources
+                    ]
+                    logger.info(f"📂 Added {len(downloaded_resources)} available_resources to walkthrough source")
+                else:
+                    question_source["available_resources"] = []
+
                 # Build prerequisite links for V2 papers
                 if use_v2:
                     topic_tags = question_source.get("question", {}).get("topic_tags", [])
@@ -1181,6 +1298,13 @@ Begin by calling the walkthrough_author subagent.
                 preprocess_end = datetime.now()
                 preprocess_duration_ms = int((preprocess_end - preprocess_start).total_seconds() * 1000)
 
+                # Build list of files created during pre-processing
+                files_created = ["walkthrough_source.json", "paper_context.json", "walkthrough_template.json"]
+                if downloaded_resources:
+                    # Include resource filenames in files_created for observability
+                    for r in downloaded_resources:
+                        files_created.append(r["local_path"])
+
                 # Update execution log with pre-processing stage
                 self._update_execution_log(
                     workspace_path=workspace_path,
@@ -1189,7 +1313,7 @@ Begin by calling the walkthrough_author subagent.
                     started_at=preprocess_start.isoformat(),
                     completed_at=preprocess_end.isoformat(),
                     duration_ms=preprocess_duration_ms,
-                    files_created=["walkthrough_source.json", "paper_context.json", "walkthrough_template.json"]
+                    files_created=files_created
                 )
 
                 # ═══════════════════════════════════════════════════════════════

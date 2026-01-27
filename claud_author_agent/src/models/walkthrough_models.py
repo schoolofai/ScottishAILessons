@@ -204,7 +204,8 @@ class QuestionWalkthrough(BaseModel):
     )
     diagram_refs: List[str] = Field(
         default_factory=list,
-        description="References to diagrams from us_papers if applicable"
+        description="DEPRECATED: Diagrams now fetched directly from us_papers. "
+                    "Kept for backward compatibility with existing walkthroughs."
     )
 
     # V2 Pedagogical field

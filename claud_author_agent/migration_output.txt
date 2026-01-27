@@ -1,0 +1,266 @@
+2026-01-26 20:18:07,605 - INFO - ======================================================================
+2026-01-26 20:18:07,605 - INFO - OutcomeRefs Migration: SOW -> lesson_templates
+2026-01-26 20:18:07,605 - INFO - ======================================================================
+2026-01-26 20:18:07,605 - INFO - Mode: EXECUTE
+2026-01-26 20:18:07,605 - INFO - Log file: migration_outcomeRefs_20260126_201807.log
+2026-01-26 20:18:07,605 - INFO - Scanning for affected courses...
+2026-01-26 20:18:08,124 - INFO - Found 10 courses with NULL outcomeRefs
+2026-01-26 20:18:08,124 - INFO - 
+2026-01-26 20:18:08,124 - INFO - ======================================================================
+2026-01-26 20:18:08,124 - INFO - Migrating course_c72473
+2026-01-26 20:18:08,124 - INFO - ======================================================================
+2026-01-26 20:18:08,124 - INFO - Fetching SOW for course_c72473...
+2026-01-26 20:18:08,259 - INFO - Found 16 SOW entries
+2026-01-26 20:18:08,386 - INFO - Found 4 course_outcomes with IDs: ['1', '2']...
+2026-01-26 20:18:08,524 - INFO - Found 16 lessons
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Identifying Main Ideas in Written Texts: ['H2WT-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Revision: Identifying Main Ideas in Written Texts
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Language Choice and Effects: ['H2WT-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Revision: Language Choice and Effects
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Understanding Spoken Language: Identifying Main Ideas in Listening: ['H2WT-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Understanding Spoken Language: Identifying Main Ideas in Listening
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Identifying Main Ideas in Listening: ['H2WT-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Revision: Identifying Main Ideas in Listening
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Formative Assessment: Understanding Language (Reading and Listening): ['H2WT-1', 'H2WT-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Formative Assessment: Understanding Language (Reading and Listening)
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Producing Written Language: Planning and Structure for Simple Texts: ['H2WV-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Producing Written Language: Planning and Structure for Simple Texts
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Producing Spoken Language - Talk Practice and Refinement: ['H2WV-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Revision: Producing Spoken Language - Talk Practice and Refinement
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Producing Spoken Language: Planning and Delivering a Simple Talk: ['H2WV-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Producing Spoken Language: Planning and Delivering a Simple Talk
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Untitled Lesson: ['H2WV-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Untitled Lesson
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Mock Assessment: Complete Unit Assessment (Understanding and Producing Language): ['H2WT-1', 'H2WT-2', 'H2WV-1', 'H2WV-2'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Mock Assessment: Complete Unit Assessment (Understanding and Producing Language)
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Understanding Written Language: Identifying Main Ideas in Simple Texts: ['H2WT-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Understanding Written Language: Identifying Main Ideas in Simple Texts
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Understanding Written Language: Awareness of Language Choice: ['H2WT-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Understanding Written Language: Awareness of Language Choice
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Producing Written Language - Planning and Structure Practice: ['H2WV-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Revision: Producing Written Language - Planning and Structure Practice
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Producing Written Language: Drafting and Applying Language Knowledge: ['H2WV-1'] (not in course_outcomes)
+2026-01-26 20:18:08,524 - WARNING -   SKIP (no valid codes): Producing Written Language: Drafting and Applying Language Knowledge
+2026-01-26 20:18:08,524 - WARNING -   WARNING: Invalid codes for Revision: Writing - Planning, Language, and Accuracy: ['H2WV-1'] (not in course_outcomes)
+2026-01-26 20:18:08,525 - WARNING -   SKIP (no valid codes): Revision: Writing - Planning, Language, and Accuracy
+2026-01-26 20:18:08,525 - WARNING -   WARNING: Invalid codes for Independent Practice: Producing a Complete Written Text: ['H2WV-1'] (not in course_outcomes)
+2026-01-26 20:18:08,525 - WARNING -   SKIP (no valid codes): Independent Practice: Producing a Complete Written Text
+2026-01-26 20:18:08,525 - INFO - 
+2026-01-26 20:18:08,525 - INFO - ======================================================================
+2026-01-26 20:18:08,525 - INFO - Migrating course_c72474
+2026-01-26 20:18:08,525 - INFO - ======================================================================
+2026-01-26 20:18:08,525 - INFO - Fetching SOW for course_c72474...
+2026-01-26 20:18:08,654 - INFO - Found 13 SOW entries
+2026-01-26 20:18:08,777 - INFO - Found 5 course_outcomes with IDs: ['O1', None, 'O2']...
+2026-01-26 20:18:08,916 - INFO - Found 13 lessons
+2026-01-26 20:18:09,066 - INFO -   UPDATED: Reading Revision: Main Ideas and Supporting Details Practice -> ["O1"]
+2026-01-26 20:18:09,210 - INFO -   UPDATED: Language Analysis: Understanding How Writers Use Language for Effect -> ["O1"]
+2026-01-26 20:18:09,348 - INFO -   UPDATED: Language Analysis Revision: Consolidating Skills -> ["O1"]
+2026-01-26 20:18:09,475 - INFO -   UPDATED: Formative Assessment: Reading Analysis Skills Check -> ["O1"]
+2026-01-26 20:18:09,622 - INFO -   UPDATED: Listening Skills: Understanding Spoken Language Main Ideas and Details -> ["O2"]
+2026-01-26 20:18:09,777 - INFO -   UPDATED: Writing Skills: Selecting Content and Structure for Purpose and Audience -> ["O1"]
+2026-01-26 20:18:09,906 - INFO -   UPDATED: Independent Practice: Assignment Preparation and Research Skills -> ["O1"]
+2026-01-26 20:18:10,062 - INFO -   UPDATED: Mock Assessment: Full Analysis and Evaluation Practice -> ["O1", "O2"]
+2026-01-26 20:18:10,202 - INFO -   UPDATED: Revision: Talking Skills and Discussion Techniques -> ["O2"]
+2026-01-26 20:18:10,342 - INFO -   UPDATED: Untitled Lesson -> ["O1"]
+2026-01-26 20:18:10,482 - INFO -   UPDATED: Writing Revision: Developing Content and Structure Skills -> ["O1"]
+2026-01-26 20:18:10,627 - INFO -   UPDATED: Talking Skills: Contributing to Discussions with Appropriate Language -> ["O2"]
+2026-01-26 20:18:10,761 - INFO -   UPDATED: Listening Skills Revision and Spoken Language Analysis Practice -> ["O2"]
+2026-01-26 20:18:10,761 - INFO - 
+2026-01-26 20:18:10,761 - INFO - ======================================================================
+2026-01-26 20:18:10,761 - INFO - Migrating course_c74774
+2026-01-26 20:18:10,761 - INFO - ======================================================================
+2026-01-26 20:18:10,761 - INFO - Fetching SOW for course_c74774...
+2026-01-26 20:18:10,879 - INFO - Found 14 SOW entries
+2026-01-26 20:18:11,012 - INFO - Found 6 course_outcomes with IDs: ['O1', 'O2']...
+2026-01-26 20:18:11,170 - INFO - Found 14 lessons
+2026-01-26 20:18:11,321 - INFO -   UPDATED: Algebraic Expressions: Expanding Brackets and Simplifying -> ["O1"]
+2026-01-26 20:18:11,456 - INFO -   UPDATED: Geometric Skills: Perimeter, Area, and Volume -> ["O1"]
+2026-01-26 20:18:11,592 - INFO -   UPDATED: Geometric Skills: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:11,738 - INFO -   UPDATED: Statistical Skills: Data Handling and Averages (AS1.3) -> ["O1"]
+2026-01-26 20:18:11,880 - INFO -   UPDATED: Statistical Skills: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:12,020 - INFO -   UPDATED: Linear Relationships: Equations and Graphs (AS1.1) -> ["O1"]
+2026-01-26 20:18:12,175 - INFO -   UPDATED: Linear Relationships: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:12,329 - INFO -   UPDATED: Trigonometry and Pythagoras: Right-Angled Triangles -> ["O1"]
+2026-01-26 20:18:12,496 - INFO -   UPDATED: Trigonometry and Pythagoras: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:12,637 - INFO -   UPDATED: Scattergraphs: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:12,777 - INFO -   UPDATED: Mock Assessment: National 4 Mathematics Test Preparation -> ["O1", "O2"]
+2026-01-26 20:18:12,920 - INFO -   UPDATED: Algebraic Expressions: Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:13,070 - INFO -   UPDATED: Independent Practice: Cross-Unit Integration -> ["O1", "O2"]
+2026-01-26 20:18:13,202 - INFO -   UPDATED: Scattergraphs and Best-Fitting Lines (AS1.4) -> ["O1"]
+2026-01-26 20:18:13,202 - INFO - 
+2026-01-26 20:18:13,202 - INFO - ======================================================================
+2026-01-26 20:18:13,202 - INFO - Migrating course_c75773
+2026-01-26 20:18:13,202 - INFO - ======================================================================
+2026-01-26 20:18:13,202 - INFO - Fetching SOW for course_c75773...
+2026-01-26 20:18:13,332 - INFO - Found 12 SOW entries
+2026-01-26 20:18:13,453 - INFO - Found 6 course_outcomes with IDs: ['1', '2']...
+2026-01-26 20:18:13,577 - INFO - Found 12 lessons
+2026-01-26 20:18:13,724 - INFO -   UPDATED: Electricity and Energy: Energy Sources and Making Statements -> ["2"]
+2026-01-26 20:18:13,867 - INFO -   UPDATED: Energy Sources Revision: Consolidating Knowledge -> ["2"]
+2026-01-26 20:18:14,008 - INFO -   UPDATED: Electricity Basics: Circuits and Problem-Solving -> ["2"]
+2026-01-26 20:18:14,155 - INFO -   UPDATED: Electricity Circuits Revision: Components and Problem-Solving -> ["2"]
+2026-01-26 20:18:14,295 - INFO -   UPDATED: Practical Investigation: Testing Circuit Components (Outcome 1) -> ["1"]
+2026-01-26 20:18:14,436 - INFO -   UPDATED: Scientific Investigation Skills Revision (Outcome 1) -> ["1"]
+2026-01-26 20:18:14,586 - INFO -   UPDATED: Waves and Radiation: Wave Properties and Sound -> ["2"]
+2026-01-26 20:18:14,742 - INFO -   UPDATED: Dynamics and Space: Forces and Motion -> ["2"]
+2026-01-26 20:18:14,879 - INFO -   UPDATED: Wave Properties Revision: Sound and Light -> ["2"]
+2026-01-26 20:18:15,014 - INFO -   UPDATED: Forces and Motion Revision: Problem-Solving Practice -> ["2"]
+2026-01-26 20:18:15,159 - INFO -   UPDATED: Independent Practice: Mixed Physics Problems -> ["2"]
+2026-01-26 20:18:15,303 - INFO -   UPDATED: Mock Assessment: National 3 Physics Internal Unit Test -> ["2"]
+2026-01-26 20:18:15,303 - INFO - 
+2026-01-26 20:18:15,303 - INFO - ======================================================================
+2026-01-26 20:18:15,303 - INFO - Migrating course_c75774
+2026-01-26 20:18:15,303 - INFO - ======================================================================
+2026-01-26 20:18:15,303 - INFO - Fetching SOW for course_c75774...
+2026-01-26 20:18:15,425 - INFO - Found 13 SOW entries
+2026-01-26 20:18:15,549 - INFO - Found 6 course_outcomes with IDs: ['1', '2']...
+2026-01-26 20:18:15,670 - INFO - Found 13 lessons
+2026-01-26 20:18:15,812 - INFO -   UPDATED: Introduction to Scientific Investigation and Safety -> ["1"]
+2026-01-26 20:18:15,958 - INFO -   UPDATED: Electricity and Energy: Generation and Sources -> ["2"]
+2026-01-26 20:18:16,120 - INFO -   UPDATED: Revision: Renewable Energy and Generation -> ["2"]
+2026-01-26 20:18:16,263 - INFO -   UPDATED: Revision: Scientific Investigation and Energy Sources -> ["1", "2"]
+2026-01-26 20:18:16,399 - INFO -   UPDATED: Formative Assessment: Scientific Skills and Energy Knowledge -> ["1", "2"]
+2026-01-26 20:18:16,535 - INFO -   UPDATED: Electricity: Voltage, Current, and Resistance -> ["2"]
+2026-01-26 20:18:16,684 - INFO -   UPDATED: Revision: Voltage, Current, and Resistance -> ["2"]
+2026-01-26 20:18:16,827 - INFO -   UPDATED: Waves and Radiation: Wave Properties and Behaviour -> ["2"]
+2026-01-26 20:18:16,996 - INFO -   UPDATED: Revision: Wave Properties and Calculations -> ["2"]
+2026-01-26 20:18:17,157 - INFO -   UPDATED: Independent Practice: Electricity and Waves Problem-Solving -> ["2"]
+2026-01-26 20:18:17,345 - INFO -   UPDATED: Dynamics and Space: Speed, Distance, and Time -> ["2"]
+2026-01-26 20:18:17,492 - INFO -   UPDATED: Revision: Speed, Distance, and Time Calculations -> ["2"]
+2026-01-26 20:18:17,655 - INFO -   UPDATED: Mock Assessment: Physics National 4 Outcome 2 -> ["2"]
+2026-01-26 20:18:17,655 - INFO - 
+2026-01-26 20:18:17,655 - INFO - ======================================================================
+2026-01-26 20:18:17,655 - INFO - Migrating course_c84473
+2026-01-26 20:18:17,655 - INFO - ======================================================================
+2026-01-26 20:18:17,655 - INFO - Fetching SOW for course_c84473...
+2026-01-26 20:18:18,088 - INFO - Found 16 SOW entries
+2026-01-26 20:18:18,245 - INFO - Found 6 course_outcomes with IDs: ['O1', 'O2']...
+2026-01-26 20:18:18,391 - INFO - Found 14 lessons
+2026-01-26 20:18:18,548 - INFO -   UPDATED: Money Notation, Operations and Calculations -> ["O1"]
+2026-01-26 20:18:18,706 - INFO -   UPDATED: Money Skills Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:18,890 - INFO -   UPDATED: Measurement: Recording and Interpreting -> ["O1"]
+2026-01-26 20:18:19,035 - INFO -   UPDATED: Data Interpretation and Probability (AS2.1, AS2.2, AS2.3) -> ["O2"]
+2026-01-26 20:18:19,172 - INFO -   UPDATED: Data and Probability Revision - National 3 Numeracy -> ["O2"]
+2026-01-26 20:18:19,304 - INFO -   UPDATED: Shape and Space: Perimeter, Area, Volume (AS1.1-1.2) -> ["O1"]
+2026-01-26 20:18:19,436 - INFO -   UPDATED: Shape Revision, Directions and Patterns (AS1.3, AS1.4) -> ["O1"]
+2026-01-26 20:18:19,561 - INFO -   UPDATED: Measurement Units, Formulae and Scale -> ["O2"]
+2026-01-26 20:18:19,726 - INFO -   UPDATED: Shape, Space and Measures Unit Assessment -> ["O1", "O2"]
+2026-01-26 20:18:19,862 - INFO -   UPDATED: Measurement Skills Revision for Everyday Life -> ["O1"]
+2026-01-26 20:18:19,998 - INFO -   UPDATED: Numeracy Unit Assessment: Money, Measurement and Data Skills -> ["O1", "O2"]
+2026-01-26 20:18:20,423 - INFO -   UPDATED: Managing Data: Organizing, Calculating, Representing, Interpreting (AS2.1-2.4) -> ["O2"]
+2026-01-26 20:18:20,561 - INFO -   UPDATED: Scale Factors, Time Intervals and Measures Revision (AS2.4, AS2.5) -> ["O2"]
+2026-01-26 20:18:20,716 - INFO -   UPDATED: Managing Money: Income, Budgets, Savings, Best Deals (AS1.1-1.4) -> ["O1"]
+2026-01-26 20:18:20,716 - INFO - 
+2026-01-26 20:18:20,717 - INFO - ======================================================================
+2026-01-26 20:18:20,717 - INFO - Migrating course_c84474
+2026-01-26 20:18:20,717 - INFO - ======================================================================
+2026-01-26 20:18:20,717 - INFO - Fetching SOW for course_c84474...
+2026-01-26 20:18:20,843 - INFO - Found 16 SOW entries
+2026-01-26 20:18:20,970 - INFO - Found 6 course_outcomes with IDs: ['O1', 'O2']...
+2026-01-26 20:18:21,120 - INFO - Found 18 lessons
+2026-01-26 20:18:21,268 - INFO -   UPDATED: Financial Problem-Solving: Interpret, Calculate, Explain -> ["O1"]
+2026-01-26 20:18:21,404 - INFO -   UPDATED: Statistical Data Interpretation and Representation -> ["O2"]
+2026-01-26 20:18:21,541 - INFO -   UPDATED: Statistical Data Analysis and Comparison Revision -> ["O2"]
+2026-01-26 20:18:21,683 - INFO -   UPDATED: Teaching: Using Numerical Notation and Units -> ["O1"]
+2026-01-26 20:18:21,820 - INFO -   UPDATED: Teaching: Using Numerical Notation and Units -> ["O1"]
+2026-01-26 20:18:21,963 - INFO -   UPDATED: Teaching: Using Numerical Notation and Units -> ["O1"]
+2026-01-26 20:18:22,102 - INFO -   UPDATED: Financial Problem-Solving Revision and Consolidation -> ["O1"]
+2026-01-26 20:18:22,233 - INFO -   UPDATED: Measurement Skills Revision and Complex Problems -> ["O1"]
+2026-01-26 20:18:22,375 - INFO -   UPDATED: Geometric Skills: Shapes, Angles, and Properties -> ["O2"]
+2026-01-26 20:18:22,518 - INFO -   UPDATED: Geometric Skills Revision and Application -> ["O2"]
+2026-01-26 20:18:22,674 - INFO -   UPDATED: Numeracy: Calculations, Units, and Notation -> ["O1"]
+2026-01-26 20:18:22,811 - INFO -   UPDATED: Numeracy: Recording and Interpreting Measurements -> ["O1"]
+2026-01-26 20:18:22,974 - INFO -   UPDATED: Numeracy: Graphical Data and Probability -> ["O2"]
+2026-01-26 20:18:23,115 - INFO -   UPDATED: Numeracy Skills Consolidation and Integration -> ["O1", "O2"]
+2026-01-26 20:18:23,244 - INFO -   UPDATED: Cross-Unit Integration: Finance, Statistics, Geometry, Numeracy -> ["O1", "O2"]
+2026-01-26 20:18:23,381 - INFO -   UPDATED: Added Value Unit: Mock Assessment -> ["O1", "O2"]
+2026-01-26 20:18:23,507 - INFO -   UPDATED: Measurement Skills: Interpreting and Calculating -> ["O1"]
+2026-01-26 20:18:23,639 - INFO -   UPDATED: Unit 1 Formative Assessment: Finance and Statistics -> ["O1", "O2"]
+2026-01-26 20:18:23,639 - INFO - 
+2026-01-26 20:18:23,639 - INFO - ======================================================================
+2026-01-26 20:18:23,639 - INFO - Migrating course_c84475
+2026-01-26 20:18:23,639 - INFO - ======================================================================
+2026-01-26 20:18:23,639 - INFO - Fetching SOW for course_c84475...
+2026-01-26 20:18:23,746 - INFO - Found 12 SOW entries
+2026-01-26 20:18:23,882 - INFO - Found 0 course_outcomes with IDs: []...
+2026-01-26 20:18:23,882 - ERROR - FAILED to migrate course_c84475: No course_outcomes found for course_c84475. Run seedSingleCourse.ts first to populate course_outcomes.
+2026-01-26 20:18:23,882 - INFO - 
+2026-01-26 20:18:23,882 - INFO - ======================================================================
+2026-01-26 20:18:23,882 - INFO - Migrating course_c84775
+2026-01-26 20:18:23,882 - INFO - ======================================================================
+2026-01-26 20:18:23,882 - INFO - Fetching SOW for course_c84775...
+2026-01-26 20:18:24,018 - INFO - Found 30 SOW entries
+2026-01-26 20:18:24,166 - INFO - Found 46 course_outcomes with IDs: ['TOPIC_GEOMETRIC_SKILLS', 'SKILL_WORKING_WITH_SURDS', 'SKILL_SKETCHING_A_QUADRATIC_FUNCTION', 'SKILL_APPLYING_THE_FOUR_OPERATIONS_TO_ALGEBRAIC_FRACTIONS', 'SKILL_WORKING_WITH_SIMULTANEOUS_EQUATIONS', 'SKILL_RECOGNISE_AND_DETERMINE_THE_EQUATION_OF_A_QUADRATIC_FUNCTION_FROM_ITS_GRAPH', 'TOPIC_ALGEBRAIC_SKILLS', 'SKILL_WORKING_WITH_LINEAR_EQUATIONS_AND_INEQUATIONS', 'TOPIC_TRIGONOMETRIC_SKILLS', 'SKILL_WORKING_WITH_TWODIMENSIONAL_VECTORS']...
+2026-01-26 20:18:24,562 - INFO - Found 30 lessons
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Surds and Indices Foundation Lesson
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Surds and Indices Revision and Consolidation
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Percentages, Appreciation/Depreciation, and Rounding
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Percentages and Rounding Revision
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Fractions: Operations with Mixed Numbers
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Fractions Revision and Consolidation
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Algebraic Expressions: Expansion and Factorising
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Algebraic Expressions Revision
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Linear and Simultaneous Equations Revision
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Solving Quadratic Equations: Factorising and Quadratic Formula
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Quadratics Revision and Discriminant
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Formative Assessment: Algebraic Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Pythagoras' Theorem and Applications
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Pythagoras Revision - Error Analysis, Mixed Practice & Assessment
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Trigonometry: Sine and Cosine Rules
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Trigonometry Revision: Sine and Cosine Rules Practice
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Statistics Revision and Reasoning Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Spiral Revision: Numerical Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Spiral Revision: Algebraic Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Spiral Revision: Geometry/Trig
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Independent Practice: National 5 Mathematics Paper 2 Exam Simulation
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Targeted Revision: Challenge Areas
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Exam Technique: Reasoning & Communication
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Comprehensive Revision: Mixed Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Final Revision: Exam Strategy Skills
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Mock Assessment: Full SQA Exam Simulation
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Formative Assessment: Numerical Skills Mastery
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Linear Equations and Simultaneous Equations
+2026-01-26 20:18:24,562 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Statistics: Comparing Data Sets
+2026-01-26 20:18:24,563 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Independent Practice: Paper 1 Exam Simulation and Skills Practice
+2026-01-26 20:18:24,563 - INFO - 
+2026-01-26 20:18:24,563 - INFO - ======================================================================
+2026-01-26 20:18:24,563 - INFO - Migrating test_course_simple_math
+2026-01-26 20:18:24,563 - INFO - ======================================================================
+2026-01-26 20:18:24,563 - INFO - Fetching SOW for test_course_simple_math...
+2026-01-26 20:18:24,691 - INFO - Found 1 SOW entries
+2026-01-26 20:18:24,816 - INFO - Found 1 course_outcomes with IDs: ['O1']...
+2026-01-26 20:18:24,940 - INFO - Found 1 lessons
+2026-01-26 20:18:24,940 - WARNING -   SKIP (SOW entry has empty outcomeRefs): Simple Addition Test
+2026-01-26 20:18:24,940 - INFO - 
+2026-01-26 20:18:24,940 - INFO - ======================================================================
+2026-01-26 20:18:24,940 - INFO - MIGRATION SUMMARY
+2026-01-26 20:18:24,940 - INFO - ======================================================================
+2026-01-26 20:18:24,940 - INFO - Mode: EXECUTED
+2026-01-26 20:18:24,940 - INFO - Courses processed: 10
+2026-01-26 20:18:24,940 - INFO - Successful courses: 9
+2026-01-26 20:18:24,940 - INFO - Failed courses: 1
+2026-01-26 20:18:24,940 - INFO - 
+2026-01-26 20:18:24,940 - INFO - Statistics:
+2026-01-26 20:18:24,940 - INFO -   Lessons updated: 84
+2026-01-26 20:18:24,940 - INFO -   Skipped (already has refs): 0
+2026-01-26 20:18:24,940 - INFO -   Skipped (no SOW match): 47
+2026-01-26 20:18:24,940 - INFO -   Warnings: 16
+2026-01-26 20:18:24,940 - INFO -   Errors: 1
+2026-01-26 20:18:24,940 - INFO - 
+2026-01-26 20:18:24,940 - INFO - Successful courses:
+2026-01-26 20:18:24,940 - INFO -   course_c72473: 0 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c72474: 13 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c74774: 14 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c75773: 12 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c75774: 13 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c84473: 14 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c84474: 18 lessons updated
+2026-01-26 20:18:24,940 - INFO -   course_c84775: 0 lessons updated
+2026-01-26 20:18:24,940 - INFO -   test_course_simple_math: 0 lessons updated
+2026-01-26 20:18:24,940 - INFO - 
+2026-01-26 20:18:24,940 - WARNING - Failed courses:
+2026-01-26 20:18:24,940 - WARNING -   course_c84475: No course_outcomes found for course_c84475. Run seedSingleCourse.ts first to populate course_outcomes.
+2026-01-26 20:18:24,940 - INFO - 
+2026-01-26 20:18:24,940 - INFO - Migration completed!
+2026-01-26 20:18:24,940 - INFO - Verify by running diagnose_outcomeRefs.py again.

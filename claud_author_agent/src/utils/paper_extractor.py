@@ -81,9 +81,11 @@ def parse_question_number(question_number: str) -> Tuple[str, Optional[str], Opt
     - "Q1" -> ("1", None, None)
     - "4a" -> ("4", "a", None)
     - "Q4a" -> ("4", "a", None)
-    - "5b(i)" -> ("5", "b", "i")
+    - "5b(i)" -> ("5", "b", "i")       # Roman numeral subpart
     - "Q5b(i)" -> ("5", "b", "i")
     - "3c(ii)" -> ("3", "c", "ii")
+    - "4a(1)" -> ("4", "a", "1")       # Arabic numeral subpart
+    - "4b(4)" -> ("4", "b", "4")
 
     Args:
         question_number: Question number string
@@ -95,7 +97,9 @@ def parse_question_number(question_number: str) -> Tuple[str, Optional[str], Opt
     normalized = question_number.lower().lstrip('q')
 
     # Pattern: number, optional letter, optional (subpart)
-    pattern = r"^(\d+)([a-z])?(?:\(([ivx]+)\))?$"
+    # Subpart can be Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x)
+    # OR Arabic numerals (1, 2, 3, 4, etc.) - used in Application of Mathematics
+    pattern = r"^(\d+)([a-z])?(?:\(([ivx]+|\d+)\))?$"
     match = re.match(pattern, normalized)
 
     if not match:

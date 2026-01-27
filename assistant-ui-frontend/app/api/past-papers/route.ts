@@ -16,15 +16,30 @@ const COLLECTION_PAPERS = 'us_papers';
 const COLLECTION_WALKTHROUGHS = 'us_walkthroughs';
 
 /**
- * Normalize subject from URL format to database format
- * e.g., "mathematics" → "Mathematics"
+ * Normalize subject from URL format to database format with proper title case
+ *
+ * Uses title case rules: lowercase words like "of", "and", "the" stay lowercase
+ * unless they are the first word in the subject name.
+ *
+ * e.g., "applications-of-mathematics" → "Applications of Mathematics"
  */
 function normalizeSubject(subject: string): string {
   if (!subject) return '';
+
+  // Words that should remain lowercase in title case (unless first word)
+  const lowercaseWords = new Set(['of', 'and', 'the', 'in', 'for', 'to', 'a', 'an']);
+
   return subject
     .replace(/-/g, ' ')
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word, index) => {
+      const lowerWord = word.toLowerCase();
+      // First word always capitalized; otherwise keep lowercase if it's a minor word
+      if (index === 0 || !lowercaseWords.has(lowerWord)) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return lowerWord;
+    })
     .join(' ');
 }
 

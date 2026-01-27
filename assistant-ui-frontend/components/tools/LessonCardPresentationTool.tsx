@@ -70,7 +70,7 @@ type LessonCardPresentationArgs = {
     }>;
     context_hooks?: string[];
     cfu: {
-      type: "mcq" | "numeric" | "structured_response" | "short_text";
+      type: "mcq" | "numeric" | "structured_response" | "short_text" | "short_answer";
       id: string;
       stem: string;
       // MCQ fields
@@ -981,8 +981,8 @@ export const LessonCardPresentationTool = makeAssistantToolUI<
               </div>
             )}
 
-            {/* Short Text Question */}
-            {card_data.cfu.type === "short_text" && (
+            {/* Short Text Question (also handles short_answer alias) */}
+            {(card_data.cfu.type === "short_text" || card_data.cfu.type === "short_answer") && (
               <div className="space-y-4">
                 <Label htmlFor="short-text-answer" className="text-base font-medium">
                   <StemRenderer stem={card_data.cfu.stem} />

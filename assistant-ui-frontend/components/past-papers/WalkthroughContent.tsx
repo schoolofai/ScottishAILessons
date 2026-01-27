@@ -49,7 +49,8 @@ interface WalkthroughContentData {
   steps: WalkthroughStep[];
   common_errors: CommonError[];
   examiner_summary: string;
-  diagram_refs: string[];
+  /** @deprecated Diagrams now fetched directly from us_papers. Kept for backward compatibility. */
+  diagram_refs?: string[];
 }
 
 interface WalkthroughData {

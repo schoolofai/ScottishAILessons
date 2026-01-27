@@ -14,7 +14,7 @@
  *
  * @example
  * Input:  "applications-of-mathematics-n5-2023-X844-75-01"
- * Output: { subject: "Applications Of Mathematics", level: "National 5", year: 2023, paperCode: "X844/75/01" }
+ * Output: { subject: "Applications of Mathematics", level: "National 5", year: 2023, paperCode: "X844/75/01" }
  */
 export function parsePaperId(paperId: string): {
   subject: string;
@@ -52,16 +52,29 @@ export function parsePaperId(paperId: string): {
 }
 
 /**
- * Normalize subject slug to display format
+ * Normalize subject slug to display format with proper title case
+ *
+ * Uses title case rules: lowercase words like "of", "and", "the" stay lowercase
+ * unless they are the first word in the subject name.
  *
  * @param subject - URL slug (e.g., "applications-of-mathematics")
- * @returns Display format (e.g., "Applications Of Mathematics")
+ * @returns Display format (e.g., "Applications of Mathematics")
  */
 export function normalizeSubject(subject: string): string {
+  // Words that should remain lowercase in title case (unless first word)
+  const lowercaseWords = new Set(['of', 'and', 'the', 'in', 'for', 'to', 'a', 'an']);
+
   return subject
     .replace(/-/g, ' ')
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .map((word, index) => {
+      const lowerWord = word.toLowerCase();
+      // First word always capitalized; otherwise keep lowercase if it's a minor word
+      if (index === 0 || !lowercaseWords.has(lowerWord)) {
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      }
+      return lowerWord;
+    })
     .join(' ');
 }
 

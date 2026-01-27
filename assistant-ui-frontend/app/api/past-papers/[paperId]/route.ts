@@ -132,7 +132,8 @@ export async function GET(
       [
         Query.equal('paper_id', actualPaperId),
         Query.equal('status', 'published'),
-        Query.select(['question_number'])  // Only need question numbers for efficiency
+        Query.select(['question_number']),  // Only need question numbers for efficiency
+        Query.limit(100)  // Appwrite defaults to 25, ensure we get all walkthroughs
       ]
     );
 

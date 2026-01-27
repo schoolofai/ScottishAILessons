@@ -137,18 +137,9 @@ def parse_walkthrough_template(template_path: Path) -> QuestionWalkthrough:
         )
         prerequisite_links.append(link)
 
-    # Parse diagram_refs - handle both string and dict formats
-    # LLM may generate:
-    #   - ["diag-id-1", "diag-id-2"]  (string format - correct)
-    #   - [{"id": "diag-id-1", ...}, ...]  (dict format - needs extraction)
-    raw_diagram_refs = data.get("diagram_refs", [])
-    diagram_refs = []
-    for ref in raw_diagram_refs:
-        if isinstance(ref, str):
-            diagram_refs.append(ref)
-        elif isinstance(ref, dict) and "id" in ref:
-            diagram_refs.append(ref["id"])
-        # Skip invalid entries
+    # diagram_refs deprecated - diagrams now fetched directly from us_papers
+    # Always set to empty array for new walkthroughs
+    diagram_refs: list[str] = []
 
     # Create QuestionWalkthrough (including V2 prerequisite_links)
     walkthrough = QuestionWalkthrough(

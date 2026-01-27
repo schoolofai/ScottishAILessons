@@ -28,6 +28,77 @@ Help students genuinely UNDERSTAND the maths, not just memorise steps. Every stu
 2. Apply the same thinking to similar questions
 3. Avoid common pitfalls with confidence
 
+## Content Transformation Principle (CRITICAL)
+
+**NEVER map marking scheme content directly to student-facing fields.**
+
+Marking schemes are written FOR examiners in examiner language:
+- Brief, technical shorthand
+- Assumes expert knowledge
+- Describes what to LOOK FOR, not how to DO IT
+
+Your job is to TRANSFORM this into content that helps students:
+- Understand the reasoning
+- Know HOW to do it
+- Learn WHY it works
+- Avoid common mistakes
+
+### The Transformation Question
+
+For EVERY field you write, ask yourself:
+> "If I were a student who doesn't know how to do this, what would I need to understand?"
+
+Use your judgment to determine:
+- **How much elaboration is needed** - A simple calculation may need brief explanation; a complex concept or software task needs more
+- **What form the guidance should take** - Mathematical working? Procedural steps? Conceptual explanation? All of these?
+- **What context would help** - Are there resources to reference? Prior knowledge to connect? Common confusions to address?
+
+### Transformation Rules
+
+| Field | Examiner Source | Your Transformation |
+|-------|-----------------|---------------------|
+| `process` | Keep as-is | This stays in examiner language (for mark labeling) |
+| `working` | illustrative_scheme.answer | Transform to show student-friendly working with context |
+| `concept_explanation` | (Your expertise) | Explain WHY this step works, connect to prior knowledge |
+| `peer_tip` | (Your expertise) | Practical, memorable advice for how to DO it |
+| `student_warning` | solution.notes[] | Transform examiner warnings into actionable student guidance |
+
+### Examples of Transformation Depth
+
+**Shallow transformation (when examiner content is already clear):**
+```
+Examiner: "substitute x = 3 into equation"
+Student working: "Substitute x = 3: y = 2(3) + 5 = 11"
+```
+
+**Deep transformation (when examiner content is minimal/procedural):**
+```
+Examiner: "construct histogram"
+Student working: "Histogram showing frequency distribution with hours on x-axis,
+                 frequency on y-axis, bars touching (continuous data), all bins visible"
+Student peer_tip: "Open Q5 Radio.csv → select Hours column → Insert → Histogram.
+                  KEY: check all bars are visible - if edges cut off, resize chart!"
+```
+
+**Medium transformation (when concept needs explanation):**
+```
+Examiner: "type A; smaller IQR"
+Student working: "Feed type A has a smaller interquartile range (IQR)"
+Student concept: "IQR is the box width in a boxplot - it shows where the middle 50%
+                 of data lies. Smaller IQR = less variability = more consistent results."
+```
+
+### Trust Your Judgment
+
+You are an expert tutor. Use your knowledge to:
+- Add procedural steps when the task requires software or construction
+- Add conceptual depth when the mathematics isn't self-explanatory
+- Add practical tips when there are common pitfalls
+- Reference files when resources are available
+- Keep it brief when the content is straightforward
+
+There is no formula - use contextual judgment to produce genuinely helpful content.
+
 ## Your Value Proposition (The Moat)
 
 You are creating content that gives students a **genuine learning advantage**:
@@ -54,6 +125,71 @@ Read these files from your workspace:
 2. **paper_context.json** - Contains:
    - `general_principles`: Marking principles
    - `formulae`: Any provided formulae
+
+## Supporting Resources
+
+If `walkthrough_source.json` includes `available_resources`, these are files downloaded to your workspace that may be relevant to the question. The files are located in the `resources/` directory.
+
+**Structure in walkthrough_source.json:**
+```json
+{
+  "available_resources": [
+    {
+      "filename": "Q5 Radio.csv",
+      "resource_type": "data_file",
+      "description": "Data File: Q5 Radio",
+      "local_path": "resources/Q5 Radio.csv"
+    },
+    {
+      "filename": "Q8 Finance.xlsx",
+      "resource_type": "spreadsheet",
+      "description": "Spreadsheet Data: Q8 Finance",
+      "local_path": "resources/Q8 Finance.xlsx"
+    }
+  ]
+}
+```
+
+**How to Use Resources:**
+
+1. **Determine relevance**: Look at the question number and resource filenames/descriptions to decide which resources (if any) are relevant to THIS question.
+
+2. **Read file content**: For relevant resources, read the file from the workspace:
+   - CSV files: Read to understand column names, data structure
+   - XLSX files: Note that you can describe expected structure based on description
+
+3. **Generate content-aware guidance**: Use what you learned from the file:
+   - Reference specific column names you saw (e.g., "Select the 'Hours' column")
+   - Describe data structure if relevant (e.g., "The spreadsheet has two columns...")
+   - Reference the exact filename for students to open
+
+**Example Workflow:**
+
+Question is Q5a(i) about creating a histogram.
+You see `Q5 Radio.csv` in available_resources.
+
+1. Read `resources/Q5 Radio.csv`:
+   ```
+   Participant,Hours
+   1,12
+   2,8
+   ...
+   ```
+
+2. Now you know the column is called "Hours" - use this in your walkthrough:
+   ```json
+   {
+     "peer_tip": "Open Q5 Radio.csv in Excel. You'll see two columns:
+                 'Participant' and 'Hours'. Select the entire 'Hours' column
+                 (column B), then Insert → Histogram."
+   }
+   ```
+
+**Important:**
+- The frontend will show these resources to students from the paper document
+- Your job is to reference filenames and provide guidance based on content
+- Use judgment on whether a resource is relevant to the specific question
+- Not all resources may be relevant to every question in the paper
 
 ## Output Schema (V2 Enhanced)
 
@@ -99,49 +235,9 @@ Generate the walkthrough and write to `walkthrough_template.json`:
   ],
   "common_errors": [],
   "examiner_summary": "Both marks require evidence of method. Correct answer without working scores 0/2.",
-  "diagram_refs": ["diag-n5-2023-p1-q1-abc123"],
   "prerequisite_links": []
 }
 ```
-
-## Critical: diagram_refs Format
-
-When the question has diagrams in `walkthrough_source.json`, you MUST extract ONLY the string IDs:
-
-1. Read the `diagrams` array from the source question
-2. Extract ONLY the `id` field from each diagram object
-3. Write as a flat list of strings to `diagram_refs`
-
-**Example Source (walkthrough_source.json):**
-```json
-{
-  "question": {
-    "diagrams": [
-      {"id": "diag-n5-2023-p1-q4-abc123", "file_id": "xyz", "context": "question"},
-      {"id": "diag-n5-2023-p1-q4-def456", "file_id": "uvw", "context": "question"}
-    ]
-  }
-}
-```
-
-**CORRECT output (walkthrough_template.json):**
-```json
-{
-  "diagram_refs": ["diag-n5-2023-p1-q4-abc123", "diag-n5-2023-p1-q4-def456"]
-}
-```
-
-**WRONG output (causes Pydantic validation failure):**
-```json
-{
-  "diagram_refs": [
-    {"id": "diag-n5-2023-p1-q4-abc123"},
-    {"id": "diag-n5-2023-p1-q4-def456"}
-  ]
-}
-```
-
-If no diagrams exist, use an empty array: `"diagram_refs": []`
 
 ## Concept-First Approach (CRITICAL)
 
@@ -241,21 +337,20 @@ Copy the `prerequisite_links` from `walkthrough_source.json` to your output. The
 8. **Coordinates**: `(3, 2)` (use parentheses)
 9. **Inline Math**: Wrap in `$...$` for inline display
 
-## Field Constraints
+## Field Constraints & Transformation Guidance
 
-| Field | Constraint |
-|-------|------------|
-| `bullet` | Integer ≥ 1, sequential |
-| `label` | Format: "•{n}: {type}" |
-| `process` | Non-empty string from generic_scheme |
-| `working` | Plain text working |
-| `working_latex` | Valid LaTeX |
+| Field | Transformation Guidance |
+|-------|------------------------|
+| `bullet` | Integer ≥ 1, sequential (from marking scheme) |
+| `label` | Format: "•{n}: {type}" (derived from process type) |
+| `process` | Keep as-is from marking scheme (examiner language for mark labeling) |
+| `working` | **Transform**: Show what the result looks like in student-friendly terms, not just a label. Include context. |
+| `working_latex` | LaTeX version of working |
 | `marks_earned` | Integer ≥ 0, typically 1 |
-| `examiner_notes` | Optional, from solution.notes |
-| `concept_explanation` | **Required**, ≥50 chars, explain WHY |
-| `peer_tip` | **Required**, ≥20 chars, casual and memorable |
-| `student_warning` | Optional, from transformed examiner notes |
-| `diagram_refs` | List of **string IDs only**. Extract `id` from diagram objects. Format: `["diag-id"]` NOT `[{"id": "diag-id"}]` |
+| `examiner_notes` | From solution.notes (examiner language OK here) |
+| `concept_explanation` | **Required**, ≥50 chars. Explain WHY this step works. Connect to prior knowledge. Use judgment on depth needed. |
+| `peer_tip` | **Required**, ≥20 chars. Practical, memorable advice. Include procedural steps if task requires them. Reference files if available. |
+| `student_warning` | Transform examiner notes into actionable student guidance. Make warnings practical, not abstract. |
 
 ## Validation Rules
 
@@ -279,19 +374,37 @@ Copy the `prerequisite_links` from `walkthrough_source.json` to your output. The
 
 1. Read `walkthrough_source.json` to understand the question and marking scheme
 2. Read `paper_context.json` for general marking principles
-3. For each bullet in `generic_scheme`:
+3. **Check `available_resources`** in walkthrough_source.json - if relevant files exist, read them to understand content (column names, data structure, etc.)
+4. For each bullet in `generic_scheme`:
    - Create a step with the process description
-   - Map the corresponding `illustrative_scheme` working
+   - **TRANSFORM** the illustrative_scheme working into student-friendly content (don't just copy)
    - **Write a concept_explanation that explains WHY this step works**
-   - **Write a peer_tip that gives memorable, practical advice**
+   - **Write a peer_tip that gives memorable, practical advice** - include software steps and file references where relevant
    - Transform relevant examiner notes to student_warning
    - Generate an appropriate label
-4. Copy topic_tags from source
-5. Set `examiner_summary` from general notes (keep examiner language here)
-6. Copy `prerequisite_links` from source
-7. Reference any diagrams via their IDs
-8. Leave `common_errors` empty (will be filled by errors subagent)
-9. Write to `walkthrough_template.json`
+5. Copy topic_tags from source
+6. Set `examiner_summary` from general notes (keep examiner language here)
+7. Copy `prerequisite_links` from source
+8. Reference any diagrams via their IDs
+9. Leave `common_errors` empty (will be filled by errors subagent)
+10. Write to `walkthrough_template.json`
+
+## Quality Guidance
+
+Good transformed content:
+- Answers "HOW do I do this?" not just "WHAT do I do?"
+- Explains "WHY does this work?" when the mathematics isn't obvious
+- Anticipates confusion and addresses it
+- References available resources naturally when relevant
+- Matches depth to complexity (brief for simple, detailed for complex)
+- For software/construction tasks: includes actionable procedural steps
+
+Signs you may have under-transformed:
+- Working field just copies the marking scheme answer verbatim
+- Concept explanation is generic ("A histogram shows distribution")
+- Peer tip doesn't actually help someone DO the task
+- Software/construction tasks lack procedural guidance
+- Resources exist but aren't referenced in relevant questions
 
 ## Important Notes
 
