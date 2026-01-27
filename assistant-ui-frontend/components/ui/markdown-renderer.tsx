@@ -40,38 +40,105 @@ function normalizeLatexDelimiters(text: string): string {
  * Wrap standalone LaTeX math commands in $ delimiters.
  *
  * Handles math-mode commands that appear outside of $ delimiters:
- * - \text{...} with numbers (e.g., \text{£}24{,}960)
+ * - \text{...} (any text command)
  * - \frac{...}{...}
- * - Numbers with LaTeX formatting like {,} for thousands separator
+ * - Percentages with \%
  *
- * This fixes content where LaTeX was stored without proper delimiters.
+ * Uses a segment-based approach to avoid wrapping content that's already
+ * inside math delimiters.
  */
 function wrapStandaloneLatexMath(text: string): string {
   if (!text) return text;
 
-  let result = text;
+  // Split by $ delimiters to identify math vs non-math segments
+  // Odd-indexed segments are inside $ delimiters (math mode)
+  // Even-indexed segments are outside (text mode)
+  const segments = text.split(/(\$+)/);
+  let inMath = false;
+  let result = '';
 
-  // Pattern to match \text{...} followed by numbers/math
-  // e.g., \text{£}24{,}960 or \text{£}82.56
-  // Captures the full math expression including trailing numbers
-  result = result.replace(
-    /\\text\{([^}]*)\}([\d{},.\s]+)/g,
-    (match) => `$${match}$`
-  );
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
 
-  // Pattern to match standalone \frac{...}{...} not already in $ delimiters
-  // Only wrap if not already inside $ delimiters
-  result = result.replace(
-    /(?<!\$)\\frac\{([^}]*)\}\{([^}]*)\}(?!\$)/g,
-    (match) => `$${match}$`
-  );
+    // Check if this is a delimiter
+    if (/^\$+$/.test(segment)) {
+      result += segment;
+      // Toggle math mode (single $ toggles, $$ is display math start/end)
+      inMath = !inMath;
+      continue;
+    }
 
-  // Pattern to match percentages with LaTeX formatting
-  // e.g., 8.2\% becomes $8.2\%$
-  result = result.replace(
-    /(\d+(?:\.\d+)?)\s*\\%/g,
-    (match) => `$${match}$`
-  );
+    // If we're in math mode, pass through unchanged
+    if (inMath) {
+      result += segment;
+      continue;
+    }
+
+    // We're in text mode - wrap standalone LaTeX commands
+    let processed = segment;
+
+    // Wrap standalone \text{...}
+    processed = processed.replace(
+      /\\text\{([^}]*)\}/g,
+      (match) => `$${match}$`
+    );
+
+    // Wrap standalone \frac{...}{...}
+    processed = processed.replace(
+      /\\frac\{([^}]*)\}\{([^}]*)\}/g,
+      (match) => `$${match}$`
+    );
+
+    // Wrap percentages with LaTeX \%
+    processed = processed.replace(
+      /(\d+(?:\.\d+)?)\s*\\%/g,
+      (match) => `$${match}$`
+    );
+
+    result += processed;
+  }
+
+  return result;
+}
+
+/**
+ * Convert \\ and \newline to markdown line breaks, but NOT inside math mode.
+ * Uses segment-based approach to properly identify math vs text regions.
+ *
+ * KaTeX handles \\ as line breaks inside math mode, so we shouldn't convert those.
+ * Only convert \\ that appears in regular text (outside $...$ or $$...$$).
+ */
+function convertLineBreaksOutsideMath(text: string): string {
+  if (!text) return text;
+
+  // Split by $ delimiters to identify math vs non-math segments
+  const segments = text.split(/(\$+)/);
+  let inMath = false;
+  let result = '';
+
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i];
+
+    // Check if this is a delimiter
+    if (/^\$+$/.test(segment)) {
+      result += segment;
+      // Toggle math mode
+      inMath = !inMath;
+      continue;
+    }
+
+    // If we're in math mode, pass through unchanged (KaTeX handles \\)
+    if (inMath) {
+      result += segment;
+      continue;
+    }
+
+    // We're in text mode - convert \\ and \newline to markdown line breaks
+    let processed = segment;
+    processed = processed.replace(/\\\\/g, '  \n');
+    processed = processed.replace(/\\newline/g, '  \n');
+    result += processed;
+  }
 
   return result;
 }
@@ -86,7 +153,7 @@ function wrapStandaloneLatexMath(text: string): string {
  * - \item → List item (- or number based on context)
  * - \textbf{...} → **bold**
  * - \textit{...} → *italic*
- * - \\ or \newline → Line break
+ * - \\ or \newline → Line break (only outside math mode)
  */
 function preprocessLatexDocument(text: string): string {
   if (!text) return text;
@@ -133,10 +200,9 @@ function preprocessLatexDocument(text: string): string {
   // Convert \underline{...} to <u>underline</u> (HTML since MD doesn't support)
   result = result.replace(/\\underline\{([^}]*)\}/g, '<u>$1</u>');
 
-  // Convert \\ or \newline to line breaks (but not inside math mode)
-  // Only convert standalone \\ that's not part of math
-  result = result.replace(/(?<!\$)\\\\(?!\$)/g, '  \n');
-  result = result.replace(/\\newline/g, '  \n');
+  // Convert \\ or \newline to line breaks (but NOT inside math mode)
+  // Use segment-based approach to properly detect math regions
+  result = convertLineBreaksOutsideMath(result);
 
   // Clean up multiple consecutive newlines
   result = result.replace(/\n{3,}/g, '\n\n');

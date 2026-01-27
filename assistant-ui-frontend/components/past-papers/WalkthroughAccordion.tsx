@@ -482,27 +482,62 @@ function StepPedagogicalContent({
 }
 
 /**
+ * Prepare LaTeX content for rendering by ensuring proper delimiters.
+ *
+ * Strategy:
+ * 1. Detect if content is predominantly math (multiple LaTeX commands)
+ * 2. If so, strip malformed $ delimiters and wrap entire content as display math
+ * 3. Otherwise, let MarkdownRenderer handle mixed content
+ *
+ * This handles cases where database content has malformed delimiters like:
+ * \text{Pension} $= $8.2\%$ $\text{ of } \text{£}24{,}960
+ * Which should render as: $$\text{Pension} = 8.2\% \text{ of } \text{£}24{,}960$$
+ */
+function prepareLatexContent(latex: string): string {
+  if (!latex) return '';
+
+  // Normalize \( \) and \[ \] delimiters first
+  let result = normalizeLatexDelimiters(latex);
+
+  // Count LaTeX math commands to determine if this is predominantly math content
+  const latexCommandMatches = result.match(/\\(text|frac|sqrt|sum|int|prod|times|div|cdot|pm|leq|geq|neq|approx|equiv|left|right|mathbf|mathrm)\b/g);
+  const latexCommandCount = latexCommandMatches ? latexCommandMatches.length : 0;
+
+  // If content has multiple LaTeX commands (>=2), treat as math block
+  // This indicates the content is meant to be rendered as math, not mixed markdown
+  if (latexCommandCount >= 2) {
+    // Strip all existing $ delimiters (they're likely malformed)
+    // Also handle escaped \$ which appears in some content
+    let cleanedContent = result
+      .replace(/\\\$/g, '') // Remove escaped \$ first
+      .replace(/\$+/g, ' ') // Remove all $ characters
+      .replace(/\s+/g, ' ') // Normalize multiple spaces to single space
+      .trim();
+
+    // Wrap as display math block
+    return `$$${cleanedContent}$$`;
+  }
+
+  // For single LaTeX command or no commands, check if we need basic wrapping
+  const hasLatexCommands = latexCommandCount > 0;
+  const hasDelimiters = /\$/.test(result);
+
+  // If has LaTeX commands but no delimiters, wrap as inline math
+  if (hasLatexCommands && !hasDelimiters) {
+    return `$${result}$`;
+  }
+
+  // Otherwise, return as-is and let MarkdownRenderer handle it
+  return result;
+}
+
+/**
  * WalkthroughStep - Individual step content
  * Enhanced with V2 schema fields: student_warning, concept_explanation, peer_tip
  */
 function WalkthroughStep({ step }: { step: WalkthroughStep }) {
   // Prepare the working content for rendering
-  // If it already contains $ delimiters, use as-is; otherwise wrap pure math in $...$
-  const workingContent = (() => {
-    const latex = step.working_latex || step.working;
-    if (!latex) return '';
-
-    // Normalize any \( \) delimiters to $ $
-    const normalized = normalizeLatexDelimiters(latex);
-
-    // If it already has $ delimiters, use as-is
-    if (normalized.includes('$')) {
-      return normalized;
-    }
-
-    // Otherwise, wrap in $ for math rendering
-    return `$${normalized}$`;
-  })();
+  const workingContent = prepareLatexContent(step.working_latex || step.working);
 
   return (
     <div className="space-y-3 pt-2">

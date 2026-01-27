@@ -103,13 +103,17 @@ interface QuestionPart {
  * "1" -> { baseNumber: "1", part: null, subpart: null }
  * "4a" -> { baseNumber: "4", part: "a", subpart: null }
  * "5b(i)" -> { baseNumber: "5", part: "b", subpart: "i" }
+ * "4a(1)" -> { baseNumber: "4", part: "a", subpart: "1" }  // Arabic numeral subparts
+ * "4b(4)" -> { baseNumber: "4", part: "b", subpart: "4" }  // Arabic numeral subparts
  */
 function parseQuestionNumber(questionNumber: string): {
   baseNumber: string;
   part: string | null;
   subpart: string | null;
 } {
-  const pattern = /^(\d+)([a-z])?(?:\(([ivx]+)\))?$/i;
+  // Pattern supports both Roman numerals (i, ii, iii, iv, v, vi, vii, viii, ix, x)
+  // AND Arabic numerals (1, 2, 3, 4, etc.) for subparts
+  const pattern = /^(\d+)([a-z])?(?:\(([ivx]+|\d+)\))?$/i;
   const match = questionNumber.match(pattern);
 
   if (!match) {
