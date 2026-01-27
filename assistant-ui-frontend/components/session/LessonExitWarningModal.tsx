@@ -21,8 +21,9 @@ interface LessonExitWarningModalProps {
  * Modal that warns students when they try to leave an active lesson session
  *
  * Shows a confirmation dialog explaining that:
- * - All progress will be lost
- * - The session will not be saved
+ * - Progress will be paused
+ * - Chat is saved for approximately 7 days (LangGraph thread persistence)
+ * - They can resume later from the dashboard
  * - They can choose to stay and continue
  *
  * @param open - Whether the modal is visible
@@ -43,13 +44,13 @@ export function LessonExitWarningModal({
             <DialogTitle>Leave Lesson?</DialogTitle>
           </div>
           <DialogDescription className="pt-3">
-            Are you sure you want to leave this lesson? You will lose all progress from this session.
+            Are you sure you want to leave this lesson? You can resume from where you left off later.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="bg-orange-50 border border-orange-200 rounded-md p-3 my-2">
-          <p className="text-sm text-orange-800">
-            <strong>Warning:</strong> Your answers and conversation will not be saved.
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 my-2">
+          <p className="text-sm text-blue-800">
+            <strong>Note:</strong> Your chat will be saved for approximately 7 days.
           </p>
         </div>
 

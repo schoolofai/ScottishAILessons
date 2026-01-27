@@ -369,4 +369,30 @@ export class SessionDriver extends BaseDriver {
       throw this.handleError(error, 'complete session');
     }
   }
+
+  /**
+   * Mark session as expired (thread no longer available after 7-day limit)
+   *
+   * This is called when a user tries to resume a lesson but the LangGraph
+   * thread has expired. The session is marked as 'failed' with an endedAt timestamp.
+   * Note: 'stage' has an enum constraint so we cannot set it to 'expired'.
+   *
+   * @param sessionId - The session document ID
+   * @returns Updated session document
+   */
+  async markSessionExpired(sessionId: string): Promise<Session> {
+    try {
+      console.log(`SessionDriver - Marking session ${sessionId} as expired (thread unavailable)`);
+
+      // Note: 'stage' has enum constraint (design, deliver, mark, progress, done)
+      // We use status: 'failed' to indicate expiry, keeping stage unchanged
+      // The threadId becoming invalid is the actual indicator of expiry
+      return await this.update<Session>('sessions', sessionId, {
+        status: 'failed',
+        endedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      throw this.handleError(error, 'mark session expired');
+    }
+  }
 }

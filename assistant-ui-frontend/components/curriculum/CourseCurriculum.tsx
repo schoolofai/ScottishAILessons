@@ -23,22 +23,31 @@ import { LessonQuickNotesButton } from '@/components/revision-notes/LessonQuickN
 import { RevisionNotesDriver } from '@/lib/appwrite/driver/RevisionNotesDriver';
 import { PracticeQuestionDriver } from '@/lib/appwrite/driver/PracticeQuestionDriver';
 
+interface ActiveSession {
+  sessionId: string;
+  threadId?: string;
+  stage: string;
+  startedAt: string;
+}
+
 interface Lesson {
   order: number;
   label: string;
   lessonTemplateId: string;
   lesson_type: string;
-  status: 'completed' | 'not_started' | 'locked'; // v3: removed 'in_progress'
+  status: 'completed' | 'not_started' | 'in_progress' | 'locked';
   estimatedMinutes?: number;
   isPublished: boolean;
   completedCount: number;
   lesson_type_display?: string;
   engagement_tags?: string[];
+  activeSession?: ActiveSession; // Resume support: track active session for this lesson
 }
 
 interface SessionsByLessonMap {
   [lessonTemplateId: string]: {
-    completedCount: number; // v3: removed activeSession and lastActivity
+    completedCount: number;
+    activeSession?: ActiveSession; // Most recent active session for resume
   };
 }
 
@@ -209,7 +218,7 @@ export function CourseCurriculum({
         return true;
       });
 
-      // v3: Only count completed sessions, ignore active/abandoned
+      // Track both completed and active sessions
       studentSessions.forEach((session: any) => {
         const lessonId = session.lessonTemplateId;
 
@@ -219,9 +228,28 @@ export function CourseCurriculum({
           };
         }
 
-        // Only count completed sessions
+        // Count completed sessions
         if (session.status === 'completed') {
           sessionsByLesson[lessonId].completedCount++;
+        }
+
+        // Track active sessions for resume functionality
+        // Active = created or active status, not completed/failed
+        // Note: 'expired' is not a valid stage enum value; failed sessions have status='failed'
+        const isActiveSession =
+          (session.status === 'active' || session.status === 'created') &&
+          session.stage !== 'done';
+
+        if (isActiveSession) {
+          // Keep the most recent active session (sorted by startedAt desc already)
+          if (!sessionsByLesson[lessonId].activeSession) {
+            sessionsByLesson[lessonId].activeSession = {
+              sessionId: session.$id,
+              threadId: session.threadId,
+              stage: session.stage,
+              startedAt: session.startedAt
+            };
+          }
         }
       });
 
@@ -233,10 +261,13 @@ export function CourseCurriculum({
         const lessonSessions = sessionsByLesson[template.$id];
         const isPublished = true; // Already filtered to only published
 
-        // v3: Only two states for students - completed or not_started
+        // Determine lesson status: in_progress > completed > not_started
         let status: Lesson['status'] = 'not_started';
 
-        if (lessonSessions?.completedCount > 0) {
+        // Check for active session first (highest priority for UI)
+        if (lessonSessions?.activeSession) {
+          status = 'in_progress';
+        } else if (lessonSessions?.completedCount > 0) {
           status = 'completed';
         }
 
@@ -263,14 +294,15 @@ export function CourseCurriculum({
           isPublished,
           completedCount: lessonSessions?.completedCount || 0,
           lesson_type_display,
-          engagement_tags
+          engagement_tags,
+          activeSession: lessonSessions?.activeSession // Pass active session for resume
         };
       });
 
-      // v3: removed in_progress from logging
       logger.info('lessons_mapped', {
         totalLessons: lessonsWithStatus.length,
         completed: lessonsWithStatus.filter(l => l.status === 'completed').length,
+        inProgress: lessonsWithStatus.filter(l => l.status === 'in_progress').length,
         locked: lessonsWithStatus.filter(l => l.status === 'locked').length,
         notStarted: lessonsWithStatus.filter(l => l.status === 'not_started').length
       });
@@ -300,6 +332,8 @@ export function CourseCurriculum({
     switch (status) {
       case 'completed':
         return <CheckCircle2 className="h-5 w-5 text-green-600" />;
+      case 'in_progress':
+        return <Play className="h-5 w-5 text-blue-600" />;
       case 'locked':
         return <Lock className="h-5 w-5 text-gray-400" />;
       default:
@@ -307,7 +341,11 @@ export function CourseCurriculum({
     }
   };
 
-  // v3: Simplified button rendering - no Continue or stale session logic
+  // Handle Continue Lesson navigation to existing session
+  const handleContinueLesson = (sessionId: string) => {
+    router.push(`/session/${sessionId}`);
+  };
+
   const getActionButton = (lesson: Lesson) => {
     const isStarting = startingLessonId === lesson.lessonTemplateId;
 
@@ -328,7 +366,45 @@ export function CourseCurriculum({
       );
     }
 
-    // Determine button configuration (v3: only Start or Retake)
+    // Handle in_progress status - show Continue Lesson button
+    if (lesson.status === 'in_progress' && lesson.activeSession) {
+      const sessionAge = formatDistanceToNow(new Date(lesson.activeSession.startedAt), { addSuffix: true });
+
+      return (
+        <div className="flex flex-col items-end gap-2">
+          {/* Continue Lesson button - navigates to existing session */}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => handleContinueLesson(lesson.activeSession!.sessionId)}
+            className="gap-2 bg-green-600 hover:bg-green-700"
+            aria-label={`Continue ${lesson.label}`}
+          >
+            <Play className="h-4 w-4" aria-hidden="true" />
+            Continue Lesson
+          </Button>
+
+          {/* Session info */}
+          <span className="text-xs text-gray-500">
+            Started {sessionAge}
+          </span>
+
+          {/* Option to start fresh */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartLesson(lesson.lessonTemplateId);
+            }}
+            className="text-xs text-gray-500 hover:text-blue-600 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            aria-label={`Start ${lesson.label} fresh instead of continuing`}
+          >
+            or start fresh
+          </button>
+        </div>
+      );
+    }
+
+    // Determine button configuration for Start or Retake
     let buttonText = 'Start Lesson';
     let buttonVariant: 'default' | 'outline' = 'default';
     let buttonIcon = <Play className="h-4 w-4" aria-hidden="true" />;
@@ -433,18 +509,24 @@ export function CourseCurriculum({
         <div className="space-y-2">
           {lessons.map((lesson, index) => {
             const typeBadge = getLessonTypeBadge(lesson.lesson_type);
+            const isInProgress = lesson.status === 'in_progress';
             const isNextLesson = lesson.status === 'not_started' &&
-              (index === 0 || lessons[index - 1]?.status === 'completed');
+              (index === 0 || lessons[index - 1]?.status === 'completed' || lessons[index - 1]?.status === 'in_progress');
+
+            // Determine row background color
+            let rowClassName = 'bg-white border-gray-200';
+            if (isInProgress) {
+              rowClassName = 'bg-blue-50 border-blue-200'; // Blue for in-progress (resumable)
+            } else if (isNextLesson) {
+              rowClassName = 'bg-green-50 border-green-200'; // Green for up next
+            }
 
             return (
               <div
                 key={lesson.lessonTemplateId}
                 className={`
                   flex items-center gap-3 p-4 rounded-lg border transition-all
-                  ${isNextLesson
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-white border-gray-200'
-                  }
+                  ${rowClassName}
                   ${lesson.status !== 'locked' ? 'hover:shadow-md' : 'opacity-60'}
                 `}
               >
@@ -459,7 +541,12 @@ export function CourseCurriculum({
                     <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${typeBadge.className}`}>
                       {typeBadge.label}
                     </span>
-                    {isNextLesson && (
+                    {isInProgress && (
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                        In Progress
+                      </span>
+                    )}
+                    {isNextLesson && !isInProgress && (
                       <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
                         Up Next
                       </span>

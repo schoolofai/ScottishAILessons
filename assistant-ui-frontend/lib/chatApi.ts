@@ -22,12 +22,47 @@ export const createThread = async () => {
   return client.threads.create();
 };
 
+/**
+ * Get thread state with subgraph support for lesson resume functionality
+ *
+ * CRITICAL: The `subgraphs: true` option is essential for fetching nested teaching
+ * subgraph state where messages, tool calls, and interrupts actually reside.
+ * Without this, resuming a lesson mid-CFU would return empty state.
+ *
+ * @throws Error with "not found" message when thread has expired (7-day limit)
+ */
 export const getThreadState = async (
   threadId: string
 ): Promise<ThreadState<{ messages: LangChainMessage[] }>> => {
   const client = createClient();
-  const state = await client.threads.getState(threadId);
-  
+
+  // CRITICAL FIX: Include subgraph state for lesson resume
+  // Teaching sessions run in a subgraph, so we need subgraphs=true to get
+  // the messages, tool calls, and interrupts from the teaching subgraph
+  const state = await client.threads.getState(threadId, undefined, { subgraphs: true });
+
+  // Extract teaching subgraph state for frontend compatibility
+  // The teaching subgraph contains the actual lesson messages and interrupt state
+  const teachingTask = (state.tasks as any[])?.find((t: any) => t.name === 'teaching');
+  const subgraphState = teachingTask?.state;
+
+  if (subgraphState && subgraphState.values?.messages?.length > 0) {
+    // Merge subgraph messages and interrupts into main state structure
+    // This allows the frontend to receive the messages as if they were at root level
+    return {
+      ...state,
+      values: {
+        ...state.values,
+        messages: subgraphState.values.messages,
+      },
+      // Use subgraph interrupts (where the interrupt actually resides when paused mid-CFU)
+      tasks: state.tasks?.map((t: any) => ({
+        ...t,
+        interrupts: t.state?.interrupts || t.interrupts || []
+      }))
+    } as ThreadState<{ messages: LangChainMessage[] }>;
+  }
+
   return state;
 };
 

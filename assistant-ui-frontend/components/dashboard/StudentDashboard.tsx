@@ -30,6 +30,8 @@ interface Session {
   startedAt: string;
   endedAt?: string;
   stage: string;
+  status?: 'created' | 'active' | 'completed' | 'failed';
+  threadId?: string; // For resume functionality
 }
 
 export function StudentDashboard() {
@@ -349,10 +351,13 @@ export function StudentDashboard() {
               <div className="space-y-3 mb-4">
                 {paginatedSessions.map(session => {
                   const template = lessonTemplates.find(t => t.$id === session.lessonTemplateId);
-                  const isCompleted = session.stage === 'done';
+                  const isCompleted = session.stage === 'done' || session.status === 'completed';
+                  // A session is "expired" when status is 'failed' (thread no longer available)
+                  const isExpired = session.status === 'failed';
+                  const canResume = !isCompleted && !isExpired && !!session.threadId;
 
                   return (
-                    <div key={session.$id} className="bg-gray-50 rounded border p-4">
+                    <div key={session.$id} className={`rounded border p-4 ${isExpired ? 'bg-gray-100 opacity-75' : 'bg-gray-50'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="font-medium flex items-center gap-2">
@@ -362,23 +367,42 @@ export function StudentDashboard() {
                                 Completed
                               </span>
                             )}
+                            {isExpired && (
+                              <span className="px-2 py-1 text-xs bg-gray-200 text-gray-600 rounded-full">
+                                Expired
+                              </span>
+                            )}
+                            {canResume && (
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                                Can Resume
+                              </span>
+                            )}
                           </h3>
                           <p className="text-sm text-gray-600">
                             Started {new Date(session.startedAt).toLocaleDateString()}
-                            {session.endedAt && ` • Completed ${new Date(session.endedAt).toLocaleDateString()}`}
-                            {!isCompleted && ` • Stage: ${session.stage}`}
+                            {session.endedAt && ` • Ended ${new Date(session.endedAt).toLocaleDateString()}`}
+                            {!isCompleted && !isExpired && ` • Stage: ${session.stage}`}
                           </p>
                         </div>
-                        <button
-                          onClick={() => router.push(`/session/${session.$id}`)}
-                          className={`px-4 py-2 rounded text-sm ${
-                            isCompleted
-                              ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {isCompleted ? 'Review' : 'Continue'}
-                        </button>
+                        {!isExpired && (
+                          <button
+                            onClick={() => router.push(`/session/${session.$id}`)}
+                            className={`px-4 py-2 rounded text-sm ${
+                              isCompleted
+                                ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                : canResume
+                                  ? 'bg-green-600 text-white hover:bg-green-700'
+                                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
+                          >
+                            {isCompleted ? 'Review' : canResume ? 'Resume' : 'Continue'}
+                          </button>
+                        )}
+                        {isExpired && (
+                          <span className="px-4 py-2 text-sm text-gray-500">
+                            Session expired
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

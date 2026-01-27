@@ -7,12 +7,17 @@ import { SessionContext } from "./MyAssistant";
 interface AutoStartTriggerProps {
   sessionContext?: SessionContext;
   existingThreadId?: string;
+  isThreadIdDetermined?: boolean; // NEW: Flag indicating threadId lookup is complete
 }
 
 // Global coordination for auto-start across component instances
 const globalAutoStartState = new Map<string, boolean>();
 
-export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStartTriggerProps) {
+export function AutoStartTrigger({
+  sessionContext,
+  existingThreadId,
+  isThreadIdDetermined = true // Default to true for backwards compatibility
+}: AutoStartTriggerProps) {
   const [hasAutoStarted, setHasAutoStarted] = useState(false);
   const threadRuntime = useThreadRuntime();
   const thread = useThread();
@@ -23,11 +28,28 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
       return;
     }
 
+    // CRITICAL: Wait until we KNOW whether there's an existing thread
+    // This prevents starting a new thread before the session API has returned
+    if (!isThreadIdDetermined) {
+      console.log('⏳ AutoStartTrigger - Waiting for threadId determination...');
+      return;
+    }
+
     const sessionKey = sessionContext.session_id;
     const hasExistingMessages = thread.messages && thread.messages.length > 0;
     const isResumingExistingThread = !!existingThreadId;
 
-    // If we're resuming an existing thread, check if we need to switch mode to teaching
+    console.log('🔍 AutoStartTrigger - State check:', {
+      sessionKey,
+      isThreadIdDetermined,
+      existingThreadId,
+      isResumingExistingThread,
+      hasExistingMessages,
+      messagesCount: thread.messages?.length || 0
+    });
+
+    // If we're resuming an existing thread, DO NOT send any message
+    // The thread already has messages on the backend - onSwitchToThread will load them
     if (isResumingExistingThread) {
       // Check if auto-start already completed for this session
       if (globalAutoStartState.get(sessionKey)) {
@@ -39,23 +61,14 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
       globalAutoStartState.set(sessionKey, true);
       setHasAutoStarted(true);
 
-      // CRITICAL: Only send message if thread has NO messages (brand new session)
-      // If thread already has messages, it means it was started before and may have interrupts
-      if (!hasExistingMessages) {
-        console.log('🚀 AutoStartTrigger - New session with existing thread, sending initial message');
-        // Small delay to ensure thread is fully loaded
-        setTimeout(() => {
-          // Send empty message with session context to trigger mode switch to teaching
-          threadRuntime.append({
-            role: "user",
-            content: [{ type: "text", text: "" }] // Empty message to trigger teaching mode
-          });
-        }, 100);
-      } else {
-        console.log('✅ AutoStartTrigger - Thread has existing messages, NOT sending message to preserve interrupts');
-        // The thread will automatically load its previous state via MyAssistant's onSwitchToThread
-        // No need to trigger a new graph run
-      }
+      // CRITICAL FIX: When resuming an existing thread, NEVER send a new message
+      // The thread already has state on the backend (messages, interrupts, lesson progress)
+      // MyAssistant's onSwitchToThread will fetch and load this state automatically
+      //
+      // Previous bug: We checked hasExistingMessages, but thread.messages is empty at this
+      // point because onSwitchToThread hasn't fetched them yet. This caused us to
+      // incorrectly send a new message, restarting the lesson from the beginning.
+      console.log('✅ AutoStartTrigger - Resuming existing thread, NOT sending message (will load via onSwitchToThread)');
       return;
     }
 
@@ -84,7 +97,7 @@ export function AutoStartTrigger({ sessionContext, existingThreadId }: AutoStart
         content: [{ type: "text", text: "" }] // Empty message just to trigger the graph
       });
     }, 100);
-  }, [sessionContext, hasAutoStarted, threadRuntime, thread, thread?.messages?.length]);
+  }, [sessionContext, hasAutoStarted, threadRuntime, thread, thread?.messages?.length, existingThreadId, isThreadIdDetermined]);
 
   // This component doesn't render anything - it's just for side effects
   return null;

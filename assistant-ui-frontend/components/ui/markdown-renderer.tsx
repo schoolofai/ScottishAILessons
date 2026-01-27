@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FC, memo } from "react";
+import React, { FC, memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,14 +13,150 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * Normalize LaTeX delimiters for remark-math compatibility.
+ *
+ * Converts:
+ * - \( ... \) → $...$  (inline math)
+ * - \[ ... \] → $$...$$ (display math)
+ * - Literal \n strings → actual newlines
+ *
+ * remark-math only supports $...$ and $$...$$ by default.
+ */
+function normalizeLatexDelimiters(text: string): string {
+  if (!text) return text;
+
+  return text
+    // Convert literal \n to actual newlines (common in database storage)
+    .replace(/\\n/g, '\n')
+    // Convert \( ... \) to $...$
+    .replace(/\\\(\s*/g, '$')
+    .replace(/\s*\\\)/g, '$')
+    // Convert \[ ... \] to $$...$$
+    .replace(/\\\[\s*/g, '$$')
+    .replace(/\s*\\\]/g, '$$');
+}
+
+/**
+ * Wrap standalone LaTeX math commands in $ delimiters.
+ *
+ * Handles math-mode commands that appear outside of $ delimiters:
+ * - \text{...} with numbers (e.g., \text{£}24{,}960)
+ * - \frac{...}{...}
+ * - Numbers with LaTeX formatting like {,} for thousands separator
+ *
+ * This fixes content where LaTeX was stored without proper delimiters.
+ */
+function wrapStandaloneLatexMath(text: string): string {
+  if (!text) return text;
+
+  let result = text;
+
+  // Pattern to match \text{...} followed by numbers/math
+  // e.g., \text{£}24{,}960 or \text{£}82.56
+  // Captures the full math expression including trailing numbers
+  result = result.replace(
+    /\\text\{([^}]*)\}([\d{},.\s]+)/g,
+    (match) => `$${match}$`
+  );
+
+  // Pattern to match standalone \frac{...}{...} not already in $ delimiters
+  // Only wrap if not already inside $ delimiters
+  result = result.replace(
+    /(?<!\$)\\frac\{([^}]*)\}\{([^}]*)\}(?!\$)/g,
+    (match) => `$${match}$`
+  );
+
+  // Pattern to match percentages with LaTeX formatting
+  // e.g., 8.2\% becomes $8.2\%$
+  result = result.replace(
+    /(\d+(?:\.\d+)?)\s*\\%/g,
+    (match) => `$${match}$`
+  );
+
+  return result;
+}
+
+/**
+ * Preprocess LaTeX document structures that KaTeX doesn't support.
+ * Converts LaTeX document commands to Markdown equivalents.
+ *
+ * Handles:
+ * - \begin{itemize}...\end{itemize} → Markdown bullet list
+ * - \begin{enumerate}...\end{enumerate} → Markdown numbered list
+ * - \item → List item (- or number based on context)
+ * - \textbf{...} → **bold**
+ * - \textit{...} → *italic*
+ * - \\ or \newline → Line break
+ */
+function preprocessLatexDocument(text: string): string {
+  if (!text) return text;
+
+  // First normalize delimiters and wrap standalone math
+  let result = normalizeLatexDelimiters(text);
+  result = wrapStandaloneLatexMath(result);
+
+  // Process enumerate environments (numbered lists)
+  result = result.replace(
+    /\\begin\{enumerate\}([\s\S]*?)\\end\{enumerate\}/g,
+    (_match, content) => {
+      let counter = 0;
+      const processed = content
+        .replace(/\\item\s*/g, () => {
+          counter++;
+          return `\n${counter}. `;
+        })
+        .trim();
+      return `\n${processed}\n`;
+    }
+  );
+
+  // Process itemize environments (bullet lists)
+  result = result.replace(
+    /\\begin\{itemize\}([\s\S]*?)\\end\{itemize\}/g,
+    (_match, content) => {
+      const processed = content
+        .replace(/\\item\s*/g, '\n- ')
+        .trim();
+      return `\n${processed}\n`;
+    }
+  );
+
+  // Handle any remaining standalone \item (outside of environments)
+  result = result.replace(/\\item\s*/g, '\n- ');
+
+  // Convert \textbf{...} to **bold**
+  result = result.replace(/\\textbf\{([^}]*)\}/g, '**$1**');
+
+  // Convert \textit{...} to *italic*
+  result = result.replace(/\\textit\{([^}]*)\}/g, '*$1*');
+
+  // Convert \underline{...} to <u>underline</u> (HTML since MD doesn't support)
+  result = result.replace(/\\underline\{([^}]*)\}/g, '<u>$1</u>');
+
+  // Convert \\ or \newline to line breaks (but not inside math mode)
+  // Only convert standalone \\ that's not part of math
+  result = result.replace(/(?<!\$)\\\\(?!\$)/g, '  \n');
+  result = result.replace(/\\newline/g, '  \n');
+
+  // Clean up multiple consecutive newlines
+  result = result.replace(/\n{3,}/g, '\n\n');
+
+  return result.trim();
+}
+
+/**
  * MarkdownRenderer - Standalone markdown renderer for exam content
  *
  * Features:
  * - GitHub Flavored Markdown (tables, strikethrough, etc.)
  * - LaTeX math rendering via KaTeX
+ * - LaTeX document structure preprocessing (itemize, enumerate, etc.)
  * - Consistent styling with the application theme
  */
 export const MarkdownRenderer: FC<MarkdownRendererProps> = memo(({ content, className }) => {
+  // Preprocess LaTeX document structures before rendering
+  const processedContent = useMemo(() => preprocessLatexDocument(content), [content]);
+
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -146,7 +282,7 @@ export const MarkdownRenderer: FC<MarkdownRendererProps> = memo(({ content, clas
         ),
       }}
     >
-      {content}
+      {processedContent}
     </ReactMarkdown>
   );
 });

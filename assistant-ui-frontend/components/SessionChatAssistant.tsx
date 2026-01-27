@@ -18,6 +18,7 @@ import { SidePanelResizeHandle } from "./revision-notes/SidePanelResizeHandle";
 import { Client } from "@langchain/langgraph-sdk";
 import { CurrentCardProvider } from "@/contexts/CurrentCardContext";
 import { LessonExitWarningModal } from "./session/LessonExitWarningModal";
+import { SessionExpiredModal } from "./session/SessionExpiredModal";
 import { usePreventNavigation } from "@/hooks/usePreventNavigation";
 import { NavigationPreventionProvider } from "@/contexts/NavigationPreventionContext";
 import { useSidePanelResize } from "@/hooks/useSidePanelResize";
@@ -39,6 +40,10 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [contextChatThreadId, setContextChatThreadId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // CRITICAL: Track whether threadId lookup is complete (prevents AutoStartTrigger race condition)
+  // This becomes true ONLY when we KNOW whether there's a threadId (either exists or definitely doesn't)
+  const [isThreadIdDetermined, setIsThreadIdDetermined] = useState(!!threadId);
 
   // Subscription access check (T044)
   const { hasAccess, status, isLoading: isLoadingSubscription } = useSubscription();
@@ -65,6 +70,10 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   const [sessionStatus, setSessionStatus] = useState<'created' | 'active' | 'completed' | 'failed'>('active');
   const [showExitModal, setShowExitModal] = useState(false);
   const [allowNavigation, setAllowNavigation] = useState(false);
+
+  // Thread expiry state (for lesson resume - 7-day limit)
+  const [showExpiredModal, setShowExpiredModal] = useState(false);
+  const [expiredThreadId, setExpiredThreadId] = useState<string | undefined>(undefined);
 
   const { createDriver } = useAppwrite();
   const threadIdRef = useRef<string | undefined>(existingThreadId);
@@ -144,9 +153,15 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         const courseDriver = createDriver(CourseDriver);
 
         // Use threadId from session if available for thread continuity
+        // CRITICAL: Set BOTH the threadId AND mark it as determined (prevents race condition)
         if (threadId) {
+          console.log('🔗 SessionChatAssistant - Found existing threadId:', threadId);
           setExistingThreadId(threadId);
+        } else {
+          console.log('🆕 SessionChatAssistant - No existing threadId, will create new thread');
         }
+        // Mark threadId as determined regardless of whether it exists
+        setIsThreadIdDetermined(true);
 
         // Load context chat thread ID if available
         if (contextChatThread) {
@@ -349,8 +364,9 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
   }, []);
 
   // Navigation prevention: Warn user before leaving active session
+  // IMPORTANT: Don't show exit modal if expired modal is already showing (prevents double modal)
   usePreventNavigation(
-    sessionStatus === 'active' && !allowNavigation,
+    sessionStatus === 'active' && !allowNavigation && !showExpiredModal,
     () => setShowExitModal(true),
     allowNavigation
   );
@@ -373,6 +389,90 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
       }
     }, 50);
   }, [router]);
+
+  // Handle thread expired callback from MyAssistant
+  // This is triggered when trying to resume a lesson but the LangGraph thread has expired (7-day limit)
+  const handleThreadExpired = useCallback((threadId: string) => {
+    console.log('⏰ SessionChatAssistant - Thread expired, showing recovery modal', { threadId, sessionId });
+    setExpiredThreadId(threadId);
+    setShowExpiredModal(true);
+  }, [sessionId]);
+
+  // Handle "Start Fresh" from expired modal - marks old session as expired and starts a new one
+  const handleStartFresh = useCallback(async () => {
+    try {
+      // Mark the current session as expired via server-side API (not client-side driver)
+      const expireResponse = await fetch(`/api/sessions/${sessionId}/expire`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (!expireResponse.ok) {
+        const errorData = await expireResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to mark session as expired');
+      }
+      console.log('📝 Session marked as expired:', sessionId);
+
+      // Get the lesson template ID to start a fresh session
+      const lessonTemplateId = sessionContext?.lesson_snapshot?.lessonTemplateId;
+      const courseId = sessionContext?.lesson_snapshot?.courseId;
+
+      if (lessonTemplateId && courseId) {
+        // Create a new session via API
+        const response = await fetch('/api/sessions', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lessonTemplateId,
+            courseId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create new session');
+        }
+
+        const { sessionId: newSessionId } = await response.json();
+        console.log('✨ Created new session:', newSessionId);
+
+        // Navigate to the new session
+        setAllowNavigation(true);
+        router.push(`/session/${newSessionId}`);
+      } else {
+        // Fallback to dashboard if we can't determine lesson info
+        console.warn('Cannot determine lesson to restart, redirecting to dashboard');
+        setAllowNavigation(true);
+        router.push('/dashboard');
+      }
+    } catch (error) {
+      console.error('❌ Failed to start fresh session:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start new session');
+      setShowExpiredModal(false);
+    }
+  }, [sessionId, sessionContext, router]);
+
+  // Handle "Back to Dashboard" from expired modal
+  const handleBackToDashboard = useCallback(async () => {
+    try {
+      // Mark the session as expired via server-side API (not client-side driver)
+      const expireResponse = await fetch(`/api/sessions/${sessionId}/expire`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (expireResponse.ok) {
+        console.log('📝 Session marked as expired:', sessionId);
+      } else {
+        console.warn('Failed to mark session as expired (non-critical)');
+      }
+    } catch (error) {
+      console.warn('Failed to mark session as expired:', error);
+      // Continue with navigation even if marking fails
+    }
+
+    setAllowNavigation(true);
+    setShowExpiredModal(false);
+    router.push('/dashboard');
+  }, [sessionId, router]);
 
   // Handle new thread creation - persist to session
   const handleThreadCreated = async (newThreadId: string) => {
@@ -511,6 +611,8 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
             threadId={existingThreadId}
             sessionContext={sessionContext}
             onThreadCreated={handleThreadCreated}
+            onThreadExpired={handleThreadExpired}
+            isThreadIdDetermined={isThreadIdDetermined}
           />
         </div>
       </div>
@@ -565,6 +667,14 @@ export function SessionChatAssistant({ sessionId, threadId }: SessionChatAssista
         open={showExitModal}
         onOpenChange={setShowExitModal}
         onConfirmLeave={handleConfirmLeave}
+      />
+
+      {/* Session Expired Modal (for resume after 7-day thread expiry) */}
+      <SessionExpiredModal
+        open={showExpiredModal}
+        onOpenChange={setShowExpiredModal}
+        onStartFresh={handleStartFresh}
+        onBackToDashboard={handleBackToDashboard}
       />
       </CurrentCardProvider>
     </NavigationPreventionProvider>

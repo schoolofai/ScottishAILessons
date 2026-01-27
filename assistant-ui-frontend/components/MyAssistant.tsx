@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
 
@@ -51,8 +51,10 @@ export interface MyAssistantProps {
   threadId?: string;
   sessionContext?: SessionContext;
   onThreadCreated?: (threadId: string) => void; // Callback when new thread is created
+  onThreadExpired?: (threadId: string) => void; // Callback when thread has expired (7-day limit)
   isReplayMode?: boolean; // Enable replay mode (disables interactions)
   replayRuntime?: any; // Custom replay runtime for playing back stored messages
+  isThreadIdDetermined?: boolean; // True when we KNOW whether there's a threadId (prevents race condition)
 }
 
 export function MyAssistant({
@@ -60,16 +62,42 @@ export function MyAssistant({
   threadId: initialThreadId,
   sessionContext,
   onThreadCreated,
+  onThreadExpired,
   isReplayMode = false,
-  replayRuntime
+  replayRuntime,
+  isThreadIdDetermined = true // Default to true for backwards compatibility
 }: MyAssistantProps = {}) {
   const threadIdRef = useRef<string | undefined>(initialThreadId);
+
+  // Track loading state for resuming threads - shows loading indicator instead of empty "Hello there!" message
+  // Start as true if we have an initialThreadId (resuming), false otherwise (new session)
+  const [isLoadingThreadState, setIsLoadingThreadState] = useState<boolean>(!!initialThreadId);
 
   // CRITICAL FIX: Track whether thread has been loaded to prevent re-loading
   // When streaming completes, langGraphRuntime reference might change, triggering
   // the useEffect below. Without this guard, switchToThread would be called again,
   // causing messages to disappear as the thread reloads.
   const hasLoadedThreadRef = useRef<boolean>(false);
+
+  // CRITICAL FIX: Sync threadIdRef when initialThreadId prop changes
+  // useRef initial value is only set on first mount. When SessionChatAssistant
+  // fetches the threadId from API and updates the prop, we need to sync the ref.
+  // Without this, the ref stays undefined and switchToThread never gets called.
+  // Also reset hasLoadedThreadRef so the loading useEffect will trigger.
+  useEffect(() => {
+    if (initialThreadId && initialThreadId !== threadIdRef.current) {
+      console.log('📌 threadIdRef SYNC - updating ref to match prop', {
+        previous: threadIdRef.current,
+        new: initialThreadId,
+        willResetLoadFlag: true
+      });
+      threadIdRef.current = initialThreadId;
+      // Reset the loaded flag so the thread loading useEffect will execute
+      hasLoadedThreadRef.current = false;
+      // Show loading indicator while we fetch the thread state
+      setIsLoadingThreadState(true);
+    }
+  }, [initialThreadId]);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // DIAGNOSTIC: Streaming state tracking to debug message disappearing issue
@@ -188,28 +216,61 @@ export function MyAssistant({
         return { messages: [], interrupts: [] };
       }
 
-      const state = await getThreadState(threadId);
-      threadIdRef.current = threadId;
+      try {
+        const state = await getThreadState(threadId);
+        threadIdRef.current = threadId;
 
-      const interrupts = state.tasks?.[0]?.interrupts;
+        const interrupts = state.tasks?.[0]?.interrupts;
 
-      // DIAGNOSTIC: Log what we're returning
-      console.log('🔄 onSwitchToThread RETURNING', {
-        timestamp: new Date().toISOString(),
-        threadId,
-        messageCount: state.values.messages?.length || 0,
-        firstMessagePreview: state.values.messages?.[0]?.content?.toString()?.substring(0, 80) || 'none',
-        lastMessagePreview: state.values.messages?.slice(-1)[0]?.content?.toString()?.substring(0, 80) || 'none',
-        hasInterrupts: !!interrupts?.length,
-        interruptCount: interrupts?.length || 0,
-        isCurrentlyStreaming: isStreamingRef.current,
-        timeSinceStreamEndMs: lastStreamEndTimeRef.current > 0 ? (Date.now() - lastStreamEndTimeRef.current) : 'N/A'
-      });
+        // DIAGNOSTIC: Log what we're returning
+        console.log('🔄 onSwitchToThread RETURNING', {
+          timestamp: new Date().toISOString(),
+          threadId,
+          messageCount: state.values.messages?.length || 0,
+          firstMessagePreview: state.values.messages?.[0]?.content?.toString()?.substring(0, 80) || 'none',
+          lastMessagePreview: state.values.messages?.slice(-1)[0]?.content?.toString()?.substring(0, 80) || 'none',
+          hasInterrupts: !!interrupts?.length,
+          interruptCount: interrupts?.length || 0,
+          isCurrentlyStreaming: isStreamingRef.current,
+          timeSinceStreamEndMs: lastStreamEndTimeRef.current > 0 ? (Date.now() - lastStreamEndTimeRef.current) : 'N/A'
+        });
 
-      return {
-        messages: state.values.messages,
-        interrupts: interrupts
-      };
+        // Thread state loaded - clear loading indicator
+        setIsLoadingThreadState(false);
+
+        return {
+          messages: state.values.messages,
+          interrupts: interrupts
+        };
+      } catch (error: any) {
+        // ═══════════════════════════════════════════════════════════════════════
+        // THREAD EXPIRY HANDLING: LangGraph threads expire after 7 days
+        // Detect expiry and notify parent component to show recovery UI
+        // ═══════════════════════════════════════════════════════════════════════
+        const errorMessage = error?.message?.toLowerCase() || '';
+        const isExpiredError =
+          errorMessage.includes('not found') ||
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('thread') ||
+          error?.status === 404;
+
+        if (isExpiredError && onThreadExpired) {
+          console.log('⏰ Thread expired or not found, triggering onThreadExpired callback', {
+            threadId,
+            errorMessage: error?.message,
+            errorStatus: error?.status
+          });
+          setIsLoadingThreadState(false); // Clear loading state on expiry
+          onThreadExpired(threadId);
+          // Return empty state - parent component will handle recovery UI
+          return { messages: [], interrupts: [] };
+        }
+
+        // Re-throw non-expiry errors
+        console.error('❌ onSwitchToThread failed with unexpected error:', error);
+        setIsLoadingThreadState(false); // Clear loading state on error
+        throw error;
+      }
     },
   });
 
@@ -256,6 +317,20 @@ export function MyAssistant({
         })
         .catch(error => {
           console.error('❌ MyAssistant - Failed to load thread state:', error);
+
+          // Check if thread expired (7-day limit)
+          const errorMessage = error?.message?.toLowerCase() || '';
+          const isExpiredError =
+            errorMessage.includes('not found') ||
+            errorMessage.includes('does not exist') ||
+            errorMessage.includes('thread') ||
+            error?.status === 404;
+
+          if (isExpiredError && onThreadExpired) {
+            console.log('⏰ Initial thread load failed - thread expired', { threadId: initialThreadId });
+            onThreadExpired(initialThreadId);
+          }
+
           // Reset the guard on error so retry is possible
           hasLoadedThreadRef.current = false;
         });
@@ -280,10 +355,26 @@ export function MyAssistant({
             <AutoStartTrigger
               sessionContext={sessionContext}
               existingThreadId={initialThreadId}
+              isThreadIdDetermined={isThreadIdDetermined}
             />
           )}
 
-          <Thread />
+          {/* Show loading indicator while fetching thread state for resume */}
+          {isLoadingThreadState ? (
+            <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+              <div className="relative mb-4">
+                <div className="w-12 h-12 border-4 border-primary/20 rounded-full animate-spin border-t-primary" />
+              </div>
+              <h3 className="text-lg font-medium text-foreground mb-2">
+                Loading your lesson...
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                Resuming from where you left off
+              </p>
+            </div>
+          ) : (
+            <Thread />
+          )}
 
           {/* Tool UI components render automatically based on tool calls in messages */}
           {/* They work in both live and replay modes */}
