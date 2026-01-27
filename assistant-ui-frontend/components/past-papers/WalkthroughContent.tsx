@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
   Clock,
   FileText,
+  FolderOpen,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { SplitPanelContent } from '@/components/ui/split-panel-layout';
 import { WalkthroughAccordion } from './WalkthroughAccordion';
+import { SupportingResourcesPanel, SupportingResourcesDrawer, SupportingResource } from './SupportingResourcesPanel';
 
 // Types from existing walkthrough implementation
 interface WalkthroughStep {
@@ -98,6 +100,8 @@ interface WalkthroughContentProps {
     year: number;
     paperCode: string;
   };
+  /** Supporting resources for the paper (CSV files, data sheets, etc.) */
+  supportingResources?: SupportingResource[];
 }
 
 /**
@@ -122,70 +126,119 @@ export function WalkthroughContent({
   hasPrevious,
   hasNext,
   paperMetadata,
+  supportingResources,
 }: WalkthroughContentProps) {
+  const hasResources = supportingResources && supportingResources.length > 0;
+  const [drawerOpen, setDrawerOpen] = useState(true); // Open by default
+
   return (
-    <SplitPanelContent maxWidth="4xl">
-      {/* Question Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-3">
-            <Badge
-              variant="outline"
-              className="text-xl font-mono px-4 py-2 bg-white"
-            >
-              Q{questionNumber}
-            </Badge>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-800">
-                Question {questionNumber}
-              </h1>
-              <p className="text-sm text-gray-500">
-                {paperMetadata.subject} {paperMetadata.level} • {paperMetadata.year}
-              </p>
+    <div className="flex w-full">
+      {/* Main Content Area */}
+      <div className="flex-1 min-w-0">
+        <SplitPanelContent maxWidth="5xl">
+          {/* Question Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <Badge
+                  variant="outline"
+                  className="text-xl font-mono px-4 py-2 bg-white"
+                >
+                  Q{questionNumber}
+                </Badge>
+                <div>
+                  <h1 className="text-xl font-semibold text-gray-800">
+                    Question {questionNumber}
+                  </h1>
+                  <p className="text-sm text-gray-500">
+                    {paperMetadata.subject} {paperMetadata.level} • {paperMetadata.year}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Supporting Material Button - Desktop only, toggles drawer */}
+                {hasResources && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDrawerOpen(!drawerOpen)}
+                    className={cn(
+                      'hidden lg:flex items-center gap-2',
+                      'bg-white hover:bg-teal-50 border-teal-200 hover:border-teal-300',
+                      'text-teal-700 hover:text-teal-800',
+                      drawerOpen && 'bg-teal-50 border-teal-300'
+                    )}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    {drawerOpen ? 'Hide Material' : 'Supporting Material'}
+                  </Button>
+                )}
+
+                <Badge className="bg-blue-600 text-white text-base px-4 py-1.5">
+                  {marks} {marks === 1 ? 'mark' : 'marks'}
+                </Badge>
+              </div>
             </div>
+
+            {/* Topic Tags */}
+            {topicTags.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {topicTags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
 
-          <Badge className="bg-blue-600 text-white text-base px-4 py-1.5">
-            {marks} {marks === 1 ? 'mark' : 'marks'}
-          </Badge>
-        </div>
-
-        {/* Topic Tags */}
-        {topicTags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4">
-            {topicTags.map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
+          {/* Content based on status */}
+          <div className="space-y-6">
+            {status === 'loading' && <LoadingState />}
+            {status === 'error' && <ErrorState message={errorMessage} />}
+            {status === 'not_generated' && (
+              <NotGeneratedState questionNumber={questionNumber} />
+            )}
+            {status === 'published' && walkthrough && (
+              <WalkthroughAccordion
+                walkthrough={walkthrough.content}
+                diagrams={diagrams || walkthrough.diagrams}
+              />
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Content based on status */}
-      <div className="space-y-6">
-        {status === 'loading' && <LoadingState />}
-        {status === 'error' && <ErrorState message={errorMessage} />}
-        {status === 'not_generated' && (
-          <NotGeneratedState questionNumber={questionNumber} />
-        )}
-        {status === 'published' && walkthrough && (
-          <WalkthroughAccordion
-            walkthrough={walkthrough.content}
-            diagrams={diagrams || walkthrough.diagrams}
+          {/* Navigation Buttons */}
+          <NavigationButtons
+            onPrevious={onPrevious}
+            onNext={onNext}
+            hasPrevious={hasPrevious}
+            hasNext={hasNext}
+            isLoading={status === 'loading'}
           />
-        )}
+
+          {/* Supporting Resources Panel - Mobile (below content) */}
+          {hasResources && (
+            <div className="lg:hidden mt-6">
+              <SupportingResourcesPanel
+                resources={supportingResources}
+                defaultOpen={false}
+              />
+            </div>
+          )}
+        </SplitPanelContent>
       </div>
 
-      {/* Navigation Buttons */}
-      <NavigationButtons
-        onPrevious={onPrevious}
-        onNext={onNext}
-        hasPrevious={hasPrevious}
-        hasNext={hasNext}
-        isLoading={status === 'loading'}
-      />
-    </SplitPanelContent>
+      {/* Supporting Resources Drawer - Desktop, extends to viewport edge */}
+      {hasResources && (
+        <SupportingResourcesDrawer
+          resources={supportingResources}
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          className="hidden lg:block"
+        />
+      )}
+    </div>
   );
 }
 

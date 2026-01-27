@@ -28,6 +28,7 @@ export interface PaperDocument {
   calculator_allowed: boolean;
   data: string;  // Compressed JSON with questions
   last_modified: string;
+  supporting_resources?: string;  // JSON string containing resources array
 }
 
 /**
@@ -111,6 +112,17 @@ export interface Formula {
   name: string;
   latex: string;
   description: string;
+}
+
+/**
+ * Supporting resource for a paper (CSV files, data sheets, PDFs, etc.)
+ * Stored in the us_resources bucket
+ */
+export interface SupportingResource {
+  file_id: string;
+  filename: string;
+  resource_type: 'data' | 'spreadsheet' | 'pdf' | 'image' | 'other';
+  description?: string;
 }
 
 /**

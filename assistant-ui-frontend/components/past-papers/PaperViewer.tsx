@@ -14,6 +14,13 @@ import { WalkthroughContent, WalkthroughEmptyState } from './WalkthroughContent'
 import { logger } from '@/lib/logger';
 
 // Types
+interface SupportingResource {
+  file_id: string;
+  filename: string;
+  resource_type: 'data' | 'spreadsheet' | 'pdf' | 'image' | 'other';
+  description?: string;
+}
+
 interface PaperData {
   paperId: string;
   subject: string;
@@ -24,6 +31,7 @@ interface PaperData {
   durationMinutes: number;
   calculatorAllowed: boolean;
   questions: QuestionItem[];
+  supportingResources?: SupportingResource[];
 }
 
 interface WalkthroughStep {
@@ -478,6 +486,7 @@ export function PaperViewer({
             hasPrevious={hasPrevious}
             hasNext={hasNext}
             paperMetadata={paperMetadata}
+            supportingResources={paper.supportingResources}
           />
         ) : (
           <WalkthroughEmptyState />

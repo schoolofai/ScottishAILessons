@@ -23,6 +23,13 @@ interface QuestionListItem {
   hasWalkthrough: boolean;
 }
 
+interface SupportingResource {
+  file_id: string;
+  filename: string;
+  resource_type: 'data' | 'spreadsheet' | 'pdf' | 'image' | 'other';
+  description?: string;
+}
+
 interface PaperResponse {
   paperId: string;
   subject: string;
@@ -33,6 +40,7 @@ interface PaperResponse {
   durationMinutes: number;
   calculatorAllowed: boolean;
   questions: QuestionListItem[];
+  supportingResources?: SupportingResource[];
 }
 
 /**
@@ -123,6 +131,19 @@ export async function GET(
       );
     }
 
+    // Parse supporting resources if present
+    let supportingResources: SupportingResource[] | undefined;
+    if (document.supporting_resources) {
+      try {
+        const parsed = JSON.parse(document.supporting_resources as string);
+        supportingResources = parsed?.resources || [];
+        console.log(`[API] Found ${supportingResources?.length || 0} supporting resources for paper ${paperId}`);
+      } catch (parseErr) {
+        console.warn(`[API] Failed to parse supporting_resources for paper ${paperId}:`, parseErr);
+        // Non-fatal - continue without resources
+      }
+    }
+
     // Query walkthroughs for this paper to determine which questions have them
     // Use actual document.$id (not URL-formatted paperId) since walkthroughs store the actual Appwrite document ID
     const actualPaperId = document.$id;
@@ -188,7 +209,8 @@ export async function GET(
       totalMarks: document.total_marks as number,
       durationMinutes: document.duration_minutes as number,
       calculatorAllowed: document.calculator_allowed as boolean,
-      questions
+      questions,
+      supportingResources
     };
 
     console.log(`[API] Retrieved paper ${paperId} with ${questions.length} questions`);
